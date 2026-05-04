@@ -1,0 +1,54 @@
+{
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+
+  // Python
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit"
+    }
+  },
+  "python.defaultInterpreterPath": "./backend/.venv/bin/python",
+  "python.analysis.typeCheckingMode": "strict",
+  "python.analysis.autoImportCompletions": true,
+  "ruff.lint.args": ["--select", "E,F,UP,B,SIM,PL", "--ignore", "E501"],
+  "black-formatter.args": ["--line-length", "88"],
+
+  // TypeScript / React / Next.js
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "typescript.tsdk": "frontend/node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "eslint.workingDirectories": ["frontend"],
+
+  // General
+  "files.associations": {
+    "*.md": "markdown",
+    "AGENTS.md": "markdown",
+    "*.cypher": "cypher"
+  },
+  "markdown.preview.breaks": true,
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.venv": true,
+    "**/dist": true
+  },
+
+  // Recommended for this project
+  "workbench.colorCustomizations": {
+    "titleBar.activeBackground": "#0f172a",
+    "titleBar.activeForeground": "#e0f2fe"
+  },
+  "terminal.integrated.env.linux": {
+    "PYTHONPATH": "${workspaceFolder}/backend"
+  }
+}

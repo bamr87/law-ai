@@ -1,0 +1,294 @@
+{
+    "items": [
+        {
+            "id": "lr-001",
+            "section": "LR",
+            "type": "LR",
+            "difficulty": "easy",
+            "stem": "Every senior partner at the firm has argued at least one case before the state supreme court. Maria is a senior partner at the firm. Therefore, Maria has argued at least one case before the state supreme court.\n\nThe argument above is most similar in its reasoning to which one of the following?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "All birds have feathers. A penguin is a bird. So a penguin has feathers."
+                },
+                {
+                    "label": "B",
+                    "text": "Most lawyers own at least one suit. Therefore, the lawyer next door owns a suit."
+                },
+                {
+                    "label": "C",
+                    "text": "Anyone who passed the bar studied. Tom studied, so Tom passed the bar."
+                },
+                {
+                    "label": "D",
+                    "text": "If it rains, the picnic is canceled. The picnic was canceled, so it rained."
+                },
+                {
+                    "label": "E",
+                    "text": "No senator is under 30. Lin is 28, so Lin might be a senator."
+                }
+            ],
+            "correct": "A",
+            "explanation": "The original is a valid universal-instantiation argument: 'All P are Q; x is P; therefore x is Q.' Choice A has identical form. B uses 'most' (probabilistic). C affirms the consequent. D denies the antecedent reversed. E contradicts a universal.",
+            "concepts": [
+                "universal-instantiation",
+                "parallel-reasoning"
+            ],
+            "references": [
+                {
+                    "title": "Khan Academy — Parallel Reasoning",
+                    "url": "https://www.khanacademy.org/prep/lsat/lsat-lessons/logical-reasoning/x60ba31fe60ad9ad8:parallel-reasoning/v/parallel-reasoning-1"
+                }
+            ],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "lr-002",
+            "section": "LR",
+            "type": "LR",
+            "difficulty": "med",
+            "stem": "City planner: Building a light-rail line will reduce traffic congestion downtown, because every comparable city that built one saw congestion fall within five years.\n\nWhich one of the following, if true, most weakens the planner's argument?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "The light-rail line will be more expensive than the planner estimates."
+                },
+                {
+                    "label": "B",
+                    "text": "The comparable cities all simultaneously enacted downtown congestion-pricing tolls."
+                },
+                {
+                    "label": "C",
+                    "text": "Some downtown residents oppose the construction noise."
+                },
+                {
+                    "label": "D",
+                    "text": "Light-rail riders in those cities reported high satisfaction."
+                },
+                {
+                    "label": "E",
+                    "text": "The proposed line will run mostly underground."
+                }
+            ],
+            "correct": "B",
+            "explanation": "The argument infers causation from correlation across comparable cities. B introduces a confound — congestion-pricing tolls — that may explain the congestion drop instead of the rail line, undermining the causal inference. A attacks cost (irrelevant to congestion). C, D, E are off-point.",
+            "concepts": [
+                "causation-vs-correlation",
+                "weaken",
+                "alternative-cause"
+            ],
+            "references": [
+                {
+                    "title": "Powerscore — Weaken Questions",
+                    "url": "https://www.powerscore.com/lsat/help/content_diagrams.cfm"
+                }
+            ],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "lr-003",
+            "section": "LR",
+            "type": "LR",
+            "difficulty": "med",
+            "stem": "If the contract is enforceable, then it was signed by both parties. The contract was not signed by both parties.\n\nWhich one of the following can be properly concluded?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "The contract is enforceable."
+                },
+                {
+                    "label": "B",
+                    "text": "The contract is not enforceable."
+                },
+                {
+                    "label": "C",
+                    "text": "The contract is partially enforceable."
+                },
+                {
+                    "label": "D",
+                    "text": "Only one party intended to be bound."
+                },
+                {
+                    "label": "E",
+                    "text": "Nothing can be concluded about enforceability."
+                }
+            ],
+            "correct": "B",
+            "explanation": "Modus tollens: 'If P then Q; not Q; therefore not P.' If enforceable required both signatures and we lack both signatures, the contract is not enforceable. The other options either affirm the consequent, add facts not given, or reject a valid inference.",
+            "concepts": [
+                "modus-tollens",
+                "conditional-reasoning"
+            ],
+            "references": [
+                {
+                    "title": "SEP — Modus Tollens",
+                    "url": "https://plato.stanford.edu/entries/logic-classical/"
+                }
+            ],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "lr-004",
+            "section": "LR",
+            "type": "LR",
+            "difficulty": "hard",
+            "stem": "Editor: Our new policy requires every opinion piece to cite at least three primary sources. Critics claim this will reduce the diversity of viewpoints we publish, since fewer freelance writers have access to primary sources. But our submission rate has not dropped since the policy took effect, so the critics are mistaken.\n\nThe editor's reasoning is most vulnerable to the criticism that it…",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "treats a necessary condition as if it were sufficient."
+                },
+                {
+                    "label": "B",
+                    "text": "confuses the volume of submissions with the diversity of viewpoints in those submissions."
+                },
+                {
+                    "label": "C",
+                    "text": "assumes without warrant that all freelance writers lack primary sources."
+                },
+                {
+                    "label": "D",
+                    "text": "fails to consider that some published pieces cite more than three sources."
+                },
+                {
+                    "label": "E",
+                    "text": "infers a general rule from a single anecdote."
+                }
+            ],
+            "correct": "B",
+            "explanation": "The critics' claim is about *diversity of viewpoints*. The editor rebuts using *submission volume*. Equating the two is the flaw — submission count and viewpoint diversity are different measures. A, C, D, E mischaracterize the structure.",
+            "concepts": [
+                "equivocation",
+                "flaw-in-reasoning"
+            ],
+            "references": [
+                {
+                    "title": "7Sage — Flaw Question Types",
+                    "url": "https://7sage.com/lesson/lr-flaw-question-types/"
+                }
+            ],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "lr-005",
+            "section": "LR",
+            "type": "LR",
+            "difficulty": "easy",
+            "stem": "Studies show that people who eat breakfast perform better on cognitive tests in the morning than people who skip breakfast. Therefore, eating breakfast causes improved cognitive performance.\n\nThe argument's reasoning is flawed because it…",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "relies on studies that may not be representative."
+                },
+                {
+                    "label": "B",
+                    "text": "fails to specify what counts as breakfast."
+                },
+                {
+                    "label": "C",
+                    "text": "infers causation from correlation without ruling out alternative explanations."
+                },
+                {
+                    "label": "D",
+                    "text": "assumes that all cognitive tests measure the same ability."
+                },
+                {
+                    "label": "E",
+                    "text": "ignores that some people perform well without breakfast."
+                }
+            ],
+            "correct": "C",
+            "explanation": "Classic correlation ≠ causation flaw. People who eat breakfast may also sleep more, exercise, or have less stress — any of which could be the real cause. The argument fails to rule out these confounders. A, B, D, E are peripheral.",
+            "concepts": [
+                "causation-vs-correlation",
+                "flaw-in-reasoning"
+            ],
+            "references": [
+                {
+                    "title": "Khan Academy — Causal Reasoning",
+                    "url": "https://www.khanacademy.org/prep/lsat/lsat-lessons/logical-reasoning"
+                }
+            ],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "lr-006",
+            "section": "LR",
+            "type": "LR",
+            "difficulty": "med",
+            "stem": "Columnist: Supporters of the new zoning ordinance say it will preserve the neighborhood's historic character. But the supporters have not produced any architectural surveys to back up that claim. So the ordinance will not preserve the historic character.\n\nThe columnist's argument is most vulnerable to the criticism that it…",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "presupposes what it sets out to prove."
+                },
+                {
+                    "label": "B",
+                    "text": "treats absence of evidence as evidence of absence."
+                },
+                {
+                    "label": "C",
+                    "text": "relies on a sample that is too small."
+                },
+                {
+                    "label": "D",
+                    "text": "draws a conclusion about an individual from claims about a group."
+                },
+                {
+                    "label": "E",
+                    "text": "appeals to popular opinion rather than to facts."
+                }
+            ],
+            "correct": "B",
+            "explanation": "Lack of supporting evidence does not establish the opposite conclusion (the ordinance might still preserve the character even if no survey has been produced). This is the appeal-to-ignorance flaw.",
+            "concepts": [
+                "appeal-to-ignorance",
+                "flaw-in-reasoning"
+            ],
+            "references": [],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "lr-007",
+            "section": "LR",
+            "type": "LR",
+            "difficulty": "hard",
+            "stem": "Lawyer: To win the appeal, the defendant must show either that the trial court misapplied the statute or that the jury was improperly instructed. The trial court did not misapply the statute. So if the defendant wins the appeal, then the jury was improperly instructed.\n\nThe lawyer's reasoning depends on which one of the following assumptions?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "The defendant will win the appeal."
+                },
+                {
+                    "label": "B",
+                    "text": "Showing improper jury instructions is sufficient to win an appeal."
+                },
+                {
+                    "label": "C",
+                    "text": "There are no other grounds on which the appeal could be won."
+                },
+                {
+                    "label": "D",
+                    "text": "The jury was in fact improperly instructed."
+                },
+                {
+                    "label": "E",
+                    "text": "Misapplication of the statute would have been the stronger ground."
+                }
+            ],
+            "correct": "C",
+            "explanation": "The argument lists two ways to win and rules one out, then concludes the other must be the route to a win. That move only works if those two were the *only* possible grounds. Choice C makes that necessary assumption explicit.",
+            "concepts": [
+                "necessary-assumption",
+                "conditional-reasoning"
+            ],
+            "references": [
+                {
+                    "title": "7Sage — Necessary Assumption",
+                    "url": "https://7sage.com/lesson/lr-necessary-assumption/"
+                }
+            ],
+            "source": "original (CC0)"
+        }
+    ]
+}

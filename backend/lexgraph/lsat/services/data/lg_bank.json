@@ -1,0 +1,123 @@
+{
+    "items": [
+        {
+            "id": "lg-001",
+            "section": "LG",
+            "type": "LG",
+            "difficulty": "easy",
+            "passage_id": "lg-game-001",
+            "stem": "Which one of the following could be the order in which the associates argue, from first to fifth?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "F, G, H, J, K"
+                },
+                {
+                    "label": "B",
+                    "text": "G, F, H, K, J"
+                },
+                {
+                    "label": "C",
+                    "text": "F, H, K, J, G"
+                },
+                {
+                    "label": "D",
+                    "text": "K, G, F, H, J"
+                },
+                {
+                    "label": "E",
+                    "text": "F, H, J, G, K"
+                }
+            ],
+            "correct": "C",
+            "explanation": "Only C satisfies all three rules. A: F=1 and H=3 are not adjacent (Rule 1). B: J is fifth, not fourth (Rule 2). D: K is first (Rule 3). E: J is third, not fourth (Rule 2). C: F-H is (1,2) ✓, J=4 ✓, K=3 ≠ 1 ✓.",
+            "concepts": [
+                "sequencing",
+                "elimination-grid"
+            ],
+            "references": [
+                {
+                    "title": "7Sage — Logic Games Fundamentals",
+                    "url": "https://7sage.com/free-lsat-prep-course/"
+                }
+            ],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "lg-002",
+            "section": "LG",
+            "type": "LG",
+            "difficulty": "med",
+            "passage_id": "lg-game-001",
+            "stem": "If H argues third, then which one of the following must be true?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "F argues first."
+                },
+                {
+                    "label": "B",
+                    "text": "G argues first."
+                },
+                {
+                    "label": "C",
+                    "text": "K argues second."
+                },
+                {
+                    "label": "D",
+                    "text": "J argues fifth."
+                },
+                {
+                    "label": "E",
+                    "text": "K argues third."
+                }
+            ],
+            "correct": "B",
+            "explanation": "If H=3, Rule 1 forces F=2. Rule 2 fixes J=4. Slots 1 and 5 remain for G and K. Rule 3 forbids K=1, so G=1 and K=5. Therefore G argues first must be true.",
+            "concepts": [
+                "sequencing",
+                "must-be-true"
+            ],
+            "references": [],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "lg-003",
+            "section": "LG",
+            "type": "LG",
+            "difficulty": "med",
+            "passage_id": "lg-game-001",
+            "stem": "If G argues fifth, then which one of the following must be true?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "K argues third."
+                },
+                {
+                    "label": "B",
+                    "text": "H argues first."
+                },
+                {
+                    "label": "C",
+                    "text": "J argues fifth."
+                },
+                {
+                    "label": "D",
+                    "text": "F argues second."
+                },
+                {
+                    "label": "E",
+                    "text": "K argues first."
+                }
+            ],
+            "correct": "A",
+            "explanation": "If G=5, the F-H block (Rule 1) and J=4 (Rule 2) leave only one valid layout: F=1, H=2, K=3, J=4, G=5. So K argues third must be true. (E is forbidden by Rule 3; B/C/D are inconsistent with the forced layout.)",
+            "concepts": [
+                "sequencing",
+                "must-be-true"
+            ],
+            "references": [],
+            "source": "original (CC0)"
+        }
+    ]
+}

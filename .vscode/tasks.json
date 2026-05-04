@@ -1,0 +1,175 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Full Stack (Docker)",
+      "type": "shell",
+      "command": "docker compose up --build",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Backend (Dev)",
+      "type": "shell",
+      "command": "cd backend && python manage.py runserver 0.0.0.0:8000",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Frontend (Dev)",
+      "type": "shell",
+      "command": "cd frontend && npm run dev",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run All Tests",
+      "type": "shell",
+      "command": "cd backend && pytest -q --tb=short && cd ../frontend && npm test -- --run",
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": [
+        "$pytest"
+      ]
+    },
+    {
+      "label": "Run Backend Tests",
+      "type": "shell",
+      "command": "cd backend && pytest -q --tb=short",
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": [
+        "$pytest"
+      ]
+    },
+    {
+      "label": "Run Frontend Tests",
+      "type": "shell",
+      "command": "cd frontend && npm test -- --run",
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Coverage Report",
+      "type": "shell",
+      "command": "cd backend && pytest --cov=app --cov-report=html && cd ../frontend && npm run test:coverage",
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run LegalBench Eval",
+      "type": "shell",
+      "command": "cd backend && python -m app.eval.legalbench --subset core_reasoning,precedent_retrieval",
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Ingest Sample Data",
+      "type": "shell",
+      "command": "cd backend && python scripts/ingest_sample.py --limit 500",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Format & Lint All",
+      "type": "shell",
+      "command": "ruff check --fix backend/ && black backend/ && cd frontend && npm run lint -- --fix",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Type Check (Python + TS)",
+      "type": "shell",
+      "command": "cd backend && mypy app/ --strict && cd frontend && npx tsc --noEmit",
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Reset Local DBs (Dangerous)",
+      "type": "shell",
+      "command": "docker compose down -v && docker compose up -d neo4j postgres && sleep 10 && backend/scripts/init-db.sh",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Local AI Stack",
+      "type": "shell",
+      "command": "make local-ai-up",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pull Local AI Models",
+      "type": "shell",
+      "command": "make local-ai-pull",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Local AI Health Check",
+      "type": "shell",
+      "command": "make local-ai-health",
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

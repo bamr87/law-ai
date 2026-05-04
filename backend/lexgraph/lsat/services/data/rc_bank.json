@@ -1,0 +1,117 @@
+{
+    "items": [
+        {
+            "id": "rc-001",
+            "section": "RC",
+            "type": "RC",
+            "difficulty": "med",
+            "passage_id": "rc-passage-001",
+            "stem": "Which one of the following most accurately expresses the main point of the passage?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "Common-law courts have always preferred bright-line rules to flexible standards."
+                },
+                {
+                    "label": "B",
+                    "text": "The shift from rigid pleading to notice pleading reflected a deliberate trade of doctrinal predictability for procedural access."
+                },
+                {
+                    "label": "C",
+                    "text": "Modern federal procedure has eliminated all procedural barriers facing pro se litigants."
+                },
+                {
+                    "label": "D",
+                    "text": "The drafters of the Federal Rules of Civil Procedure rejected the influence of the common-law tradition."
+                },
+                {
+                    "label": "E",
+                    "text": "Twombly and Iqbal returned the federal courts to nineteenth-century pleading standards."
+                }
+            ],
+            "correct": "B",
+            "explanation": "The passage's central thesis is that the move to notice pleading was a *trade-off*: the drafters knowingly sacrificed some predictability to widen the courthouse door. B captures both halves. A overstates ('always'). C is contradicted by the closing paragraph. D is too strong — the passage says drafters were *informed by* the tradition, not that they rejected it. E confuses the post-Iqbal tightening with a full reversion.",
+            "concepts": [
+                "main-point",
+                "rc-structure"
+            ],
+            "references": [],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "rc-002",
+            "section": "RC",
+            "type": "RC",
+            "difficulty": "hard",
+            "passage_id": "rc-passage-001",
+            "stem": "The author's attitude toward Twombly and Iqbal is best described as one of…",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "uncritical endorsement."
+                },
+                {
+                    "label": "B",
+                    "text": "qualified concern."
+                },
+                {
+                    "label": "C",
+                    "text": "open hostility."
+                },
+                {
+                    "label": "D",
+                    "text": "indifference."
+                },
+                {
+                    "label": "E",
+                    "text": "scholarly bewilderment."
+                }
+            ],
+            "correct": "B",
+            "explanation": "The author concedes that the cases addressed real problems (mass-tort fishing expeditions) but worries they 'risk reintroducing the very access barrier the 1938 drafters set out to dismantle.' That hedged worry is qualified concern, not endorsement, hostility, indifference, or bewilderment.",
+            "concepts": [
+                "author-attitude",
+                "rc-tone"
+            ],
+            "references": [],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "rc-003",
+            "section": "RC",
+            "type": "RC",
+            "difficulty": "easy",
+            "passage_id": "rc-passage-001",
+            "stem": "According to the passage, the original Federal Rules of Civil Procedure were adopted in…",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "1908."
+                },
+                {
+                    "label": "B",
+                    "text": "1925."
+                },
+                {
+                    "label": "C",
+                    "text": "1938."
+                },
+                {
+                    "label": "D",
+                    "text": "1957."
+                },
+                {
+                    "label": "E",
+                    "text": "1966."
+                }
+            ],
+            "correct": "C",
+            "explanation": "Detail question. The passage states 'the 1938 drafters' — the Federal Rules of Civil Procedure took effect that year. Other dates appear nowhere in the passage.",
+            "concepts": [
+                "detail-question"
+            ],
+            "references": [],
+            "source": "original (CC0)"
+        }
+    ]
+}

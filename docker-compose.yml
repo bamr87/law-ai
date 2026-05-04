@@ -1,0 +1,124 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://lexgraph:lexgraph-dev@postgres:5432/lexgraph
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=lexgraph-dev
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - REDIS_URL=redis://redis:6379
+      - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006/v1/traces
+      - PHOENIX_UI_URL=http://localhost:6006
+      - PHOENIX_PROJECT_NAME=lexgraph
+      - LANGGRAPH_CHECKPOINTER=postgres
+    depends_on:
+      - postgres
+      - neo4j
+      - ollama
+      - redis
+      - phoenix
+    volumes:
+      - ./backend:/app
+    command: sh -c "python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py ensure_checkpointer && daphne -b 0.0.0.0 -p 8000 lexgraph.asgi:application"
+
+  worker:
+    # Spec 011 FR-11: Celery worker for ingestion quarantine + audit fallback.
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://lexgraph:lexgraph-dev@postgres:5432/lexgraph
+      - REDIS_URL=redis://redis:6379
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=lexgraph-dev
+      - DJANGO_SETTINGS_MODULE=lexgraph.settings.dev
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/app
+    command: celery -A lexgraph worker -l info
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: lexgraph
+      POSTGRES_PASSWORD: lexgraph-dev
+      POSTGRES_DB: lexgraph
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/scripts/init-db.sh:/docker-entrypoint-initdb.d/init.sh:ro
+
+  neo4j:
+    image: neo4j:5-community
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/lexgraph-dev
+      NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
+    volumes:
+      - neo4jdata:/data
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+      - ./backend/scripts/ollama-bootstrap.sh:/scripts/ollama-bootstrap.sh:ro
+    environment:
+      # Unload idle models so 7B + 8B don't sit resident together on
+      # 32 GB Apple Silicon laptops.
+      - OLLAMA_KEEP_ALIVE=5m
+    # Spec 010 FR-7: idempotent bootstrap pulls the default model set in
+    # the background; the smallest model gates readiness so the rest of
+    # the stack starts quickly.
+    entrypoint: [ "/bin/sh" ]
+    command: [ "/scripts/ollama-bootstrap.sh" ]
+
+  phoenix:
+    # Spec 010 FR-6: self-hosted Arize Phoenix as the OTEL collector + UI.
+    image: arizephoenix/phoenix:latest
+    ports:
+      - "6006:6006" # UI + OTLP/HTTP
+      - "4317:4317" # OTLP/gRPC (unused today, exposed for future)
+    environment:
+      - PHOENIX_WORKING_DIR=/data
+    volumes:
+      - phoenix:/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:
+  neo4jdata:
+  ollama:
+  phoenix:

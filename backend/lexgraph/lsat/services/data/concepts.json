@@ -1,0 +1,401 @@
+{
+    "items": [
+        {
+            "id": "modus-tollens",
+            "name": "Modus Tollens",
+            "sections": [
+                "LR",
+                "LG"
+            ],
+            "summary": "Valid conditional inference: if P then Q; not Q; therefore not P.",
+            "detail": "Modus tollens is the contrapositive form. Whenever a conditional 'P → Q' is true, the contrapositive '¬Q → ¬P' is logically equivalent. The LSAT loves to test contrapositive recognition because students who only memorize 'P → Q' miss that the same rule also tells you what happens when Q fails.",
+            "examples": [
+                "If the contract is enforceable, both parties signed. The contract was not signed by both parties. ∴ The contract is not enforceable."
+            ],
+            "see_also": [
+                "modus-ponens",
+                "conditional-reasoning",
+                "contrapositive"
+            ],
+            "references": [
+                {
+                    "title": "SEP — Classical Logic",
+                    "url": "https://plato.stanford.edu/entries/logic-classical/"
+                }
+            ]
+        },
+        {
+            "id": "modus-ponens",
+            "name": "Modus Ponens",
+            "sections": [
+                "LR"
+            ],
+            "summary": "Valid conditional inference: if P then Q; P; therefore Q.",
+            "detail": "The simplest valid conditional inference. Distinguish from the *invalid* mirror moves — affirming the consequent (Q ∴ P) and denying the antecedent (¬P ∴ ¬Q) — both classic LR flaw types.",
+            "examples": [
+                "All senior partners have argued before the supreme court. Maria is a senior partner. ∴ Maria has argued before the supreme court."
+            ],
+            "see_also": [
+                "modus-tollens",
+                "conditional-reasoning"
+            ],
+            "references": []
+        },
+        {
+            "id": "conditional-reasoning",
+            "name": "Conditional Reasoning",
+            "sections": [
+                "LR",
+                "LG"
+            ],
+            "summary": "Working with 'if/then' statements, their contrapositives, and chains of conditionals.",
+            "detail": "Indicators: 'if', 'only if', 'unless', 'whenever', 'all', 'every', 'no', 'none'. 'Only if' attaches to the *necessary* condition; 'unless' translates to '¬X → Y'. Always diagram conditionals before answering and always check the contrapositive.",
+            "examples": [
+                "Only members may vote → Vote → Member (and ¬Member → ¬Vote).",
+                "Unless you submit by Friday, your filing is late → ¬Submit-by-Friday → Late."
+            ],
+            "see_also": [
+                "modus-ponens",
+                "modus-tollens",
+                "contrapositive"
+            ],
+            "references": [
+                {
+                    "title": "Khan Academy — Conditional Reasoning",
+                    "url": "https://www.khanacademy.org/prep/lsat/lsat-lessons/logical-reasoning"
+                }
+            ]
+        },
+        {
+            "id": "contrapositive",
+            "name": "Contrapositive",
+            "sections": [
+                "LR",
+                "LG"
+            ],
+            "summary": "The contrapositive of 'P → Q' is '¬Q → ¬P'; logically equivalent.",
+            "detail": "Contraposition is the workhorse of LR conditional questions. Note: the *converse* (Q → P) and the *inverse* (¬P → ¬Q) are NOT equivalent — confusing them is the affirming-the-consequent / denying-the-antecedent flaw.",
+            "examples": [
+                "P → Q is equivalent to ¬Q → ¬P, but not to Q → P or ¬P → ¬Q."
+            ],
+            "see_also": [
+                "modus-tollens",
+                "conditional-reasoning"
+            ],
+            "references": []
+        },
+        {
+            "id": "necessary-assumption",
+            "name": "Necessary Assumption",
+            "sections": [
+                "LR"
+            ],
+            "summary": "An unstated premise the argument REQUIRES in order to hold.",
+            "detail": "Use the negation test: negate the candidate; if the argument collapses, it was necessary. Necessary assumptions are minimally helpful — they fill the smallest possible gap, not the most ambitious.",
+            "examples": [
+                "Argument: 'A or B; not A; ∴ B.' Necessary assumption: those were the only options."
+            ],
+            "see_also": [
+                "sufficient-assumption",
+                "flaw-in-reasoning"
+            ],
+            "references": [
+                {
+                    "title": "7Sage — Necessary Assumption",
+                    "url": "https://7sage.com/lesson/lr-necessary-assumption/"
+                }
+            ]
+        },
+        {
+            "id": "sufficient-assumption",
+            "name": "Sufficient Assumption",
+            "sections": [
+                "LR"
+            ],
+            "summary": "An assumption strong enough to GUARANTEE the conclusion.",
+            "detail": "Sufficient-assumption answers can be much stronger than necessary ones. The trick is to map the gap between premise and conclusion and find the answer that closes it completely.",
+            "examples": [],
+            "see_also": [
+                "necessary-assumption"
+            ],
+            "references": []
+        },
+        {
+            "id": "causation-vs-correlation",
+            "name": "Causation vs. Correlation",
+            "sections": [
+                "LR"
+            ],
+            "summary": "Inferring cause from a mere correlation is a classic LR flaw.",
+            "detail": "When an argument says 'X and Y are correlated, therefore X causes Y', look for: (a) reverse causation (Y → X), (b) common cause (Z → both), (c) coincidence, (d) selection bias. Weaken answers usually surface one of these alternatives.",
+            "examples": [
+                "Breakfast eaters score higher on cognitive tests → eating breakfast causes cognitive performance? Could be sleep, exercise, or socioeconomic confounders."
+            ],
+            "see_also": [
+                "alternative-cause",
+                "weaken",
+                "flaw-in-reasoning"
+            ],
+            "references": []
+        },
+        {
+            "id": "alternative-cause",
+            "name": "Alternative Cause",
+            "sections": [
+                "LR"
+            ],
+            "summary": "A confounding variable that explains the observed pattern equally well or better.",
+            "detail": "Most LR weaken answers introduce an alternative cause. Strengthen answers usually rule one out.",
+            "examples": [],
+            "see_also": [
+                "causation-vs-correlation",
+                "weaken"
+            ],
+            "references": []
+        },
+        {
+            "id": "weaken",
+            "name": "Weaken Question",
+            "sections": [
+                "LR"
+            ],
+            "summary": "Pick the answer that, if true, most undermines the argument.",
+            "detail": "Identify the conclusion, then attack the link between premise and conclusion — typically by surfacing a counter-example, alternative cause, or unmet assumption. Avoid answers that simply contradict a premise (the LSAT treats premises as given).",
+            "examples": [],
+            "see_also": [
+                "strengthen",
+                "alternative-cause"
+            ],
+            "references": []
+        },
+        {
+            "id": "strengthen",
+            "name": "Strengthen Question",
+            "sections": [
+                "LR"
+            ],
+            "summary": "Pick the answer that, if true, most supports the argument.",
+            "detail": "Mirror image of weaken: rule out alternative explanations, supply a missing assumption, or provide additional confirming evidence.",
+            "examples": [],
+            "see_also": [
+                "weaken",
+                "necessary-assumption"
+            ],
+            "references": []
+        },
+        {
+            "id": "flaw-in-reasoning",
+            "name": "Flaw in the Reasoning",
+            "sections": [
+                "LR"
+            ],
+            "summary": "Identify the logical error the argument commits.",
+            "detail": "Common flaws: ad hominem, circular reasoning, equivocation, hasty generalization, sampling bias, appeal to ignorance, false dichotomy, conflating correlation with causation, part-whole conflations, conditional reasoning errors (affirming the consequent, denying the antecedent).",
+            "examples": [],
+            "see_also": [
+                "equivocation",
+                "appeal-to-ignorance",
+                "causation-vs-correlation"
+            ],
+            "references": [
+                {
+                    "title": "7Sage — Flaw Question Types",
+                    "url": "https://7sage.com/lesson/lr-flaw-question-types/"
+                }
+            ]
+        },
+        {
+            "id": "equivocation",
+            "name": "Equivocation",
+            "sections": [
+                "LR"
+            ],
+            "summary": "Using one word in two different senses across an argument.",
+            "detail": "Tricky because the equivocated term is often subtle ('volume of submissions' vs. 'diversity of viewpoints', or 'theory' as 'guess' vs. 'theory' as 'scientific framework'). Watch for shifts in scope between the premise and conclusion.",
+            "examples": [],
+            "see_also": [
+                "flaw-in-reasoning"
+            ],
+            "references": []
+        },
+        {
+            "id": "appeal-to-ignorance",
+            "name": "Appeal to Ignorance",
+            "sections": [
+                "LR"
+            ],
+            "summary": "Treating absence of evidence as evidence of absence (or vice versa).",
+            "detail": "'No one has shown X is true, therefore X is false' — and its mirror 'No one has shown X is false, therefore X is true.' Both are flawed because lack of evidence settles nothing.",
+            "examples": [],
+            "see_also": [
+                "flaw-in-reasoning"
+            ],
+            "references": []
+        },
+        {
+            "id": "parallel-reasoning",
+            "name": "Parallel Reasoning",
+            "sections": [
+                "LR"
+            ],
+            "summary": "Match the abstract STRUCTURE of the stimulus, not its subject matter.",
+            "detail": "Diagram the stimulus as variables (P, Q, R…). Then test each answer choice by diagramming it the same way. The correct answer must match the validity status (valid ↔ valid, invalid ↔ same kind of invalid) and the structural shape.",
+            "examples": [],
+            "see_also": [
+                "universal-instantiation"
+            ],
+            "references": [
+                {
+                    "title": "Khan Academy — Parallel Reasoning",
+                    "url": "https://www.khanacademy.org/prep/lsat/lsat-lessons/logical-reasoning/x60ba31fe60ad9ad8:parallel-reasoning/v/parallel-reasoning-1"
+                }
+            ]
+        },
+        {
+            "id": "universal-instantiation",
+            "name": "Universal Instantiation",
+            "sections": [
+                "LR"
+            ],
+            "summary": "From 'all P are Q' and 'x is P', conclude 'x is Q'. Always valid.",
+            "detail": "The bedrock valid argument form. Distinguish from 'most P are Q' (probabilistic) and 'some P are Q' (existential).",
+            "examples": [],
+            "see_also": [
+                "parallel-reasoning"
+            ],
+            "references": []
+        },
+        {
+            "id": "main-point",
+            "name": "Main Point Question",
+            "sections": [
+                "RC"
+            ],
+            "summary": "Identify the central thesis of the passage.",
+            "detail": "The main point summarizes the WHOLE passage, not a single paragraph. Wrong answers are usually too narrow (a single example) or too broad (a vague abstraction).",
+            "examples": [],
+            "see_also": [
+                "rc-structure"
+            ],
+            "references": []
+        },
+        {
+            "id": "rc-structure",
+            "name": "Passage Structure",
+            "sections": [
+                "RC"
+            ],
+            "summary": "Map each paragraph's role: setup, complication, evidence, counter-argument, resolution.",
+            "detail": "Before answering questions, jot a one-line label for each paragraph. Most RC question types (main point, author attitude, role of statement, function of paragraph) become trivial once the structural map is clear.",
+            "examples": [],
+            "see_also": [
+                "main-point",
+                "author-attitude"
+            ],
+            "references": []
+        },
+        {
+            "id": "author-attitude",
+            "name": "Author's Attitude / Tone",
+            "sections": [
+                "RC"
+            ],
+            "summary": "Identify the author's stance toward the subject — endorsement, skepticism, neutrality, etc.",
+            "detail": "Look for evaluative adjectives, hedge words ('arguably', 'risks'), and rhetorical questions. Hedged language usually means a hedged answer (qualified concern, cautious optimism) is right.",
+            "examples": [],
+            "see_also": [
+                "rc-tone"
+            ],
+            "references": []
+        },
+        {
+            "id": "rc-tone",
+            "name": "Tone",
+            "sections": [
+                "RC"
+            ],
+            "summary": "Closely related to author attitude — measure intensity (mild/strong) and polarity (positive/negative).",
+            "detail": "Eliminate extremes ('uncritical', 'open hostility') unless the passage explicitly supports them.",
+            "examples": [],
+            "see_also": [
+                "author-attitude"
+            ],
+            "references": []
+        },
+        {
+            "id": "detail-question",
+            "name": "Detail Question",
+            "sections": [
+                "RC"
+            ],
+            "summary": "Ask what the passage explicitly states. Always go back to the text.",
+            "detail": "The right answer is paraphrased directly from a specific sentence; trap answers are inferences (correct, but not stated) or close-but-not-quite restatements.",
+            "examples": [],
+            "see_also": [],
+            "references": []
+        },
+        {
+            "id": "sequencing",
+            "name": "Sequencing Game",
+            "sections": [
+                "LG"
+            ],
+            "summary": "Place items in a strict order (1st through nth) under constraints.",
+            "detail": "Diagram with slots. Render rules as adjacency blocks (F-H), distance constraints, and forbidden positions. Make a hypothetical for any rule that creates few options.",
+            "examples": [],
+            "see_also": [
+                "elimination-grid",
+                "must-be-true",
+                "could-be-true-except"
+            ],
+            "references": [
+                {
+                    "title": "7Sage — Logic Games Fundamentals",
+                    "url": "https://7sage.com/free-lsat-prep-course/"
+                }
+            ]
+        },
+        {
+            "id": "elimination-grid",
+            "name": "Rule-Elimination",
+            "sections": [
+                "LG"
+            ],
+            "summary": "Quickly knock out 'could be the order' answer choices by checking one rule at a time.",
+            "detail": "On orientation questions, scan the answers rule-by-rule rather than building a master diagram. Each rule typically eliminates exactly one answer.",
+            "examples": [],
+            "see_also": [
+                "sequencing"
+            ],
+            "references": []
+        },
+        {
+            "id": "must-be-true",
+            "name": "Must Be True (LG)",
+            "sections": [
+                "LG"
+            ],
+            "summary": "An answer that holds in every valid arrangement under the question's hypothetical.",
+            "detail": "Build the hypothetical, force every implication, then evaluate each answer. If even one valid layout makes the answer false, it doesn't 'must be true'.",
+            "examples": [],
+            "see_also": [
+                "could-be-true-except"
+            ],
+            "references": []
+        },
+        {
+            "id": "could-be-true-except",
+            "name": "Could Be True EXCEPT",
+            "sections": [
+                "LG"
+            ],
+            "summary": "Four answers are possible in some valid layout; one is impossible. Pick the impossible.",
+            "detail": "Treat as a 'must be false' question. Construct counter-examples for the four 'could' options; the remaining choice is your answer.",
+            "examples": [],
+            "see_also": [
+                "must-be-true"
+            ],
+            "references": []
+        }
+    ]
+}

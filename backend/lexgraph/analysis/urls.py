@@ -1,0 +1,141 @@
+"""Analysis Studio API (spec 007 → spec 011 FR-9 port)."""
+from __future__ import annotations
+
+import asyncio
+import secrets
+import time
+from datetime import UTC, datetime
+
+from asgiref.sync import async_to_sync
+from django.urls import path
+from pydantic import BaseModel, Field, ValidationError
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from lexgraph.agents_runtime.crews.legal_analyst import IRACOutput, LegalAnalyst
+from lexgraph.agents_runtime.crews.precedent_hunter import (
+    PrecedentHunter,
+    PrecedentList,
+)
+from lexgraph.core.auth import RequireAnalysis
+from lexgraph.core.provenance import provenance
+
+HITL_THRESHOLD = 0.7
+
+
+class AnalysisRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=20_000)
+    jurisdiction: str | None = Field(default=None, max_length=64)
+    case_id: str | None = Field(default=None, max_length=200)
+    use_langgraph: bool = Field(default=False)
+
+
+class AgentTraceEntry(BaseModel):
+    agent: str
+    trace_id: str | None
+    latency_ms: float
+    confidence: float
+
+
+class AnalysisResponse(BaseModel):
+    id: str
+    timestamp: str
+    latency_ms: int
+    confidence: float
+    requires_human_review: bool
+    irac: IRACOutput
+    precedents: PrecedentList
+    agent_trace: list[AgentTraceEntry]
+    phoenix_trace_url: str | None = None
+    langgraph_thread_id: str | None = None
+
+
+def _new_analysis_id() -> str:
+    return f"an-{secrets.token_hex(6)}"
+
+
+async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
+    analyst = LegalAnalyst()
+    hunter = PrecedentHunter()
+    payload = {
+        "text": req.text,
+        "jurisdiction": req.jurisdiction,
+        "case_id": req.case_id,
+        "use_langgraph": req.use_langgraph,
+    }
+    started = time.perf_counter()
+    irac, precedents = await asyncio.gather(
+        analyst.run(payload), hunter.run(payload)
+    )
+    total_ms = (time.perf_counter() - started) * 1000.0
+    confidence = round((irac.confidence + precedents.confidence) / 2, 4)
+    requires_human_review = (
+        confidence < HITL_THRESHOLD
+        or "Pending human review" in (irac.conclusion or "")
+    )
+    sources = list(irac.sources) + [
+        {"title": p.title, "url": p.url} for p in precedents.precedents
+    ]
+    analysis_id = _new_analysis_id()
+    provenance.log_agent_call(
+        agent_name="AnalysisStudio",
+        input_data={
+            "analysis_id": analysis_id,
+            "jurisdiction": req.jurisdiction,
+            "case_id": req.case_id,
+            "child_trace_ids": [irac.trace_id, precedents.trace_id],
+        },
+        output_data={
+            "confidence": confidence,
+            "requires_human_review": requires_human_review,
+            "precedent_count": len(precedents.precedents),
+        },
+        model="multi-agent",
+        latency_ms=total_ms,
+        confidence=confidence,
+        sources=sources,
+    )
+    trace = [
+        AgentTraceEntry(
+            agent="LegalAnalyst",
+            trace_id=irac.trace_id,
+            latency_ms=round(total_ms, 2),
+            confidence=irac.confidence,
+        ),
+        AgentTraceEntry(
+            agent="PrecedentHunter",
+            trace_id=precedents.trace_id,
+            latency_ms=round(total_ms, 2),
+            confidence=precedents.confidence,
+        ),
+    ]
+    return AnalysisResponse(
+        id=analysis_id,
+        timestamp=datetime.now(UTC).isoformat(),
+        latency_ms=int(total_ms),
+        confidence=confidence,
+        requires_human_review=requires_human_review,
+        irac=irac,
+        precedents=precedents,
+        agent_trace=trace,
+        phoenix_trace_url=irac.phoenix_trace_url,
+        langgraph_thread_id=irac.langgraph_thread_id,
+    )
+
+
+class AnalysisView(APIView):
+    permission_classes = [RequireAnalysis]
+
+    def post(self, request, *args, **kwargs):  # noqa: ANN001
+        try:
+            req = AnalysisRequest.model_validate(request.data)
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        body = async_to_sync(_run_analysis)(req)
+        return Response(body.model_dump())
+
+
+urlpatterns = [path("", AnalysisView.as_view(), name="analysis-run")]

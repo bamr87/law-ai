@@ -1,0 +1,125 @@
+{
+    "items": [
+        {
+            "code": "LR",
+            "name": "Logical Reasoning",
+            "description": "Two scored sections on the LSAT (~24–26 questions each, 35 minutes per section). Each question presents a short argument or set of facts followed by a single multiple-choice prompt. LR tests the ability to analyze, evaluate, and complete arguments — the core daily work of a lawyer.",
+            "format": "~25 standalone short-passage questions; 5 answer choices labeled A–E.",
+            "timing": "35 minutes per section (~1:25 per question).",
+            "scoring": "Roughly 50% of the scaled score weight (two LR sections out of four scored sections).",
+            "skills": [
+                "Identify conclusions, premises, and assumptions",
+                "Spot reasoning flaws (causal, conditional, sampling, equivocation, …)",
+                "Strengthen / weaken / parallel structure",
+                "Conditional logic & contrapositives"
+            ],
+            "tips": [
+                "Always identify the conclusion before evaluating the answers.",
+                "On flaw questions, name the flaw in your own words first.",
+                "Pre-phrase the right answer for assumption / strengthen / weaken before reading the choices.",
+                "Diagram conditional indicators ('only if', 'unless', 'all', 'no')."
+            ],
+            "concepts": [
+                "modus-ponens",
+                "modus-tollens",
+                "conditional-reasoning",
+                "contrapositive",
+                "necessary-assumption",
+                "sufficient-assumption",
+                "causation-vs-correlation",
+                "alternative-cause",
+                "weaken",
+                "strengthen",
+                "flaw-in-reasoning",
+                "equivocation",
+                "appeal-to-ignorance",
+                "parallel-reasoning",
+                "universal-instantiation"
+            ],
+            "references": [
+                {
+                    "title": "LSAC — About the LSAT (Logical Reasoning)",
+                    "url": "https://www.lsac.org/lsat/taking-lsat/about-lsat"
+                },
+                {
+                    "title": "Khan Academy — Free LSAT Prep (LR)",
+                    "url": "https://www.khanacademy.org/prep/lsat"
+                }
+            ]
+        },
+        {
+            "code": "RC",
+            "name": "Reading Comprehension",
+            "description": "One scored section: four passages (one is typically a comparative pair) drawn from law, humanities, social sciences, and natural sciences, followed by 5–8 questions each. Tests close reading, structural mapping, and the ability to distinguish what the author claims from what the author merely reports.",
+            "format": "~27 questions across 4 passage sets; 5 answer choices A–E.",
+            "timing": "35 minutes total (~8:30 per passage including reading time).",
+            "scoring": "Roughly 25% of the scaled score weight.",
+            "skills": [
+                "Map paragraph-by-paragraph structure",
+                "Identify main point, author attitude, and tone",
+                "Locate cited details and inferences",
+                "Compare two passages on the comparative-reading set"
+            ],
+            "tips": [
+                "Read for STRUCTURE first, details second — questions reward knowing where to look.",
+                "Annotate authorship moves: claims, contrasts, examples, hedges.",
+                "Pre-phrase the main point before reading the answer choices.",
+                "Eliminate extremes for tone questions unless the passage is explicit."
+            ],
+            "concepts": [
+                "main-point",
+                "rc-structure",
+                "author-attitude",
+                "rc-tone",
+                "detail-question"
+            ],
+            "references": [
+                {
+                    "title": "LSAC — About the LSAT (RC)",
+                    "url": "https://www.lsac.org/lsat/taking-lsat/about-lsat"
+                },
+                {
+                    "title": "Khan Academy — Reading Comprehension",
+                    "url": "https://www.khanacademy.org/prep/lsat"
+                }
+            ]
+        },
+        {
+            "code": "LG",
+            "name": "Analytical Reasoning (Logic Games)",
+            "description": "Historically four games per scored section (sequencing, grouping, matching, hybrid). LSAC announced a multi-year phase-out of the dedicated LG section beginning in August 2024 — replaced by an additional Logical Reasoning section on the August 2024 LSAT and beyond. Logic Games remain pedagogically essential: the diagramming skills they develop transfer directly to LR conditional reasoning and to legal exam writing. Practice them.",
+            "format": "Each game presents a setup + ~3–6 rules followed by 5–7 questions sharing the same setup; 5 answer choices A–E.",
+            "timing": "35 minutes per section (~8:30 per game).",
+            "scoring": "Phasing out for the operational LSAT in 2024–2025; still scored on older PrepTests and many practice batteries.",
+            "skills": [
+                "Translate constraints into compact diagrams",
+                "Forced inferences (chain rules together)",
+                "Hypothetical scenarios for conditional questions",
+                "Speed via rule-based answer-choice elimination"
+            ],
+            "tips": [
+                "Spend the first 60–90 seconds turning the rules into a clean visual diagram.",
+                "On orientation questions, eliminate one answer per rule.",
+                "On 'if'-then questions, build the hypothetical and force every implication before reading the answers.",
+                "If you find more than two solutions for a 'must be true' question, you're missing an inference."
+            ],
+            "concepts": [
+                "sequencing",
+                "elimination-grid",
+                "must-be-true",
+                "could-be-true-except",
+                "conditional-reasoning"
+            ],
+            "references": [
+                {
+                    "title": "LSAC — LSAT Format Update (LG phase-out)",
+                    "url": "https://www.lsac.org/lsat/taking-lsat/about-lsat"
+                },
+                {
+                    "title": "7Sage — Free Logic Games",
+                    "url": "https://7sage.com/free-lsat-prep-course/"
+                }
+            ]
+        }
+    ]
+}

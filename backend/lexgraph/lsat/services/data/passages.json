@@ -1,0 +1,27 @@
+{
+    "items": [
+        {
+            "id": "rc-passage-001",
+            "section": "RC",
+            "title": "From Code Pleading to Notice Pleading",
+            "summary": "A 4-paragraph excerpt on the evolution of federal civil procedure pleading standards.",
+            "passage": "For most of the nineteenth century, common-law pleading required plaintiffs to fit their grievances into rigid formal categories — assumpsit, trespass on the case, trover. A misstep in selecting the proper writ could doom an otherwise meritorious claim. Reformers complained that the system rewarded procedural sophistication rather than substantive justice; the Field Code of 1848 in New York attempted a partial remedy by replacing the writ system with a unified civil action grounded in 'fact pleading.'\n\nFact pleading, however, generated its own pathologies. Courts disagreed about how granular the underlying facts had to be, and judges could dismiss a complaint for failing to plead a legally-significant element with sufficient specificity. By the 1930s a generation of procedural scholars — Charles Clark prominent among them — argued that the goal of pleading should be merely to give the defendant fair notice of the claim. The expensive work of testing factual sufficiency belonged in discovery and on summary judgment, not at the courthouse door.\n\nThis vision shaped the original Federal Rules of Civil Procedure, which took effect in 1938. Rule 8(a)(2)'s requirement of 'a short and plain statement of the claim showing that the pleader is entitled to relief' was a deliberate softening: the 1938 drafters knew they were trading some doctrinal predictability for procedural access. Conley v. Gibson (1957) cemented the bargain when the Supreme Court declared that a complaint should not be dismissed unless it was beyond doubt that no set of facts could support recovery.\n\nThe modern picture is more contested. Bell Atlantic Corp. v. Twombly (2007) and Ashcroft v. Iqbal (2009) introduced a 'plausibility' threshold that some commentators read as a partial restoration of fact pleading. Defenders of the cases note that mass-tort and antitrust complaints had created discovery abuses the 1938 drafters could not have foreseen. Critics counter that the new standard risks reintroducing the very access barrier the 1938 drafters set out to dismantle, particularly for pro se litigants and civil-rights plaintiffs who often cannot satisfy plausibility without the discovery they are seeking.",
+            "rules": [],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "lg-game-001",
+            "section": "LG",
+            "title": "Five Associates, One Hearing",
+            "summary": "Sequencing game: order five associates in five consecutive slots subject to three rules.",
+            "setup": "Exactly five associates — F, G, H, J, and K — argue exactly one motion each at a single hearing. The motions are heard one at a time, in five consecutive time slots numbered 1 through 5 (1 is first, 5 is last). The order in which they argue is subject to the following constraints:",
+            "rules": [
+                "1. F argues immediately before H.",
+                "2. J argues fourth.",
+                "3. K does not argue first."
+            ],
+            "passage": null,
+            "source": "original (CC0)"
+        }
+    ]
+}
