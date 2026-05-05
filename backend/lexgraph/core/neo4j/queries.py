@@ -12,7 +12,7 @@ from typing import Any
 
 from neo4j import AsyncSession
 
-from lexgraph.core.schemas.extraction import ExtractionResult
+from lawgraph.core.schemas.extraction import ExtractionResult
 
 MERGE_CASE_CYPHER = """
 MERGE (c:Case {id: $id})

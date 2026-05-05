@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'LexGraph AI',
+  title: 'LawGraph AI',
   description: 'Open-source agent-orchestrated legal intelligence platform',
   icons: {
     icon: '/favicon.ico',

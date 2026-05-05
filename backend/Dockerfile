@@ -11,10 +11,10 @@ RUN apt-get update && apt-get install -y \
 
 # Copy project metadata and source needed for editable install
 COPY pyproject.toml README.md ./
-COPY lexgraph ./lexgraph
+COPY lawgraph ./lawgraph
 COPY manage.py ./
 
-# Install Python dependencies (editable install requires lexgraph/ + README.md to exist)
+# Install Python dependencies (editable install requires lawgraph/ + README.md to exist)
 RUN pip install --no-cache-dir -e ".[dev,local-ai]"
 
 # Copy the rest of the application code (tests, scripts, etc.)
@@ -29,4 +29,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Spec 011: Django ASGI via daphne. Migrations + checkpointer schema run
 # at container start so the dev stack is self-bootstrapping.
-CMD ["sh", "-c", "python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py ensure_checkpointer && daphne -b 0.0.0.0 -p 8000 lexgraph.asgi:application"]
+CMD ["sh", "-c", "python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py ensure_checkpointer && daphne -b 0.0.0.0 -p 8000 lawgraph.asgi:application"]

@@ -1,6 +1,6 @@
-# LexGraph AI — Agent Roles & Specifications
+# LawGraph AI — Agent Roles & Specifications
 
-This document defines every agent that exists or is planned for LexGraph AI. All agents must follow the rules in `AGENTS.md`.
+This document defines every agent that exists or is planned for LawGraph AI. All agents must follow the rules in `AGENTS.md`.
 
 ## Current Agents (MVP)
 
@@ -25,7 +25,7 @@ This document defines every agent that exists or is planned for LexGraph AI. All
 Every agent must expose:
 
 ```python
-class BaseLexGraphAgent:
+class BaseLawGraphAgent:
     name: str
     description: str
     requires_human_approval: bool = False

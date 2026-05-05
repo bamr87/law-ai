@@ -15,9 +15,9 @@ from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from lexgraph.core import audit_jsonl as audit_store
-from lexgraph.core.auth import RequireLsat
-from lexgraph.lsat.services.bank import (
+from lawgraph.core import audit_jsonl as audit_store
+from lawgraph.core.auth import RequireLsat
+from lawgraph.lsat.services.bank import (
     ChoiceLabel,
     Difficulty,  # noqa: F401  re-exported for tests
     Section,
@@ -27,9 +27,9 @@ from lexgraph.lsat.services.bank import (
     load_sections,
     public_view,
 )
-from lexgraph.lsat.services.tutor import TutorRequest, TutorResponse, tutor
+from lawgraph.lsat.services.tutor import TutorRequest, TutorResponse, tutor
 
-logger = logging.getLogger("lexgraph.lsat")
+logger = logging.getLogger("lawgraph.lsat")
 
 
 class GradeRequest(BaseModel):

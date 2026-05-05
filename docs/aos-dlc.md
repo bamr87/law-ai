@@ -1,12 +1,12 @@
-# AOS-DLC in LexGraph AI
+# AOS-DLC in LawGraph AI
 
 This page maps the [AI Agent-Orchestrated SDLC framework](aos-dlc-guide.md) onto the concrete files, agents, and tools in this repository. The framework guide is the **reference**; this page is the **implementation**.
 
-LexGraph currently operates at **Autonomy Level 2 (Collaborative)** per [docs/constitution.md](constitution.md) §10.
+LawGraph currently operates at **Autonomy Level 2 (Collaborative)** per [docs/constitution.md](constitution.md) §10.
 
 ## Phase Mapping
 
-| AOS-DLC Phase | LexGraph Implementation | Entry Point |
+| AOS-DLC Phase | LawGraph Implementation | Entry Point |
 |---|---|---|
 | **0. Roadmap & Portfolio** | GitHub Projects + [PRD.md](../PRD.md). Roadmap-agent crew is **planned**, not yet built. | Manual today |
 | **1. Spec / Requirements** | [specs/](../specs/) directory using the Spec Kit pattern (`spec.md` + `plan.md` + `tasks.md`). | [/specify](../prompts/specify.md) → [/clarify](../prompts/clarify.md) |
@@ -18,9 +18,9 @@ LexGraph currently operates at **Autonomy Level 2 (Collaborative)** per [docs/co
 
 ## Agent Role Mapping
 
-The framework's generic agent roles correspond to LexGraph crews documented in [docs/agent-roles.md](agent-roles.md). Concrete classes live in [backend/app/agents/crews/](../backend/app/agents/crews) and are wired in [backend/app/agents/registry.py](../backend/app/agents/registry.py).
+The framework's generic agent roles correspond to LawGraph crews documented in [docs/agent-roles.md](agent-roles.md). Concrete classes live in [backend/app/agents/crews/](../backend/app/agents/crews) and are wired in [backend/app/agents/registry.py](../backend/app/agents/registry.py).
 
-| AOS-DLC Role | LexGraph Crew |
+| AOS-DLC Role | LawGraph Crew |
 |---|---|
 | Spec Writer / Clarifier | Prompts in [prompts/specify.md](../prompts/specify.md) and [prompts/clarify.md](../prompts/clarify.md) (no dedicated runtime agent yet) |
 | System Architect | Prompt [/plan](../prompts/plan.md) (no runtime agent yet) |

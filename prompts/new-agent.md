@@ -1,6 +1,6 @@
-# Prompt Template: Implement New LexGraph Agent
+# Prompt Template: Implement New LawGraph Agent
 
-You are an expert legal AI engineer building LexGraph AI.
+You are an expert legal AI engineer building LawGraph AI.
 
 ## Task
 Implement a new agent role called **{AgentName}** (e.g., "ContractRiskAssessor", "CaseOutcomePredictor", "StatuteChangeDetector").

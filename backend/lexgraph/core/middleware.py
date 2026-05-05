@@ -4,7 +4,7 @@
   in ``app/main.py`` so the frontend dev server keeps working without a new
   third-party dep.
 * ``ProvenanceMiddleware`` — wraps every request and records an audit event
-  via :func:`lexgraph.core.provenance.ProvenanceLogger.log_request`.
+  via :func:`lawgraph.core.provenance.ProvenanceLogger.log_request`.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from collections.abc import Callable
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 
-logger = logging.getLogger("lexgraph")
+logger = logging.getLogger("lawgraph")
 
 _ALLOWED_HEADERS = "Content-Type, Authorization, X-API-Key"
 _ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
@@ -47,7 +47,7 @@ class ProvenanceMiddleware:
     def __call__(self, request: HttpRequest) -> HttpResponse:
         response = self.get_response(request)
         try:
-            from lexgraph.core.provenance import ProvenanceLogger
+            from lawgraph.core.provenance import ProvenanceLogger
 
             ProvenanceLogger.log_request(request, response)
         except Exception as exc:  # pragma: no cover

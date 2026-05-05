@@ -4,6 +4,6 @@ from django.apps import AppConfig
 
 
 class IngestionappConfig(AppConfig):
-    name = "lexgraph.ingestionapp"
+    name = "lawgraph.ingestionapp"
     label = "ingestionapp"
     default_auto_field = "django.db.models.BigAutoField"

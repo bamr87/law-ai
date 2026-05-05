@@ -31,7 +31,7 @@ export default function Home() {
           </a>
 
           <h1 className="mt-8 bg-gradient-to-br from-white via-slate-100 to-slate-400 bg-clip-text text-7xl font-bold leading-[1.05] tracking-tight text-transparent sm:text-8xl">
-            LexGraph AI
+            LawGraph AI
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-400 sm:text-xl">
@@ -163,7 +163,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-800/60">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 py-8 text-xs text-slate-500 sm:flex-row">
-          <div>© 2026 LexGraph AI · Released under AGPL-3.0</div>
+          <div>© 2026 LawGraph AI · Released under AGPL-3.0</div>
           <div className="flex items-center gap-4">
             <a href="#" className="hover:text-slate-300">Architecture</a>
             <a href="#" className="hover:text-slate-300">Constitution</a>

@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from lexgraph.core.neo4j import graph_queries
+from lawgraph.core.neo4j import graph_queries
 
 
 class _FakeResult:

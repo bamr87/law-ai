@@ -6,7 +6,7 @@ module instead so they keep working without knowing about ``django.conf``.
 
 Usage::
 
-    from lexgraph.core.settings_proxy import settings_proxy as settings
+    from lawgraph.core.settings_proxy import settings_proxy as settings
 
     print(settings.NEO4J_URI)
 """

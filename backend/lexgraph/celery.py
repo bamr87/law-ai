@@ -6,9 +6,9 @@ import os
 
 from celery import Celery
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lexgraph.settings.dev")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lawgraph.settings.dev")
 
-app = Celery("lexgraph")
+app = Celery("lawgraph")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 

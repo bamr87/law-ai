@@ -23,9 +23,9 @@ from typing import Any, TypeVar
 from collections.abc import Callable
 from uuid import uuid4
 
-from lexgraph.core import audit_jsonl as audit_store
+from lawgraph.core import audit_jsonl as audit_store
 
-logger = logging.getLogger("lexgraph.provenance")
+logger = logging.getLogger("lawgraph.provenance")
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -38,7 +38,7 @@ def _persist(event: dict[str, Any]) -> None:
         logger.warning("audit JSONL persistence failed: %s", exc)
 
     try:
-        from lexgraph.audit.models import AuditEvent
+        from lawgraph.audit.models import AuditEvent
 
         kind = event.get("type") or "unknown"
         AuditEvent.objects.create(
@@ -51,7 +51,7 @@ def _persist(event: dict[str, Any]) -> None:
         logger.debug("audit DB persistence skipped: %s", exc)
         # Fallback: enqueue Celery task to retry async (FR-7 + spec 011 FR-11).
         try:
-            from lexgraph.core.tasks import persist_audit_event
+            from lawgraph.core.tasks import persist_audit_event
 
             persist_audit_event.delay(event)
         except Exception:
@@ -59,7 +59,7 @@ def _persist(event: dict[str, Any]) -> None:
 
 
 class ProvenanceLogger:
-    """Central audit logger for LexGraph AI."""
+    """Central audit logger for LawGraph AI."""
 
     @staticmethod
     def log_request(request: Any, response: Any) -> None:

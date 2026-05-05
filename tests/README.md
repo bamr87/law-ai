@@ -1,7 +1,7 @@
 # Repo-wide test entry point
 
 This top-level `tests/` package is the single command surface for
-validating the LexGraph AI monorepo. It complements — but does **not**
+validating the LawGraph AI monorepo. It complements — but does **not**
 replace — the per-stack suites under [backend/tests/](../backend/tests)
 and [frontend/__tests__/](../frontend/__tests__).
 

@@ -1,6 +1,6 @@
-# LexGraph AI — Backend
+# LawGraph AI — Backend
 
-FastAPI + CrewAI + LangGraph backend for the LexGraph AI legal intelligence platform.
+FastAPI + CrewAI + LangGraph backend for the LawGraph AI legal intelligence platform.
 
 See the repo root [README.md](../README.md) and [AGENTS.md](../AGENTS.md) for project-wide documentation, architecture, and contribution standards.
 

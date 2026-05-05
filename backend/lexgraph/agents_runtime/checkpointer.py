@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import logging
 
-from lexgraph.agents_runtime.graphs.runtime import (
+from lawgraph.agents_runtime.graphs.runtime import (
     CheckpointerUnavailableError,
     build_checkpointer,
 )
-from lexgraph.core.settings_proxy import settings_proxy as settings
+from lawgraph.core.settings_proxy import settings_proxy as settings
 
-logger = logging.getLogger("lexgraph.db.checkpointer")
+logger = logging.getLogger("lawgraph.db.checkpointer")
 
 
 async def ensure_schema() -> None:

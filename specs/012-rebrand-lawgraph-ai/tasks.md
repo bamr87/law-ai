@@ -1,4 +1,4 @@
-# Tasks: Rebrand from LexGraph AI to LawGraph AI
+# Tasks: Rebrand from LawGraph AI to LawGraph AI
 
 > **Status: BLOCKED on `/clarify`.** This file is a placeholder so CI's
 > [scripts/spec_validator.py](../../scripts/spec_validator.py) is satisfied
@@ -40,8 +40,8 @@
 - **Owner**: @copilot
 - **Status**: `[!]` blocked-on-clarify (OQ-4)
 - **Files**:
-  - `git mv backend/lexgraph backend/lawgraph`
-  - all `from lexgraph...` → `from lawgraph...` across `backend/` and `tests/`
+  - `git mv backend/lawgraph backend/lawgraph`
+  - all `from lawgraph...` → `from lawgraph...` across `backend/` and `tests/`
 
 ## T-004 — Settings / ASGI / Celery / pytest config
 
@@ -90,7 +90,7 @@
 - **Owner**: @copilot
 - **Status**: `[!]` blocked-on-clarify
 - **Files**:
-  - `scripts/launchd/com.lexgraph.evolve.plist` → `com.lawgraph.evolve.plist`
+  - `scripts/launchd/com.lawgraph.evolve.plist` → `com.lawgraph.evolve.plist`
   - `backend/scripts/{init-db.sh,ingest_sample.py,ollama-bootstrap.sh}`
   - `scripts/{backlog_lint.py,evolve_audit.py,spec_validator.py}` (docstring sweep)
 
@@ -117,7 +117,7 @@
 - **Owner**: @copilot (HUMAN-PAIRED — final review gate)
 - **Status**: `[!]` blocked-on-clarify
 - **Files**:
-  - `LexGraph_AI_Proposal.md` → `LawGraph_AI_Proposal.md` (rename + banner)
+  - `LawGraph_AI_Proposal.md` → `LawGraph_AI_Proposal.md` (rename + banner)
   - `/memories/repo/*.md` (this workspace) — sweep for new package paths
   - `git rm scripts/rebrand.sh`
 

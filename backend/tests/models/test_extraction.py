@@ -4,7 +4,7 @@ from datetime import datetime, UTC
 
 import pytest
 
-from lexgraph.core.schemas.extraction import Citation, Entity, ExtractionResult
+from lawgraph.core.schemas.extraction import Citation, Entity, ExtractionResult
 
 
 def test_extraction_result_defaults_provenance() -> None:

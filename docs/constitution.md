@@ -1,4 +1,4 @@
-# LexGraph AI — Constitution
+# LawGraph AI — Constitution
 
 > Org-wide, non-negotiable standards for every spec, plan, and implementation produced by humans or AI agents in this repo. This is the **first** document any agent reads when running [/specify](../prompts/specify.md), [/plan](../prompts/plan.md), or [/implement](../prompts/implement.md).
 >
@@ -66,7 +66,7 @@ Every change larger than a typo follows the spec workflow:
 6. Open PR with all four files. CI runs [scripts/spec_validator.py](../scripts/spec_validator.py) drift gate.
 7. Run [/implement](../prompts/implement.md) per task; PRs reference `specs/NNN-...` in description.
 
-See [docs/aos-dlc.md](aos-dlc.md) for how phases map onto LexGraph and [docs/aos-dlc-guide.md](aos-dlc-guide.md) for the full framework reference.
+See [docs/aos-dlc.md](aos-dlc.md) for how phases map onto LawGraph and [docs/aos-dlc-guide.md](aos-dlc-guide.md) for the full framework reference.
 
 ## 8. Security Baselines
 

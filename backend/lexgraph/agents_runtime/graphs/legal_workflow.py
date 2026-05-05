@@ -19,11 +19,11 @@ from collections.abc import Awaitable, Callable
 
 from pydantic import BaseModel, Field
 
-from lexgraph.core.settings_proxy import settings_proxy as settings
-from lexgraph.core.provenance import logged_node
-from lexgraph.core.telemetry import phoenix_trace_url
+from lawgraph.core.settings_proxy import settings_proxy as settings
+from lawgraph.core.provenance import logged_node
+from lawgraph.core.telemetry import phoenix_trace_url
 
-logger = logging.getLogger("lexgraph.graphs.legal_workflow")
+logger = logging.getLogger("lawgraph.graphs.legal_workflow")
 
 PROMPT_VERSION = "1"
 
@@ -102,8 +102,8 @@ async def _default_cite_resolver(citations: list[str]) -> dict[str, str | None]:
     """Resolve normalized citations against Neo4j via spec 002's resolver."""
     if not citations:
         return {}
-    from lexgraph.core.neo4j.citation_resolver import resolve_citations
-    from lexgraph.core.neo4j.driver import get_neo4j_driver
+    from lawgraph.core.neo4j.citation_resolver import resolve_citations
+    from lawgraph.core.neo4j.driver import get_neo4j_driver
 
     driver = get_neo4j_driver()
     async with driver.session() as session:
@@ -351,7 +351,7 @@ class LegalWorkflow:
         cp = checkpointer if checkpointer is not None else self._checkpointer
         graph = self._build_graph(cp)
 
-        tracer = otel_trace.get_tracer("lexgraph.legal_workflow")
+        tracer = otel_trace.get_tracer("lawgraph.legal_workflow")
         started = time.perf_counter()
         with tracer.start_as_current_span("legal_workflow.invoke") as span:
             span.set_attribute("legal_workflow.thread_id", thread)

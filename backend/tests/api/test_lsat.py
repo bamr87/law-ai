@@ -9,13 +9,13 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from django.conf import settings
-from lexgraph.lsat.services.bank import (
+from lawgraph.lsat.services.bank import (
     load_bank,
     load_concepts,
     load_passages,
     load_sections,
 )
-from lexgraph.asgi import application as app
+from lawgraph.asgi import application as app
 
 
 @pytest.fixture(autouse=True)
@@ -219,7 +219,7 @@ async def test_tutor_falls_back_when_ollama_unreachable(
     """Tutor never hard-fails when Ollama is offline (constitution §1)."""
     import httpx
 
-    from lexgraph.lsat.services import tutor as tutor_mod
+    from lawgraph.lsat.services import tutor as tutor_mod
 
     async def boom(prompt: str, *, model: str) -> str:
         raise httpx.ConnectError("offline")
@@ -246,7 +246,7 @@ async def test_tutor_uses_llm_when_available(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """When Ollama returns a parseable payload, it surfaces in the response."""
-    from lexgraph.lsat.services import tutor as tutor_mod
+    from lawgraph.lsat.services import tutor as tutor_mod
 
     async def fake_generate(prompt: str, *, model: str) -> str:
         return (

@@ -8,7 +8,7 @@ from django.conf import settings
 from rest_framework import authentication, exceptions, permissions
 from rest_framework.request import Request
 
-from lexgraph.core.models import ApiToken
+from lawgraph.core.models import ApiToken
 
 
 class _AnonymousActor:

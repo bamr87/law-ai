@@ -1,4 +1,4 @@
-# LexGraph AI — VS Code Workspace
+# LawGraph AI — VS Code Workspace
 
 **✅ FINALIZED — Ready for Development**
 
@@ -49,7 +49,7 @@ Other AI coding tools (Cursor, Continue.dev, Claude Code, Aider, Codex) are **no
 
 **Always start by telling Copilot:**
 
-> "Read AGENTS.md, docs/constitution.md, and docs/architecture.md first. Then implement [feature] following LexGraph standards."
+> "Read AGENTS.md, docs/constitution.md, and docs/architecture.md first. Then implement [feature] following LawGraph standards."
 
 Copilot Chat in Agent mode auto-loads [.github/copilot-instructions.md](.github/copilot-instructions.md), which already points to those files.
 
@@ -94,6 +94,6 @@ See `AGENTS.md` → "Quality Gates" and "Testing Standards" sections.
 
 ---
 
-**This workspace is designed so that a well-prompted AI coding agent can build 70-80% of LexGraph AI autonomously while maintaining legal-grade quality and auditability.**
+**This workspace is designed so that a well-prompted AI coding agent can build 70-80% of LawGraph AI autonomously while maintaining legal-grade quality and auditability.**
 
 Welcome to the future of open legal AI. Let's build it together.

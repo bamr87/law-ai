@@ -36,7 +36,7 @@ export default function NavBar() {
             <span className="font-bold text-white">LG</span>
           </div>
           <span className="text-lg font-semibold tracking-tight sm:text-xl">
-            LexGraph<span className="text-blue-400"> AI</span>
+            LawGraph<span className="text-blue-400"> AI</span>
           </span>
         </Link>
 

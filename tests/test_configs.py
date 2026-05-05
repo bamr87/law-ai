@@ -17,7 +17,7 @@ pytestmark = pytest.mark.smoke
 
 def test_backend_pyproject_parses(backend_dir: Path) -> None:
     data = tomllib.loads((backend_dir / "pyproject.toml").read_text())
-    assert data["project"]["name"] == "lexgraph-ai"
+    assert data["project"]["name"] == "lawgraph-ai"
     assert data["project"]["requires-python"].startswith(">=3.")
     deps = " ".join(data["project"]["dependencies"])
     for required in ("django", "djangorestframework", "pydantic", "neo4j", "crewai", "langgraph"):
@@ -26,7 +26,7 @@ def test_backend_pyproject_parses(backend_dir: Path) -> None:
 
 def test_frontend_package_json_parses(frontend_dir: Path) -> None:
     pkg = json.loads((frontend_dir / "package.json").read_text())
-    assert pkg["name"] == "lexgraph-ai-frontend"
+    assert pkg["name"] == "lawgraph-ai-frontend"
     scripts = pkg.get("scripts", {})
     for required in ("dev", "build", "test", "lint"):
         assert required in scripts, f"frontend missing npm script: {required}"

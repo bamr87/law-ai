@@ -1,17 +1,17 @@
-# LexGraph AI
+# LawGraph AI
 ## Product Requirements Document (PRD)
 
 **Version:** 1.0  
 **Date:** April 29, 2026  
 **Status:** Draft for Review  
 **Owner:** Product Team (AI Legal Systems Initiative)  
-**Related:** [Technical Proposal](LexGraph_AI_Proposal.docx) | [Architecture Diagram](imagine_images/nYGs6.jpg)
+**Related:** [Technical Proposal](LawGraph_AI_Proposal.docx) | [Architecture Diagram](imagine_images/nYGs6.jpg)
 
 ---
 
 ## 1. Executive Summary
 
-**LexGraph AI** is an open-source, AI-agent-orchestrated legal intelligence platform that empowers lawyers, law students, and legal researchers to understand, analyze, organize, and master complex legal content through intelligent multi-agent workflows, persistent knowledge graphs, and interactive visualizations.
+**LawGraph AI** is an open-source, AI-agent-orchestrated legal intelligence platform that empowers lawyers, law students, and legal researchers to understand, analyze, organize, and master complex legal content through intelligent multi-agent workflows, persistent knowledge graphs, and interactive visualizations.
 
 The platform integrates:
 - **Specialized AI Agent Crews** (built with CrewAI + LangGraph) for legal research, case analysis, precedent mapping, logic validation, and adaptive education.
@@ -294,7 +294,7 @@ Frontend (Next.js 15 + TypeScript + Tailwind + shadcn/ui)
 
 ---
 
-## 13. GitHub Copilot Capabilities for Building LexGraph AI
+## 13. GitHub Copilot Capabilities for Building LawGraph AI
 
 GitHub Copilot is the **sole sanctioned AI development orchestrator** for this repo (see [docs/constitution.md](docs/constitution.md) §1 and [AGENTS.md](AGENTS.md) "Development Orchestration"). The capabilities below are exercised through Copilot Chat (Ask / Edit / Agent modes) and the GitHub Copilot coding agent. The product *runtime* LLM remains Ollama — these capabilities are about how the codebase itself gets built and evolved.
 

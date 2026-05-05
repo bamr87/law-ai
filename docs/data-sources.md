@@ -1,6 +1,6 @@
 # Data Sources
 
-Open, machine-readable corpora used by LexGraph AI.
+Open, machine-readable corpora used by LawGraph AI.
 
 | Source              | URL                                                    | License             | Auth          | Rate limit            | Status   |
 | ------------------- | ------------------------------------------------------ | ------------------- | ------------- | --------------------- | -------- |

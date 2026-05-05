@@ -7,7 +7,7 @@ Postgres rows safe across the FastAPI -> Django cutover this migration uses
 ``SeparateDatabaseAndState``:
 
 * ``state_operations`` = ``CreateModel`` so Django's migration graph and ORM
-  state mirror the model defined in ``lexgraph.ingestionapp.models``.
+  state mirror the model defined in ``lawgraph.ingestionapp.models``.
 * ``database_operations`` = a ``RunSQL`` block that runs the verbatim DDL
   from the legacy raw-SQL migrations
   (``backend/app/db/postgres_migrations/001_pending_review.sql`` and

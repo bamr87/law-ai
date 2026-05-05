@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "🗄️  Initializing LexGraph databases..."
+echo "🗄️  Initializing LawGraph databases..."
 sleep 5
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -9,7 +9,7 @@ NEO4J_MIGRATIONS="$REPO_ROOT/app/db/neo4j_migrations"
 PG_MIGRATIONS="$REPO_ROOT/app/db/postgres_migrations"
 
 NEO4J_USER="${NEO4J_USER:-neo4j}"
-NEO4J_PASSWORD="${NEO4J_PASSWORD:-lexgraph-dev}"
+NEO4J_PASSWORD="${NEO4J_PASSWORD:-lawgraph-dev}"
 
 echo "==> Applying Neo4j migrations"
 for f in "$NEO4J_MIGRATIONS"/*.cypher; do
@@ -19,7 +19,7 @@ for f in "$NEO4J_MIGRATIONS"/*.cypher; do
 done
 
 echo "==> Applying Postgres migrations"
-PG_URL="${POSTGRES_URL_PSQL:-postgresql://lexgraph:lexgraph-dev@postgres:5432/lexgraph}"
+PG_URL="${POSTGRES_URL_PSQL:-postgresql://lawgraph:lawgraph-dev@postgres:5432/lawgraph}"
 for f in "$PG_MIGRATIONS"/*.sql; do
   [ -e "$f" ] || continue
   echo "    - $(basename "$f")"

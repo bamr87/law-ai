@@ -7,14 +7,14 @@ from typing import Any
 
 from celery import shared_task
 
-logger = logging.getLogger("lexgraph.ingestionapp")
+logger = logging.getLogger("lawgraph.ingestionapp")
 
 
-@shared_task(name="lexgraph.ingestionapp.quarantine_extraction", ignore_result=True)
+@shared_task(name="lawgraph.ingestionapp.quarantine_extraction", ignore_result=True)
 def quarantine_extraction(payload: dict[str, Any]) -> str:
     """Persist a low-confidence extraction to ``PendingReview`` for HITL approval."""
-    from lexgraph.audit.models import AuditEvent
-    from lexgraph.ingestionapp.models import PendingReview
+    from lawgraph.audit.models import AuditEvent
+    from lawgraph.ingestionapp.models import PendingReview
 
     pid = str(payload.get("id") or payload.get("source") or "unknown")
     PendingReview.objects.update_or_create(

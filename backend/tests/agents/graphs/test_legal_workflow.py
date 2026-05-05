@@ -13,7 +13,7 @@ pytest.importorskip(
     reason="langgraph not installed (add the local-ai extra)",
 )
 
-from lexgraph.agents_runtime.graphs.legal_workflow import (
+from lawgraph.agents_runtime.graphs.legal_workflow import (
     LegalWorkflow,
     LegalWorkflowOutput,
     _coerce_text,

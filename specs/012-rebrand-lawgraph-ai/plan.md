@@ -1,4 +1,4 @@
-# Plan: Rebrand from LexGraph AI to LawGraph AI
+# Plan: Rebrand from LawGraph AI to LawGraph AI
 
 > Companion to [spec.md](spec.md). Resolves **how** we satisfy FR-1 → FR-10
 > with minimum risk to running stacks. **Blocked on OQ-1 → OQ-5** in spec
@@ -14,11 +14,11 @@ Python package.
 ```mermaid
 flowchart LR
   subgraph Before
-    Pkg1[backend/lexgraph/] --> Settings1[lexgraph.settings.*]
-    Settings1 --> Asgi1[lexgraph.asgi:application]
-    Settings1 --> Celery1[Celery app: lexgraph]
-    PG1[(POSTGRES_DB=lexgraph)] --> Settings1
-    OTEL1[Phoenix: lexgraph] --> Settings1
+    Pkg1[backend/lawgraph/] --> Settings1[lawgraph.settings.*]
+    Settings1 --> Asgi1[lawgraph.asgi:application]
+    Settings1 --> Celery1[Celery app: lawgraph]
+    PG1[(POSTGRES_DB=lawgraph)] --> Settings1
+    OTEL1[Phoenix: lawgraph] --> Settings1
   end
   subgraph After
     Pkg2[backend/lawgraph/] --> Settings2[lawgraph.settings.*]
@@ -37,14 +37,14 @@ this order to avoid transitive errors:
 
 | Order | Find             | Replace          | Notes                                          |
 | ----- | ---------------- | ---------------- | ---------------------------------------------- |
-| 1     | `LEXGRAPH`       | `LAWGRAPH`       | env-var prefixes, ALL-CAPS comments            |
-| 2     | `LexGraph`       | `LawGraph`       | PascalCase prose, class names                  |
-| 3     | `Lexgraph`       | `Lawgraph`       | sentence-case prose (Django app verbose names) |
-| 4     | `lexgraph`       | `lawgraph`       | package paths, lowercase identifiers, URLs     |
+| 1     | `LawGraph`       | `LAWGRAPH`       | env-var prefixes, ALL-CAPS comments            |
+| 2     | `LawGraph`       | `LawGraph`       | PascalCase prose, class names                  |
+| 3     | `LawGraph`       | `Lawgraph`       | sentence-case prose (Django app verbose names) |
+| 4     | `lawgraph`       | `lawgraph`       | package paths, lowercase identifiers, URLs     |
 
 **Order matters**: substituting lowercase first would corrupt the
-PascalCase form (`LexGraph` would become `Lawgraph` when the inner
-`lexgraph` matched).
+PascalCase form (`LawGraph` would become `Lawgraph` when the inner
+`lawgraph` matched).
 
 **Excluded paths** (never touched):
 
@@ -59,7 +59,7 @@ PascalCase form (`LexGraph` would become `Lawgraph` when the inner
 **Quote-preservation carve-outs** (FR-5 / FR-6):
 
 - `docs/adr/0001-adopt-django-backend.md` — historical ADR keeps every
-  occurrence of "FastAPI" + "LexGraph" intact.
+  occurrence of "FastAPI" + "LawGraph" intact.
 - `docs/adr/0002-rebrand-lawgraph-ai.md` (new) — explicitly mentions
   both names in the "Decision" + "Context" sections.
 - `LawGraph_AI_Proposal.md` (renamed file) — keeps the original brand in
@@ -69,7 +69,7 @@ PascalCase form (`LexGraph` would become `Lawgraph` when the inner
 
 | Layer        | File / Module                                                      | Change                                                                            |
 | ------------ | ------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| Python pkg   | `backend/lexgraph/` → `backend/lawgraph/`                          | `git mv` directory; rewrite all imports (FR-2)                                    |
+| Python pkg   | `backend/lawgraph/` → `backend/lawgraph/`                          | `git mv` directory; rewrite all imports (FR-2)                                    |
 | Settings     | `backend/lawgraph/settings/{base,dev,test,prod}.py`                | brand strings; `WSGI_APPLICATION`, `ASGI_APPLICATION`                             |
 | ASGI         | `backend/lawgraph/asgi.py`, `wsgi.py`, `manage.py`                 | `DJANGO_SETTINGS_MODULE` default                                                  |
 | Celery       | `backend/lawgraph/celery.py`, `__init__.py`                        | `Celery("lawgraph")`; `app.config_from_object(...)` arg unchanged                 |
@@ -80,7 +80,7 @@ PascalCase form (`LexGraph` would become `Lawgraph` when the inner
 | Container    | `backend/Dockerfile`, `frontend/Dockerfile`                        | image labels, ENV defaults                                                         |
 | Compose      | `docker-compose.yml`                                               | service env vars, `DATABASE_URL`, `POSTGRES_*`, Celery `-A lawgraph`              |
 | Env          | `.env.example`                                                     | every var (PHOENIX project, Postgres URL, Neo4j password)                         |
-| Make         | `Makefile`                                                         | any `cd backend && python -m lexgraph...` style targets                           |
+| Make         | `Makefile`                                                         | any `cd backend && python -m lawgraph...` style targets                           |
 | pytest       | `pytest.ini`                                                       | `--ds=lawgraph.settings.test --cov=lawgraph`                                      |
 | CI           | `.github/workflows/*.yml`                                          | env vars, comments, job names                                                     |
 | Copilot      | `.github/copilot-instructions.md`                                  | brand prose                                                                       |
@@ -89,11 +89,11 @@ PascalCase form (`LexGraph` would become `Lawgraph` when the inner
 | Constitution | `docs/constitution.md`                                             | brand sweep + footnote linking ADR-2                                              |
 | ADRs         | `docs/adr/0002-rebrand-lawgraph-ai.md` (new)                       | author per FR-6                                                                   |
 | Backlog      | `BACKLOG.md`                                                       | brand sweep on prose; `BL-*` ids stay                                             |
-| Ops          | `scripts/launchd/com.lexgraph.evolve.plist` → `com.lawgraph.evolve.plist` | rename file; rewrite Label, ProgramArguments, log paths                       |
+| Ops          | `scripts/launchd/com.lawgraph.evolve.plist` → `com.lawgraph.evolve.plist` | rename file; rewrite Label, ProgramArguments, log paths                       |
 | Scripts      | `scripts/*.py`, `backend/scripts/*.{sh,py}`                        | brand sweep                                                                       |
 | Memory       | `/memories/repo/*.md` (this workspace)                             | sweep notes for the next agent cycle                                              |
 | Doc (new)    | `docs/operator-rebrand-runbook.md`                                 | author per FR-9                                                                   |
-| Historical   | `LexGraph_AI_Proposal.md` → `LawGraph_AI_Proposal.md`              | rename + add 1-line preservation banner                                           |
+| Historical   | `LawGraph_AI_Proposal.md` → `LawGraph_AI_Proposal.md`              | rename + add 1-line preservation banner                                           |
 
 ## 4. Data & Schema Migrations
 
@@ -105,9 +105,9 @@ in spec 011 and renaming them would break the spec-011 BL-19 contract.
 auto-applied):
 
 ```sql
--- Run as a Postgres superuser, with no active connections to lexgraph DB.
-ALTER ROLE lexgraph RENAME TO lawgraph;
-ALTER DATABASE lexgraph RENAME TO lawgraph;
+-- Run as a Postgres superuser, with no active connections to lawgraph DB.
+ALTER ROLE lawgraph RENAME TO lawgraph;
+ALTER DATABASE lawgraph RENAME TO lawgraph;
 -- Update the password too if rotating:
 ALTER ROLE lawgraph WITH PASSWORD 'lawgraph-dev';
 ```
@@ -125,8 +125,8 @@ not a brand artifact.
 | -------- | ------ | ----------------------- | --- |
 | Rename strategy | **Single cutover commit on a feature branch** with green CI per task | Long-lived dual-name shim with deprecation period | The repo is pre-1.0 with no public PyPI package, no public API consumers locked to the brand string; a clean cut is lower-risk than a multi-week shim. |
 | Substitution tool | **`grep -RIl ... | xargs sed -i ''`** scripted into one re-runnable shell helper at `scripts/rebrand.sh` (deleted after merge) | `ast-grep` / IDE refactor / Copilot per-file | sed handles every text format (Python, MD, YAML, JSON, SH, plist, Dockerfile) uniformly; we don't trust language-specific tools for a sweep that crosses 7 file types. The four-case-preserving order from § 2 is enforced by sed running passes in order. |
-| Package rename | **`git mv backend/lexgraph backend/lawgraph`** then sed sweep over imports | Add `lawgraph` as alias, deprecate `lexgraph` | Same reasoning as cutover-vs-shim: pre-1.0, no external importers. |
-| `BaseLexGraphAgent` symbol | TBD per OQ-4 — default plan: rename | Keep symbol stable | LangGraph checkpoints in dev are wipeable; no production consumers. Will be revisited if OQ-4 surfaces a stability requirement. |
+| Package rename | **`git mv backend/lawgraph backend/lawgraph`** then sed sweep over imports | Add `lawgraph` as alias, deprecate `lawgraph` | Same reasoning as cutover-vs-shim: pre-1.0, no external importers. |
+| `BaseLawGraphAgent` symbol | TBD per OQ-4 — default plan: rename | Keep symbol stable | LangGraph checkpoints in dev are wipeable; no production consumers. Will be revisited if OQ-4 surfaces a stability requirement. |
 | Brand-preservation in ADR-1 | **Keep verbatim** | Edit historical ADR | An ADR is a historical record by definition. Edit-in-place would falsify the audit trail (constitution §4). |
 
 **No constitution deviation beyond the brand text itself.** ADR-2 is the
@@ -136,7 +136,7 @@ required amendment vehicle.
 
 - Brand text in `agent_name`, `model`, and `source` fields is unchanged
   (those carry technical identifiers, not brand strings).
-- The `service` label emitted in OTEL spans changes from `"lexgraph"` →
+- The `service` label emitted in OTEL spans changes from `"lawgraph"` →
   `"lawgraph"` — flagged in OQ-3 for monitor consumers.
 - Every new ADR / runbook / doc carries `source_url` references in
   `docs/` so the rebrand decision is audit-recoverable.
@@ -190,12 +190,12 @@ required amendment vehicle.
 | Risk | Likelihood | Impact | Mitigation |
 | ---- | ---------- | ------ | ---------- |
 | sed sweep accidentally rewrites ADR-1 history | low | high (audit-trail integrity) | sed helper script reads an explicit `KEEP_VERBATIM` allowlist before each pass; AC-1 grep allows ADR-1 explicitly so violations show up. |
-| `LexGraph` → `LawGraph` mis-orders and corrupts PascalCase strings | med | med | Pass order locked in § 2; CI grep gate catches stragglers. |
-| Operator runs `make dev` against an existing `lexgraph`-named Postgres and fails to connect | high | low (dev-only) | FR-9 runbook documents either the ALTER SQL or env-var override (`POSTGRES_USER=lexgraph` etc. still works). |
-| External consumer relies on the literal `service: "lexgraph"` field in `/health` | unknown | low-med | OQ-3 forces an explicit human decision; default plan is "no alias". |
-| Pickled LangGraph checkpoint state references `BaseLexGraphAgent` qualified name | low | med | OQ-4 forces an explicit human decision; default plan is "wipe checkpointer in dev, no prod data exists yet". |
+| `LawGraph` → `LawGraph` mis-orders and corrupts PascalCase strings | med | med | Pass order locked in § 2; CI grep gate catches stragglers. |
+| Operator runs `make dev` against an existing `lawgraph`-named Postgres and fails to connect | high | low (dev-only) | FR-9 runbook documents either the ALTER SQL or env-var override (`POSTGRES_USER=lawgraph` etc. still works). |
+| External consumer relies on the literal `service: "lawgraph"` field in `/health` | unknown | low-med | OQ-3 forces an explicit human decision; default plan is "no alias". |
+| Pickled LangGraph checkpoint state references `BaseLawGraphAgent` qualified name | low | med | OQ-4 forces an explicit human decision; default plan is "wipe checkpointer in dev, no prod data exists yet". |
 | New name "LawGraph" collides with an existing trademark / PyPI / GitHub org | unknown | high (legal / publication) | OQ-2 — **STOP CONDITION**: agent does not proceed past `/clarify` until maintainer answers. |
-| `git mv` history loss on `backend/lexgraph` → `backend/lawgraph` | low | low | Use `git mv` (not delete + add); review with `git log --follow`. |
+| `git mv` history loss on `backend/lawgraph` → `backend/lawgraph` | low | low | Use `git mv` (not delete + add); review with `git log --follow`. |
 | `package-lock.json` and lockfiles drift after rename | low | low | Re-run `npm install` and commit the updated lockfile in the same task. |
 | CI workflow YAMLs reference the old package path in cached keys | med | low | Cache keys include the package name; bumping forces a cache miss which is fine. |
 

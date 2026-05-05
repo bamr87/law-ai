@@ -31,7 +31,7 @@ This spec lands the **smallest defensible local-AI substrate** so the rest of th
 
 ## 4. User Stories
 
-- As a **LexGraph backend developer**, I want `from app.agents.graphs import legal_workflow` to invoke a real LangGraph that calls Ollama and persists state to Postgres, so I can stop stubbing `_call_llm()` in crew tests.
+- As a **LawGraph backend developer**, I want `from app.agents.graphs import legal_workflow` to invoke a real LangGraph that calls Ollama and persists state to Postgres, so I can stop stubbing `_call_llm()` in crew tests.
 - As an **ops engineer**, I want `make local-ai-up` to start Ollama + Postgres + Redis + Phoenix + backend in one command and warm-pull the default models, so onboarding fits in a single coffee.
 - As a **legal analyst** using `/api/analysis`, I want every response to include a `phoenix_trace_url` so I can audit the exact retrieval + LLM steps that produced an answer.
 

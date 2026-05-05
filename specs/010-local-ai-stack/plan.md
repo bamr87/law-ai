@@ -86,7 +86,7 @@ No constitution deviation; no ADR required.
 
 Existing CrewAI provenance contract is unchanged; new column `trace_id` is nullable + additive.
 
-`LegalWorkflow.invoke(...)` returns the trace id and a Phoenix UI URL constructed as `f"{settings.PHOENIX_UI_URL}/projects/lexgraph/traces/{trace_id}"` so users can deep-link from the analysis UI.
+`LegalWorkflow.invoke(...)` returns the trace id and a Phoenix UI URL constructed as `f"{settings.PHOENIX_UI_URL}/projects/lawgraph/traces/{trace_id}"` so users can deep-link from the analysis UI.
 
 ## 6. HITL Gates
 

@@ -20,10 +20,10 @@ from tenacity import (
     wait_exponential,
 )
 
-from lexgraph.core.settings_proxy import settings_proxy as settings
-from lexgraph.core.provenance import provenance
+from lawgraph.core.settings_proxy import settings_proxy as settings
+from lawgraph.core.provenance import provenance
 
-logger = logging.getLogger("lexgraph.ingestion.courtlistener")
+logger = logging.getLogger("lawgraph.ingestion.courtlistener")
 
 BASE_URL = "https://www.courtlistener.com/api/rest/v4"
 DEFAULT_TIMEOUT = 30.0
@@ -57,7 +57,7 @@ class CourtListenerClient:
         )
         self._timeout = timeout
         self._owns_client = client is None
-        headers = {"Accept": "application/json", "User-Agent": "lexgraph-ai/0.1"}
+        headers = {"Accept": "application/json", "User-Agent": "lawgraph-ai/0.1"}
         if self._api_token:
             headers["Authorization"] = f"Token {self._api_token}"
         self._client = client or httpx.AsyncClient(

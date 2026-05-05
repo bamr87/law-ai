@@ -14,15 +14,15 @@ from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from lexgraph.core.auth import RequireGraph
-from lexgraph.core.neo4j import graph_queries
-from lexgraph.core.neo4j.driver import get_neo4j_driver
-from lexgraph.core.provenance import provenance
+from lawgraph.core.auth import RequireGraph
+from lawgraph.core.neo4j import graph_queries
+from lawgraph.core.neo4j.driver import get_neo4j_driver
+from lawgraph.core.provenance import provenance
 
 if TYPE_CHECKING:  # pragma: no cover
     from neo4j import AsyncSession
 
-logger = logging.getLogger("lexgraph.graph")
+logger = logging.getLogger("lawgraph.graph")
 
 
 @asynccontextmanager

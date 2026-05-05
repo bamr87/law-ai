@@ -93,7 +93,7 @@ Cypher writes set `source`, `source_url`, `ingest_timestamp`, `agent_version`, `
 - **Spec gate**: this spec must be approved (Level 2 default).
 - **PR gate**: standard.
 - **Runtime gate (NFR-HITL-1)**: low-confidence extractions land in `pending_review`. A future spec will add a UI to triage them.
-- The agent's `BaseLexGraphAgent.requires_human_approval` is `False` for the ingestion *call itself* (high-volume), but each item carries `confidence` so downstream agents can re-gate.
+- The agent's `BaseLawGraphAgent.requires_human_approval` is `False` for the ingestion *call itself* (high-volume), but each item carries `confidence` so downstream agents can re-gate.
 
 ## 7. Test Strategy
 

@@ -14,10 +14,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from lexgraph.core.neo4j.driver import get_neo4j_driver
-from lexgraph.core.neo4j.queries import get_last_ingest_at
+from lawgraph.core.neo4j.driver import get_neo4j_driver
+from lawgraph.core.neo4j.queries import get_last_ingest_at
 
-logger = logging.getLogger("lexgraph.health")
+logger = logging.getLogger("lawgraph.health")
 
 
 async def _last_ingest_iso() -> str | None:
@@ -40,7 +40,7 @@ class HealthView(APIView):
         return Response(
             {
                 "status": "healthy",
-                "service": "lexgraph-backend",
+                "service": "lawgraph-backend",
                 "version": "0.1.0",
                 "last_ingest_at": last_ingest_at,
             }

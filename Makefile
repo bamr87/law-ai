@@ -3,7 +3,7 @@
 	local-ai-up local-ai-down local-ai-pull local-ai-health
 
 help:
-	@echo "LexGraph AI - Development Commands"
+	@echo "LawGraph AI - Development Commands"
 	@echo ""
 	@echo "  make setup          - Install all dependencies (backend + frontend)"
 	@echo "  make dev            - Start full stack with Docker Compose"
@@ -23,7 +23,7 @@ dev:
 	docker compose up --build
 
 test:
-	cd backend && pytest -q --cov=lexgraph
+	cd backend && pytest -q --cov=lawgraph
 	cd frontend && npm test -- --run
 
 migrate:

@@ -10,7 +10,7 @@ import pytest
 from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator
 
-from lexgraph.agentsapi.consumers import AgentRunConsumer
+from lawgraph.agentsapi.consumers import AgentRunConsumer
 
 
 @pytest.mark.asyncio

@@ -13,8 +13,8 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
-from lexgraph.core.provenance import provenance
-from lexgraph.core.schemas.extraction import ExtractionResult
+from lawgraph.core.provenance import provenance
+from lawgraph.core.schemas.extraction import ExtractionResult
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from neo4j import AsyncSession

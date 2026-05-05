@@ -18,9 +18,9 @@ from django.urls import path
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from lexgraph.agents_runtime.registry import AGENT_REGISTRY, register_all_agents
-from lexgraph.core import audit_jsonl as audit_store
-from lexgraph.core.auth import RequireAgent
+from lawgraph.agents_runtime.registry import AGENT_REGISTRY, register_all_agents
+from lawgraph.core import audit_jsonl as audit_store
+from lawgraph.core.auth import RequireAgent
 
 _BACKLOG_BULLET_RE = re.compile(
     r"^- \*\*(?P<id>BL-\d{8}-\d{2})\*\* — \*(?P<kind>[a-z-]+),\s*(?P<sev>low|med|high)\* — (?P<title>.+)$"
@@ -110,7 +110,7 @@ async def _probe_ollama() -> dict[str, Any]:
 async def _probe_checkpointer() -> dict[str, Any]:
     from django.conf import settings
 
-    from lexgraph.agents_runtime.graphs.runtime import (
+    from lawgraph.agents_runtime.graphs.runtime import (
         CheckpointerUnavailableError,
         build_checkpointer,
     )

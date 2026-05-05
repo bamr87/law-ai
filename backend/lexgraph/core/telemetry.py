@@ -16,12 +16,12 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from lexgraph.core.settings_proxy import settings_proxy as settings
+from lawgraph.core.settings_proxy import settings_proxy as settings
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from fastapi import FastAPI
 
-logger = logging.getLogger("lexgraph.telemetry")
+logger = logging.getLogger("lawgraph.telemetry")
 
 _INITIALIZED = False
 

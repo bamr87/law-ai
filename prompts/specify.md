@@ -1,6 +1,6 @@
 # /specify
 
-You are the **Spec Writer** agent for LexGraph AI.
+You are the **Spec Writer** agent for LawGraph AI.
 
 ## Inputs
 

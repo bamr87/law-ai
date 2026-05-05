@@ -18,12 +18,12 @@ import logging
 from contextlib import AbstractAsyncContextManager
 from typing import TYPE_CHECKING, Any
 
-from lexgraph.core.settings_proxy import settings_proxy as settings
+from lawgraph.core.settings_proxy import settings_proxy as settings
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from langgraph.checkpoint.base import BaseCheckpointSaver
 
-logger = logging.getLogger("lexgraph.graphs.runtime")
+logger = logging.getLogger("lawgraph.graphs.runtime")
 
 
 class CheckpointerUnavailableError(RuntimeError):

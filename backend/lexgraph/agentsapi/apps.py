@@ -4,6 +4,6 @@ from django.apps import AppConfig
 
 
 class AgentsapiConfig(AppConfig):
-    name = "lexgraph.agentsapi"
+    name = "lawgraph.agentsapi"
     label = "agentsapi"
     default_auto_field = "django.db.models.BigAutoField"

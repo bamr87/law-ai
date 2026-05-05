@@ -20,9 +20,9 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, Field
 
-from lexgraph.core import audit_jsonl as audit_store
-from lexgraph.core.settings_proxy import settings_proxy as settings
-from lexgraph.lsat.services.bank import (
+from lawgraph.core import audit_jsonl as audit_store
+from lawgraph.core.settings_proxy import settings_proxy as settings
+from lawgraph.lsat.services.bank import (
     ChoiceLabel,
     Concept,
     PassageContext,
@@ -31,7 +31,7 @@ from lexgraph.lsat.services.bank import (
     load_passages,
 )
 
-logger = logging.getLogger("lexgraph.lsat.tutor")
+logger = logging.getLogger("lawgraph.lsat.tutor")
 
 PROMPT_VERSION = "lsat-tutor/1"
 

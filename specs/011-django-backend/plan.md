@@ -7,7 +7,7 @@
 ```mermaid
 flowchart LR
   Client[Next.js frontend\n(unchanged)]
-  Daphne[daphne ASGI\nlexgraph.asgi:application]
+  Daphne[daphne ASGI\nLawGraph.asgi:application]
   DRF[DRF Views\nanalysis · graph · lsat · agentsapi · core]
   Channels[Channels Consumer\n/ws/agents/{run_id}]
   Admin[Django Admin]
@@ -45,24 +45,24 @@ The dashed arrows are the only persistence paths owned by Django. Solid arrows f
 | ADR | `docs/adr/0001-adopt-django-backend.md` (new) | Record amendment + rationale |
 | Top-level docs | [AGENTS.md](../../AGENTS.md), [PRD.md](../../PRD.md), [.github/copilot-instructions.md](../../.github/copilot-instructions.md) | Replace FastAPI references |
 | Deps | [backend/pyproject.toml](../../backend/pyproject.toml) | Swap fastapi/uvicorn → django/drf/channels/celery/daphne; move jose/passlib to `[future-auth]` |
-| Project skeleton | `backend/manage.py`, `backend/lexgraph/{settings/{base,dev,test,prod}.py, urls.py, asgi.py, wsgi.py, celery.py}` | New |
-| Apps | `backend/lexgraph/{core,audit,analysis,graph,lsat,ingestionapp,agentsapi,agents_runtime}/` | New (each `apps.py`, `urls.py`, `views.py`, `models.py`, `tasks.py`, `consumers.py` as needed) |
-| Settings shim | `backend/lexgraph/core/settings_proxy.py` | New — re-exports `django.conf.settings` so relocated framework-agnostic modules import once |
-| Auth | `backend/lexgraph/core/auth.py` | `ApiKeyAuthentication`, `HasScope` |
-| Provenance | `backend/lexgraph/core/provenance.py` | Reimpl on `audit.AuditEvent.objects.acreate`; signature unchanged |
-| Audit model | `backend/lexgraph/audit/models.py` + initial migration | New `AuditEvent` ORM model |
-| Quarantine model | `backend/lexgraph/ingestionapp/models.py` + initial migration (uses `RunSQL` to reproduce existing schema) | New `PendingReview` ORM model |
-| Token model | `backend/lexgraph/core/models.py` + initial migration | New `ApiToken` ORM model |
-| Mgmt commands | `backend/lexgraph/core/management/commands/{seed_api_keys,ensure_checkpointer}.py` | New |
-| Routers → Views | `backend/lexgraph/{core,agentsapi,analysis,graph,lsat}/views.py` + `urls.py` | Port from [backend/app/api/](../../backend/app/api/) (1:1 contract) |
-| Channels | `backend/lexgraph/agentsapi/consumers.py`, `backend/lexgraph/asgi.py` routing | New consumer skeleton |
-| Celery | `backend/lexgraph/celery.py`, `backend/lexgraph/ingestionapp/tasks.py` | New |
-| Relocated runtime | `backend/lexgraph/agents_runtime/{crews,graphs,tools,prompts,registry.py,checkpointer.py}` | Moved from [backend/app/agents/](../../backend/app/agents/) and [backend/app/db/checkpointer.py](../../backend/app/db/checkpointer.py); imports rewritten |
-| Relocated graph DB | `backend/lexgraph/core/neo4j/{driver.py,graph_queries.py,queries.py,citation_resolver.py}` | Moved from [backend/app/db/](../../backend/app/db/); imports rewritten |
-| Relocated services | `backend/lexgraph/lsat/services/`, `backend/lexgraph/ingestionapp/services/`, `backend/lexgraph/eval/`, `backend/lexgraph/core/schemas/extraction.py`, `backend/lexgraph/core/telemetry.py` | Moved from [backend/app/lsat/](../../backend/app/lsat/), [backend/app/ingestion/](../../backend/app/ingestion/), [backend/app/eval/](../../backend/app/eval/), [backend/app/models/](../../backend/app/models/), [backend/app/core/telemetry.py](../../backend/app/core/telemetry.py) |
+| Project skeleton | `backend/manage.py`, `backend/lawgraph/{settings/{base,dev,test,prod}.py, urls.py, asgi.py, wsgi.py, celery.py}` | New |
+| Apps | `backend/lawgraph/{core,audit,analysis,graph,lsat,ingestionapp,agentsapi,agents_runtime}/` | New (each `apps.py`, `urls.py`, `views.py`, `models.py`, `tasks.py`, `consumers.py` as needed) |
+| Settings shim | `backend/lawgraph/core/settings_proxy.py` | New — re-exports `django.conf.settings` so relocated framework-agnostic modules import once |
+| Auth | `backend/lawgraph/core/auth.py` | `ApiKeyAuthentication`, `HasScope` |
+| Provenance | `backend/lawgraph/core/provenance.py` | Reimpl on `audit.AuditEvent.objects.acreate`; signature unchanged |
+| Audit model | `backend/lawgraph/audit/models.py` + initial migration | New `AuditEvent` ORM model |
+| Quarantine model | `backend/lawgraph/ingestionapp/models.py` + initial migration (uses `RunSQL` to reproduce existing schema) | New `PendingReview` ORM model |
+| Token model | `backend/lawgraph/core/models.py` + initial migration | New `ApiToken` ORM model |
+| Mgmt commands | `backend/lawgraph/core/management/commands/{seed_api_keys,ensure_checkpointer}.py` | New |
+| Routers → Views | `backend/lawgraph/{core,agentsapi,analysis,graph,lsat}/views.py` + `urls.py` | Port from [backend/app/api/](../../backend/app/api/) (1:1 contract) |
+| Channels | `backend/lawgraph/agentsapi/consumers.py`, `backend/lawgraph/asgi.py` routing | New consumer skeleton |
+| Celery | `backend/lawgraph/celery.py`, `backend/lawgraph/ingestionapp/tasks.py` | New |
+| Relocated runtime | `backend/lawgraph/agents_runtime/{crews,graphs,tools,prompts,registry.py,checkpointer.py}` | Moved from [backend/app/agents/](../../backend/app/agents/) and [backend/app/db/checkpointer.py](../../backend/app/db/checkpointer.py); imports rewritten |
+| Relocated graph DB | `backend/lawgraph/core/neo4j/{driver.py,graph_queries.py,queries.py,citation_resolver.py}` | Moved from [backend/app/db/](../../backend/app/db/); imports rewritten |
+| Relocated services | `backend/lawgraph/lsat/services/`, `backend/lawgraph/ingestionapp/services/`, `backend/lawgraph/eval/`, `backend/lawgraph/core/schemas/extraction.py`, `backend/lawgraph/core/telemetry.py` | Moved from [backend/app/lsat/](../../backend/app/lsat/), [backend/app/ingestion/](../../backend/app/ingestion/), [backend/app/eval/](../../backend/app/eval/), [backend/app/models/](../../backend/app/models/), [backend/app/core/telemetry.py](../../backend/app/core/telemetry.py) |
 | Tests | [backend/tests/conftest.py](../../backend/tests/conftest.py) and every file under [backend/tests/](../../backend/tests/) | Rewrite fixtures + import paths; assertions unchanged |
 | Container | [backend/Dockerfile](../../backend/Dockerfile), [docker-compose.yml](../../docker-compose.yml) | New CMD chain (migrate → ensure_checkpointer → seed → daphne); add `worker` service |
-| Tooling | [.vscode/tasks.json](../../.vscode/tasks.json), [Makefile](../../Makefile), `pytest.ini`, [.github/workflows/](../../.github/workflows/) | Update commands `app` → `lexgraph`, `uvicorn` → `daphne`, add `make migrate`, set `DJANGO_SETTINGS_MODULE` |
+| Tooling | [.vscode/tasks.json](../../.vscode/tasks.json), [Makefile](../../Makefile), `pytest.ini`, [.github/workflows/](../../.github/workflows/) | Update commands `app` → `lawgraph`, `uvicorn` → `daphne`, add `make migrate`, set `DJANGO_SETTINGS_MODULE` |
 | Cleanup | Delete entire [backend/app/](../../backend/app/) tree | Final commit |
 
 ## 3. Data & Schema Migrations
@@ -70,7 +70,7 @@ The dashed arrows are the only persistence paths owned by Django. Solid arrows f
 - **Initial Django migration `core.0001_initial`** — creates `core_apitoken` with the FR-6 schema; no data backfill (tokens seeded by `seed_api_keys`).
 - **Initial Django migration `audit.0001_initial`** — creates `audit_auditevent` with the FR-6 schema and indexes.
 - **Initial Django migration `ingestionapp.0001_initial`** — `RunSQL.noop`-style operation that includes the verbatim DDL from [backend/app/db/postgres_migrations/001_pending_review.sql](../../backend/app/db/postgres_migrations/001_pending_review.sql) and [002_pg_trgm.sql](../../backend/app/db/postgres_migrations/002_pg_trgm.sql), then a `RenameModel`/`RenameTable` to bring it under `ingestionapp_pendingreview`. Idempotent: if the legacy `pending_review` table already exists, a `state_operations`/`database_operations` split lets Django adopt it.
-- **Neo4j migrations** — unchanged. The two existing files under [backend/app/db/neo4j_migrations/](../../backend/app/db/neo4j_migrations/) (`001_case_constraints.cypher`, `002_case_aliases.cypher`) move to `backend/lexgraph/core/neo4j/migrations/` and the runner remains a thin shell script invoked from `backend/scripts/init-db.sh`.
+- **Neo4j migrations** — unchanged. The two existing files under [backend/app/db/neo4j_migrations/](../../backend/app/db/neo4j_migrations/) (`001_case_constraints.cypher`, `002_case_aliases.cypher`) move to `backend/lawgraph/core/neo4j/migrations/` and the runner remains a thin shell script invoked from `backend/scripts/init-db.sh`.
 - **LangGraph checkpointer** — owned by the library; FR-13 isolates it in schema `langgraph` via the new `manage.py ensure_checkpointer` command.
 
 All migrations are idempotent and forward-only (Constitution §3 of [aos-dlc-guide.md](../../docs/aos-dlc-guide.md)).
@@ -94,7 +94,7 @@ The Django adoption itself deviates from [docs/constitution.md](../../docs/const
 
 - **Public surface preserved.** `ProvenanceLogger.log_request`, `.log_agent_call`, `.log_graph_query`, and the `@logged_node` decorator (used by [backend/app/agents/graphs/legal_workflow.py](../../backend/app/agents/graphs/legal_workflow.py)) keep their function signatures; relocated agent code does not need to change beyond import paths.
 - **Storage swap.** Internally, every method now calls `await audit.models.AuditEvent.objects.acreate(kind=..., payload=..., timestamp=now(), agent_version=..., trace_id=...)`. The JSONL writer from [backend/app/core/audit_store.py](../../backend/app/core/audit_store.py) becomes a Celery sink invoked when DB writes fail (configurable via `AUDIT_FALLBACK_PATH` env var, defaulting to today's path).
-- **Request middleware.** A new `lexgraph.core.middleware.ProvenanceMiddleware` (Django-style ASGI middleware) wraps every request and calls `await ProvenanceLogger.log_request(...)` after the response, mirroring the FastAPI middleware in [backend/app/main.py](../../backend/app/main.py).
+- **Request middleware.** A new `lawgraph.core.middleware.ProvenanceMiddleware` (Django-style ASGI middleware) wraps every request and calls `await ProvenanceLogger.log_request(...)` after the response, mirroring the FastAPI middleware in [backend/app/main.py](../../backend/app/main.py).
 - **OTEL/Phoenix.** `core.telemetry.init_tracing()` is called from `CoreConfig.ready()` (FR-10). Daphne and Celery worker both instrument `httpx`, Django views, and Channels consumers. Phoenix span IDs continue to surface in `AnalysisResponse.phoenix_trace_url` (no change).
 - **Neo4j writes.** `commit_extraction` and `densify_extraction` continue to set `source`, `source_url`, `ingest_timestamp`, `agent_version`, `confidence` on every node/edge. Constitution §4 satisfied unchanged.
 

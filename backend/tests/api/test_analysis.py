@@ -10,9 +10,9 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from lexgraph.core import audit_jsonl as audit_store
+from lawgraph.core import audit_jsonl as audit_store
 from django.conf import settings
-from lexgraph.asgi import application as app
+from lawgraph.asgi import application as app
 
 
 @pytest.fixture(autouse=True)
@@ -81,7 +81,7 @@ async def test_low_confidence_triggers_hitl_flag(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """AC-4 / NFR-HITL-1: mean confidence < 0.7 → requires_human_review=True."""
-    from lexgraph.agents_runtime.crews.legal_analyst import LegalAnalyst
+    from lawgraph.agents_runtime.crews.legal_analyst import LegalAnalyst
 
     original = LegalAnalyst.run
 
@@ -103,8 +103,8 @@ async def test_run_analysis_executes_agents_in_parallel(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """AC-5: gather() ⇒ wall-clock ≈ max(latency), not sum."""
-    from lexgraph.agents_runtime.crews.legal_analyst import LegalAnalyst
-    from lexgraph.agents_runtime.crews.precedent_hunter import PrecedentHunter
+    from lawgraph.agents_runtime.crews.legal_analyst import LegalAnalyst
+    from lawgraph.agents_runtime.crews.precedent_hunter import PrecedentHunter
 
     orig_a = LegalAnalyst.run
     orig_h = PrecedentHunter.run

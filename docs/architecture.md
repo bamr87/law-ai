@@ -1,4 +1,4 @@
-# LexGraph AI Architecture
+# LawGraph AI Architecture
 
 ## High-Level Overview
 
@@ -53,7 +53,7 @@ flowchart TB
 | **Agent Crews**        | Specialized legal reasoning (Analyst, Precedent Hunter, Logic Weaver, Educator) | `backend/app/agents/crews/` |
 | **Orchestrator**       | LangGraph state machine, routing, HITL gates, provenance logging                | `backend/app/agents/graphs/orchestrator.py` |
 | **GraphRAG Engine**    | Hybrid retrieval (vector + Cypher) + community summaries                        | `backend/app/agents/tools/graph_rag.py` |
-| **API Layer**          | Django REST Framework views for analysis, graph queries, ingestion, LSAT (+ Channels consumers for agent streaming) | `backend/lexgraph/{analysis,graph,lsat,agentsapi,ingestionapp}/` |
+| **API Layer**          | Django REST Framework views for analysis, graph queries, ingestion, LSAT (+ Channels consumers for agent streaming) | `backend/lawgraph/{analysis,graph,lsat,agentsapi,ingestionapp}/` |
 | **Frontend**           | Interactive graph, real-time agent streaming, LSAT practice, library            | `frontend/app/` + `components/GraphViewer.tsx` |
 | **Evaluation**         | LegalBench harness + custom legal reasoning tests                               | `backend/app/eval/` |
 

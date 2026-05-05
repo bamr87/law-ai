@@ -7,11 +7,11 @@ import os
 
 from django.apps import AppConfig
 
-logger = logging.getLogger("lexgraph")
+logger = logging.getLogger("lawgraph")
 
 
 class CoreConfig(AppConfig):
-    name = "lexgraph.core"
+    name = "lawgraph.core"
     label = "core"
     default_auto_field = "django.db.models.BigAutoField"
 
@@ -19,13 +19,13 @@ class CoreConfig(AppConfig):
         # Guard against double-init under runserver --noreload, tests, and
         # gunicorn pre-fork (FR-10). The RUN_MAIN env var is set by the dev
         # autoreloader on the child process only.
-        if os.environ.get("LEXGRAPH_READY_ONCE") == "1":
+        if os.environ.get("LawGraph_READY_ONCE") == "1":
             return
-        os.environ["LEXGRAPH_READY_ONCE"] = "1"
+        os.environ["LawGraph_READY_ONCE"] = "1"
 
         # Spec 010 FR-1: register CrewAI/LangGraph agents.
         try:
-            from lexgraph.agents_runtime.registry import register_all_agents
+            from lawgraph.agents_runtime.registry import register_all_agents
 
             register_all_agents()
         except Exception as exc:  # pragma: no cover - log-only
@@ -33,7 +33,7 @@ class CoreConfig(AppConfig):
 
         # Spec 010 FR-4: OTEL → Phoenix exporter (no-op when env unset).
         try:
-            from lexgraph.core.telemetry import init_tracing
+            from lawgraph.core.telemetry import init_tracing
 
             init_tracing(None)
         except Exception as exc:  # pragma: no cover - log-only

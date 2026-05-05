@@ -1,4 +1,4 @@
-# Spec: Rebrand from LexGraph AI to LawGraph AI
+# Spec: Rebrand from LawGraph AI to LawGraph AI
 
 - **ID**: 012-rebrand-lawgraph-ai
 - **Status**: draft (awaiting `/clarify` — see § 13 Open Decisions)
@@ -9,19 +9,19 @@
 
 ## 1. Problem & Motivation
 
-The product name "LexGraph AI" is being retired in favor of **"LawGraph AI"**.
+The product name "LawGraph AI" is being retired in favor of **"LawGraph AI"**.
 The repo currently embeds the old brand in 118 tracked files spanning code,
 config, docs, tests, and ops. A piecemeal rename will leave half-rebranded
-artifacts (e.g. Postgres role still `lexgraph`, OTEL project still
-`lexgraph`, Python package still `lexgraph/`) that erode trust and
+artifacts (e.g. Postgres role still `lawgraph`, OTEL project still
+`lawgraph`, Python package still `lawgraph/`) that erode trust and
 complicate ops handover. We need a single audited cutover.
 
 ## 2. Goals
 
-- **G1**: Every user-visible occurrence of "LexGraph" / "lexgraph" is
+- **G1**: Every user-visible occurrence of "LawGraph" / "lawgraph" is
   replaced with "LawGraph" / "lawgraph", preserving casing intent
   (PascalCase → PascalCase, lowercase → lowercase, ALL-CAPS → ALL-CAPS).
-- **G2**: The Python package directory is renamed `backend/lexgraph/` →
+- **G2**: The Python package directory is renamed `backend/lawgraph/` →
   `backend/lawgraph/` with all imports, settings module paths, ASGI/Celery
   app references, and test discovery updated.
 - **G3**: All ops surfaces (Postgres role/db, Neo4j password env, Phoenix
@@ -29,7 +29,7 @@ complicate ops handover. We need a single audited cutover.
   rebranded with a documented migration path for any operator running an
   existing dev/prod stack.
 - **G4**: One historical reference is preserved per artifact for
-  archaeology (ADR + the original `LexGraph_AI_Proposal.md`, kept as-is
+  archaeology (ADR + the original `LawGraph_AI_Proposal.md`, kept as-is
   with a header note pointing at the rename ADR).
 - **G5**: All gates green after cutover: `pytest` ≥75% cov, `ruff`,
   `black`, `mypy --strict` (where wired), `npm test -- --run`,
@@ -56,7 +56,7 @@ complicate ops handover. We need a single audited cutover.
 
 - **US-1**: As a maintainer, I want the repo to consistently say "LawGraph
   AI" so that new contributors aren't confused by two brand names.
-- **US-2**: As an operator running a live LexGraph stack, I want a
+- **US-2**: As an operator running a live LawGraph stack, I want a
   documented runbook (env-var deltas, optional Postgres rename SQL) so I
   can upgrade without data loss.
 - **US-3**: As an end user opening `/`, I want the page title and nav to
@@ -68,10 +68,10 @@ complicate ops handover. We need a single audited cutover.
 
 - **FR-1** *(naming taxonomy)*: A single canonical mapping is declared in
   [plan.md](plan.md) § "Replacement Map" and applied everywhere:
-  `LexGraph` → `LawGraph`, `Lexgraph` → `Lawgraph`, `lexgraph` →
-  `lawgraph`, `LEXGRAPH` → `LAWGRAPH`. No other variants.
-- **FR-2** *(python package rename)*: `backend/lexgraph/` is renamed to
-  `backend/lawgraph/`. Every `from lexgraph...` / `import lexgraph...`
+  `LawGraph` → `LawGraph`, `LawGraph` → `Lawgraph`, `lawgraph` →
+  `lawgraph`, `LawGraph` → `LAWGRAPH`. No other variants.
+- **FR-2** *(python package rename)*: `backend/lawgraph/` is renamed to
+  `backend/lawgraph/`. Every `from lawgraph...` / `import lawgraph...`
   becomes `from lawgraph...` / `import lawgraph...`.
 - **FR-3** *(settings + asgi + celery)*: `DJANGO_SETTINGS_MODULE`
   defaults in `manage.py`, `asgi.py`, `wsgi.py`, `celery.py`, Docker
@@ -81,18 +81,18 @@ complicate ops handover. We need a single audited cutover.
   - `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD`, the
     `DATABASE_URL` / `POSTGRES_URL` connection strings, `NEO4J_PASSWORD`
     default, `PHOENIX_PROJECT_NAME`, and any Docker volume / network /
-    container labels carrying `lexgraph` are renamed.
-  - The launchd plist `scripts/launchd/com.lexgraph.evolve.plist` is
+    container labels carrying `lawgraph` are renamed.
+  - The launchd plist `scripts/launchd/com.lawgraph.evolve.plist` is
     renamed to `com.lawgraph.evolve.plist` with matching label.
-- **FR-5** *(historical preservation)*: `LexGraph_AI_Proposal.md` is
+- **FR-5** *(historical preservation)*: `LawGraph_AI_Proposal.md` is
   renamed to `LawGraph_AI_Proposal.md` with a header note: "Originally
-  authored as 'LexGraph AI'; renamed 2026-05-NN — see
+  authored as 'LawGraph AI'; renamed 2026-05-NN — see
   [docs/adr/0002-rebrand-lawgraph-ai.md](../docs/adr/0002-rebrand-lawgraph-ai.md)".
   All other historical brand references inside ADRs and the new ADR-2
   itself are preserved verbatim where they describe the *prior* state.
 - **FR-6** *(constitution amendment)*: A new ADR
   `docs/adr/0002-rebrand-lawgraph-ai.md` is authored capturing the
-  rationale, alternatives considered (keep "LexGraph", coin a third
+  rationale, alternatives considered (keep "LawGraph", coin a third
   name), and the supersession of every brand-locked clause in the
   constitution. The constitution is edited in-place with a footnote
   pointing to ADR-2.
@@ -128,7 +128,7 @@ complicate ops handover. We need a single audited cutover.
   except inside ADR-1, ADR-2, and the proposal file (historical
   references).
 - **NFR-SEC-1**: No secrets are hard-coded. Default dev passwords
-  (`lexgraph-dev` → `lawgraph-dev`) stay in `.env.example` only.
+  (`lawgraph-dev` → `lawgraph-dev`) stay in `.env.example` only.
 
 ## 7. Data Model Impact
 
@@ -143,26 +143,26 @@ complicate ops handover. We need a single audited cutover.
 - **No path or response-shape changes.** `/health`, `/api/agents/...`,
   `/api/analysis/...`, `/api/graph/...`, `/api/lsat/...`,
   `/ws/agents/{run_id}` are unchanged.
-- The OpenAPI / DRF browsable API title strings rebrand from "LexGraph
+- The OpenAPI / DRF browsable API title strings rebrand from "LawGraph
   AI" → "LawGraph AI".
 - The `/health` JSON `service` field (if present) updates from
-  `"lexgraph"` to `"lawgraph"` — flagged as a breaking string change for
+  `"lawgraph"` to `"lawgraph"` — flagged as a breaking string change for
   external monitors (OQ-3).
 
 ## 9. Agent / Crew Impact
 
 - No agent logic changes. The agent module path moves from
-  `lexgraph.agents_runtime.*` → `lawgraph.agents_runtime.*`.
-- `BaseLexGraphAgent` (if referenced by name) is renamed to
+  `lawgraph.agents_runtime.*` → `lawgraph.agents_runtime.*`.
+- `BaseLawGraphAgent` (if referenced by name) is renamed to
   `BaseLawGraphAgent` everywhere. *Open question OQ-4: do we want to
   keep the class symbol stable to avoid pickled-state breaks in any
   cached LangGraph checkpoint?*
-- Prompt templates under `lexgraph/agents_runtime/prompts/` move with
+- Prompt templates under `lawgraph/agents_runtime/prompts/` move with
   the package and have brand-string sweeps applied.
 
 ## 10. Acceptance Criteria
 
-- **AC-1**: `grep -RIn --exclude-dir={.venv,node_modules,.next,coverage,htmlcov,staticfiles,__pycache__,.mypy_cache,.pytest_cache,.ruff_cache} -E 'LexGraph|Lexgraph|lexgraph|LEXGRAPH' .` returns ONLY:
+- **AC-1**: `grep -RIn --exclude-dir={.venv,node_modules,.next,coverage,htmlcov,staticfiles,__pycache__,.mypy_cache,.pytest_cache,.ruff_cache} -E 'LawGraph|LawGraph|lawgraph|LawGraph' .` returns ONLY:
   - `LawGraph_AI_Proposal.md` (preserved historical doc with one header banner reference),
   - `docs/adr/0001-adopt-django-backend.md` (historical context),
   - `docs/adr/0002-rebrand-lawgraph-ai.md` (the rename ADR itself, which has to mention both names).
@@ -180,7 +180,7 @@ complicate ops handover. We need a single audited cutover.
   page title, and footer all read "LawGraph AI"; no console errors.
 - **AC-9**: `docs/operator-rebrand-runbook.md` exists, lists every
   env-var rename, and contains the optional Postgres `ALTER ROLE
-  lexgraph RENAME TO lawgraph` + `ALTER DATABASE lexgraph RENAME TO
+  lawgraph RENAME TO lawgraph` + `ALTER DATABASE lawgraph RENAME TO
   lawgraph` SQL.
 - **AC-10**: `docs/adr/0002-rebrand-lawgraph-ai.md` is approved
   (HITL Level-2 gate per constitution §10) before T-016-equivalent
@@ -193,7 +193,7 @@ complicate ops handover. We need a single audited cutover.
 
 ## 12. Constitution Impact
 
-The constitution currently embeds the brand "LexGraph AI" in §1 (mission)
+The constitution currently embeds the brand "LawGraph AI" in §1 (mission)
 and likely §2 (tech-stack heading). ADR-2 must:
 
 1. Cite the *exact* clauses being renamed.
@@ -222,19 +222,19 @@ and likely §2 (tech-stack heading). ADR-2 must:
 > licensing / external-name decision (constitution §11).
 
 > [OPEN QUESTION OQ-3]: **/health API string change.** The `/health`
-> JSON `service` field renames from `"lexgraph"` → `"lawgraph"`. Any
+> JSON `service` field renames from `"lawgraph"` → `"lawgraph"`. Any
 > external monitor / dashboard relying on the literal string will need
 > updating. Acceptable as a clean break, or do we keep a legacy
-> `aliases: ["lexgraph"]` array for one release?
+> `aliases: ["lawgraph"]` array for one release?
 
-> [OPEN QUESTION OQ-4]: **`BaseLexGraphAgent` symbol stability.**
+> [OPEN QUESTION OQ-4]: **`BaseLawGraphAgent` symbol stability.**
 > Renaming the class to `BaseLawGraphAgent` may invalidate any pickled
 > LangGraph checkpoint state that captured the qualified class name.
 > Confirm: do we have any long-lived checkpoints that must survive the
 > rename, or is "wipe & rebuild" acceptable for dev-only data?
 
 > [OPEN QUESTION OQ-5]: **Live operator data.** Are there any
-> production / staging Postgres clusters with live `lexgraph`-named
+> production / staging Postgres clusters with live `lawgraph`-named
 > role/db that need an in-place rename, or is every operator on
 > greenfield dev installs? Determines whether `docs/operator-rebrand-runbook.md`
 > (FR-9) is required-reading or merely informational.

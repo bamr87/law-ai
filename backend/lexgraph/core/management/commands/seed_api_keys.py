@@ -10,7 +10,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from lexgraph.core.models import ApiToken
+from lawgraph.core.models import ApiToken
 
 _PAIRS = (
     ("agent", "AGENT_API_KEY"),

@@ -11,7 +11,7 @@ from typing import Any
 
 from neo4j import AsyncDriver, AsyncGraphDatabase
 
-from lexgraph.core.settings_proxy import settings_proxy as settings
+from lawgraph.core.settings_proxy import settings_proxy as settings
 
 _driver: AsyncDriver | None = None
 

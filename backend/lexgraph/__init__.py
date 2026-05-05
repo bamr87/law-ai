@@ -1,4 +1,4 @@
-"""LexGraph AI — Django backend (spec 011, ADR 0001).
+"""LawGraph AI — Django backend (spec 011, ADR 0001).
 
 Importing this package eagerly loads the Celery app so the ``@shared_task``
 decorator works for all apps that import ``celery.shared_task``.

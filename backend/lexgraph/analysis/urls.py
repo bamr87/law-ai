@@ -14,13 +14,13 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from lexgraph.agents_runtime.crews.legal_analyst import IRACOutput, LegalAnalyst
-from lexgraph.agents_runtime.crews.precedent_hunter import (
+from lawgraph.agents_runtime.crews.legal_analyst import IRACOutput, LegalAnalyst
+from lawgraph.agents_runtime.crews.precedent_hunter import (
     PrecedentHunter,
     PrecedentList,
 )
-from lexgraph.core.auth import RequireAnalysis
-from lexgraph.core.provenance import provenance
+from lawgraph.core.auth import RequireAnalysis
+from lawgraph.core.provenance import provenance
 
 HITL_THRESHOLD = 0.7
 

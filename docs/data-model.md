@@ -1,6 +1,6 @@
 # Data Model
 
-LexGraph AI's Neo4j knowledge graph. Spec of record: [001-ingest-courtlistener-opinions](../specs/001-ingest-courtlistener-opinions/spec.md).
+LawGraph AI's Neo4j knowledge graph. Spec of record: [001-ingest-courtlistener-opinions](../specs/001-ingest-courtlistener-opinions/spec.md).
 
 ## Nodes
 

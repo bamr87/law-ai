@@ -1,4 +1,4 @@
-"""ASGI entrypoint for LexGraph AI (spec 011 FR-3, FR-12).
+"""ASGI entrypoint for LawGraph AI (spec 011 FR-3, FR-12).
 
 daphne serves both HTTP (Django views via DRF) and WebSocket (Channels
 consumers under ``/ws/agents/...``) protocols.
@@ -12,13 +12,13 @@ from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lexgraph.settings.dev")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lawgraph.settings.dev")
 
 # Initialise Django ASGI application early so that AppConfig.ready() runs and
 # imports for relocated agent code resolve before Channels consumers attach.
 django_asgi_app = get_asgi_application()
 
-from lexgraph.agentsapi.routing import websocket_urlpatterns  # noqa: E402
+from lawgraph.agentsapi.routing import websocket_urlpatterns  # noqa: E402
 
 application = ProtocolTypeRouter(
     {

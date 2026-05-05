@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lexgraph-ai"
+name = "lawgraph-ai"
 version = "0.1.0"
 description = "Open-source agent-orchestrated legal intelligence platform"
 readme = "README.md"
@@ -94,7 +94,7 @@ nlp = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["lexgraph*"]
+include = ["lawgraph*"]
 
 [tool.ruff]
 line-length = 88
@@ -131,8 +131,8 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "9.0"
-DJANGO_SETTINGS_MODULE = "lexgraph.settings.test"
-addopts = "-ra -q --strict-markers --cov=lexgraph --cov-report=term-missing:skip-covered --cov-fail-under=75"
+DJANGO_SETTINGS_MODULE = "lawgraph.settings.test"
+addopts = "-ra -q --strict-markers --cov=lawgraph --cov-report=term-missing:skip-covered --cov-fail-under=75"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
@@ -147,7 +147,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["lexgraph"]
+source = ["lawgraph"]
 branch = true
 omit = ["*/tests/*", "*/__pycache__/*", "*/migrations/*"]
 

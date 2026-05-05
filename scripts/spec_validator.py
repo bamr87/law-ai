@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Spec drift validator for LexGraph AI specs/.
+"""Spec drift validator for LawGraph AI specs/.
 
 Enforces that every spec under ``specs/NNN-*`` is internally consistent:
 

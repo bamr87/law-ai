@@ -17,9 +17,9 @@ from collections import deque
 from pathlib import Path
 from typing import Any
 
-from lexgraph.core.settings_proxy import settings_proxy as settings
+from lawgraph.core.settings_proxy import settings_proxy as settings
 
-logger = logging.getLogger("lexgraph.audit_store")
+logger = logging.getLogger("lawgraph.audit_store")
 
 
 def _path() -> Path:

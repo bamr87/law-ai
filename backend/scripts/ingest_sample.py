@@ -23,10 +23,10 @@ from pathlib import Path
 # Allow ``python scripts/ingest_sample.py`` from backend/ without install.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from lexgraph.ingestionapp.services.courtlistener import CourtListenerClient
-from lexgraph.ingestionapp.services.scout import IngestionScout
+from lawgraph.ingestionapp.services.courtlistener import CourtListenerClient
+from lawgraph.ingestionapp.services.scout import IngestionScout
 
-logger = logging.getLogger("lexgraph.cli.ingest")
+logger = logging.getLogger("lawgraph.cli.ingest")
 
 
 async def _run(args: argparse.Namespace) -> dict[str, int]:

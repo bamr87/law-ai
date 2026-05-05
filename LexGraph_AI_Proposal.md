@@ -1,4 +1,4 @@
-# LexGraph AI
+# LawGraph AI
 
 **AI Agent Orchestration for Legal Intelligence**
 
@@ -14,9 +14,9 @@ Knowledge Graphs, and Open Legal Data
 
 ## Executive Summary
 
-**LexGraph AI** is a groundbreaking open-source platform that integrates advanced AI agent orchestration with a robust backend knowledge repository to revolutionize how legal professionals and law students interact with, analyze, and master legal content.
+**LawGraph AI** is a groundbreaking open-source platform that integrates advanced AI agent orchestration with a robust backend knowledge repository to revolutionize how legal professionals and law students interact with, analyze, and master legal content.
 
-By leveraging **multi-agent systems** (powered by CrewAI and LangGraph), **hybrid GraphRAG retrieval**, interactive knowledge graphs, and seamless integration with public legal datasets, LexGraph transforms passive research into dynamic, intelligent workflows.
+By leveraging **multi-agent systems** (powered by CrewAI and LangGraph), **hybrid GraphRAG retrieval**, interactive knowledge graphs, and seamless integration with public legal datasets, LawGraph transforms passive research into dynamic, intelligent workflows.
 
 **Target users** include practicing lawyers seeking efficient case analysis and precedent mapping, as well as aspiring lawyers preparing for the LSAT and building foundational skills through adaptive, AI-guided learning modules. All AI outputs are persistently stored, versioned, and organized within a queryable backend, ensuring auditability, reproducibility, and continuous knowledge accumulation.
 
@@ -41,9 +41,9 @@ Existing tools (Westlaw, LexisNexis, even emerging AI like Harvey) are **proprie
 
 ---
 
-## Solution Overview: LexGraph AI Platform
+## Solution Overview: LawGraph AI Platform
 
-LexGraph AI is a full-stack web application with three tightly integrated layers:
+LawGraph AI is a full-stack web application with three tightly integrated layers:
 
 1. **Intelligent Backend Repository**  
    PostgreSQL for structured metadata & user data, **Neo4j** for rich relationship modeling (cases → citations → holdings → doctrines → jurisdictions), Chroma/Weaviate for semantic embeddings, and persistent storage of every agent output, trace, and insight.
@@ -112,7 +112,7 @@ flowchart TB
     class Frontend,Dash,Graph,Studio,LSATLab frontend
 ```
 
-**Figure 1: LexGraph AI Architecture** — Public data flows through specialized AI agent crews into a persistent Neo4j-powered knowledge graph + vector store, powering an interactive Next.js frontend with real-time visualizations and learning tools.
+**Figure 1: LawGraph AI Architecture** — Public data flows through specialized AI agent crews into a persistent Neo4j-powered knowledge graph + vector store, powering an interactive Next.js frontend with real-time visualizations and learning tools.
 
 ---
 
@@ -159,7 +159,7 @@ We recommend a **hybrid approach**: **CrewAI** for intuitive role-based crews (f
 
 ## Open Data Sources & Integration
 
-LexGraph is built exclusively on **open, publicly accessible legal data** to ensure accessibility and avoid vendor lock-in:
+LawGraph is built exclusively on **open, publicly accessible legal data** to ensure accessibility and avoid vendor lock-in:
 
 - **Free Law Project / CourtListener**: Primary real-time source for US opinions, dockets, RECAP archives (hundreds of millions of filings), judges, oral arguments. Robust REST API + bulk replication. [GitHub: freelawproject](https://github.com/freelawproject/)
 
@@ -177,7 +177,7 @@ LexGraph is built exclusively on **open, publicly accessible legal data** to ens
 
 ## LSAT & Skills Development Module
 
-A dedicated **"Future Lawyer"** pathway transforms LexGraph into a comprehensive study companion:
+A dedicated **"Future Lawyer"** pathway transforms LawGraph into a comprehensive study companion:
 
 - **Adaptive practice engine** drawing from official-style questions (public domain explanations + LLM-generated variants validated via LegalBench-style reasoning tasks).
 
@@ -255,7 +255,7 @@ A dedicated **"Future Lawyer"** pathway transforms LexGraph into a comprehensive
 
 ## Conclusion & Call to Action
 
-**LexGraph AI** represents a timely, feasible, and transformative opportunity to build the legal profession's first truly open, agent-orchestrated intelligence platform. By combining the richest open legal datasets with cutting-edge multi-agent frameworks and interactive knowledge graphs, we can dramatically lower barriers for practitioners and dramatically accelerate the training of the next generation of lawyers.
+**LawGraph AI** represents a timely, feasible, and transformative opportunity to build the legal profession's first truly open, agent-orchestrated intelligence platform. By combining the richest open legal datasets with cutting-edge multi-agent frameworks and interactive knowledge graphs, we can dramatically lower barriers for practitioners and dramatically accelerate the training of the next generation of lawyers.
 
 This proposal outlines a clear, phased path from MVP to production using **100% open-source components**. The architecture is modular, auditable, and designed for community contribution from day one.
 

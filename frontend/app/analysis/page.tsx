@@ -1,7 +1,7 @@
 import AnalysisStudio from '@/components/AnalysisStudio'
 
 export const metadata = {
-  title: 'Analysis Studio · LexGraph AI',
+  title: 'Analysis Studio · LawGraph AI',
   description:
     'Multi-agent legal analysis with IRAC briefs, precedents, and full provenance traces.',
 }

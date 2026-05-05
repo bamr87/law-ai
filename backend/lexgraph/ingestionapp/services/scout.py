@@ -1,4 +1,4 @@
-"""IngestionScout — first concrete LexGraph ingestion crew (T-003 in specs/001).
+"""IngestionScout — first concrete LawGraph ingestion crew (T-003 in specs/001).
 
 Responsibilities:
 
@@ -17,13 +17,13 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
-from lexgraph.core.provenance import provenance
-from lexgraph.core.neo4j.driver import get_neo4j_driver
-from lexgraph.core.neo4j.queries import commit_extraction
-from lexgraph.core.neo4j.citation_resolver import densify_extraction
-from lexgraph.core.schemas.extraction import Citation, Entity, ExtractionResult
+from lawgraph.core.provenance import provenance
+from lawgraph.core.neo4j.driver import get_neo4j_driver
+from lawgraph.core.neo4j.queries import commit_extraction
+from lawgraph.core.neo4j.citation_resolver import densify_extraction
+from lawgraph.core.schemas.extraction import Citation, Entity, ExtractionResult
 
-logger = logging.getLogger("lexgraph.ingestion.scout")
+logger = logging.getLogger("lawgraph.ingestion.scout")
 
 # Confidence threshold below which extractions are quarantined for human review
 # (specs/001 NFR-HITL-1).
@@ -228,7 +228,7 @@ class IngestionScout:
         Any exception (broker unreachable, ORM error in eager mode, …) is
         allowed to propagate so ``_quarantine`` can fall back to JSONL.
         """
-        from lexgraph.ingestionapp.tasks import quarantine_extraction
+        from lawgraph.ingestionapp.tasks import quarantine_extraction
 
         task_payload: dict[str, Any] = {
             "id": result.case_id,

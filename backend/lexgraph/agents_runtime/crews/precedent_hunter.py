@@ -7,7 +7,7 @@ on-point, analogous, and distinguishing cases with explanations.
 
 from pydantic import BaseModel, Field
 import time
-from lexgraph.core.provenance import provenance
+from lawgraph.core.provenance import provenance
 
 
 class Precedent(BaseModel):

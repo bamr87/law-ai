@@ -1,4 +1,4 @@
-# LexGraph AI — Agent Coding Instructions
+# LawGraph AI — Agent Coding Instructions
 
 **Project Mission**  
 Build the world's first fully open-source, agent-orchestrated legal intelligence platform that combines multi-agent workflows, Neo4j knowledge graphs, GraphRAG, and interactive visualizations to help lawyers and law students master complex legal content.
@@ -86,7 +86,7 @@ Project status, tooling rationale, and onboarding live in [README.md](README.md)
 This is the canonical layout. Treat empty/missing dirs (e.g. `backend/app/db/`, `backend/app/ingestion/`) as scaffolding to be filled in as features land. When adding new code, place it in the matching directory; do not invent new top-level locations.
 
 ```
-lexgraph-ai/
+lawgraph-ai/
 ├── backend/
 │   ├── app/
 │   │   ├── asgi.py                 # Django ASGI app + Channels routing
@@ -219,7 +219,7 @@ When starting work, read in this order:
 1. [docs/architecture.md](docs/architecture.md) — Full system diagram + component responsibilities
 2. [docs/agent-roles.md](docs/agent-roles.md) — Responsibilities + tool requirements for each agent
 3. [PRD.md](PRD.md) — Full product requirements
-4. [LexGraph_AI_Proposal.md](LexGraph_AI_Proposal.md) — Original technical proposal with Mermaid diagrams
+4. [LawGraph_AI_Proposal.md](LawGraph_AI_Proposal.md) — Original technical proposal with Mermaid diagrams
 5. [docs/related-github-repos.md](docs/related-github-repos.md) — Upstream OSS we integrate with
 
 `docs/data-model.md`, `docs/data-sources.md`, and `docs/legalbench.md` are referenced throughout this file but may not yet exist — create them when you do work that warrants them rather than skipping the documentation step.
@@ -229,7 +229,7 @@ When starting work, read in this order:
 ## Communication Style for AI Agents
 
 When responding to user requests:
-- Always start with **"Understood. Implementing [feature] following LexGraph principles..."**
+- Always start with **"Understood. Implementing [feature] following LawGraph principles..."**
 - Reference the exact file paths you will modify
 - Show the key code change (diff style) before writing files
 - End with **"Ready for review. LegalBench delta: +X% on relevant tasks"** when applicable
@@ -242,5 +242,5 @@ When responding to user requests:
 
 ---
 
-**This file is the single source of truth for all coding agents working on LexGraph AI.**  
+**This file is the single source of truth for all coding agents working on LawGraph AI.**  
 Update it when architecture or standards evolve.

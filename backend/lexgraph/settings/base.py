@@ -1,8 +1,8 @@
-"""Base Django settings for LexGraph AI (spec 011 FR-3, FR-5).
+"""Base Django settings for LawGraph AI (spec 011 FR-3, FR-5).
 
 Mirrors every env knob from the legacy ``app.core.config.Settings`` so that
 relocated framework-agnostic modules see the same values via
-``lexgraph.core.settings_proxy``.
+``lawgraph.core.settings_proxy``.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ env = environ.Env(
     ENVIRONMENT=(str, "development"),
     SECRET_KEY=(str, "change-this-in-production-please"),
     ALLOWED_HOSTS=(list, ["*"]),
-    APP_NAME=(str, "LexGraph AI"),
+    APP_NAME=(str, "LawGraph AI"),
     # LLM
     OLLAMA_BASE_URL=(str, "http://ollama:11434"),
     DEFAULT_MODEL=(str, "llama3.1:70b-q4_K_M"),
@@ -30,16 +30,16 @@ env = environ.Env(
     LANGGRAPH_CHECKPOINTER_SCHEMA=(str, "langgraph"),
     PHOENIX_COLLECTOR_ENDPOINT=(str, ""),
     PHOENIX_UI_URL=(str, "http://localhost:6006"),
-    PHOENIX_PROJECT_NAME=(str, "lexgraph"),
+    PHOENIX_PROJECT_NAME=(str, "lawgraph"),
     # Databases
     POSTGRES_URL=(
         str,
-        "postgresql+asyncpg://lexgraph:lexgraph-dev@postgres:5432/lexgraph",
+        "postgresql+asyncpg://lawgraph:lawgraph-dev@postgres:5432/lawgraph",
     ),
     DATABASE_URL=(str, ""),  # Django ORM (sync_psycopg form)
     NEO4J_URI=(str, "bolt://neo4j:7687"),
     NEO4J_USER=(str, "neo4j"),
-    NEO4J_PASSWORD=(str, "lexgraph-dev"),
+    NEO4J_PASSWORD=(str, "lawgraph-dev"),
     REDIS_URL=(str, "redis://redis:6379/0"),
     # External
     COURTLISTENER_API_KEY=(str, ""),
@@ -66,7 +66,7 @@ env.read_env(str(BASE_DIR / ".env"), overwrite=False)
 
 # ---------------------------------------------------------------------------
 # Mirror of the legacy Pydantic Settings surface (read by relocated modules
-# via ``lexgraph.core.settings_proxy``).
+# via ``lawgraph.core.settings_proxy``).
 # ---------------------------------------------------------------------------
 APP_NAME: str = env("APP_NAME")
 ENVIRONMENT: str = env("ENVIRONMENT")
@@ -125,33 +125,33 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "channels",
-    # LexGraph apps
-    "lexgraph.core.apps.CoreConfig",
-    "lexgraph.audit.apps.AuditConfig",
-    "lexgraph.analysis.apps.AnalysisConfig",
-    "lexgraph.graph.apps.GraphConfig",
-    "lexgraph.lsat.apps.LsatConfig",
-    "lexgraph.ingestionapp.apps.IngestionappConfig",
-    "lexgraph.agentsapi.apps.AgentsapiConfig",
-    "lexgraph.agents_runtime.apps.AgentsRuntimeConfig",
+    # LawGraph apps
+    "lawgraph.core.apps.CoreConfig",
+    "lawgraph.audit.apps.AuditConfig",
+    "lawgraph.analysis.apps.AnalysisConfig",
+    "lawgraph.graph.apps.GraphConfig",
+    "lawgraph.lsat.apps.LsatConfig",
+    "lawgraph.ingestionapp.apps.IngestionappConfig",
+    "lawgraph.agentsapi.apps.AgentsapiConfig",
+    "lawgraph.agents_runtime.apps.AgentsRuntimeConfig",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "lexgraph.core.middleware.CorsHeadersMiddleware",
+    "lawgraph.core.middleware.CorsHeadersMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "lexgraph.core.middleware.ProvenanceMiddleware",
+    "lawgraph.core.middleware.ProvenanceMiddleware",
 ]
 
-ROOT_URLCONF = "lexgraph.urls"
-ASGI_APPLICATION = "lexgraph.asgi.application"
-WSGI_APPLICATION = "lexgraph.wsgi.application"
+ROOT_URLCONF = "lawgraph.urls"
+ASGI_APPLICATION = "lawgraph.asgi.application"
+WSGI_APPLICATION = "lawgraph.wsgi.application"
 
 TEMPLATES = [
     {
@@ -185,9 +185,9 @@ def _build_database_config() -> dict[str, dict[str, Any]]:
                 else "postgres"
             ),
             "PORT": "5432",
-            "NAME": "lexgraph",
-            "USER": "lexgraph",
-            "PASSWORD": "lexgraph-dev",
+            "NAME": "lawgraph",
+            "USER": "lawgraph",
+            "PASSWORD": "lawgraph-dev",
         }
     }
 
@@ -212,7 +212,7 @@ STORAGES = {
 
 # DRF
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": ("lexgraph.core.auth.ApiKeyAuthentication",),
+    "DEFAULT_AUTHENTICATION_CLASSES": ("lawgraph.core.auth.ApiKeyAuthentication",),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "UNAUTHENTICATED_USER": None,
 }

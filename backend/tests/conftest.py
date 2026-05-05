@@ -1,10 +1,10 @@
-"""Pytest configuration and shared fixtures for LexGraph AI (Django edition).
+"""Pytest configuration and shared fixtures for LawGraph AI (Django edition).
 
 Run with::
 
     cd backend && pytest -q                          # default fast suite
     pytest -m integration                            # docker-backed
-    pytest --cov=lexgraph --cov-report=html
+    pytest --cov=lawgraph --cov-report=html
 
 Spec 011 ports the suite from the FastAPI/httpx layout to Django + DRF.
 We expose:
@@ -27,7 +27,7 @@ import django
 import pytest
 import pytest_asyncio
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lexgraph.settings.test")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lawgraph.settings.test")
 os.environ.setdefault("DATABASE_URL", "sqlite:///./test.sqlite3")
 django.setup()
 
@@ -37,7 +37,7 @@ from neo4j import AsyncGraphDatabase  # noqa: E402
 from redis.asyncio import Redis  # noqa: E402
 from rest_framework.test import APIClient  # noqa: E402
 
-from lexgraph.asgi import application as asgi_app  # noqa: E402
+from lawgraph.asgi import application as asgi_app  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +80,7 @@ def _reset_api_tokens(monkeypatch: pytest.MonkeyPatch, transactional_db) -> None
     rows the test's main thread just wrote — SQLite's strict locking otherwise
     deadlocks on the first ApiToken read.
     """
-    from lexgraph.core.models import ApiToken
+    from lawgraph.core.models import ApiToken
 
     ApiToken.objects.all().delete()
     for name in (

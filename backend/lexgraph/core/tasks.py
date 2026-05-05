@@ -7,14 +7,14 @@ from typing import Any
 
 from celery import shared_task
 
-logger = logging.getLogger("lexgraph.tasks")
+logger = logging.getLogger("lawgraph.tasks")
 
 
-@shared_task(name="lexgraph.core.persist_audit_event", ignore_result=True)
+@shared_task(name="lawgraph.core.persist_audit_event", ignore_result=True)
 def persist_audit_event(event: dict[str, Any]) -> None:
     """Async fallback path for :func:`provenance._persist` when DB writes fail."""
     try:
-        from lexgraph.audit.models import AuditEvent
+        from lawgraph.audit.models import AuditEvent
 
         AuditEvent.objects.create(
             kind=event.get("type") or "unknown",

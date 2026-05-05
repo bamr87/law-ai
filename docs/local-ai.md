@@ -1,6 +1,6 @@
 # Local AI Stack (Spec 010)
 
-> Companion to [specs/010-local-ai-stack/](../specs/010-local-ai-stack/). This page is the operator-facing manual for running LexGraph's LangGraph + Ollama + Phoenix substrate locally.
+> Companion to [specs/010-local-ai-stack/](../specs/010-local-ai-stack/). This page is the operator-facing manual for running LawGraph's LangGraph + Ollama + Phoenix substrate locally.
 
 ## At a glance
 
@@ -12,7 +12,7 @@
 | Redis | `redis:7-alpine` | Optional checkpointer + cache | `localhost:6379` |
 | Neo4j | `neo4j:5-community` | Knowledge graph | `localhost:7687` / UI `7474` |
 | Phoenix | `arizephoenix/phoenix:latest` | OTEL collector + trace UI | `localhost:6006` |
-| Backend | `backend/lexgraph/asgi.py` (Django ASGI via daphne) | API + agent host | `localhost:8000` |
+| Backend | `backend/lawgraph/asgi.py` (Django ASGI via daphne) | API + agent host | `localhost:8000` |
 
 ## Architecture
 
@@ -64,7 +64,7 @@ The response includes `phoenix_trace_url` and `langgraph_thread_id` — paste ei
 | `LANGGRAPH_CHECKPOINTER` | `postgres` | `postgres` \| `redis` \| `memory`. |
 | `PHOENIX_COLLECTOR_ENDPOINT` | `http://phoenix:6006/v1/traces` | **Unset disables tracing entirely.** Required no-op for tests. |
 | `PHOENIX_UI_URL` | `http://localhost:6006` | Used to build deep-links in API responses. |
-| `PHOENIX_PROJECT_NAME` | `lexgraph` | Phoenix tab label. |
+| `PHOENIX_PROJECT_NAME` | `lawgraph` | Phoenix tab label. |
 
 ## Hardware tiers
 

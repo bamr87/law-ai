@@ -10,12 +10,12 @@ from typing import Any
 
 import pytest
 
-from lexgraph.core.neo4j.citation_resolver import (
+from lawgraph.core.neo4j.citation_resolver import (
     RESOLVE_CITATIONS_CYPHER,
     densify_extraction,
     resolve_citations,
 )
-from lexgraph.core.schemas.extraction import Citation, ExtractionResult
+from lawgraph.core.schemas.extraction import Citation, ExtractionResult
 
 
 class _FakeResult:

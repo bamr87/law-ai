@@ -1,7 +1,7 @@
 #!/bin/sh
 # Spec 010 FR-7: idempotent Ollama bootstrap.
 #
-# Starts the Ollama server then pulls the LexGraph default model set in the
+# Starts the Ollama server then pulls the LawGraph default model set in the
 # background. Re-running is safe: `ollama pull` is a no-op when the model
 # is already present at the requested digest.
 #

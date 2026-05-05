@@ -11,7 +11,7 @@ unchanged for back-compat with existing tests and the Analysis Studio.
 """
 
 from pydantic import BaseModel, Field
-from lexgraph.core.provenance import provenance
+from lawgraph.core.provenance import provenance
 import time
 
 
@@ -85,7 +85,7 @@ class LegalAnalyst:
         issue/rule/conclusion split lands in BL-20260502-04 (LegalAnalyst
         backfill onto LegalWorkflow).
         """
-        from lexgraph.agents_runtime.graphs import LegalWorkflow
+        from lawgraph.agents_runtime.graphs import LegalWorkflow
 
         workflow = LegalWorkflow()
         question = input_data.get("text") or input_data.get("question") or ""

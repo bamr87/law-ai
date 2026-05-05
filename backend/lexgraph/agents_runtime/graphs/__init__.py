@@ -18,11 +18,11 @@ __all__ = ["LegalWorkflow", "LegalWorkflowOutput", "build_checkpointer"]
 
 def __getattr__(name: str):  # pragma: no cover - thin re-export shim
     if name == "build_checkpointer":
-        from lexgraph.agents_runtime.graphs.runtime import build_checkpointer
+        from lawgraph.agents_runtime.graphs.runtime import build_checkpointer
 
         return build_checkpointer
     if name in {"LegalWorkflow", "LegalWorkflowOutput"}:
-        from lexgraph.agents_runtime.graphs import legal_workflow
+        from lawgraph.agents_runtime.graphs import legal_workflow
 
         return getattr(legal_workflow, name)
     raise AttributeError(name)

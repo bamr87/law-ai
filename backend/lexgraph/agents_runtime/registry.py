@@ -1,13 +1,13 @@
 """
-Agent Registry - Central place to register and discover all LexGraph agents.
+Agent Registry - Central place to register and discover all LawGraph agents.
 
 This allows the Orchestrator to dynamically route tasks and enables
 the /api/agents endpoint for introspection.
 """
 
-from lexgraph.agents_runtime.crews.legal_analyst import LegalAnalyst
-from lexgraph.agents_runtime.crews.precedent_hunter import PrecedentHunter
-from lexgraph.ingestionapp.services.scout import IngestionScout
+from lawgraph.agents_runtime.crews.legal_analyst import LegalAnalyst
+from lawgraph.agents_runtime.crews.precedent_hunter import PrecedentHunter
+from lawgraph.ingestionapp.services.scout import IngestionScout
 
 # ... import other agents
 
@@ -21,7 +21,7 @@ def register_agent(name: str, agent_class: type) -> None:
 
 
 def register_all_agents() -> None:
-    """Register all agents used in LexGraph AI."""
+    """Register all agents used in LawGraph AI."""
     register_agent("LegalAnalyst", LegalAnalyst)
     register_agent("PrecedentHunter", PrecedentHunter)
     register_agent("IngestionScout", IngestionScout)
