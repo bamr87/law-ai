@@ -103,11 +103,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* AOS-DLC pipeline */}
+      {/* AO-SDLC pipeline */}
       <section className="mx-auto max-w-7xl px-6 py-16">
         <SectionHeading
           eyebrow="Workflow"
-          title="The AOS-DLC chain"
+          title="The AO-SDLC chain"
           subtitle="Every non-trivial change runs the full spec-driven cycle. CI gates enforce it."
         />
         <ol className="mt-10 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">

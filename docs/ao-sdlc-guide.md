@@ -1,4 +1,4 @@
-# AI Agent-Orchestrated Software Development Life Cycle (AOS-DLC)
+# AI Agent-Orchestrated Software Development Life Cycle (AO-SDLC)
 ## Comprehensive Template and Guide for Autonomous AI-Driven Development
 
 **Version 1.0**  
@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-The traditional SDLC is being fundamentally transformed by **Agentic AI** — autonomous, goal-oriented AI agents that collaborate via orchestration frameworks to handle planning, coding, testing, deployment, and operations with minimal human intervention. This guide outlines the **AI Agent-Orchestrated SDLC (AOS-DLC)**, a next-generation framework that:
+The traditional SDLC is being fundamentally transformed by **Agentic AI** — autonomous, goal-oriented AI agents that collaborate via orchestration frameworks to handle planning, coding, testing, deployment, and operations with minimal human intervention. This guide outlines the **AI Agent-Orchestrated SDLC (AO-SDLC)**, a next-generation framework that:
 
 - Leverages **multi-agent systems** (e.g., CrewAI for role-based teams, LangGraph for stateful workflows, AutoGen for conversational collaboration, GitHub Spec Kit for structured spec-driven development).
 - Embeds **intelligent CI/CD pipelines** with spec validation gates, behavioral checks, autonomous optimization, and closed-loop feedback (SRE agents feeding issues back to coding agents).
@@ -34,7 +34,7 @@ This document serves as both a **strategic outline** and **implementation templa
 - Bottlenecks in requirements translation, coding, testing, reviews.
 - Typical timeline: 6-18 months for complex features.
 
-**Agentic SDLC (AOS-DLC):**
+**Agentic SDLC (AO-SDLC):**
 - **Spec-Driven Foundation**: Natural language intent → Structured, persistent specs/plans/tasks (GitHub Spec Kit: constitution.md, spec.md, plan.md, tasks.md).
 - **Multi-Agent Collaboration**: Specialized agents (Researcher, Architect, Coder, Tester, Deployer, SRE) orchestrated by a Core Orchestrator Agent.
 - **Continuous & Parallel**: Agents work in parallel where possible; feedback loops close autonomously (e.g., SRE detects issue → creates GitHub Issue → Coding Agent fixes → redeploy).
@@ -390,7 +390,7 @@ result = roadmap_crew.kickoff(inputs={"company_okrs": "...", "current_roadmap": 
 **GitHub Actions Example Skeleton** (full template in Section 11):
 
 ```yaml
-name: AOS-DLC Pipeline
+name: AO-SDLC Pipeline
 on: [push, pull_request]
 jobs:
   validate-spec:
@@ -591,7 +591,7 @@ Key custom steps:
 - **Spec-Driven Development (SDD)**: Spec as primary artifact driving implementation (vs. code-first).
 - **Core Orchestrator**: Central agent managing workflow state and delegation.
 - **HITL**: Human-in-the-Loop governance.
-- **AOS-DLC**: AI Agent-Orchestrated SDLC (this framework).
+- **AO-SDLC**: AI Agent-Orchestrated SDLC (this framework).
 
 ### B. References & Sources
 - Microsoft Tech Community: "An AI led SDLC" (Spec Kit + GitHub Copilot + Azure SRE, Feb 2026).
@@ -627,7 +627,7 @@ Key custom steps:
 
 ## Conclusion & Next Steps
 
-The AOS-DLC represents the convergence of spec-driven rigor, multi-agent intelligence, reliable CI/CD, and strategic roadmapping into a cohesive, autonomous-capable system. Organizations adopting this template will not only ship faster but build a **self-improving development platform** where agents learn from every cycle, continuously raising the baseline of quality and speed.
+The AO-SDLC represents the convergence of spec-driven rigor, multi-agent intelligence, reliable CI/CD, and strategic roadmapping into a cohesive, autonomous-capable system. Organizations adopting this template will not only ship faster but build a **self-improving development platform** where agents learn from every cycle, continuously raising the baseline of quality and speed.
 
 **Immediate Next Steps for Readers**:
 1. Install GitHub Spec Kit in a pilot repo today.

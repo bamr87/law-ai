@@ -54,7 +54,7 @@ Every new feature ships with:
 - For new agents: ≥ 1 LegalBench-subset test in `backend/tests/agents/`.
 - For new frontend components: ≥ 1 Vitest + RTL test in `frontend/__tests__/`.
 
-## 7. Spec-Driven Workflow (AOS-DLC Phase 1)
+## 7. Spec-Driven Workflow (AO-SDLC Phase 1)
 
 Every change larger than a typo follows the spec workflow:
 
@@ -66,7 +66,7 @@ Every change larger than a typo follows the spec workflow:
 6. Open PR with all four files. CI runs [scripts/spec_validator.py](../scripts/spec_validator.py) drift gate.
 7. Run [/implement](../prompts/implement.md) per task; PRs reference `specs/NNN-...` in description.
 
-See [docs/aos-dlc.md](aos-dlc.md) for how phases map onto LawGraph and [docs/aos-dlc-guide.md](aos-dlc-guide.md) for the full framework reference.
+See [docs/AO-SDLC.md](AO-SDLC.md) for how phases map onto LawGraph and [docs/AO-SDLC-guide.md](AO-SDLC-guide.md) for the full framework reference.
 
 ## 8. Security Baselines
 
@@ -85,7 +85,7 @@ See [docs/aos-dlc.md](aos-dlc.md) for how phases map onto LawGraph and [docs/aos
 
 ## 10. Autonomy Level
 
-This repo currently operates at **AOS-DLC Level 2 (Collaborative)**: agents draft, humans approve at the spec gate and the PR gate. Promotion to Level 3 requires:
+This repo currently operates at **AO-SDLC Level 2 (Collaborative)**: agents draft, humans approve at the spec gate and the PR gate. Promotion to Level 3 requires:
 
 - LegalBench baseline established and tracked in CI.
 - Langfuse (or equivalent) traces wired up.

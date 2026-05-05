@@ -16,7 +16,7 @@ REQUIRED_DOCS = [
     "docs/architecture.md",
     "docs/agent-roles.md",
     "docs/constitution.md",
-    "docs/aos-dlc.md",
+    "docs/AO-SDLC.md",
     "docs/data-model.md",
     "docs/data-sources.md",
     "docs/related-github-repos.md",

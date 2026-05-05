@@ -1,12 +1,13 @@
-# AOS-DLC in LawGraph AI
 
-This page maps the [AI Agent-Orchestrated SDLC framework](aos-dlc-guide.md) onto the concrete files, agents, and tools in this repository. The framework guide is the **reference**; this page is the **implementation**.
+# AO-SDLC in LawGraph AI
+
+This page maps the [AI Agent-Orchestrated SDLC framework](AO-SDLC-guide.md) onto the concrete files, agents, and tools in this repository. The framework guide is the **reference**; this page is the **implementation**.
 
 LawGraph currently operates at **Autonomy Level 2 (Collaborative)** per [docs/constitution.md](constitution.md) §10.
 
 ## Phase Mapping
 
-| AOS-DLC Phase | LawGraph Implementation | Entry Point |
+| AO-SDLC Phase | LawGraph Implementation | Entry Point |
 |---|---|---|
 | **0. Roadmap & Portfolio** | GitHub Projects + [PRD.md](../PRD.md). Roadmap-agent crew is **planned**, not yet built. | Manual today |
 | **1. Spec / Requirements** | [specs/](../specs/) directory using the Spec Kit pattern (`spec.md` + `plan.md` + `tasks.md`). | [/specify](../prompts/specify.md) → [/clarify](../prompts/clarify.md) |
@@ -20,7 +21,7 @@ LawGraph currently operates at **Autonomy Level 2 (Collaborative)** per [docs/co
 
 The framework's generic agent roles correspond to LawGraph crews documented in [docs/agent-roles.md](agent-roles.md). Concrete classes live in [backend/app/agents/crews/](../backend/app/agents/crews) and are wired in [backend/app/agents/registry.py](../backend/app/agents/registry.py).
 
-| AOS-DLC Role | LawGraph Crew |
+| AO-SDLC Role | LawGraph Crew |
 |---|---|
 | Spec Writer / Clarifier | Prompts in [prompts/specify.md](../prompts/specify.md) and [prompts/clarify.md](../prompts/clarify.md) (no dedicated runtime agent yet) |
 | System Architect | Prompt [/plan](../prompts/plan.md) (no runtime agent yet) |
@@ -33,7 +34,7 @@ The framework's generic agent roles correspond to LawGraph crews documented in [
 
 ## CI/CD Backbone
 
-[.github/workflows/ci.yml](../.github/workflows/ci.yml) encodes the AOS-DLC "deterministic core + intelligent gates" principle:
+[.github/workflows/ci.yml](../.github/workflows/ci.yml) encodes the AO-SDLC "deterministic core + intelligent gates" principle:
 
 1. **Spec gate** — [scripts/spec_validator.py](../scripts/spec_validator.py) blocks any PR whose specs are inconsistent (unresolved open questions, requirements with no task coverage).
 2. **Backend lint + types** — `ruff`, `black --check`, `mypy --strict`.
@@ -41,7 +42,7 @@ The framework's generic agent roles correspond to LawGraph crews documented in [
 4. **Frontend lint + tests** — `npm run lint`, `tsc --noEmit`, Vitest.
 5. **LegalBench regression** — runs only on PRs labelled `reasoning-change` (cost control).
 
-AI-augmented review (per AOS-DLC §11.3) is **planned** as a future job, gated behind the constitution's open-source LLM rule.
+AI-augmented review (per AO-SDLC §11.3) is **planned** as a future job, gated behind the constitution's open-source LLM rule.
 
 ## What's Intentionally Not Built Yet
 

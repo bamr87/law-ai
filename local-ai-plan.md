@@ -63,7 +63,7 @@ Ready-to-run `setup-local-stack.sh`, backup/monitoring routines, and extension i
 - Full `docker-compose.yml` + setup script files.
 - Complete example agent code (e.g., local PDF research agent or autonomous coder).
 - Apple Silicon / specific GPU optimizations.
-- Integration with your previous AOS-DLC guide (local version of the agent-orchestrated SDLC).
+- Integration with your previous AO-SDLC guide (local version of the agent-orchestrated SDLC).
 - Evaluation harness or multi-agent crew example.
 
 **Hardware/OS details?** Specific use case (coding agent, research, automation, air-gapped)? Let me know and I'll refine or generate the exact files you need. This stack is ready to run today on most modern machines.

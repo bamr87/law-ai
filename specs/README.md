@@ -1,6 +1,6 @@
 # Specs — Spec-Driven Development for LawGraph AI
 
-This directory holds the persistent, versioned specifications that drive every non-trivial change in the codebase. It is the LawGraph implementation of [AOS-DLC](../docs/aos-dlc.md) Phase 1 (Spec Kit pattern).
+This directory holds the persistent, versioned specifications that drive every non-trivial change in the codebase. It is the LawGraph implementation of [AO-SDLC](../docs/AO-SDLC.md) Phase 1 (Spec Kit pattern).
 
 ## Layout
 

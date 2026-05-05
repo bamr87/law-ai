@@ -82,7 +82,7 @@
     `docs/adr/0002-rebrand-lawgraph-ai.md`)
   - `specs/**/*.md` (preserve direct quotations of historical state)
   - `BACKLOG.md`, `.github/copilot-instructions.md`, `AGENTS.md`,
-    `README.md`, `PRD.md`, `AOS-DLC_Outline_Guide.md`
+    `README.md`, `PRD.md`, `AO-SDLC_Outline_Guide.md`
 
 ## T-008 — Ops scripts + launchd plist rename
 

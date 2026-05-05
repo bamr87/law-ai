@@ -4,14 +4,14 @@
 Build the world's first fully open-source, agent-orchestrated legal intelligence platform that combines multi-agent workflows, Neo4j knowledge graphs, GraphRAG, and interactive visualizations to help lawyers and law students master complex legal content.
 
 **Workflow & Standards**
-- This repo follows a spec-driven workflow ([AOS-DLC](docs/aos-dlc.md) Level 2). Every non-trivial change starts with a spec under [specs/](specs/) using [/specify](prompts/specify.md) → [/clarify](prompts/clarify.md) → [/plan](prompts/plan.md) → [/tasks](prompts/tasks.md) → [/implement](prompts/implement.md). For autonomous "pick the next thing and ship it" runs, use [/evolve](prompts/evolve.md).
+- This repo follows a spec-driven workflow ([AO-SDLC](docs/AO-SDLC.md) Level 2). Every non-trivial change starts with a spec under [specs/](specs/) using [/specify](prompts/specify.md) → [/clarify](prompts/clarify.md) → [/plan](prompts/plan.md) → [/tasks](prompts/tasks.md) → [/implement](prompts/implement.md). For autonomous "pick the next thing and ship it" runs, use [/evolve](prompts/evolve.md).
 - All specs and PRs must satisfy [docs/constitution.md](docs/constitution.md). CI enforces spec consistency via [scripts/spec_validator.py](scripts/spec_validator.py).
 
 ## Development Orchestration (GitHub Copilot Only)
 
 **The only sanctioned AI development surface for this repo is GitHub Copilot.** This covers:
 
-- **Copilot Chat** in VS Code — Ask, Edit, and Agent modes. Agent mode runs the AOS-DLC chain and `/evolve`.
+- **Copilot Chat** in VS Code — Ask, Edit, and Agent modes. Agent mode runs the AO-SDLC chain and `/evolve`.
 - **Inline Copilot completions** in any JetBrains/VS/VS Code surface authenticated to the same GitHub account.
 - **GitHub Copilot coding agent** — the cloud agent that picks up issues assigned to `@copilot` (used by [.github/workflows/evolve.yml](.github/workflows/evolve.yml)).
 - **Copilot Code Review** on pull requests.

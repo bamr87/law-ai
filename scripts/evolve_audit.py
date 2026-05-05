@@ -81,7 +81,7 @@ def _scan_todos() -> list[Candidate]:
 
 
 def _scan_missing_docs() -> list[Candidate]:
-    referenced = {"docs/data-model.md", "docs/data-sources.md", "docs/legalbench.md", "docs/aos-dlc.md"}
+    referenced = {"docs/data-model.md", "docs/data-sources.md", "docs/legalbench.md", "docs/AO-SDLC.md"}
     return [
         Candidate(
             kind="doc-gap",
