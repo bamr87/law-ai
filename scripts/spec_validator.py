@@ -30,6 +30,11 @@ SPECS_DIR = REPO_ROOT / "specs"
 SPEC_DIR_RE = re.compile(r"^\d{3}-[a-z0-9][a-z0-9-]*$")
 ID_RE = re.compile(r"\b((?:FR|NFR|AC)-[A-Z0-9-]+)\b")
 OPEN_Q_RE = re.compile(r"OPEN QUESTION\s+OQ-\d+", re.IGNORECASE)
+STATUS_RE = re.compile(r"^- \*\*Status\*\*:\s*([a-z\-]+)", re.IGNORECASE | re.MULTILINE)
+# Statuses that may legitimately still contain OPEN QUESTION blocks and
+# requirement IDs not yet mirrored into tasks.md. The spec workflow expects
+# `/clarify` to resolve OQs before the spec advances to `clarified`+.
+PRE_CLARIFY_STATUSES = {"draft"}
 TEMPLATE_PLACEHOLDER = "FR-1"  # appears in _template; ignored there
 
 
@@ -66,17 +71,22 @@ def validate_spec(spec_dir: Path) -> list[str]:
     spec_text = spec.read_text(encoding="utf-8")
     tasks_text = tasks.read_text(encoding="utf-8")
 
+    status_match = STATUS_RE.search(spec_text)
+    status = status_match.group(1).lower() if status_match else ""
+    is_pre_clarify = status in PRE_CLARIFY_STATUSES
+
     open_qs = OPEN_Q_RE.findall(spec_text)
-    if open_qs:
+    if open_qs and not is_pre_clarify:
         errors.append(
-            f"{spec.relative_to(REPO_ROOT)}: {len(open_qs)} unresolved OPEN QUESTION block(s)"
+            f"{spec.relative_to(REPO_ROOT)}: {len(open_qs)} unresolved OPEN QUESTION block(s) "
+            f"(status='{status}'; resolve via /clarify or downgrade status to 'draft')"
         )
 
     spec_ids = _extract_ids(spec_text)
     task_ids = _extract_ids(tasks_text)
 
     missing = sorted(spec_ids - task_ids)
-    if missing:
+    if missing and not is_pre_clarify:
         errors.append(
             f"{tasks.relative_to(REPO_ROOT)}: requirement(s) not referenced by any task: "
             + ", ".join(missing)
