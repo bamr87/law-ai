@@ -1,4 +1,5 @@
 """LSAT Lab API (spec 005 → spec 011 FR-9 port)."""
+
 from __future__ import annotations
 
 import logging
@@ -67,7 +68,7 @@ class _Base(APIView):
 
 
 class SectionsView(_Base):
-    def get(self, request, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, *args, **kwargs):
         sections = load_sections()
         bank = load_bank()
         counts = {code: 0 for code in sections}
@@ -85,7 +86,7 @@ class SectionsView(_Base):
 
 
 class SectionDetailView(_Base):
-    def get(self, request, code: str, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, code: str, *args, **kwargs):
         sections = load_sections()
         section = sections.get(code)
         if section is None:
@@ -104,7 +105,7 @@ class SectionDetailView(_Base):
 
 
 class ConceptsView(_Base):
-    def get(self, request, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, *args, **kwargs):
         section = request.query_params.get("section")
         items = list(load_concepts().values())
         if section:
@@ -115,19 +116,17 @@ class ConceptsView(_Base):
 
 
 class ConceptDetailView(_Base):
-    def get(self, request, concept_id: str, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, concept_id: str, *args, **kwargs):
         concept = load_concepts().get(concept_id)
         if concept is None:
             raise Http404("concept not found")
         bank = load_bank()
         used_in = [q.id for q in bank.values() if concept_id in q.concepts][:10]
-        return Response(
-            {"concept": concept.model_dump(), "used_in_questions": used_in}
-        )
+        return Response({"concept": concept.model_dump(), "used_in_questions": used_in})
 
 
 class PassagesView(_Base):
-    def get(self, request, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, *args, **kwargs):
         section = request.query_params.get("section")
         items = list(load_passages().values())
         if section:
@@ -138,7 +137,7 @@ class PassagesView(_Base):
 
 
 class PassageDetailView(_Base):
-    def get(self, request, passage_id: str, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, passage_id: str, *args, **kwargs):
         passage = load_passages().get(passage_id)
         if passage is None:
             raise Http404("passage not found")
@@ -159,10 +158,8 @@ class PassageDetailView(_Base):
 
 
 class QuestionsView(_Base):
-    def get(self, request, *args, **kwargs):  # noqa: ANN001
-        limit = _bounded_int(
-            request.query_params.get("limit"), default=5, lo=1, hi=25
-        )
+    def get(self, request, *args, **kwargs):
+        limit = _bounded_int(request.query_params.get("limit"), default=5, lo=1, hi=25)
         difficulty = request.query_params.get("difficulty")
         section = request.query_params.get("section")
         passage_id = request.query_params.get("passage_id")
@@ -189,7 +186,7 @@ class QuestionsView(_Base):
 
 
 class QuestionDetailView(_Base):
-    def get(self, request, question_id: str, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, question_id: str, *args, **kwargs):
         bank = load_bank()
         q = bank.get(question_id)
         if q is None:
@@ -198,7 +195,7 @@ class QuestionDetailView(_Base):
 
 
 class GradeView(_Base):
-    def post(self, request, *args, **kwargs):  # noqa: ANN001
+    def post(self, request, *args, **kwargs):
         try:
             req = GradeRequest.model_validate(request.data)
         except ValidationError as exc:
@@ -236,7 +233,7 @@ class GradeView(_Base):
 
 
 class StatsView(_Base):
-    def get(self, request, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, *args, **kwargs):
         section = request.query_params.get("section")
         events = audit_store.tail(10_000)
         grades = [e for e in events if e.get("type") == "lsat_grade"]
@@ -266,7 +263,7 @@ class StatsView(_Base):
 
 
 class TutorView(_Base):
-    def post(self, request, *args, **kwargs):  # noqa: ANN001
+    def post(self, request, *args, **kwargs):
         try:
             req = TutorRequest.model_validate(request.data)
         except ValidationError as exc:
@@ -283,7 +280,9 @@ class TutorView(_Base):
 
 urlpatterns = [
     path("sections", SectionsView.as_view(), name="lsat-sections"),
-    path("sections/<str:code>", SectionDetailView.as_view(), name="lsat-section-detail"),
+    path(
+        "sections/<str:code>", SectionDetailView.as_view(), name="lsat-section-detail"
+    ),
     path("concepts", ConceptsView.as_view(), name="lsat-concepts"),
     path(
         "concepts/<str:concept_id>",

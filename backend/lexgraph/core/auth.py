@@ -1,8 +1,8 @@
 """DRF authentication + permissions (spec 011 FR-8, AC-2)."""
+
 from __future__ import annotations
 
 import secrets
-from collections.abc import Callable
 
 from django.conf import settings
 from rest_framework import authentication, exceptions, permissions
@@ -65,7 +65,7 @@ class HasScope(permissions.BasePermission):
     setting_names: tuple[str, ...] = ()
     scope: str = ""
 
-    def has_permission(self, request: Request, view) -> bool:  # noqa: ANN001
+    def has_permission(self, request: Request, view) -> bool:
         scopes = (self.scope, *self.setting_names)
         env_expected = _resolve_env_key(*self.setting_names)
         token = getattr(request, "auth", None)
@@ -101,7 +101,9 @@ def has_scope(scope: str, *fallback_envs: str) -> type[HasScope]:
 
 # Convenience factories matching the legacy ``make_api_key_dep`` helpers.
 RequireAgent: type[HasScope] = has_scope("agent", "AGENT_API_KEY")
-RequireAnalysis: type[HasScope] = has_scope("analysis", "ANALYSIS_API_KEY", "AGENT_API_KEY")
+RequireAnalysis: type[HasScope] = has_scope(
+    "analysis", "ANALYSIS_API_KEY", "AGENT_API_KEY"
+)
 RequireGraph: type[HasScope] = has_scope("graph", "GRAPH_API_KEY", "AGENT_API_KEY")
 RequireLsat: type[HasScope] = has_scope("lsat", "LSAT_API_KEY", "AGENT_API_KEY")
 

@@ -1,4 +1,5 @@
 """Channels websocket urlpatterns (spec 011 FR-12)."""
+
 from __future__ import annotations
 
 from django.urls import re_path

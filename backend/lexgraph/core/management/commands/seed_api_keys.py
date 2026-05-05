@@ -4,13 +4,13 @@ Reads ``AGENT_API_KEY``, ``ANALYSIS_API_KEY``, ``GRAPH_API_KEY``, and
 ``LSAT_API_KEY`` from settings; for each non-empty value, ensures a
 matching :class:`ApiToken` row exists with the same ``key_hash``.
 """
+
 from __future__ import annotations
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from lexgraph.core.models import ApiToken
-
 
 _PAIRS = (
     ("agent", "AGENT_API_KEY"),
@@ -31,7 +31,7 @@ class Command(BaseCommand):
             if not raw:
                 continue
             digest = ApiToken.hash_key(raw)
-            obj, was_new = ApiToken.objects.get_or_create(
+            _obj, was_new = ApiToken.objects.get_or_create(
                 key_hash=digest,
                 defaults={"scope": scope, "name": "env"},
             )

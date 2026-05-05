@@ -1,4 +1,5 @@
 """Core app config (spec 011 FR-10)."""
+
 from __future__ import annotations
 
 import logging

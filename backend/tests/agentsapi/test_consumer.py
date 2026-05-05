@@ -3,6 +3,7 @@
 Exercises the public contract: connect → ``ready`` envelope → group_send
 ``agent_event`` → forwarded payload → disconnect.
 """
+
 from __future__ import annotations
 
 import pytest

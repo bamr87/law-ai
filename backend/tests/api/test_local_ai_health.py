@@ -9,9 +9,9 @@ import pytest
 # CI without the optional dep stays green.
 pytest.importorskip("fastapi")
 
-from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.testclient import TestClient
 
-from lexgraph.agentsapi import urls  as agents_api  # noqa: E402
+from lexgraph.agentsapi import urls as agents_api
 
 
 @pytest.fixture()

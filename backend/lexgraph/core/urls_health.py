@@ -3,6 +3,7 @@
 Tests monkeypatch :func:`get_neo4j_driver` and :func:`get_last_ingest_at`
 on this module — keep them as top-level imports so the patches stick.
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,7 +26,7 @@ async def _last_ingest_iso() -> str | None:
         async with driver.session() as session:
             stamp = await get_last_ingest_at(session)
             return stamp.isoformat() if stamp else None
-    except Exception as exc:  # noqa: BLE001 — degraded, never raise
+    except Exception as exc:
         logger.warning("health: neo4j unavailable (%s)", exc)
         return None
 
@@ -34,7 +35,7 @@ class HealthView(APIView):
     permission_classes = [AllowAny]
     authentication_classes: list = []
 
-    def get(self, request, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, *args, **kwargs):
         last_ingest_at = async_to_sync(_last_ingest_iso)()
         return Response(
             {

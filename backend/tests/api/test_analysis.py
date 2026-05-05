@@ -110,11 +110,11 @@ async def test_run_analysis_executes_agents_in_parallel(
     orig_h = PrecedentHunter.run
 
     async def slow_a(self, input_data):  # type: ignore[no-untyped-def]
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(0.1)
         return await orig_a(self, input_data)
 
     async def slow_h(self, input_data):  # type: ignore[no-untyped-def]
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(0.1)
         return await orig_h(self, input_data)
 
     monkeypatch.setattr(LegalAnalyst, "run", slow_a)
@@ -124,8 +124,10 @@ async def test_run_analysis_executes_agents_in_parallel(
     res = await client.post("/api/analysis", json={"text": "Tort claim."})
     elapsed = time.perf_counter() - started
     assert res.status_code == 200
-    # Serial would be ≥ 0.10s; parallel should comfortably be < 0.09s.
-    assert elapsed < 0.09, f"expected parallel run, got {elapsed:.3f}s"
+    # Serial would be ≥ 0.20s; parallel should be well under 0.18s even on
+    # noisy CI runners. Threshold loosened from 0.09 (0.05s sleep) because
+    # the previous gap was too tight for shared GitHub Actions VMs.
+    assert elapsed < 0.18, f"expected parallel run, got {elapsed:.3f}s"
 
 
 # --- Spec 009: per-router auth gating ---

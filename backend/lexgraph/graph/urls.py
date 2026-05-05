@@ -1,4 +1,5 @@
 """Knowledge Graph Explorer API (spec 006 → spec 011 FR-9 port)."""
+
 from __future__ import annotations
 
 import logging
@@ -9,7 +10,6 @@ from collections.abc import AsyncIterator
 
 from asgiref.sync import async_to_sync
 from django.urls import path
-from rest_framework import status
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -26,7 +26,7 @@ logger = logging.getLogger("lexgraph.graph")
 
 
 @asynccontextmanager
-async def _open_session() -> AsyncIterator["AsyncSession"]:
+async def _open_session() -> AsyncIterator[AsyncSession]:
     driver = get_neo4j_driver()
     async with driver.session() as session:
         yield session
@@ -45,7 +45,7 @@ def _count_for(result: Any) -> int:
     return 1
 
 
-async def _safe(name: str, fallback: dict[str, Any], coro_factory):  # noqa: ANN001
+async def _safe(name: str, fallback: dict[str, Any], coro_factory):
     started = time.perf_counter()
     try:
         async with _open_session() as session:
@@ -58,7 +58,7 @@ async def _safe(name: str, fallback: dict[str, Any], coro_factory):  # noqa: ANN
             latency_ms=latency_ms,
         )
         return {"available": True, **result}
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("graph endpoint %s degraded: %s", name, exc)
         return _degraded(fallback)
 
@@ -85,7 +85,7 @@ class _Base(APIView):
 
 
 class StatsView(_Base):
-    def get(self, request, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, *args, **kwargs):
         async def _do(session: Any) -> dict[str, Any]:
             return await graph_queries.stats(session)
 
@@ -97,7 +97,7 @@ class StatsView(_Base):
 
 
 class CasesView(_Base):
-    def get(self, request, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, *args, **kwargs):
         q = (request.query_params.get("q") or "")[:200]
         limit = _bounded_int(
             request.query_params.get("limit"), default=25, lo=1, hi=100
@@ -107,11 +107,13 @@ class CasesView(_Base):
             items = await graph_queries.list_cases(session, q=q, limit=limit)
             return {"cases": items, "count": len(items)}
 
-        return Response(async_to_sync(_safe)("list_cases", {"cases": [], "count": 0}, _do))
+        return Response(
+            async_to_sync(_safe)("list_cases", {"cases": [], "count": 0}, _do)
+        )
 
 
 class NeighborhoodView(_Base):
-    def get(self, request, case_id: str, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, case_id: str, *args, **kwargs):
         case_id = case_id[:200]
         limit = _bounded_int(
             request.query_params.get("limit"), default=50, lo=1, hi=200
@@ -120,7 +122,9 @@ class NeighborhoodView(_Base):
         async def _do(session: Any) -> dict[str, Any]:
             return await graph_queries.neighborhood(session, case_id, limit=limit)
 
-        return Response(async_to_sync(_safe)("neighborhood", {"nodes": [], "edges": []}, _do))
+        return Response(
+            async_to_sync(_safe)("neighborhood", {"nodes": [], "edges": []}, _do)
+        )
 
 
 urlpatterns = [

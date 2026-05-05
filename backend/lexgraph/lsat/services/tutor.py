@@ -66,12 +66,18 @@ class TutorResponse(BaseModel):
         default=None,
         description="None when ``user_choice`` was omitted.",
     )
-    explanation: str = Field(..., description="Short answer-key rationale shipped with the bank.")
-    coaching: str = Field(..., description="Personalized walkthrough (LLM or fallback).")
+    explanation: str = Field(
+        ..., description="Short answer-key rationale shipped with the bank."
+    )
+    coaching: str = Field(
+        ..., description="Personalized walkthrough (LLM or fallback)."
+    )
     next_steps: list[str] = Field(default_factory=list)
     concepts: list[Concept] = Field(default_factory=list)
     references: list[TutorReference] = Field(default_factory=list)
-    model: str = Field(..., description="Identifier of the model that produced ``coaching``.")
+    model: str = Field(
+        ..., description="Identifier of the model that produced ``coaching``."
+    )
     used_llm: bool = Field(..., description="True iff Ollama generated the coaching.")
     confidence: float = Field(0.0, ge=0.0, le=1.0)
     requires_human_review: bool = Field(default=False)
@@ -90,7 +96,9 @@ class _PromptCtx:
     concepts: list[Concept]
 
 
-def _build_prompt(ctx: _PromptCtx, user_choice: ChoiceLabel | None, user_question: str | None) -> str:
+def _build_prompt(
+    ctx: _PromptCtx, user_choice: ChoiceLabel | None, user_question: str | None
+) -> str:
     q = ctx.question
     parts: list[str] = [
         "You are an LSAT tutor. Be concise (≤ 200 words), structured, and honest.",
@@ -111,7 +119,9 @@ def _build_prompt(ctx: _PromptCtx, user_choice: ChoiceLabel | None, user_questio
         names = ", ".join(c.name for c in ctx.concepts)
         parts.append(f"Relevant concepts: {names}")
     if user_choice:
-        parts.append(f"Learner picked: {user_choice} ({'correct' if user_choice == q.correct else 'incorrect'}).")
+        parts.append(
+            f"Learner picked: {user_choice} ({'correct' if user_choice == q.correct else 'incorrect'})."
+        )
     else:
         parts.append("Learner has not yet chosen an answer.")
     if user_question:
@@ -197,7 +207,11 @@ def _fallback_coaching(
         )
     coaching = " ".join(parts)
     next_steps = [
-        f"Review the {concepts[0].name} concept entry." if concepts else "Re-read the stem aloud and restate the conclusion in your own words.",
+        (
+            f"Review the {concepts[0].name} concept entry."
+            if concepts
+            else "Re-read the stem aloud and restate the conclusion in your own words."
+        ),
         "Diagram any conditional indicators ('if', 'only if', 'unless').",
         "Try one more question at the same difficulty to lock in the pattern.",
     ]
@@ -222,9 +236,13 @@ async def tutor(req: TutorRequest, q: Question) -> TutorResponse:
     passages = load_passages()
     concepts_by_id = load_concepts()
     passage = passages.get(q.passage_id) if q.passage_id else None
-    concept_entries = [concepts_by_id[cid] for cid in q.concepts if cid in concepts_by_id]
+    concept_entries = [
+        concepts_by_id[cid] for cid in q.concepts if cid in concepts_by_id
+    ]
 
-    prompt = _build_prompt(_PromptCtx(q, passage, concept_entries), req.user_choice, req.user_question)
+    prompt = _build_prompt(
+        _PromptCtx(q, passage, concept_entries), req.user_choice, req.user_question
+    )
 
     used_llm = False
     coaching = ""
@@ -246,12 +264,11 @@ async def tutor(req: TutorRequest, q: Question) -> TutorResponse:
         logger.warning("LSAT tutor unexpected error: %s", exc, exc_info=True)
 
     if not coaching:
-        coaching, next_steps = _fallback_coaching(q, req.user_choice, req.user_question, concept_entries)
+        coaching, next_steps = _fallback_coaching(
+            q, req.user_choice, req.user_question, concept_entries
+        )
 
-    refs = [
-        TutorReference(title=r.title, url=r.url, note=r.note)
-        for r in q.references
-    ]
+    refs = [TutorReference(title=r.title, url=r.url, note=r.note) for r in q.references]
     # Promote first concept reference if the question itself ships none.
     if not refs and concept_entries:
         for c in concept_entries:
@@ -263,7 +280,7 @@ async def tutor(req: TutorRequest, q: Question) -> TutorResponse:
                 break
 
     is_correct = (req.user_choice == q.correct) if req.user_choice else None
-    requires_human_review = (used_llm and confidence < 0.7)
+    requires_human_review = used_llm and confidence < 0.7
 
     latency_ms = (time.perf_counter() - started) * 1000.0
 

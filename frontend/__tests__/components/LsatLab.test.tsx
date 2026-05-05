@@ -251,6 +251,10 @@ describe('LsatLab', () => {
     await waitFor(() =>
       expect(screen.getByText('Federal pleading evolution')).toBeInTheDocument(),
     )
-    expect(screen.getByText(/Long passage text/)).toBeInTheDocument()
+    // Passage detail loads via a second fetch after the list resolves —
+    // wait for the body text instead of asserting synchronously.
+    await waitFor(() =>
+      expect(screen.getByText(/Long passage text/)).toBeInTheDocument(),
+    )
   })
 })

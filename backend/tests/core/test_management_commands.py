@@ -3,6 +3,7 @@
 Spec 011 FR-13 / AC-6 (checkpointer schema bootstrap) and spec 008/009
 default-open posture (env-driven token seeding).
 """
+
 from __future__ import annotations
 
 from io import StringIO
@@ -14,7 +15,9 @@ from lexgraph.core.models import ApiToken
 
 
 @pytest.mark.django_db
-def test_seed_api_keys_creates_one_row_per_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_seed_api_keys_creates_one_row_per_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from django.conf import settings
 
     monkeypatch.setattr(settings, "AGENT_API_KEY", "agent-secret", raising=False)
@@ -47,8 +50,24 @@ def test_seed_api_keys_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.django_db
-def test_ensure_checkpointer_skips_non_postgres_engines() -> None:
+def test_ensure_checkpointer_skips_non_postgres_engines(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Force the non-postgres branch independent of the runtime DB so this
+    # test passes both on local SQLite and on CI where DATABASE_URL points
+    # at a real Postgres service.
+    from django.conf import settings as dj_settings
+
+    fake_dbs = {
+        **dj_settings.DATABASES,
+        "default": {
+            **dj_settings.DATABASES["default"],
+            "ENGINE": "django.db.backends.sqlite3",
+        },
+    }
+    monkeypatch.setattr(dj_settings, "DATABASES", fake_dbs)
+
     out = StringIO()
     call_command("ensure_checkpointer", stdout=out)
-    # SQLite test backend → command must short-circuit with a warning, not raise.
+    # Non-postgres backend → command must short-circuit with a warning, not raise.
     assert "skipping" in out.getvalue().lower()

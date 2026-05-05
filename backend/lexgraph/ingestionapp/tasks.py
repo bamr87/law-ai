@@ -1,4 +1,5 @@
 """Celery tasks for the ingestion app (spec 011 FR-11, AC-5)."""
+
 from __future__ import annotations
 
 import logging

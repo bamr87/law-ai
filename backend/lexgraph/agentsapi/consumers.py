@@ -1,4 +1,5 @@
 """WebSocket consumer for live agent traces (spec 011 FR-12, AC-7)."""
+
 from __future__ import annotations
 
 from channels.generic.websocket import AsyncJsonWebsocketConsumer

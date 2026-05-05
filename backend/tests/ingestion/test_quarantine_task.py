@@ -1,4 +1,5 @@
 """Unit tests for `quarantine_extraction` Celery task (spec 011 FR-11, AC-5)."""
+
 from __future__ import annotations
 
 import pytest

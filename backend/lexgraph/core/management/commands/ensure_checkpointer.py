@@ -4,6 +4,7 @@ Spec 011 FR-13 + AC-6: the LangGraph PostgresSaver lives in its own
 ``langgraph`` schema so its tables never collide with Django migrations.
 This command is idempotent.
 """
+
 from __future__ import annotations
 
 from django.conf import settings

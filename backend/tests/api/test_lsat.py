@@ -9,7 +9,12 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from django.conf import settings
-from lexgraph.lsat.services.bank import load_bank, load_concepts, load_passages, load_sections
+from lexgraph.lsat.services.bank import (
+    load_bank,
+    load_concepts,
+    load_passages,
+    load_sections,
+)
 from lexgraph.asgi import application as app
 
 
@@ -152,9 +157,7 @@ async def test_section_detail_404_unknown(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_section_filter_on_questions(client: AsyncClient) -> None:
-    res = await client.get(
-        "/api/lsat/questions", params={"limit": 25, "section": "RC"}
-    )
+    res = await client.get("/api/lsat/questions", params={"limit": 25, "section": "RC"})
     assert res.status_code == 200
     body = res.json()
     assert body["count"] >= 1

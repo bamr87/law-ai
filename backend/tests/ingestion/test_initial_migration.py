@@ -14,6 +14,7 @@ is covered by ``backend/tests/integration/test_migrate_parity.py`` (spec
 011 T-005), which is integration-marked and runs against a real Postgres
 container.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -22,9 +23,7 @@ from django.db import migrations
 
 
 def _load_migration():
-    return importlib.import_module(
-        "lexgraph.ingestionapp.migrations.0001_initial"
-    )
+    return importlib.import_module("lexgraph.ingestionapp.migrations.0001_initial")
 
 
 def test_initial_migration_uses_separate_database_and_state() -> None:
@@ -70,9 +69,7 @@ def test_legacy_postgres_ddl_preserves_spec004_schema() -> None:
     ):
         assert column in sql, f"legacy column '{column}' missing from forward DDL"
     assert "jsonb" in sql, "payload column must be jsonb to match legacy schema"
-    assert "timestamptz" in sql, (
-        "created_at must be timestamptz to match legacy schema"
-    )
+    assert "timestamptz" in sql, "created_at must be timestamptz to match legacy schema"
     # Spec 011 columns added via ALTER TABLE so legacy rows survive.
     assert "add column if not exists reviewed_at" in sql
     assert "add column if not exists approved" in sql

@@ -1,4 +1,5 @@
 """Analysis Studio API (spec 007 → spec 011 FR-9 port)."""
+
 from __future__ import annotations
 
 import asyncio
@@ -65,14 +66,11 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
         "use_langgraph": req.use_langgraph,
     }
     started = time.perf_counter()
-    irac, precedents = await asyncio.gather(
-        analyst.run(payload), hunter.run(payload)
-    )
+    irac, precedents = await asyncio.gather(analyst.run(payload), hunter.run(payload))
     total_ms = (time.perf_counter() - started) * 1000.0
     confidence = round((irac.confidence + precedents.confidence) / 2, 4)
-    requires_human_review = (
-        confidence < HITL_THRESHOLD
-        or "Pending human review" in (irac.conclusion or "")
+    requires_human_review = confidence < HITL_THRESHOLD or "Pending human review" in (
+        irac.conclusion or ""
     )
     sources = list(irac.sources) + [
         {"title": p.title, "url": p.url} for p in precedents.precedents
@@ -127,7 +125,7 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
 class AnalysisView(APIView):
     permission_classes = [RequireAnalysis]
 
-    def post(self, request, *args, **kwargs):  # noqa: ANN001
+    def post(self, request, *args, **kwargs):
         try:
             req = AnalysisRequest.model_validate(request.data)
         except ValidationError as exc:

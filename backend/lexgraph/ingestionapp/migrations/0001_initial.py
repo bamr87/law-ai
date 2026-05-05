@@ -23,7 +23,6 @@ from __future__ import annotations
 
 from django.db import migrations, models
 
-
 # --- DDL ----------------------------------------------------------------
 #
 # The raw DDL below is Postgres-specific (jsonb, timestamptz, pg_trgm).
@@ -153,9 +152,7 @@ class Migration(migrations.Migration):
                         ),
                         (
                             "created_at",
-                            models.DateTimeField(
-                                auto_now_add=True, db_index=True
-                            ),
+                            models.DateTimeField(auto_now_add=True, db_index=True),
                         ),
                         (
                             "reviewed_at",

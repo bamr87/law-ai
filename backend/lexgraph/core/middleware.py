@@ -6,6 +6,7 @@
 * ``ProvenanceMiddleware`` — wraps every request and records an audit event
   via :func:`lexgraph.core.provenance.ProvenanceLogger.log_request`.
 """
+
 from __future__ import annotations
 
 import logging

@@ -2,6 +2,7 @@
 
 Production deploys MUST use ``lexgraph.asgi:application`` via daphne.
 """
+
 from __future__ import annotations
 
 import os

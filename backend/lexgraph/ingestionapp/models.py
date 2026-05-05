@@ -3,6 +3,7 @@
 Embeds the spec-004 `pending_review` schema verbatim via a `RunSQL` op
 in the initial migration so existing rows are preserved on cutover.
 """
+
 from __future__ import annotations
 
 from django.db import models

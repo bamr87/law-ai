@@ -1,4 +1,5 @@
 """Celery tasks shared across apps (spec 011 FR-11)."""
+
 from __future__ import annotations
 
 import logging

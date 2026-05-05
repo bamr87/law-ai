@@ -8,7 +8,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from lexgraph.agentsapi import urls  as agents_api
+from lexgraph.agentsapi import urls as agents_api
 from lexgraph.core import audit_jsonl as audit_store
 from django.conf import settings
 from lexgraph.asgi import application as app

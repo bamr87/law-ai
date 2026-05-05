@@ -4,6 +4,7 @@ Replaces the JSONL-only audit store. The JSONL writer survives as a
 Celery sink invoked when DB writes fail, preserving spec-003 forensic
 continuity.
 """
+
 from __future__ import annotations
 
 from django.db import models

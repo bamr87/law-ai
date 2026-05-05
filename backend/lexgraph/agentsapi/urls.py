@@ -6,6 +6,7 @@ helpers (`_probe_ollama`, `_probe_checkpointer`, `_probe_phoenix`) are
 deliberately exposed at module scope so existing tests that monkeypatch
 them keep working.
 """
+
 from __future__ import annotations
 
 import re
@@ -20,7 +21,6 @@ from rest_framework.views import APIView
 from lexgraph.agents_runtime.registry import AGENT_REGISTRY, register_all_agents
 from lexgraph.core import audit_jsonl as audit_store
 from lexgraph.core.auth import RequireAgent
-from lexgraph.core.provenance import provenance  # re-export for tests
 
 _BACKLOG_BULLET_RE = re.compile(
     r"^- \*\*(?P<id>BL-\d{8}-\d{2})\*\* — \*(?P<kind>[a-z-]+),\s*(?P<sev>low|med|high)\* — (?P<title>.+)$"
@@ -168,7 +168,7 @@ class _Base(APIView):
 
 
 class AgentListView(_Base):
-    def get(self, request, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, *args, **kwargs):
         registry = _ensure_registry()
         agents = [
             {"name": name, "module": cls.__module__}
@@ -178,7 +178,7 @@ class AgentListView(_Base):
 
 
 class AgentRunsView(_Base):
-    def get(self, request, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, *args, **kwargs):
         limit = _parse_int_strict(
             request.query_params.get("limit"), default=50, lo=1, hi=200
         )
@@ -187,7 +187,7 @@ class AgentRunsView(_Base):
 
 
 class AgentBacklogView(_Base):
-    def get(self, request, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, *args, **kwargs):
         if not BACKLOG_PATH.is_file():
             return Response(
                 {
@@ -201,7 +201,7 @@ class AgentBacklogView(_Base):
 
 
 class AgentSpecsView(_Base):
-    def get(self, request, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, *args, **kwargs):
         if not SPECS_DIR.is_dir():
             return Response({"specs": [], "count": 0})
         out: list[dict[str, str]] = []
@@ -221,7 +221,7 @@ class AgentSpecsView(_Base):
 
 
 class LocalAIHealthView(_Base):
-    def get(self, request, *args, **kwargs):  # noqa: ANN001
+    def get(self, request, *args, **kwargs):
         async def _gather() -> dict[str, Any]:
             import asyncio as _asyncio
 

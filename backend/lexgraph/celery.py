@@ -1,4 +1,5 @@
 """Celery application factory (spec 011 FR-11)."""
+
 from __future__ import annotations
 
 import os

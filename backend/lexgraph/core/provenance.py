@@ -9,6 +9,7 @@ keep the JSONL writer + a queryable Postgres row in sync. On DB failure,
 the JSONL fallback is invoked synchronously *and* a Celery task is
 enqueued so the row eventually lands in Postgres.
 """
+
 from __future__ import annotations
 
 import functools

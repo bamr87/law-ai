@@ -2,6 +2,7 @@
 
 * :class:`ApiToken` — replaces the env-only API-key auth from spec 008/009.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -35,9 +36,7 @@ class ApiToken(models.Model):
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     @classmethod
-    def generate(cls, *, scope: str, name: str = "") -> tuple["ApiToken", str]:
+    def generate(cls, *, scope: str, name: str = "") -> tuple[ApiToken, str]:
         raw = secrets.token_urlsafe(32)
-        token = cls.objects.create(
-            scope=scope, name=name, key_hash=cls.hash_key(raw)
-        )
+        token = cls.objects.create(scope=scope, name=name, key_hash=cls.hash_key(raw))
         return token, raw

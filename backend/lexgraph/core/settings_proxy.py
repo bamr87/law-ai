@@ -10,6 +10,7 @@ Usage::
 
     print(settings.NEO4J_URI)
 """
+
 from __future__ import annotations
 
 from django.conf import settings as _django_settings
@@ -18,7 +19,7 @@ from django.conf import settings as _django_settings
 class _SettingsProxy:
     """Attribute-access wrapper around ``django.conf.settings``."""
 
-    def __getattr__(self, item: str):  # noqa: ANN204
+    def __getattr__(self, item: str):
         return getattr(_django_settings, item)
 
 

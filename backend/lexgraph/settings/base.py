@@ -4,6 +4,7 @@ Mirrors every env knob from the legacy ``app.core.config.Settings`` so that
 relocated framework-agnostic modules see the same values via
 ``lexgraph.core.settings_proxy``.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -178,9 +179,11 @@ def _build_database_config() -> dict[str, dict[str, Any]]:
     return {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "HOST": env("POSTGRES_URL").split("@")[-1].split(":")[0]
-            if "@" in env("POSTGRES_URL")
-            else "postgres",
+            "HOST": (
+                env("POSTGRES_URL").split("@")[-1].split(":")[0]
+                if "@" in env("POSTGRES_URL")
+                else "postgres"
+            ),
             "PORT": "5432",
             "NAME": "lexgraph",
             "USER": "lexgraph",
@@ -209,12 +212,8 @@ STORAGES = {
 
 # DRF
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "lexgraph.core.auth.ApiKeyAuthentication",
-    ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.AllowAny",
-    ),
+    "DEFAULT_AUTHENTICATION_CLASSES": ("lexgraph.core.auth.ApiKeyAuthentication",),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "UNAUTHENTICATED_USER": None,
 }
 

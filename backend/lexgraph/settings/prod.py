@@ -2,9 +2,10 @@
 
 ``manage.py check --deploy`` MUST pass with this module before promotion.
 """
+
 from __future__ import annotations
 
-from .base import *  # noqa: F401,F403
+from .base import *  # noqa: F403
 
 DEBUG = False
 ENVIRONMENT = "production"

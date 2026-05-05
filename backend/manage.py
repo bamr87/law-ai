@@ -5,6 +5,7 @@ Spec 011 (ADR 0001): replaces the FastAPI/uvicorn entrypoint at
 ``backend/app/main.py``. Run ``python manage.py runserver 0.0.0.0:8000`` for
 the dev server (daphne is the prod ASGI server).
 """
+
 from __future__ import annotations
 
 import os
@@ -18,7 +19,7 @@ def main() -> None:
     except ImportError as exc:  # pragma: no cover
         raise ImportError(
             "Couldn't import Django. Make sure it's installed and available on "
-            "PYTHONPATH (run `pip install -e \".[dev]\"` from backend/)."
+            'PYTHONPATH (run `pip install -e ".[dev]"` from backend/).'
         ) from exc
     execute_from_command_line(sys.argv)
 

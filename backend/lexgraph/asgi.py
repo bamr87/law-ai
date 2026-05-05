@@ -3,6 +3,7 @@
 daphne serves both HTTP (Django views via DRF) and WebSocket (Channels
 consumers under ``/ws/agents/...``) protocols.
 """
+
 from __future__ import annotations
 
 import os
