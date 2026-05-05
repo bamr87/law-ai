@@ -26,7 +26,7 @@ flowchart LR
   Backend -->|OTLP/HTTP| Phoenix
 ```
 
-Every node in `LegalWorkflow` is wrapped by [`@logged_node`](../backend/app/core/provenance.py#L142). That decorator records to two places:
+Every node in `LegalWorkflow` is wrapped by [`@logged_node`](../backend/lawgraph/core/provenance.py#L142). That decorator records to two places:
 
 1. The append-only JSONL audit store at `.audit/provenance.jsonl` (powers `/api/agents/runs`).
 2. An OpenTelemetry span exported to Phoenix (when `PHOENIX_COLLECTOR_ENDPOINT` is set).

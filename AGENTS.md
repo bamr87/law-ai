@@ -83,42 +83,50 @@ Project status, tooling rationale, and onboarding live in [README.md](README.md)
 
 ## Project Structure (Target — Some Subdirs Are Planned)
 
-This is the canonical layout. Treat empty/missing dirs (e.g. `backend/app/db/`, `backend/app/ingestion/`) as scaffolding to be filled in as features land. When adding new code, place it in the matching directory; do not invent new top-level locations.
+This is the canonical layout, mirroring the actual `backend/lawgraph/` Django package and the `frontend/` Next.js app. When adding new code, place it in the matching directory; do not invent new top-level locations.
 
 ```
-lawgraph-ai/
+law-ai/                                 # workspace root (GitHub slug stays `law-ai`)
 ├── backend/
-│   ├── app/
-│   │   ├── asgi.py                 # Django ASGI app + Channels routing
-│   │   ├── core/                   # config, security, logging, provenance
-│   │   ├── agents/                 # All agent definitions + crews
-│   │   │   ├── crews/              # CrewAI crew definitions
-│   │   │   ├── graphs/             # LangGraph workflows
-│   │   │   ├── tools/              # Custom tools (Neo4j, CourtListener, etc.)
-│   │   │   └── prompts/            # Versioned prompt templates
-│   │   ├── api/                    # Routers (analysis, graph, ingest, lsat)
-│   │   ├── db/                     # Neo4j + Postgres clients + migrations
-│   │   ├── models/                 # Pydantic + Neo4j OGM models
-│   │   ├── ingestion/              # Data pipelines (CourtListener, CAP)
-│   │   └── eval/                   # LegalBench integration + custom evals
-│   ├── tests/
-│   └── pyproject.toml
+│   ├── manage.py
+│   ├── pyproject.toml
+│   └── lawgraph/                       # Django project package (was `app/` pre-rebrand)
+│       ├── __init__.py
+│       ├── asgi.py                     # ASGI entrypoint (daphne) + Channels routing
+│       ├── wsgi.py
+│       ├── celery.py                   # Celery("lawgraph") app
+│       ├── urls.py                     # Root URLConf, mounts every Django app below
+│       ├── settings/                   # Split settings: base / dev / test / prod
+│       ├── core/                       # config, security, Neo4j driver, provenance, telemetry
+│       ├── audit/                      # AuditEvent model + provenance writers
+│       ├── agents_runtime/             # All agent definitions + crews + workflows
+│       │   ├── crews/                  # CrewAI crew definitions
+│       │   ├── graphs/                 # LangGraph workflows (LegalWorkflow, …)
+│       │   ├── tools/                  # Custom tools (Neo4j, CourtListener, GraphRAG)
+│       │   └── prompts/                # Versioned prompt templates (`*.v<N>.md`)
+│       ├── agentsapi/                  # DRF routers + Channels consumers under /api/agents/*
+│       ├── analysis/                   # /api/analysis router (Analysis Studio backend)
+│       ├── graph/                      # /api/graph/* router (Knowledge Graph backend)
+│       ├── ingestionapp/               # Quarantine ORM models + Celery tasks + ingestion services
+│       ├── lsat/                       # /api/lsat/* router + question banks (data/)
+│       └── eval/                       # LegalBench harness + custom evals
+│   ├── scripts/                        # Operator scripts (ingest_sample.py, init-db.sh, ollama-bootstrap.sh)
+│   └── tests/                          # pytest suite mirroring the package layout
 ├── frontend/
-│   ├── app/                        # Next.js App Router
-│   ├── components/                 # Reusable UI (GraphViewer, AgentTrace, etc.)
-│   ├── lib/                        # API client, graph utils, types
-│   └── public/
-├── docs/
-│   ├── architecture.md
-│   ├── data-model.md
-│   ├── agent-roles.md
-│   └── legalbench.md
-├── scripts/
-│   ├── init-db.sh
-│   ├── ingest-sample.sh
-│   └── eval-legalbench.sh
+│   ├── app/                            # Next.js App Router (agents, analysis, graph, lsat pages)
+│   ├── components/                     # Reusable UI (GraphViewer, AgentTrace, AgentDashboard, …)
+│   ├── lib/                            # Typed API client + utils
+│   ├── mocks/                          # MSW handlers for tests
+│   └── __tests__/                      # Vitest + RTL component tests
+├── docs/                               # Architecture, data model, agent roles, ADRs, runbooks
+│   └── adr/                            # Architecture Decision Records
+├── prompts/                            # Spec-driven workflow templates (/specify, /plan, …)
+├── specs/                              # Spec packages (NNN-feature-slug/{spec,plan,tasks}.md)
+├── scripts/                            # Repo-level scripts (spec_validator, backlog_lint, evolve_audit)
+├── tests/                              # Repo-wide structural tests (configs, docs, specs, backlog)
 ├── docker-compose.yml
 ├── .env.example
+├── BACKLOG.md
 └── AGENTS.md
 ```
 
@@ -130,7 +138,7 @@ lawgraph-ai/
 - Use `ruff` + `black` (line length 88)
 - Strict type hints + `mypy --strict`
 - All public functions must have docstrings with examples
-- Agent prompts must be in `backend/app/agents/prompts/` as `.md` or `.txt` files (versioned)
+- Agent prompts must be in `backend/lawgraph/agents_runtime/prompts/` as `.md` or `.txt` files (versioned)
 
 ### TypeScript / React
 - Strict TypeScript (`"strict": true`)
@@ -143,7 +151,7 @@ lawgraph-ai/
 - Never delete nodes — use soft-delete + `archived_at` for audit
 
 ### Agent Development Rules
-1. **New Agent Role** → Create in `backend/app/agents/crews/` or `graphs/`
+1. **New Agent Role** → Create in `backend/lawgraph/agents_runtime/crews/` or `graphs/`
 2. **Must implement**:
    - `run(input: dict) -> dict` with structured output (Pydantic)
    - Logging of every LLM call + tool use via `core.provenance`
@@ -170,23 +178,23 @@ See `prompts/new-agent.md` for the exact prompt template.
 
 ### 2. Extend the Knowledge Graph Schema
 - Update `docs/data-model.md` (create if it does not yet exist)
-- Add migration in `backend/app/db/neo4j_migrations/`
-- Update `backend/app/models/neo4j_models.py`
-- Add corresponding Cypher helper in `backend/app/db/queries.py`
+- Add migration in `backend/lawgraph/core/neo4j/migrations/`
+- Update `backend/lawgraph/core/models.py`
+- Add corresponding Cypher helper in `backend/lawgraph/core/neo4j/queries.py`
 
 ### 3. Add New Public Data Source
-- Create new client in `backend/app/ingestion/`
+- Create new client in `backend/lawgraph/ingestionapp/`
 - Add to the `Ingestion Scout` crew (see [docs/agent-roles.md](docs/agent-roles.md))
 - Document the source in `docs/data-sources.md`
 
 ### 4. Improve GraphRAG Retrieval
-- Edit `backend/app/agents/tools/graph_rag.py`
+- Edit `backend/lawgraph/agents_runtime/tools/graph_rag.py`
 - Add new retriever strategy
 - Run `Run LegalBench Eval` task before and after; record the delta in the PR description
 
 ### 5. Add Feature to Frontend
 - Use [prompts/implement-feature.md](prompts/implement-feature.md)
-- Always add the corresponding API route in `backend/app/api/` first
+- Always add the corresponding API route in the matching backend module first (`backend/lawgraph/{agentsapi,analysis,graph,lsat}/`)
 - Include loading states + error boundaries
 - Co-locate a Vitest test under `frontend/__tests__/`
 

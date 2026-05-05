@@ -31,9 +31,9 @@
 - **BL-20260503-13** — *feature, med* — JWT/OAuth on top of `core.ApiToken` (revives `python-jose` + `passlib` deps under the new `[future-auth]` extra). _Surfaced in:_ specs/011-django-backend.
 - **BL-20260503-14** — *infra, low* — Periodic Celery beat job that runs `scripts/backlog_lint.py` + `scripts/spec_validator.py` and opens a triage issue when stale. Resolves overlap with BL-20260429-09. _Surfaced in:_ specs/011-django-backend.
 - **BL-20260503-15** — *refactor, low* — Retire raw `asyncpg` calls outside the LangGraph checkpointer in favor of Django's connection pool now the ORM is on hand. Partially resolves BL-20260429-17. _Surfaced in:_ specs/011-django-backend.
-- **BL-20260503-16** — *doc-gap, med* — Flesh out `docs/security.md` with the API-token rotation procedure, scope matrix, and `seed_api_keys` runbook. Resolves BL-20260430-10. _Surfaced in:_ specs/011-django-backend.
+- **BL-20260503-16** — *doc-gap, med* — ~~Flesh out `docs/security.md` with the API-token rotation procedure, scope matrix, and `seed_api_keys` runbook.~~ **(resolved 2026-05-05)**: shipped via specs/012; see Done section. _Surfaced in:_ specs/011-django-backend.
 - **BL-20260503-17** — *test-gap, med* — Playwright end-to-end test exercising the Django admin HITL flow against a docker stack (login → list quarantine → approve → assert Neo4j commit). _Surfaced in:_ specs/011-django-backend.
-- **BL-20260503-18** — *doc-gap, low* — Author `docs/django-conventions.md` capturing settings split, `settings_proxy` usage, `acreate` discipline, Channels routing, and Celery task naming patterns. _Surfaced in:_ specs/011-django-backend.
+- **BL-20260503-18** — *doc-gap, low* — ~~Author `docs/django-conventions.md` capturing settings split, `settings_proxy` usage, `acreate` discipline, Channels routing, and Celery task naming patterns.~~ **(resolved 2026-05-05)**: shipped via specs/012; see Done section. _Surfaced in:_ specs/011-django-backend.
 - **BL-20260503-19** — *infra, high* — ~~Hand-edit `lawgraph/ingestionapp/migrations/0001_initial.py` to use `RunSQL` with verbatim DDL from `app/db/postgres_migrations/{001_pending_review,002_pg_trgm}.sql` and a `state_operations`/`database_operations` split, so live Postgres rows survive cutover.~~ **(resolved 2026-05-03)**: migration now wraps `SeparateDatabaseAndState(state_operations=[CreateModel(PendingReview)], database_operations=[RunPython(_create_pending_review)])`; on Postgres the RunPython executes the legacy spec-004 DDL with `IF NOT EXISTS` + `ADD COLUMN IF NOT EXISTS reviewed_at/approved` + `CREATE EXTENSION IF NOT EXISTS pg_trgm` so existing rows are adopted in place; on SQLite (test fixture) it falls back to portable DDL. Lock-in tests in `backend/tests/ingestion/test_initial_migration.py`. _Surfaced in:_ specs/011-django-backend implementation.
 - **BL-20260503-20** — *refactor, med* — ~~Refactor `lawgraph/ingestionapp/services/scout.py` to delegate quarantine writes to the `quarantine_extraction` Celery task (currently still uses inline asyncpg + JSONL).~~ **(resolved 2026-05-03)**: `_quarantine_postgres` (asyncpg) replaced with `_quarantine_via_celery` that builds a payload dict and calls `quarantine_extraction.delay(...)`; the Celery task is now the sole writer for `PendingReview` + `AuditEvent`; JSONL fallback preserved when dispatch raises. New tests `test_low_confidence_routes_to_postgres_when_available`, `test_quarantine_via_celery_dispatches_with_expected_payload`, and `test_scout_no_longer_uses_inline_asyncpg` cover the contract. Closes T-011 of spec 011. _Surfaced in:_ specs/011-django-backend implementation.
 - **BL-20260503-21** — *test-gap, high* — ~~Re-establish ≥75% backend coverage on the Django app~~ **(resolved 2026-05-03)**: backend at **84.08%** (126 tests). Added unit tests for `agentsapi.consumers.AgentRunConsumer` (Channels), `ingestionapp.tasks.quarantine_extraction` (Celery), and `seed_api_keys` + `ensure_checkpointer` management commands. _Surfaced in:_ specs/011-django-backend implementation.
@@ -70,13 +70,13 @@
 - **BL-20260429-23** — *feature, low* — UI filters for the case picker (court, date range) and a sidebar inspector showing selected-node full properties + source URL. _Surfaced in:_ specs/006-knowledge-graph.
 
 - **BL-20260429-18** — *feature, med* — Author "LR Tutor" agent that produces personalized rationales per LSAT attempt using the user's reasoning trace. _Surfaced in:_ specs/005-lsat-lab.
-- **BL-20260429-19** — *feature, low* — Expand `backend/app/lsat/data/lr_bank.json` to ≥ 50 items with editorial review; add a CI check that validates schema + label set. _Surfaced in:_ specs/005-lsat-lab.
+- **BL-20260429-19** — *feature, low* — Expand `backend/lawgraph/lsat/data/lr_bank.json` to ≥ 50 items with editorial review; add a CI check that validates schema + label set. _Surfaced in:_ specs/005-lsat-lab.
 - **BL-20260429-20** — *feature, low* — Add Reading Comprehension + Logic Games question types to LSAT Lab (extend `Question.type` enum + add bank files). _Surfaced in:_ specs/005-lsat-lab.
 
-- **BL-20260430-01** — *refactor, med* — Resolve TODO in backend/app/main.py. Comment: "Initialize Neo4j, Postgres, Redis, Ollama clients"
-- **BL-20260430-03** — *refactor, med* — Resolve TODO in backend/app/agents/crews/legal_analyst.py. Comment: "Implement real GraphRAG retrieval + LLM call"
-- **BL-20260430-04** — *refactor, med* — Resolve TODO in backend/app/agents/crews/precedent_hunter.py. Comment: "Real Cypher + vector search"
-- **BL-20260430-06** — *doc-gap, low* — Author missing doc docs/legalbench.md. Referenced by AGENTS.md but file does not exist.
+- **BL-20260430-01** — *refactor, med* — Resolve TODO in backend/lawgraph/main.py. Comment: "Initialize Neo4j, Postgres, Redis, Ollama clients"
+- **BL-20260430-03** — *refactor, med* — Resolve TODO in backend/lawgraph/agents_runtime/crews/legal_analyst.py. Comment: "Implement real GraphRAG retrieval + LLM call"
+- **BL-20260430-04** — *refactor, med* — Resolve TODO in backend/lawgraph/agents_runtime/crews/precedent_hunter.py. Comment: "Real Cypher + vector search"
+- **BL-20260430-06** — *doc-gap, low* — ~~Author missing doc docs/legalbench.md.~~ **(resolved 2026-05-05)**: shipped via specs/012; see Done section.
 
 - **BL-20260429-01** — *test-gap, med* — Add docker-backed integration tests for `IngestionScout.run_and_commit` covering AC-3 and NFR-IDEMPOTENT-1 (currently marked `@pytest.mark.integration` but no green run recorded). _Surfaced in:_ specs/001-ingest-courtlistener-opinions.
 - **BL-20260429-03** — *feature, low* — Reintroduce Blackstone NER for `_extract_entities` once we have a lazy-loading shim that doesn't break test startup time. _Surfaced in:_ specs/001-ingest-courtlistener-opinions.
@@ -100,17 +100,22 @@
 - **BL-20260430-12** — *infra, low* — Have `app/main.py` lifespan refuse to start when `ENVIRONMENT="production"` and `AGENT_API_KEY` is unset (today it only warns). _Surfaced in:_ specs/009-extend-api-auth.
 - **BL-20260430-13** — *doc-gap, low* — Document the per-router fallback chain (`<ROUTER>_API_KEY` → `AGENT_API_KEY`) in [docs/architecture.md](docs/architecture.md), including a short table mapping routes → settings. _Surfaced in:_ specs/009-extend-api-auth.
 
+- **BL-20260505-01** — *infra, low* — CI grep check that fails when `LexGraph` (case-sensitive) appears outside `LexGraph_AI_Proposal.md` and historical specs `001-*`…`011-*`. Catches future regressions of the LawGraph naming. _Surfaced in:_ specs/012-rebrand-lawgraph-ai.
+- **BL-20260505-02** — *doc-gap, low* — Add a top-of-file banner to `LexGraph_AI_Proposal.md` pointing readers at [docs/adr/0002-rebrand-lawgraph-ai.md](docs/adr/0002-rebrand-lawgraph-ai.md) and clarifying that the canonical product name is LawGraph AI. _Surfaced in:_ specs/012-rebrand-lawgraph-ai.
+
 ## Claimed
 
 _(none yet)_
 
 ## Done
 
+- **BL-20260505-00** — *infra, high* — Reverted abortive LexGraph rename: `git mv backend/lexgraph backend/lawgraph` plus a sed sweep across docs/prompts/specs/`.github/`/top-level files restoring "LawGraph AI" as the canonical brand. Authored [ADR 0002](docs/adr/0002-rebrand-lawgraph-ai.md) and [docs/operator-rebrand-runbook.md](docs/operator-rebrand-runbook.md). Same effort closed BL-20260430-06 ([docs/legalbench.md](docs/legalbench.md)), BL-20260503-16 ([docs/security.md](docs/security.md)), and BL-20260503-18 ([docs/django-conventions.md](docs/django-conventions.md)) — see strike-through entries in Open. _Shipped in:_ specs/012-rebrand-lawgraph-ai.
+
 - **BL-20260430-08** — *feature, high* — Extended `require_api_key` into a `make_api_key_dep(*setting_names)` factory and gated `/api/analysis`, `/api/graph/*`, `/api/lsat/*` with per-router keys (`ANALYSIS_API_KEY`, `GRAPH_API_KEY`, `LSAT_API_KEY`) that fall back to `AGENT_API_KEY`. Frontend consolidated onto `apiFetch` so a single `NEXT_PUBLIC_AGENT_API_KEY` covers every gated call. 11 new tests, backend coverage 90.55%. _Shipped in:_ specs/009-extend-api-auth.
 - **BL-20260429-13** — *feature, high* — Added shared API-key auth (`X-API-Key` + `secrets.compare_digest`) gating `/api/agents/*`. Default-open posture preserved when `AGENT_API_KEY` is unset; startup warning logged outside `ENVIRONMENT=development`. _Shipped in:_ specs/008-agent-api-auth (extended in 009).
 
 - **BL-20260430-05** — *refactor, med* — Replaced GraphViewer.tsx Cytoscape stub with a real dynamically-imported Cytoscape canvas wired to `/api/graph/neighborhood`. _Shipped in:_ specs/006-knowledge-graph.
 - **BL-20260429-02** — *refactor, med* — Converted `IngestionScout._quarantine` and `_quarantine_postgres` to native async (no more `asyncio.run` inside the async ingestion loop). HITL items now reach Postgres in production; JSONL becomes a true failure-only fallback. scout.py coverage 81.60% → 90.57%. _Shipped in:_ specs/004-async-quarantine-postgres.
-- **BL-20260430-02** — *refactor, med* — Replaced TODO in backend/app/main.py by mounting the new `/api/agents` router (registry, runs, backlog, specs). _Shipped in:_ specs/003-agent-ops-dashboard.
+- **BL-20260430-02** — *refactor, med* — Replaced TODO in backend/lawgraph/main.py by mounting the new `/api/agents` router (registry, runs, backlog, specs). _Shipped in:_ specs/003-agent-ops-dashboard.
 - **BL-20260429-05** — *feature, high* — Resolved citations to existing `Case` nodes via `app.db.citation_resolver` (spec 002, 6 unit tests, 79.51% coverage). _Shipped in:_ specs/002-resolve-citations-to-cases.
 

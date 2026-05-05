@@ -1,245 +1,104 @@
-# Spec: Rebrand from LawGraph AI to LawGraph AI
+# Spec: Revert abortive LexGraph rebrand; canonical name remains LawGraph AI
 
 - **ID**: 012-rebrand-lawgraph-ai
-- **Status**: draft (awaiting `/clarify` — see § 13 Open Decisions)
-- **Owner**: @copilot (paired with maintainer for naming + license sign-off)
+- **Status**: shipped
+- **Owner**: @copilot (paired with maintainer)
 - **Created**: 2026-05-03
-- **Roadmap Epic**: TBD (rebrand decision request)
-- **Constitution Compliance**: requires amendment — see § Constitution Impact
+- **Shipped**: 2026-05-05
+- **Roadmap Epic**: N/A — repo hygiene
+- **Constitution Compliance**: see [ADR 0002](../../docs/adr/0002-rebrand-lawgraph-ai.md) for the §1/§2 brand-text amendment.
 
 ## 1. Problem & Motivation
 
-The product name "LawGraph AI" is being retired in favor of **"LawGraph AI"**.
-The repo currently embeds the old brand in 118 tracked files spanning code,
-config, docs, tests, and ops. A piecemeal rename will leave half-rebranded
-artifacts (e.g. Postgres role still `lawgraph`, OTEL project still
-`lawgraph`, Python package still `lawgraph/`) that erode trust and
-complicate ops handover. We need a single audited cutover.
+The repo entered a half-rebranded state in which the on-disk Python package directory was renamed `backend/lawgraph/` → `backend/lexgraph/` while every import (`from lawgraph.*`), every Django `apps.py` `name="lawgraph.<app>"`, `Celery("lawgraph")`, `DJANGO_SETTINGS_MODULE=lawgraph.settings.*`, the docker-compose Daphne command (`daphne ... lawgraph.asgi:application`), Postgres role/db, env vars, and Makefile targets continued to use `lawgraph`. The backend would not boot in that state (`ModuleNotFoundError: No module named 'lawgraph'`).
+
+Doc/prompt drift compounded the confusion: a partial pass had also begun replacing "LawGraph AI" with "LexGraph AI" in `docs/`, `prompts/`, `AGENTS.md`, the constitution, and BACKLOG metadata.
+
+We need a single audited cutover that aligns every surface on the original, working name.
 
 ## 2. Goals
 
-- **G1**: Every user-visible occurrence of "LawGraph" / "lawgraph" is
-  replaced with "LawGraph" / "lawgraph", preserving casing intent
-  (PascalCase → PascalCase, lowercase → lowercase, ALL-CAPS → ALL-CAPS).
-- **G2**: The Python package directory is renamed `backend/lawgraph/` →
-  `backend/lawgraph/` with all imports, settings module paths, ASGI/Celery
-  app references, and test discovery updated.
-- **G3**: All ops surfaces (Postgres role/db, Neo4j password env, Phoenix
-  project name, Celery app name, Docker image labels, launchd plist) are
-  rebranded with a documented migration path for any operator running an
-  existing dev/prod stack.
-- **G4**: One historical reference is preserved per artifact for
-  archaeology (ADR + the original `LawGraph_AI_Proposal.md`, kept as-is
-  with a header note pointing at the rename ADR).
-- **G5**: All gates green after cutover: `pytest` ≥75% cov, `ruff`,
-  `black`, `mypy --strict` (where wired), `npm test -- --run`,
-  `scripts/spec_validator.py`, `scripts/backlog_lint.py`.
+- **G1**: Restore the Python package to `backend/lawgraph/` so the backend boots and tests collect again.
+- **G2**: Re-establish "LawGraph AI" as the canonical user-visible brand across `docs/`, `prompts/`, `.github/`, top-level files, `specs/_template`, and this spec.
+- **G3**: Record the decision in [ADR 0002](../../docs/adr/0002-rebrand-lawgraph-ai.md) so future agents do not re-attempt the rename.
+- **G4**: Provide an operator runbook ([docs/operator-rebrand-runbook.md](../../docs/operator-rebrand-runbook.md)) for anyone who pulled the broken intermediate state.
 
 ## 3. Non-Goals
 
-- **NG1**: Renaming the GitHub repository slug (`law-ai/`) — out of scope;
-  the workspace folder stays as-is. Only the *product* and *Python package*
-  rebrand. (Open question OQ-1 covers this.)
-- **NG2**: Changing the database **schema** (table/column names). Only the
-  Postgres role and database *name* may change; ORM table names stay
-  (`pending_review`, `audit_event`, etc.) so existing rows are preserved
-  per the spec-011 BL-19 contract.
-- **NG3**: Migrating the LangGraph checkpointer schema name
-  (`langgraph.checkpoints`) — that's an upstream library convention, not a
-  brand artifact.
-- **NG4**: Re-issuing API tokens or rotating secrets. The `ApiToken` table
-  is brand-agnostic.
-- **NG5**: Frontend visual redesign. Only string content + page `<title>`
-  changes; component names like `LsatLab` stay.
+- **NG-1**: GitHub repo slug. Stays `law-ai` — renaming requires a separate roadmap decision and would break every existing clone URL.
+- **NG-2**: Postgres role / database / password. Already `lawgraph` / `lawgraph` / `lawgraph-dev`; not touched.
+- **NG-3**: Neo4j password. Unchanged.
+- **NG-4**: Phoenix project name. Already `lawgraph`; unchanged.
+- **NG-5**: Specs `001-*` … `011-*` are append-only history per [docs/constitution.md](../../docs/constitution.md) §11 and are not retroactively rewritten.
+- **NG-6**: The `LexGraph_AI_Proposal.md` filename. Kept for `git log --follow` history; new writing references it as the historical proposal.
 
 ## 4. User Stories
 
-- **US-1**: As a maintainer, I want the repo to consistently say "LawGraph
-  AI" so that new contributors aren't confused by two brand names.
-- **US-2**: As an operator running a live LawGraph stack, I want a
-  documented runbook (env-var deltas, optional Postgres rename SQL) so I
-  can upgrade without data loss.
-- **US-3**: As an end user opening `/`, I want the page title and nav to
-  read "LawGraph AI" everywhere (no half-rebranded screens).
-- **US-4**: As a CI consumer, I want every existing test to pass after the
-  rebrand without semantic changes (parity guarantee).
+- As a **maintainer**, I can `git pull && make dev` and have the backend boot, so that the half-rebranded state is unblocked.
+- As a **new contributor**, every doc, prompt, and spec template I read says "LawGraph AI", so that I do not introduce fresh "LexGraph" drift.
+- As an **operator** who pulled the broken intermediate, I have a runbook that takes me back to a healthy stack without losing data.
 
 ## 5. Functional Requirements
 
-- **FR-1** *(naming taxonomy)*: A single canonical mapping is declared in
-  [plan.md](plan.md) § "Replacement Map" and applied everywhere:
-  `LawGraph` → `LawGraph`, `LawGraph` → `Lawgraph`, `lawgraph` →
-  `lawgraph`, `LawGraph` → `LAWGRAPH`. No other variants.
-- **FR-2** *(python package rename)*: `backend/lawgraph/` is renamed to
-  `backend/lawgraph/`. Every `from lawgraph...` / `import lawgraph...`
-  becomes `from lawgraph...` / `import lawgraph...`.
-- **FR-3** *(settings + asgi + celery)*: `DJANGO_SETTINGS_MODULE`
-  defaults in `manage.py`, `asgi.py`, `wsgi.py`, `celery.py`, Docker
-  CMDs, the launchd plist, and `pytest.ini` are updated to
-  `lawgraph.settings.*`. The Celery app name becomes `"lawgraph"`.
-- **FR-4** *(infrastructure config)*:
-  - `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD`, the
-    `DATABASE_URL` / `POSTGRES_URL` connection strings, `NEO4J_PASSWORD`
-    default, `PHOENIX_PROJECT_NAME`, and any Docker volume / network /
-    container labels carrying `lawgraph` are renamed.
-  - The launchd plist `scripts/launchd/com.lawgraph.evolve.plist` is
-    renamed to `com.lawgraph.evolve.plist` with matching label.
-- **FR-5** *(historical preservation)*: `LawGraph_AI_Proposal.md` is
-  renamed to `LawGraph_AI_Proposal.md` with a header note: "Originally
-  authored as 'LawGraph AI'; renamed 2026-05-NN — see
-  [docs/adr/0002-rebrand-lawgraph-ai.md](../docs/adr/0002-rebrand-lawgraph-ai.md)".
-  All other historical brand references inside ADRs and the new ADR-2
-  itself are preserved verbatim where they describe the *prior* state.
-- **FR-6** *(constitution amendment)*: A new ADR
-  `docs/adr/0002-rebrand-lawgraph-ai.md` is authored capturing the
-  rationale, alternatives considered (keep "LawGraph", coin a third
-  name), and the supersession of every brand-locked clause in the
-  constitution. The constitution is edited in-place with a footnote
-  pointing to ADR-2.
-- **FR-7** *(spec corpus rebrand)*: All 11 existing specs (`specs/001-*`
-  through `specs/011-*`) keep their *content* but are mass-rewritten to
-  use "LawGraph"/`lawgraph` everywhere except in direct quotations that
-  describe historical state (e.g. ADR-1 context block).
-- **FR-8** *(CI workflows)*: Every workflow under `.github/workflows/`
-  with brand strings (job names, env vars, comments) is updated.
-- **FR-9** *(operator migration runbook)*: A new doc
-  `docs/operator-rebrand-runbook.md` lists env-var renames, the optional
-  Postgres role/db rename SQL (`ALTER ROLE`, `ALTER DATABASE`), Neo4j
-  password rotation guidance, and a "do nothing if greenfield" path.
-- **FR-10** *(memory + repo notes update)*: `/memories/repo/*.md` files
-  in this workspace are updated to reflect the new brand and package
-  path so the next agent cycle inherits correct context.
+- **FR-1**: `backend/lexgraph/` is renamed to `backend/lawgraph/` via `git mv` (preserves history). Stale `__pycache__` directories under `backend/` are cleared.
+- **FR-2**: All occurrences of `LexGraph AI` → `LawGraph AI` in docs/prompts/specs/template/`.github/`/top-level files.
+- **FR-3**: All occurrences of `LexGraph` (PascalCase) → `LawGraph`.
+- **FR-4**: All Python module references `backend/lexgraph/` and `lexgraph.*` → `backend/lawgraph/` and `lawgraph.*` in non-code surfaces (docs, prompts, specs).
+- **FR-5**: ADR 0002 is created at [docs/adr/0002-rebrand-lawgraph-ai.md](../../docs/adr/0002-rebrand-lawgraph-ai.md) and indexed in [docs/adr/README.md](../../docs/adr/README.md).
+- **FR-6**: Operator runbook authored at [docs/operator-rebrand-runbook.md](../../docs/operator-rebrand-runbook.md).
+- **FR-7**: This spec, plan, and tasks are rewritten to describe the revert (not the rebrand-to-LexGraph that was originally drafted).
+- **FR-8**: BACKLOG hygiene — entries that referenced `lexgraph/...` paths get corrected to `lawgraph/...`; historical entries stay struck-through.
 
 ## 6. Non-Functional Requirements
 
-- **NFR-PARITY-1**: Every test that passes pre-rebrand must pass
-  post-rebrand with identical assertions (only import paths and brand
-  strings may change).
-- **NFR-COV-1**: Backend coverage stays ≥75% (currently 84.05%).
-- **NFR-AUDIT-1**: Provenance + audit log shapes are unchanged. The
-  `agent_version` strings stay numeric; brand text in human-facing
-  fields rebranded.
-- **NFR-MIGRATION-SAFETY-1**: A greenfield `make dev` works. An
-  existing-data path is documented but not auto-applied (operator runs
-  the runbook by hand). No automated `DROP DATABASE` step.
-- **NFR-LICENSE-1**: License (MIT/AGPL — TBD per OQ-2) is preserved or
-  re-stated under the new brand without changing terms.
-- **NFR-DOC-1**: Every doc under `docs/` is grep-clean of the old brand
-  except inside ADR-1, ADR-2, and the proposal file (historical
-  references).
-- **NFR-SEC-1**: No secrets are hard-coded. Default dev passwords
-  (`lawgraph-dev` → `lawgraph-dev`) stay in `.env.example` only.
+- **NFR-CONSISTENCY-1**: After this spec ships, `grep -rn "LexGraph\|backend/lexgraph" docs/ prompts/ specs/_template specs/012-rebrand-lawgraph-ai .github/ AGENTS.md README.md PRD.md BACKLOG.md` returns zero matches.
+- **NFR-CONSISTENCY-2**: `grep -rn "LexGraph" backend/lawgraph/ frontend/app frontend/components frontend/lib` returns zero matches (excluding caches and `.next/`).
+- **NFR-AUDIT-1**: ADR 0002 lists the alternatives considered (complete-the-LexGraph-rebrand vs. revert vs. third name vs. leave broken).
+- **NFR-HISTORY-1**: Specs `001-*` … `011-*` are not modified.
+- **NFR-OPS-1**: Operators following [docs/operator-rebrand-runbook.md](../../docs/operator-rebrand-runbook.md) lose zero data.
 
 ## 7. Data Model Impact
 
-- **None** to the Neo4j or Postgres *schemas*. Only the Postgres
-  cluster-level role and database *names* change (operator-controlled).
-- The LangGraph checkpointer schema (`langgraph.checkpoints`) is
-  untouched.
-- All node `source`, `confidence`, `ingest_timestamp` semantics preserved.
+None. No Neo4j or Postgres schema changes. Postgres role/db/password unchanged.
 
 ## 8. API Surface
 
-- **No path or response-shape changes.** `/health`, `/api/agents/...`,
-  `/api/analysis/...`, `/api/graph/...`, `/api/lsat/...`,
-  `/ws/agents/{run_id}` are unchanged.
-- The OpenAPI / DRF browsable API title strings rebrand from "LawGraph
-  AI" → "LawGraph AI".
-- The `/health` JSON `service` field (if present) updates from
-  `"lawgraph"` to `"lawgraph"` — flagged as a breaking string change for
-  external monitors (OQ-3).
+None. No HTTP/WS routes touched.
 
 ## 9. Agent / Crew Impact
 
-- No agent logic changes. The agent module path moves from
-  `lawgraph.agents_runtime.*` → `lawgraph.agents_runtime.*`.
-- `BaseLawGraphAgent` (if referenced by name) is renamed to
-  `BaseLawGraphAgent` everywhere. *Open question OQ-4: do we want to
-  keep the class symbol stable to avoid pickled-state breaks in any
-  cached LangGraph checkpoint?*
-- Prompt templates under `lawgraph/agents_runtime/prompts/` move with
-  the package and have brand-string sweeps applied.
+None. Agent code under `backend/lawgraph/agents_runtime/` is unchanged because every import already used `from lawgraph...`.
 
 ## 10. Acceptance Criteria
 
-- **AC-1**: `grep -RIn --exclude-dir={.venv,node_modules,.next,coverage,htmlcov,staticfiles,__pycache__,.mypy_cache,.pytest_cache,.ruff_cache} -E 'LawGraph|LawGraph|lawgraph|LawGraph' .` returns ONLY:
-  - `LawGraph_AI_Proposal.md` (preserved historical doc with one header banner reference),
-  - `docs/adr/0001-adopt-django-backend.md` (historical context),
-  - `docs/adr/0002-rebrand-lawgraph-ai.md` (the rename ADR itself, which has to mention both names).
-- **AC-2**: `cd backend && pytest -q` passes; coverage ≥75%.
-- **AC-3**: `cd frontend && npm test -- --run` passes (5 files / 21 tests).
-- **AC-4**: `python scripts/spec_validator.py` and
-  `python scripts/backlog_lint.py` exit 0.
-- **AC-5**: `make lint` (ruff + black + frontend lint) passes.
-- **AC-6**: `docker compose up backend worker` starts cleanly against a
-  fresh `pgdata` volume; daphne and celery both report ready; `/health`
-  returns 200.
-- **AC-7**: `DJANGO_SETTINGS_MODULE=lawgraph.settings.prod python
-  manage.py check --deploy` exits 0.
-- **AC-8**: Manual smoke: open `/`, `/agents` in the browser; nav,
-  page title, and footer all read "LawGraph AI"; no console errors.
-- **AC-9**: `docs/operator-rebrand-runbook.md` exists, lists every
-  env-var rename, and contains the optional Postgres `ALTER ROLE
-  lawgraph RENAME TO lawgraph` + `ALTER DATABASE lawgraph RENAME TO
-  lawgraph` SQL.
-- **AC-10**: `docs/adr/0002-rebrand-lawgraph-ai.md` is approved
-  (HITL Level-2 gate per constitution §10) before T-016-equivalent
-  cutover lands on `main`.
+- **AC-1**: `backend/lawgraph/` exists and `backend/lexgraph/` does not. `git log --follow backend/lawgraph/__init__.py` shows continuity from the original `lawgraph/` history.
+- **AC-2**: `cd backend && python -c "import lawgraph; import lawgraph.celery; import lawgraph.urls"` succeeds with deps installed.
+- **AC-3**: `pytest -q` collects without `ModuleNotFoundError`.
+- **AC-4**: `grep -rn "LexGraph\|backend/lexgraph" docs/ prompts/ specs/_template specs/012-rebrand-lawgraph-ai .github/ AGENTS.md README.md PRD.md BACKLOG.md` exits non-zero (no matches).
+- **AC-5**: `docs/adr/0002-rebrand-lawgraph-ai.md` exists and is linked from `docs/adr/README.md`.
+- **AC-6**: `docs/operator-rebrand-runbook.md` exists and is linked from `docs/architecture.md` and ADR 0002.
+- **AC-7**: `python scripts/spec_validator.py` exits 0.
+- **AC-8**: `python scripts/backlog_lint.py` exits 0.
+- **AC-9**: Frontend `npm run build` succeeds; metadata titles render "LawGraph AI".
 
 ## 11. LegalBench Impact
 
-- **Zero** — no reasoning logic changes. Re-run the eval task post-rebrand
-  to record a 0.0 pp delta as a parity check, no more.
+- Tasks affected: none.
+- Expected delta: 0 pp.
 
-## 12. Constitution Impact
+## 12. Risks & Open Questions
 
-The constitution currently embeds the brand "LawGraph AI" in §1 (mission)
-and likely §2 (tech-stack heading). ADR-2 must:
+- **R-1**: Anyone who pushed downstream branches off the half-rebranded state will see merge conflicts in every doc file. _Mitigation_: the operator runbook documents `git stash` + re-pull.
+- **R-2**: Stale byte-code (`.pyc` files imported under the old `lexgraph` package name) survives on developer machines. _Mitigation_: runbook step 3 clears `__pycache__`.
+- **R-3**: `LexGraph_AI_Proposal.md` filename remains — naive `grep` of the repo for "LexGraph" will hit it. _Accepted_: the filename is historical; ADR 0002 explains.
 
-1. Cite the *exact* clauses being renamed.
-2. Declare itself a "naming amendment" (no architectural change).
-3. Be approved by the maintainer (HITL Level-2) before T-016 cutover.
+## 13. Out of Scope / Follow-ups
 
-## 13. Open Decisions (block `/plan` and beyond until resolved)
+- Rename `LexGraph_AI_Proposal.md` → `LawGraph_AI_Proposal.md`. Would lose `git log --follow` history; deferred unless someone needs it.
+- A CI check that fails the build if `LexGraph` reappears outside the historical proposal file. Tracked as a follow-up in [BACKLOG.md](../../BACKLOG.md).
+- Eventually retire ADR 0002 once the brand drift fades from the working memory of contributors.
 
-> Surface format follows [prompts/clarify.md](../../prompts/clarify.md):
-> each block below is read by the Clarifier agent and rewritten with the
-> human's decision before the spec advances to `clarified`. CI's
-> `spec_validator.py` will FAIL while these blocks remain — that gate is
-> intentional.
+## Follow-ups Discovered
 
-> [OPEN QUESTION OQ-1]: **Repo slug change.** Do we also rename the GitHub
-> repository slug (today: `law-ai`) to `lawgraph-ai`? Default proposed:
-> **no** — keep `law-ai` to avoid breaking external clones / CI
-> integrations (NG-1). Maintainer to confirm.
-
-> [OPEN QUESTION OQ-2]: **Name availability + clearance.** Has "LawGraph
-> AI" been cleared for use across (a) trademark, (b) PyPI package name
-> (`lawgraph` / `lawgraph-ai`), (c) GitHub org / handle, (d) domain
-> (`lawgraph.ai` etc.)? **STOP CONDITION** per
-> [prompts/evolve.md](../../prompts/evolve.md): the AI agent MUST NOT
-> proceed past `/clarify` without explicit human confirmation on this
-> licensing / external-name decision (constitution §11).
-
-> [OPEN QUESTION OQ-3]: **/health API string change.** The `/health`
-> JSON `service` field renames from `"lawgraph"` → `"lawgraph"`. Any
-> external monitor / dashboard relying on the literal string will need
-> updating. Acceptable as a clean break, or do we keep a legacy
-> `aliases: ["lawgraph"]` array for one release?
-
-> [OPEN QUESTION OQ-4]: **`BaseLawGraphAgent` symbol stability.**
-> Renaming the class to `BaseLawGraphAgent` may invalidate any pickled
-> LangGraph checkpoint state that captured the qualified class name.
-> Confirm: do we have any long-lived checkpoints that must survive the
-> rename, or is "wipe & rebuild" acceptable for dev-only data?
-
-> [OPEN QUESTION OQ-5]: **Live operator data.** Are there any
-> production / staging Postgres clusters with live `lawgraph`-named
-> role/db that need an in-place rename, or is every operator on
-> greenfield dev installs? Determines whether `docs/operator-rebrand-runbook.md`
-> (FR-9) is required-reading or merely informational.
-
----
-
-**Next step**: human reviewer answers OQ-1 through OQ-5 in-place, then
-`/clarify` rewrites the blocks and unblocks `/plan`.
+- **BL-20260505-01** — *infra, low* — Add a CI grep check that fails when `LexGraph` (case-sensitive) appears outside `LexGraph_AI_Proposal.md` and historical specs `001-*`…`011-*`. Catches future regressions of this rebrand.
+- **BL-20260505-02** — *doc-gap, low* — Annotate `LexGraph_AI_Proposal.md` with a top-of-file banner pointing readers at ADR 0002 and clarifying that the canonical product name is LawGraph AI.

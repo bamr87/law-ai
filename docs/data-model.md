@@ -30,7 +30,7 @@ LawGraph AI's Neo4j knowledge graph. Spec of record: [001-ingest-courtlistener-o
 
 ## Constraints
 
-Defined in [backend/app/db/neo4j_migrations/001_case_constraints.cypher](../backend/app/db/neo4j_migrations/001_case_constraints.cypher):
+Defined in [backend/lawgraph/core/neo4j/migrations/001_case_constraints.cypher](../backend/lawgraph/core/neo4j/migrations/001_case_constraints.cypher):
 - `CREATE CONSTRAINT case_id_unique ... ASSERT (c.id) IS UNIQUE`
 - `CREATE CONSTRAINT citation_normalized_unique ... ASSERT (cit.normalized) IS UNIQUE`
 

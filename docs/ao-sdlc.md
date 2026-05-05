@@ -12,14 +12,14 @@ LawGraph currently operates at **Autonomy Level 2 (Collaborative)** per [docs/co
 | **0. Roadmap & Portfolio** | GitHub Projects + [PRD.md](../PRD.md). Roadmap-agent crew is **planned**, not yet built. | Manual today |
 | **1. Spec / Requirements** | [specs/](../specs/) directory using the Spec Kit pattern (`spec.md` + `plan.md` + `tasks.md`). | [/specify](../prompts/specify.md) → [/clarify](../prompts/clarify.md) |
 | **2. Architecture & Design** | `plan.md` per spec + ADRs under `docs/adr/`. System-wide diagram in [docs/architecture.md](architecture.md). | [/plan](../prompts/plan.md) |
-| **3. Implementation** | CrewAI crews in [backend/app/agents/crews/](../backend/app/agents/crews) and LangGraph workflows in [backend/app/agents/graphs/](../backend/app/agents/graphs). | [/tasks](../prompts/tasks.md) → [/implement](../prompts/implement.md) |
-| **4. Testing & QA** | pytest + Vitest (see [.vscode/tasks.json](../.vscode/tasks.json) `Run All Tests`) and LegalBench harness in `backend/app/eval/`. | `Run All Tests` task / `Run LegalBench Eval` task |
+| **3. Implementation** | CrewAI crews in [backend/lawgraph/agents_runtime/crews/](../backend/lawgraph/agents_runtime/crews) and LangGraph workflows in [backend/lawgraph/agents_runtime/graphs/](../backend/lawgraph/agents_runtime/graphs). | [/tasks](../prompts/tasks.md) → [/implement](../prompts/implement.md) |
+| **4. Testing & QA** | pytest + Vitest (see [.vscode/tasks.json](../.vscode/tasks.json) `Run All Tests`) and LegalBench harness in `backend/lawgraph/eval/`. | `Run All Tests` task / `Run LegalBench Eval` task |
 | **5. Deployment** | [docker-compose.yml](../docker-compose.yml) for local. Production CD pipeline is **planned**. CI is in [.github/workflows/ci.yml](../.github/workflows/ci.yml). | `make dev` |
 | **6. Operations / SRE** | `app.core.provenance` audit log is the foundation. Langfuse-style agent tracing and SRE feedback loops are **planned**. | n/a yet |
 
 ## Agent Role Mapping
 
-The framework's generic agent roles correspond to LawGraph crews documented in [docs/agent-roles.md](agent-roles.md). Concrete classes live in [backend/app/agents/crews/](../backend/app/agents/crews) and are wired in [backend/app/agents/registry.py](../backend/app/agents/registry.py).
+The framework's generic agent roles correspond to LawGraph crews documented in [docs/agent-roles.md](agent-roles.md). Concrete classes live in [backend/lawgraph/agents_runtime/crews/](../backend/lawgraph/agents_runtime/crews) and are wired in [backend/lawgraph/agents_runtime/registry.py](../backend/lawgraph/agents_runtime/registry.py).
 
 | AO-SDLC Role | LawGraph Crew |
 |---|---|

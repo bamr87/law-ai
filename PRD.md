@@ -300,7 +300,7 @@ GitHub Copilot is the **sole sanctioned AI development orchestrator** for this r
 
 1. **Spec-driven workflow execution** — Copilot Chat Agent mode runs the AO-SDLC chain ([/specify](prompts/specify.md) → [/clarify](prompts/clarify.md) → [/plan](prompts/plan.md) → [/tasks](prompts/tasks.md) → [/implement](prompts/implement.md)) end-to-end, halting at HITL gates.
 2. **Autonomous BACKLOG advancement** — [/evolve](prompts/evolve.md) picks the highest-priority `BL-*` item and ships it; the GitHub Copilot coding agent runs the same chain in the cloud when an issue is assigned to `@copilot`.
-3. **Workspace-aware refactoring** — Copilot Edits performs multi-file changes against `backend/app/` and `frontend/` while honoring [.github/copilot-instructions.md](.github/copilot-instructions.md).
+3. **Workspace-aware refactoring** — Copilot Edits performs multi-file changes against `backend/lawgraph/` and `frontend/` while honoring [.github/copilot-instructions.md](.github/copilot-instructions.md).
 4. **Custom instructions enforcement** — Repo-level [.github/copilot-instructions.md](.github/copilot-instructions.md) plus path-scoped `*.instructions.md` files keep every Copilot turn aligned with [AGENTS.md](AGENTS.md).
 5. **Subagent fan-out** — Copilot's `runSubagent` (and the `Explore` agent) parallelizes audits and read-only research without polluting the main chat.
 6. **Pull-request review** — Copilot Code Review and `@copilot` PR comments handle first-pass review; humans approve at the spec gate and the merge gate.

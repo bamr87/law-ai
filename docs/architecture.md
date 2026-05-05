@@ -49,13 +49,13 @@ flowchart TB
 
 | Component              | Responsibility                                                                 | Key Files |
 |------------------------|----------------------------------------------------------------------------------|-----------|
-| **Ingestion Scout**    | Fetch → Parse (Eyecite) → Extract (Blackstone + LLM) → Commit to Neo4j          | `backend/app/ingestion/`, `agents/crews/ingestion_scout/` |
-| **Agent Crews**        | Specialized legal reasoning (Analyst, Precedent Hunter, Logic Weaver, Educator) | `backend/app/agents/crews/` |
-| **Orchestrator**       | LangGraph state machine, routing, HITL gates, provenance logging                | `backend/app/agents/graphs/orchestrator.py` |
-| **GraphRAG Engine**    | Hybrid retrieval (vector + Cypher) + community summaries                        | `backend/app/agents/tools/graph_rag.py` |
+| **Ingestion Scout**    | Fetch → Parse (Eyecite) → Extract (Blackstone + LLM) → Commit to Neo4j          | `backend/lawgraph/ingestionapp/`, `agents/crews/ingestion_scout/` |
+| **Agent Crews**        | Specialized legal reasoning (Analyst, Precedent Hunter, Logic Weaver, Educator) | `backend/lawgraph/agents_runtime/crews/` |
+| **Orchestrator**       | LangGraph state machine, routing, HITL gates, provenance logging                | `backend/lawgraph/agents_runtime/graphs/orchestrator.py` |
+| **GraphRAG Engine**    | Hybrid retrieval (vector + Cypher) + community summaries                        | `backend/lawgraph/agents_runtime/tools/graph_rag.py` |
 | **API Layer**          | Django REST Framework views for analysis, graph queries, ingestion, LSAT (+ Channels consumers for agent streaming) | `backend/lawgraph/{analysis,graph,lsat,agentsapi,ingestionapp}/` |
 | **Frontend**           | Interactive graph, real-time agent streaming, LSAT practice, library            | `frontend/app/` + `components/GraphViewer.tsx` |
-| **Evaluation**         | LegalBench harness + custom legal reasoning tests                               | `backend/app/eval/` |
+| **Evaluation**         | LegalBench harness + custom legal reasoning tests                               | `backend/lawgraph/eval/` |
 
 ---
 

@@ -11,7 +11,7 @@ Open, machine-readable corpora used by LawGraph AI.
 ## CourtListener
 
 - Endpoint: `GET /opinions/{id}/` and `GET /opinions/?cursor=...`
-- Client: [backend/app/ingestion/courtlistener.py](../backend/app/ingestion/courtlistener.py)
+- Client: [backend/lawgraph/ingestionapp/services/courtlistener.py](../backend/lawgraph/ingestionapp/services/courtlistener.py)
 - Configuration:
   - `COURTLISTENER_API_KEY` — env var read by `core.config.settings`. Optional but recommended.
 - Retry policy: 3 attempts, exponential backoff on 429 / 5xx / transport errors (`tenacity.AsyncRetrying`).

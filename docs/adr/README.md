@@ -15,3 +15,4 @@ ADRs are the canonical place to record decisions that **deviate from or amend** 
 | ID    | Title                            | Status   | Constitution clauses touched |
 | ----- | -------------------------------- | -------- | ---------------------------- |
 | 0001  | [Adopt Django backend](0001-adopt-django-backend.md) | accepted | §2 (tech stack), §11 (mission-drift guard) |
+| 0002  | [Rebrand LawGraph AI → LawGraph AI](0002-rebrand-lawgraph-ai.md) | accepted | §1 (mission/brand), §2 (Python package name) |

@@ -7,7 +7,7 @@ Implement a new agent role called **{AgentName}** (e.g., "ContractRiskAssessor",
 
 ## Requirements
 
-1. **Location**: Create files in `backend/app/agents/crews/{agent_name}/` or `graphs/` if using LangGraph state machine.
+1. **Location**: Create files in `backend/lawgraph/agents_runtime/crews/{agent_name}/` or `graphs/` if using LangGraph state machine.
 
 2. **Must Include**:
    - `agent.py` — Main class with `async def run(self, input: dict) -> StructuredOutput`
@@ -26,7 +26,7 @@ Implement a new agent role called **{AgentName}** (e.g., "ContractRiskAssessor",
    ```
 
 4. **Integration**:
-   - Register in `backend/app/agents/registry.py`
+   - Register in `backend/lawgraph/agents_runtime/registry.py`
    - Add to Orchestrator if it should be part of default workflows
    - Update `docs/agent-roles.md` with new row in the table
 

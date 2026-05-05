@@ -17,14 +17,14 @@ flowchart LR
 
 | Layer | File / Module | Change |
 |-------|---------------|--------|
-| API | `backend/app/api/...` | new route `POST /...` |
-| Agent | `backend/app/agents/crews/...` | new crew member |
-| DB | `backend/app/db/...` | migration + queries |
+| API | `backend/lawgraph/{agentsapi,analysis,graph,lsat}/...` | new route `POST /...` |
+| Agent | `backend/lawgraph/agents_runtime/crews/...` | new crew member |
+| DB | `backend/lawgraph/core/...` | migration + queries |
 | Frontend | `frontend/app/...` | new page / component |
 
 ## 3. Data & Schema Migrations
 
-Neo4j Cypher migrations under `backend/app/db/neo4j_migrations/`; Postgres SQL under `backend/app/db/postgres_migrations/`. Migrations must be idempotent and forward-only.
+Neo4j Cypher migrations under `backend/lawgraph/core/neo4j/migrations/`; Postgres SQL under `backend/lawgraph/core/postgres_migrations/`. Migrations must be idempotent and forward-only.
 
 ## 4. Tech Choices & Alternatives
 
