@@ -40,6 +40,16 @@ jobs:
       - name: Start Docker services
         run: docker compose up -d neo4j postgres redis --wait
 
+      - name: Apply Django migrations against Docker Postgres
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: lawgraph.settings.test
+          DATABASE_URL: postgresql://lawgraph:lawgraph-dev@localhost:5432/lawgraph
+        # Integration tests query Postgres tables directly via asyncpg
+        # (e.g. ingestionapp_pendingreview), so the Django schema must
+        # exist in the Dockerized DB before pytest runs.
+        run: python manage.py migrate --noinput
+
       - name: Run integration tests
         working-directory: backend
         env:
