@@ -47,7 +47,10 @@ jobs:
           NEO4J_USER: neo4j
           NEO4J_PASSWORD: lawgraph-dev
           DATABASE_URL: postgresql://lawgraph:lawgraph-dev@localhost:5432/lawgraph
-        run: pytest -m integration -v --tb=short
+        # --no-cov: this job only runs ~3 tests, the 75% gate is enforced
+        # by the main CI's Backend Tests + Coverage job (which runs everything
+        # *except* integration). -o overrides addopts= in pyproject.toml.
+        run: pytest -m integration -v --tb=short -o addopts="-ra --strict-markers" --no-cov
 
       - name: Teardown Docker services
         if: always()

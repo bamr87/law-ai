@@ -19,6 +19,16 @@ import pytest
 from lawgraph.ingestionapp.models import PendingReview
 from lawgraph.ingestionapp.services.scout import IngestionScout
 
+# All tests in this module need the same event loop as the session-scoped
+# async fixtures (``neo4j_integration_driver``, ``postgres_integration_pool``)
+# in ``backend/tests/conftest.py``. Without ``loop_scope="session"`` on the
+# asyncio marker, pytest-asyncio creates a fresh per-test loop and the
+# driver's pending futures end up "attached to a different loop".
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.asyncio(loop_scope="session"),
+]
+
 # ---------------------------------------------------------------------------
 # Fixture opinions (spec 013 plan.md §8)
 # ---------------------------------------------------------------------------
@@ -108,8 +118,6 @@ LOW_CONF_FIXTURE = {
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
 async def test_commit_high_confidence_creates_case_and_edges(
     neo4j_integration_driver, clean_neo4j_db
 ):
@@ -169,8 +177,6 @@ async def test_commit_high_confidence_creates_case_and_edges(
         assert edges >= 1, f"Expected at least 1 CITES edge, got {edges}"
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
 async def test_idempotency_no_duplicate_nodes(neo4j_integration_driver, clean_neo4j_db):
     """AC-3, NFR-IDEMPOTENT-1: Run ingestion twice, assert count(Case) = 1.
 
@@ -204,8 +210,6 @@ async def test_idempotency_no_duplicate_nodes(neo4j_integration_driver, clean_ne
         ), f"Expected exactly 1 Case node, got {count} (NFR-IDEMPOTENT-1)"
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
 async def test_low_confidence_routes_to_postgres_pending_review(
     neo4j_integration_driver, postgres_integration_pool, clean_neo4j_db
 ):

@@ -153,11 +153,14 @@ def docker_services():
     subprocess.run(["docker", "compose", "down"], check=False)
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def neo4j_integration_driver(docker_services):
     """AsyncDriver connected to the Docker-compose Neo4j.
 
-    FR-2: Session-scoped driver for integration tests.
+    FR-2: Session-scoped driver for integration tests. ``loop_scope="session"``
+    keeps the driver bound to the same event loop across tests; without it,
+    pytest-asyncio creates a new loop per test and the driver's pending
+    futures end up "attached to a different loop".
     """
     driver = AsyncGraphDatabase.driver(
         "bolt://localhost:7687", auth=("neo4j", "lawgraph-dev")
@@ -167,11 +170,12 @@ async def neo4j_integration_driver(docker_services):
     await driver.close()
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def postgres_integration_pool(docker_services):
     """asyncpg.Pool connected to the Docker-compose Postgres.
 
-    FR-3: Session-scoped pool for integration tests.
+    FR-3: Session-scoped pool for integration tests. See note on
+    ``neo4j_integration_driver`` for why ``loop_scope="session"`` is required.
     """
     if asyncpg is None:
         pytest.skip("asyncpg not installed")
@@ -185,11 +189,12 @@ async def postgres_integration_pool(docker_services):
     await pool.close()
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture(scope="function", loop_scope="session")
 async def clean_neo4j_db(neo4j_integration_driver):
     """Wipe Neo4j before each integration test.
 
-    NFR-ISOLATION-1: Function-scoped for per-test isolation.
+    NFR-ISOLATION-1: Function-scoped for per-test isolation. Loop scope is
+    session so this fixture shares the loop of the session-scoped driver.
     """
     async with neo4j_integration_driver.session() as session:
         await session.run("MATCH (n) DETACH DELETE n")
