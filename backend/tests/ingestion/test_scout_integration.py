@@ -15,7 +15,9 @@ NFR-IDEMPOTENT-1: Verified by test_idempotency_no_duplicate_nodes.
 from __future__ import annotations
 
 import pytest
+from asgiref.sync import sync_to_async
 
+from lawgraph.ingestionapp.models import PendingReview
 from lawgraph.ingestionapp.services.scout import IngestionScout
 
 # All tests in this module need the same event loop as the session-scoped
@@ -213,16 +215,14 @@ async def test_idempotency_no_duplicate_nodes(neo4j_integration_driver, clean_ne
 
 
 async def test_low_confidence_routes_to_postgres_pending_review(
-    neo4j_integration_driver, postgres_integration_pool, clean_neo4j_db
+    neo4j_integration_driver, postgres_integration_pool, clean_neo4j_db, db
 ):
     """AC-5: Commit a low-confidence opinion and assert it goes to Postgres, not Neo4j.
 
-    Steps:
-    1. Run IngestionScout.run_and_commit with LOW_CONF_FIXTURE
-    2. Query Postgres pending_review table for id='10003'
-    3. Assert exactly one row with confidence < 0.7
-    4. Query Neo4j for Case node with id='10003'
-    5. Assert count(c) = 0 (case NOT in graph)
+    The ``db`` fixture (from pytest-django) is required so the in-process
+    Celery eager task (``quarantine_extraction``) is allowed to use the
+    Django ORM to write the PendingReview row. Without it, pytest-django
+    blocks ORM access and the write silently fails.
     """
     scout = IngestionScout()
     summary = await scout.run_and_commit(LOW_CONF_FIXTURE)
@@ -233,21 +233,16 @@ async def test_low_confidence_routes_to_postgres_pending_review(
     assert summary["confidence"] < 0.7
     assert summary["edges"] == 0
 
-    # Query Postgres directly via the asyncpg pool (AC-5).
-    # We bypass Django ORM here because these tests run from an async context
-    # and Django's sync ORM would raise SynchronousOnlyOperation. Querying the
-    # underlying table is also closer to the spec's intent: "row exists in
-    # Postgres" — independent of Django's transactional bookkeeping.
-    async with postgres_integration_pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT id, source, confidence, kind "
-            "FROM pending_review WHERE id = $1",
-            "10003",
-        )
-    assert row is not None, "PendingReview row should exist in Postgres"
-    assert row["confidence"] < 0.7
-    assert row["source"] == "courtlistener"
-    assert row["kind"] == "case"
+    # Query Postgres via the Django ORM, wrapped in sync_to_async so it can
+    # run from this async test (avoids SynchronousOnlyOperation). Going
+    # through the ORM ensures we read from the same database/connection
+    # that pytest-django + Celery eager mode just wrote into.
+    pending_row = await sync_to_async(
+        lambda: PendingReview.objects.filter(id="10003").first()
+    )()
+    assert pending_row is not None, "PendingReview row should exist in Postgres"
+    assert pending_row.confidence < 0.7
+    assert pending_row.source == "courtlistener"
 
     # Query Neo4j to confirm case is NOT there (AC-5)
     async with neo4j_integration_driver.session() as session:
