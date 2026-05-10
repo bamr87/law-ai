@@ -23,16 +23,17 @@ from pathlib import Path
 # Allow ``python scripts/ingest_sample.py`` from backend/ without install.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from lawgraph.ingestionapp.services.colorado_statutes import ColoradoStatutesClient
 from lawgraph.ingestionapp.services.courtlistener import CourtListenerClient
 from lawgraph.ingestionapp.services.scout import IngestionScout
+from lawgraph.ingestionapp.services.statute_scout import StatuteScout
 
 logger = logging.getLogger("lawgraph.cli.ingest")
 
 
-async def _run(args: argparse.Namespace) -> dict[str, int]:
+async def _run_courtlistener(args: argparse.Namespace) -> dict[str, int]:
     scout = IngestionScout()
-    summary = {"committed": 0, "pending": 0, "skipped": 0}
-    start = time.time()
+    summary: dict[str, int] = {"committed": 0, "pending": 0, "skipped": 0}
     async with CourtListenerClient() as client:
         async for opinion in client.list_opinions(limit=args.limit):
             try:
@@ -51,14 +52,67 @@ async def _run(args: argparse.Namespace) -> dict[str, int]:
             except Exception as exc:
                 logger.warning("skipped opinion: %s", exc)
                 summary["skipped"] += 1
-    summary["elapsed_s"] = int(time.time() - start)  # type: ignore[assignment]
+    return summary
+
+
+async def _run_colorado(args: argparse.Namespace) -> dict[str, int]:
+    """Run the Colorado statute ingestion path (spec 016 FR-7)."""
+    titles = [t.strip() for t in (args.titles or "").split(",") if t.strip()]
+    if not titles:
+        raise SystemExit("--source colorado_statutes requires --titles 18[,42,...]")
+
+    scout = StatuteScout()
+    summary: dict[str, int] = {"committed": 0, "pending": 0, "skipped": 0}
+    async with ColoradoStatutesClient() as client:
+        async for title_id, html in client.iter_titles(titles):
+            payload = {
+                "title_id": f"us-co/crs/title-{title_id}",
+                "html": html,
+                "source_url": client.url_for_title(title_id),
+            }
+            try:
+                if args.dry_run:
+                    extraction = scout.extract(payload)
+                    summary["committed"] += len(extraction.high_confidence_sections())
+                    summary["pending"] += len(extraction.low_confidence_sections())
+                    if args.limit and (
+                        summary["committed"] + summary["pending"] >= args.limit
+                    ):
+                        break
+                else:
+                    res = await scout.run_and_commit(payload)
+                    summary["committed"] += int(res["committed"])
+                    summary["pending"] += int(res["pending"])
+            except Exception as exc:
+                logger.warning("skipped title %s: %s", title_id, exc)
+                summary["skipped"] += 1
+    return summary
+
+
+async def _run(args: argparse.Namespace) -> dict[str, int]:
+    start = time.time()
+    if args.source == "colorado_statutes":
+        summary = await _run_colorado(args)
+    else:
+        summary = await _run_courtlistener(args)
+    summary["elapsed_s"] = int(time.time() - start)
     return summary
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Ingest sample case data into Neo4j.")
-    parser.add_argument("--source", choices=["courtlistener"], default="courtlistener")
+    parser = argparse.ArgumentParser(description="Ingest sample legal data into Neo4j.")
+    parser.add_argument(
+        "--source",
+        choices=["courtlistener", "colorado_statutes"],
+        default="courtlistener",
+    )
     parser.add_argument("--limit", type=int, default=500)
+    parser.add_argument(
+        "--titles",
+        type=str,
+        default=None,
+        help="Comma-separated CRS title numbers (colorado_statutes only), e.g. 18,42",
+    )
     parser.add_argument(
         "--dry-run", action="store_true", help="Extract but do not commit"
     )
@@ -73,8 +127,9 @@ def main(argv: list[str] | None = None) -> int:
     summary = asyncio.run(_run(args))
     print(
         "ingest summary: "
-        f"committed={summary['committed']} pending={summary['pending']} "
-        f"skipped={summary['skipped']} elapsed_s={summary['elapsed_s']}"
+        f"source={args.source} committed={summary['committed']} "
+        f"pending={summary['pending']} skipped={summary['skipped']} "
+        f"elapsed_s={summary['elapsed_s']}"
     )
     return 0
 

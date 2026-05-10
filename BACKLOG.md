@@ -77,15 +77,12 @@
 - **BL-20260430-03** — *refactor, med* — Resolve TODO in backend/lawgraph/agents_runtime/crews/legal_analyst.py. Comment: "Implement real GraphRAG retrieval + LLM call"
 - **BL-20260430-04** — *refactor, med* — Resolve TODO in backend/lawgraph/agents_runtime/crews/precedent_hunter.py. Comment: "Real Cypher + vector search"
 - **BL-20260430-06** — *doc-gap, low* — ~~Author missing doc docs/legalbench.md.~~ **(resolved 2026-05-05)**: shipped via specs/012; see Done section.
-
-- **BL-20260429-01** — *test-gap, med* — Add docker-backed integration tests for `IngestionScout.run_and_commit` covering AC-3 and NFR-IDEMPOTENT-1 (currently marked `@pytest.mark.integration` but no green run recorded). _Surfaced in:_ specs/001-ingest-courtlistener-opinions.
 - **BL-20260429-03** — *feature, low* — Reintroduce Blackstone NER for `_extract_entities` once we have a lazy-loading shim that doesn't break test startup time. _Surfaced in:_ specs/001-ingest-courtlistener-opinions.
 - **BL-20260429-04** — *infra, med* — `mypy app/ --strict` is `continue-on-error: true` in CI; tighten once new modules are annotated end-to-end. _Surfaced in:_ .github/workflows/ci.yml.
 - **BL-20260429-06** — *test-gap, low* — Add a smoke test that runs `scripts/ingest_sample.py --dry-run --limit 3` against `respx`-mocked CourtListener to lock in CLI contract. _Surfaced in:_ specs/001-ingest-courtlistener-opinions T-004.
 - **BL-20260429-07** — *doc-gap, low* — Document the `/health` JSON contract in `docs/api.md` (file does not yet exist). _Surfaced in:_ specs/001-ingest-courtlistener-opinions T-005.
 - **BL-20260429-08** — *infra, low* — `backend/pyproject.toml` pulls `blackstone @ git+...` — slows CI installs. Move to `[project.optional-dependencies].nlp` and gate behind a feature flag. _Surfaced in:_ .github/workflows/ci.yml.
 - **BL-20260429-09** — *feature, med* — Wire a periodic CI job ("agent-self-review") that runs `scripts/backlog_lint.py` plus a small LLM prompt to flag stale items (>60 days) for triage. _Surfaced in:_ this file.
-- **BL-20260429-10** — *test-gap, med* — Add Docker-backed integration test for `densify_extraction` against a real Neo4j (currently only `FakeAsyncSession`). _Surfaced in:_ specs/002-resolve-citations-to-cases.
 - **BL-20260429-11** — *feature, med* — Backfill script `scripts/densify_existing.py` that re-runs `densify_extraction` over historical `:Case` nodes once aliases are populated. _Surfaced in:_ specs/002-resolve-citations-to-cases.
 - **BL-20260429-12** — *refactor, low* — Make `head(collect(c.id))` deterministic by adding a secondary `ORDER BY c.id` clause inside `RESOLVE_CITATIONS_CYPHER`; matters when two cases share an alias. _Surfaced in:_ specs/002-resolve-citations-to-cases.
 - **BL-20260429-14** — *feature, med* — Add a single-run drill-down view (`/agents/runs/{trace_id}`) showing full input/output, sources, and prompt template version. _Surfaced in:_ specs/003-agent-ops-dashboard.
@@ -103,11 +100,21 @@
 - **BL-20260505-01** — *infra, low* — CI grep check that fails when `LexGraph` (case-sensitive) appears outside `LexGraph_AI_Proposal.md` and historical specs `001-*`…`011-*`. Catches future regressions of the LawGraph naming. _Surfaced in:_ specs/012-rebrand-lawgraph-ai.
 - **BL-20260505-02** — *doc-gap, low* — Add a top-of-file banner to `LexGraph_AI_Proposal.md` pointing readers at [docs/adr/0002-rebrand-lawgraph-ai.md](docs/adr/0002-rebrand-lawgraph-ai.md) and clarifying that the canonical product name is LawGraph AI. _Surfaced in:_ specs/012-rebrand-lawgraph-ai.
 
+- **BL-20260509-01** — *infra, high* — `backend/scripts/init-db.sh` references the pre-rebrand `app/db/neo4j_migrations` and `app/db/postgres_migrations` paths and never picks up `backend/lawgraph/core/neo4j/migrations/*.cypher`. Fix the path and have the script delegate Postgres DDL to `python manage.py migrate` (since all Postgres DDL now lives in Django migrations) so it only owns the Cypher loop. _Surfaced in:_ specs/015-legal-corpus-schema.
+- **BL-20260509-02** — *infra, med* — Add a real Cypher migration runner that records applied migrations in a `(:_Migration {id})` Neo4j node so non-idempotent migrations (e.g. data back-fills) become safe later. Today the only safety is `IF NOT EXISTS`. _Surfaced in:_ specs/015-legal-corpus-schema.
+- **BL-20260509-03** — *test-gap, med* — Docker-backed integration test that applies migrations `001`–`007` against a live Neo4j and asserts `SHOW CONSTRAINTS` / `SHOW INDEXES` parity with the file-content checks in `backend/tests/core/test_neo4j_migrations.py`. _Surfaced in:_ specs/015-legal-corpus-schema.
+- **BL-20260509-04** — *test-gap, med* — Live-network nightly smoke test that fetches one real Justia CRS title and re-runs the parser to detect upstream HTML drift. _Surfaced in:_ specs/016-ingest-colorado-statutes.
+- **BL-20260509-05** — *feature, med* — Denver Municipal Code ingestion (`Ordinance` / `OrdinanceSection` writes) — spec 016.b. Out of scope for the Colorado-statutes MVP. _Surfaced in:_ specs/016-ingest-colorado-statutes.
+- **BL-20260509-06** — *feature, low* — PDF parsing path for LexisNexis CRS publications as a fallback when the HTML source is unavailable. Requires `pypdf` (already in stack). _Surfaced in:_ specs/016-ingest-colorado-statutes.
+- **BL-20260509-07** — *feature, med* — Citation-resolver pass that creates `(:Case)-[:CITES_STATUTE]->(:StatuteSection)` edges from existing opinion text once the CRS corpus is loaded. Likely lives in a 002.b spec or rolls into spec 018. _Surfaced in:_ specs/016-ingest-colorado-statutes.
+
 ## Claimed
 
-_(none yet)_
+- **BL-20260429-10** — *test-gap, med* — claimed-by:specs/014-densify-extraction-integration-tests — Add Docker-backed integration test for `densify_extraction` against a real Neo4j (currently only `FakeAsyncSession`). _Surfaced in:_ specs/002-resolve-citations-to-cases.
 
 ## Done
+
+- **BL-20260429-01** — *test-gap, med* — **(resolved 2026-05-08)**: Shipped via specs/013-ingestion-integration-tests. Added `@pytest.mark.integration` test suite (`tests/ingestion/test_scout_integration.py`): 3 tests covering idempotency (AC-3), high-confidence Neo4j commit with CITES edges (AC-4), and low-confidence Postgres quarantine routing (AC-5). Docker health checks added to `docker-compose.yml`, `make test-integration` target, and GitHub Actions workflow `.github/workflows/integration-tests.yml` with path-based skip for docs/frontend-only PRs. _Surfaced in:_ specs/001-ingest-courtlistener-opinions.
 
 - **BL-20260505-00** — *infra, high* — Reverted abortive LexGraph rename: `git mv backend/lexgraph backend/lawgraph` plus a sed sweep across docs/prompts/specs/`.github/`/top-level files restoring "LawGraph AI" as the canonical brand. Authored [ADR 0002](docs/adr/0002-rebrand-lawgraph-ai.md) and [docs/operator-rebrand-runbook.md](docs/operator-rebrand-runbook.md). Same effort closed BL-20260430-06 ([docs/legalbench.md](docs/legalbench.md)), BL-20260503-16 ([docs/security.md](docs/security.md)), and BL-20260503-18 ([docs/django-conventions.md](docs/django-conventions.md)) — see strike-through entries in Open. _Shipped in:_ specs/012-rebrand-lawgraph-ai.
 

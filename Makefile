@@ -1,4 +1,4 @@
-.PHONY: help setup dev test test-smoke test-backend test-frontend test-all \
+.PHONY: help setup dev test test-smoke test-backend test-frontend test-all test-integration \
 	lint format clean ingest evolve-audit lint-specs migrate \
 	local-ai-up local-ai-down local-ai-pull local-ai-health
 
@@ -12,6 +12,7 @@ help:
 	@echo "  make test-backend   - Smoke + specs + backend pytest suite"
 	@echo "  make test-frontend  - Smoke + specs + frontend vitest suite"
 	@echo "  make test-all       - Everything via the root tests/ entry point"
+	@echo "  make test-integration - Docker-backed integration tests (Neo4j + Postgres)"
 	@echo "  make lint           - Run formatters and linters"
 	@echo "  make clean          - Remove build artifacts and caches"
 
@@ -40,6 +41,11 @@ test-frontend:
 
 test-all:
 	pytest -m "smoke or specs or backend or frontend"
+
+test-integration:
+	docker compose up -d neo4j postgres redis --wait
+	cd backend && pytest -m integration -v
+	docker compose down
 
 lint:
 	cd backend && ruff check --fix && black .

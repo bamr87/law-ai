@@ -19,9 +19,9 @@ class CoreConfig(AppConfig):
         # Guard against double-init under runserver --noreload, tests, and
         # gunicorn pre-fork (FR-10). The RUN_MAIN env var is set by the dev
         # autoreloader on the child process only.
-        if os.environ.get("LawGraph_READY_ONCE") == "1":
+        if os.environ.get("LAWGRAPH_READY_ONCE") == "1":
             return
-        os.environ["LawGraph_READY_ONCE"] = "1"
+        os.environ["LAWGRAPH_READY_ONCE"] = "1"
 
         # Spec 010 FR-1: register CrewAI/LangGraph agents.
         try:
