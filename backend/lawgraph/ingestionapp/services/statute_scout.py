@@ -98,6 +98,15 @@ class StatuteScout:
     async def run_and_commit(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Extract then commit high-confidence sections, quarantining the rest."""
         extraction = self.extract(payload)
+        return await self.commit(extraction)
+
+    async def commit(self, extraction: StatuteExtraction) -> dict[str, Any]:
+        """Commit a (possibly pre-trimmed) ``StatuteExtraction``.
+
+        Split out from :meth:`run_and_commit` so callers (e.g. the CLI in
+        ``backend/scripts/ingest_sample.py``) can extract once, slice
+        ``extraction.sections`` to honour ``--limit``, then commit.
+        """
         committed = extraction.high_confidence_sections(self._threshold)
         pending = extraction.low_confidence_sections(self._threshold)
 

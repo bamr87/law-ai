@@ -43,9 +43,15 @@ test-all:
 	pytest -m "smoke or specs or backend or frontend"
 
 test-integration:
-	docker compose up -d neo4j postgres redis --wait
-	cd backend && pytest -m integration -v
-	docker compose down
+	@docker compose up -d neo4j postgres redis --wait
+	@trap 'docker compose down' EXIT INT TERM; \
+	  cd backend && \
+	  DATABASE_URL=postgresql://lawgraph:lawgraph-dev@localhost:5432/lawgraph \
+	  NEO4J_URI=bolt://localhost:7687 \
+	  NEO4J_USER=neo4j \
+	  NEO4J_PASSWORD=lawgraph-dev \
+	  REDIS_URL=redis://localhost:6379/0 \
+	  pytest -m integration -v
 
 lint:
 	cd backend && ruff check --fix && black .

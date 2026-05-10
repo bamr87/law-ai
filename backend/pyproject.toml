@@ -36,6 +36,9 @@ dependencies = [
     "redis>=5.2,<7.2",
     "httpx>=0.28.0",
     "tenacity>=9.1.0",
+    # Spec 016: Justia CRS HTML parsing in
+    # lawgraph/ingestionapp/services/colorado_statutes.py.
+    "lxml>=5.3.0",
 ]
 
 [project.optional-dependencies]

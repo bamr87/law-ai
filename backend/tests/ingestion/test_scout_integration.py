@@ -53,13 +53,16 @@ HIGH_CONF_FIXTURE = {
     },
 }
 
-# Target case to pre-seed in Neo4j for citation resolution testing
+# Target case to pre-seed in Neo4j for citation resolution testing.
+# spec 002: resolve_citations matches against `Case.aliases`, so seed it.
+# Citation "342 U.S. 350" is present in HIGH_CONF_FIXTURE.plain_text below.
 TARGET_CASE = {
-    "id": "plessy-v-ferguson-1896",
-    "title": "Plessy v. Ferguson",
-    "citation": "163 U.S. 537",
+    "id": "briggs-v-elliott-1952",
+    "title": "Briggs v. Elliott",
+    "citation": "342 U.S. 350",
+    "aliases": ["342 U.S. 350"],
     "court": "Supreme Court",
-    "decided_at": "1896-05-18",
+    "decided_at": "1952-01-28",
 }
 
 IDEMPOTENT_FIXTURE = {
@@ -118,7 +121,7 @@ async def test_commit_high_confidence_creates_case_and_edges(
     3. Query for (source)-[:CITES]->(target) edges
     4. Assert edges >= 1
     """
-    # Pre-seed target case
+    # Pre-seed target case (with aliases — spec 002 resolves against Case.aliases)
     async with neo4j_integration_driver.session() as session:
         await session.run(
             """
@@ -126,6 +129,7 @@ async def test_commit_high_confidence_creates_case_and_edges(
                 id: $id,
                 title: $title,
                 citation: $citation,
+                aliases: $aliases,
                 court: $court,
                 decided_at: date($decided_at)
             })

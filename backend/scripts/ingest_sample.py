@@ -56,31 +56,38 @@ async def _run_courtlistener(args: argparse.Namespace) -> dict[str, int]:
 
 
 async def _run_colorado(args: argparse.Namespace) -> dict[str, int]:
-    """Run the Colorado statute ingestion path (spec 016 FR-7)."""
+    """Run the Colorado statute ingestion path (spec 016 FR-7).
+
+    ``--limit`` is interpreted as a *per-title section cap* (spec 016 FR-7):
+    when set, only the first ``args.limit`` parsed sections of each title are
+    committed (or counted, in dry-run mode). The cap is applied identically
+    in dry-run and commit modes; titles are processed independently and the
+    cap does not span across titles.
+    """
     titles = [t.strip() for t in (args.titles or "").split(",") if t.strip()]
     if not titles:
         raise SystemExit("--source colorado_statutes requires --titles 18[,42,...]")
 
     scout = StatuteScout()
     summary: dict[str, int] = {"committed": 0, "pending": 0, "skipped": 0}
+    per_title_cap = args.limit if args.limit and args.limit > 0 else None
     async with ColoradoStatutesClient() as client:
         async for title_id, html in client.iter_titles(titles):
-            payload = {
+            payload: dict[str, object] = {
                 "title_id": f"us-co/crs/title-{title_id}",
                 "html": html,
                 "source_url": client.url_for_title(title_id),
             }
             try:
+                extraction = scout.extract(payload)
+                if per_title_cap is not None:
+                    extraction.sections = extraction.sections[:per_title_cap]
+
                 if args.dry_run:
-                    extraction = scout.extract(payload)
                     summary["committed"] += len(extraction.high_confidence_sections())
                     summary["pending"] += len(extraction.low_confidence_sections())
-                    if args.limit and (
-                        summary["committed"] + summary["pending"] >= args.limit
-                    ):
-                        break
                 else:
-                    res = await scout.run_and_commit(payload)
+                    res = await scout.commit(extraction)
                     summary["committed"] += int(res["committed"])
                     summary["pending"] += int(res["pending"])
             except Exception as exc:
