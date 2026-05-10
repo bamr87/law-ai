@@ -37,6 +37,19 @@ STATUS_RE = re.compile(r"^- \*\*Status\*\*:\s*([a-z\-]+)", re.IGNORECASE | re.MU
 PRE_CLARIFY_STATUSES = {"draft"}
 TEMPLATE_PLACEHOLDER = "FR-1"  # appears in _template; ignored there
 
+# Literal substrings that only ever appear in specs/_template/ files. If any of
+# these survive into a real spec dir, the implementer copied the template and
+# never replaced the placeholder. Keep this list narrow (high-signal,
+# zero-false-positive) — generic strings like "TODO" or "…" are intentionally
+# excluded because they appear in legitimate spec prose.
+TEMPLATE_MARKERS = (
+    "{Feature Name}",
+    "{Short imperative title}",
+    "# Plan: {",
+    "# Tasks: {",
+    "# Spec: {",
+)
+
 
 def _iter_spec_dirs(targets: list[str]) -> Iterable[Path]:
     if targets:
@@ -97,6 +110,17 @@ def validate_spec(spec_dir: Path) -> list[str]:
             f"{tasks.relative_to(REPO_ROOT)}: missing required section '## Follow-ups Discovered' "
             "(use '_none_' if there are truly no follow-ups)"
         )
+
+    # Leftover-template-placeholder check: catches the "I copied _template/
+    # and forgot to fill it in" failure mode (PR #1, findings #5/#6).
+    for path in (spec, plan, tasks):
+        text = path.read_text(encoding="utf-8")
+        for marker in TEMPLATE_MARKERS:
+            if marker in text:
+                errors.append(
+                    f"{path.relative_to(REPO_ROOT)}: leftover template placeholder "
+                    f"{marker!r} — replace with concrete content from specs/_template/"
+                )
 
     return errors
 

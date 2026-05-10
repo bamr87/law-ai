@@ -25,6 +25,70 @@ jobs:
       - name: Validate BACKLOG.md
         run: python scripts/backlog_lint.py
 
+  clean-install-smoke:
+    name: Clean-Install Import Smoke
+    # Catches undeclared dependencies (PR #1, finding #1: lxml was a transitive
+    # of beautifulsoup4 locally but not declared in pyproject.toml). Installs
+    # the base package only — no [dev], no cache — and import-checks every
+    # top-level Django app + each ingestion service entry point.
+    runs-on: ubuntu-latest
+    needs: spec-gate
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          # Intentionally no cache: pip — we want a representative cold install.
+      - name: Install package only (no extras)
+        run: pip install -e .
+      - name: Import-check public modules
+        env:
+          DJANGO_SETTINGS_MODULE: lawgraph.settings.test
+          DATABASE_URL: sqlite:///./_smoke.sqlite3
+          NEO4J_URI: bolt://localhost:7687
+          NEO4J_USER: neo4j
+          NEO4J_PASSWORD: testpassword
+          AGENT_API_KEY: smoke
+        run: |
+          python - <<'PY'
+          import importlib, django
+          django.setup()  # required for Django ORM models
+          modules = [
+              # Pure Pydantic / utility modules — no Django
+              "lawgraph.core.schemas",
+              "lawgraph.core.schemas.legal_documents",
+              "lawgraph.core.schemas.statute_extraction",
+              "lawgraph.core.neo4j.statute_queries",
+              "lawgraph.ingestionapp.quarantine_kinds",
+              # Ingestion services — these are the modules that broke in PR #1
+              # because of an undeclared lxml dependency.
+              "lawgraph.ingestionapp.services.scout",
+              "lawgraph.ingestionapp.services.statute_scout",
+              "lawgraph.ingestionapp.services.colorado_statutes",
+              "lawgraph.ingestionapp.services.courtlistener",
+              # Django-dependent surfaces
+              "lawgraph.ingestionapp.models",
+              "lawgraph.ingestionapp.tasks",
+              "lawgraph.audit.models",
+              "lawgraph.asgi",  # boots the whole ASGI app + URLConf
+          ]
+          failed = []
+          for m in modules:
+              try:
+                  importlib.import_module(m)
+              except Exception as exc:  # noqa: BLE001
+                  failed.append(f"{m}: {type(exc).__name__}: {exc}")
+          if failed:
+              print("CLEAN-INSTALL IMPORT FAILURES:")
+              for line in failed:
+                  print(f"  - {line}")
+              raise SystemExit(1)
+          print(f"OK: imported {len(modules)} modules from a clean install")
+          PY
+
   backend-lint:
     name: Backend Lint + Type-check
     runs-on: ubuntu-latest
