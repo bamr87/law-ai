@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import pytest
 
-from lawgraph.ingestionapp.models import PendingReview
 from lawgraph.ingestionapp.services.scout import IngestionScout
 
 # All tests in this module need the same event loop as the session-scoped
@@ -64,13 +63,16 @@ HIGH_CONF_FIXTURE = {
 }
 
 # Target case to pre-seed in Neo4j for citation resolution testing.
-# spec 002: resolve_citations matches against `Case.aliases`, so seed it.
-# Citation "342 U.S. 350" is present in HIGH_CONF_FIXTURE.plain_text below.
+# spec 002: resolve_citations matches against `Case.aliases` using the
+# lowercased/whitespace-collapsed form produced by `_extract_citations`
+# in scout.py (" ".join(raw.split()).lower()). "342 U.S. 350" appears
+# verbatim in HIGH_CONF_FIXTURE.plain_text below; we seed it lowercased
+# so the resolver's exact-match Cypher hits.
 TARGET_CASE = {
     "id": "briggs-v-elliott-1952",
     "title": "Briggs v. Elliott",
     "citation": "342 U.S. 350",
-    "aliases": ["342 U.S. 350"],
+    "aliases": ["342 u.s. 350"],
     "court": "Supreme Court",
     "decided_at": "1952-01-28",
 }
@@ -231,11 +233,21 @@ async def test_low_confidence_routes_to_postgres_pending_review(
     assert summary["confidence"] < 0.7
     assert summary["edges"] == 0
 
-    # Query Postgres via Django ORM (AC-5)
-    pending_row = PendingReview.objects.filter(id="10003").first()
-    assert pending_row is not None, "PendingReview row should exist in Postgres"
-    assert pending_row.confidence < 0.7
-    assert pending_row.source == "courtlistener"
+    # Query Postgres directly via the asyncpg pool (AC-5).
+    # We bypass Django ORM here because these tests run from an async context
+    # and Django's sync ORM would raise SynchronousOnlyOperation. Querying the
+    # underlying table is also closer to the spec's intent: "row exists in
+    # Postgres" — independent of Django's transactional bookkeeping.
+    async with postgres_integration_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id, source, confidence, kind "
+            "FROM ingestionapp_pendingreview WHERE id = $1",
+            "10003",
+        )
+    assert row is not None, "PendingReview row should exist in Postgres"
+    assert row["confidence"] < 0.7
+    assert row["source"] == "courtlistener"
+    assert row["kind"] == "case"
 
     # Query Neo4j to confirm case is NOT there (AC-5)
     async with neo4j_integration_driver.session() as session:
