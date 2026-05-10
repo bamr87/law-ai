@@ -241,7 +241,7 @@ async def test_low_confidence_routes_to_postgres_pending_review(
     async with postgres_integration_pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT id, source, confidence, kind "
-            "FROM ingestionapp_pendingreview WHERE id = $1",
+            "FROM pending_review WHERE id = $1",
             "10003",
         )
     assert row is not None, "PendingReview row should exist in Postgres"
