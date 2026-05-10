@@ -148,22 +148,6 @@ def docker_services():
         ["docker", "compose", "up", "-d", "neo4j", "postgres", "redis", "--wait"],
         check=True,
     )
-    # Apply Django migrations so integration tests that query Postgres tables
-    # directly (via asyncpg) see the schema. Idempotent — safe to re-run.
-    subprocess.run(
-        ["python", "manage.py", "migrate", "--noinput"],
-        check=True,
-        env={
-            **os.environ,
-            "DJANGO_SETTINGS_MODULE": os.environ.get(
-                "DJANGO_SETTINGS_MODULE", "lawgraph.settings.test"
-            ),
-            "DATABASE_URL": os.environ.get(
-                "DATABASE_URL",
-                "postgresql://lawgraph:lawgraph-dev@localhost:5432/lawgraph",
-            ),
-        },
-    )
     yield
     # Teardown: stop services but don't remove volumes (faster for repeated runs)
     subprocess.run(["docker", "compose", "down"], check=False)

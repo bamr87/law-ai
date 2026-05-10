@@ -107,6 +107,7 @@
 - **BL-20260509-05** — *feature, med* — Denver Municipal Code ingestion (`Ordinance` / `OrdinanceSection` writes) — spec 016.b. Out of scope for the Colorado-statutes MVP. _Surfaced in:_ specs/016-ingest-colorado-statutes.
 - **BL-20260509-06** — *feature, low* — PDF parsing path for LexisNexis CRS publications as a fallback when the HTML source is unavailable. Requires `pypdf` (already in stack). _Surfaced in:_ specs/016-ingest-colorado-statutes.
 - **BL-20260509-07** — *feature, med* — Citation-resolver pass that creates `(:Case)-[:CITES_STATUTE]->(:StatuteSection)` edges from existing opinion text once the CRS corpus is loaded. Likely lives in a 002.b spec or rolls into spec 018. _Surfaced in:_ specs/016-ingest-colorado-statutes.
+- **BL-20260510-01** — *test-gap, med* — Integration test that exercises the actual `pending_review` Postgres write path (Celery `quarantine_extraction` → Django ORM). Requires running `IngestionScout.run_and_commit` from a sync context (e.g., `asgiref.sync.async_to_sync` wrapper, or a thread via `asyncio.to_thread`) so Django ORM/Celery `.delay` is allowed. The current AC-5 integration test only verifies the summary + Neo4j absence because the async test context triggers scout's JSONL fallback (`scout.py:173 SynchronousOnlyOperation`). _Surfaced in:_ specs/013-ingestion-integration-tests (PR #1 follow-up).
 
 ## Claimed
 
