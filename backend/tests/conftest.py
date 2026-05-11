@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import subprocess
 from collections.abc import AsyncGenerator, Generator
 
 import django
@@ -36,6 +37,11 @@ from httpx import ASGITransport, AsyncClient  # noqa: E402
 from neo4j import AsyncGraphDatabase  # noqa: E402
 from redis.asyncio import Redis  # noqa: E402
 from rest_framework.test import APIClient  # noqa: E402
+
+try:
+    import asyncpg
+except ImportError:
+    asyncpg = None  # type: ignore
 
 from lawgraph.asgi import application as asgi_app  # noqa: E402
 
@@ -127,6 +133,72 @@ async def redis_client() -> AsyncGenerator[Redis, None]:
     await redis.flushdb()
     yield redis
     await redis.aclose()
+
+
+# ---------------------------------------------------------------------------
+# Docker-backed integration fixtures (spec 013)
+# ---------------------------------------------------------------------------
+@pytest.fixture(scope="session")
+def docker_services():
+    """Spin up neo4j + postgres + redis for integration tests.
+
+    Uses the existing docker-compose.yml with health checks added in T-001.
+    """
+    subprocess.run(
+        ["docker", "compose", "up", "-d", "neo4j", "postgres", "redis", "--wait"],
+        check=True,
+    )
+    yield
+    # Teardown: stop services but don't remove volumes (faster for repeated runs)
+    subprocess.run(["docker", "compose", "down"], check=False)
+
+
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def neo4j_integration_driver(docker_services):
+    """AsyncDriver connected to the Docker-compose Neo4j.
+
+    FR-2: Session-scoped driver for integration tests. ``loop_scope="session"``
+    keeps the driver bound to the same event loop across tests; without it,
+    pytest-asyncio creates a new loop per test and the driver's pending
+    futures end up "attached to a different loop".
+    """
+    driver = AsyncGraphDatabase.driver(
+        "bolt://localhost:7687", auth=("neo4j", "lawgraph-dev")
+    )
+    await driver.verify_connectivity()
+    yield driver
+    await driver.close()
+
+
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def postgres_integration_pool(docker_services):
+    """asyncpg.Pool connected to the Docker-compose Postgres.
+
+    FR-3: Session-scoped pool for integration tests. See note on
+    ``neo4j_integration_driver`` for why ``loop_scope="session"`` is required.
+    """
+    if asyncpg is None:
+        pytest.skip("asyncpg not installed")
+
+    pool = await asyncpg.create_pool(
+        "postgresql://lawgraph:lawgraph-dev@localhost:5432/lawgraph",
+        min_size=1,
+        max_size=5,
+    )
+    yield pool
+    await pool.close()
+
+
+@pytest_asyncio.fixture(scope="function", loop_scope="session")
+async def clean_neo4j_db(neo4j_integration_driver):
+    """Wipe Neo4j before each integration test.
+
+    NFR-ISOLATION-1: Function-scoped for per-test isolation. Loop scope is
+    session so this fixture shares the loop of the session-scoped driver.
+    """
+    async with neo4j_integration_driver.session() as session:
+        await session.run("MATCH (n) DETACH DELETE n")
+    yield
 
 
 # ---------------------------------------------------------------------------

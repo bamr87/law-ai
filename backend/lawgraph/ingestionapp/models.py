@@ -10,10 +10,16 @@ from django.db import models
 
 
 class PendingReview(models.Model):
-    """An extraction quarantined for human approval."""
+    """An extraction quarantined for human approval.
+
+    ``kind`` is the spec-015 discriminator that lets one queue serve cases,
+    statutes, ordinances, regulations, and derived documents. Constants live
+    in :mod:`lawgraph.ingestionapp.quarantine_kinds`.
+    """
 
     id = models.TextField(primary_key=True)
     source = models.TextField(db_index=True)
+    kind = models.CharField(max_length=32, default="case", db_index=True)
     payload = models.JSONField()
     confidence = models.FloatField()
     reason = models.TextField(blank=True, default="")
