@@ -1,7 +1,7 @@
 # Spec: Local AI Stack (Ollama + LangGraph + Checkpointers + Phoenix)
 
 - **ID**: 010-local-ai-stack
-- **Status**: draft
+- **Status**: shipped
 - **Owner**: @copilot
 - **Created**: 2026-05-02
 - **Roadmap Epic**: [local-ai-plan.md](../../local-ai-plan.md)
