@@ -22,6 +22,8 @@ services:
       # Inside the container, /app == ./backend on host, so var/autonomy is correct.
       - AUTONOMY_DIGEST_DIR=${AUTONOMY_DIGEST_DIR:-var/autonomy}
       - AUTONOMY_MAX_INGEST_PER_CYCLE=${AUTONOMY_MAX_INGEST_PER_CYCLE:-25}
+      # Repo root for BACKLOG.md + specs/ (mounted at /repo below).
+      - REPO_ROOT=/repo
     depends_on:
       - postgres
       - neo4j
@@ -30,6 +32,7 @@ services:
       - phoenix
     volumes:
       - ./backend:/app
+      - ./:/repo
     command: sh -c "python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py ensure_checkpointer && daphne -b 0.0.0.0 -p 8000 lawgraph.asgi:application"
 
   worker:
@@ -50,11 +53,14 @@ services:
       # Inside the container, /app == ./backend on host, so var/autonomy is correct.
       - AUTONOMY_DIGEST_DIR=${AUTONOMY_DIGEST_DIR:-var/autonomy}
       - AUTONOMY_MAX_INGEST_PER_CYCLE=${AUTONOMY_MAX_INGEST_PER_CYCLE:-25}
+      # Repo root for BACKLOG.md + specs/ (mounted at /repo below).
+      - REPO_ROOT=/repo
     depends_on:
       - postgres
       - redis
     volumes:
       - ./backend:/app
+      - ./:/repo
     # --beat embeds the beat scheduler so crontab entries fire in local dev.
     # In production, run a dedicated beat container instead.
     command: celery -A lawgraph worker --beat -l info -Q autonomy,celery
