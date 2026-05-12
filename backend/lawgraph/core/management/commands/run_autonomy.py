@@ -156,7 +156,11 @@ class Command(BaseCommand):
 
 
 def _run_test_pillar(context: dict[str, Any], *, budget: int | None) -> dict[str, Any]:
-    """Placeholder for T-004 TestSynthesizer integration."""
+    """Placeholder for T-004 TestSynthesizer integration.
+
+    # STUB — BL-20260511-01: Wire up TestSynthesizer crew here.
+    # See specs/018-autonomous-framework/tasks.md T-004.
+    """
     context["note"] = "test_pillar runner not yet implemented (T-004)"
     return {"proposed_tests": 0, "budget": budget}
 
@@ -167,7 +171,11 @@ def _run_corpus_growth(
     source: str | None,
     budget: int | None,
 ) -> dict[str, Any]:
-    """Placeholder for T-007 TopicFrontier integration."""
+    """Placeholder for T-007 TopicFrontier integration.
+
+    # STUB — BL-20260511-02: Wire up TopicFrontier workflow here.
+    # See specs/018-autonomous-framework/tasks.md T-007.
+    """
     context["note"] = "corpus_growth runner not yet implemented (T-007)"
     return {"source": source, "docs_queued": 0, "budget": budget}
 

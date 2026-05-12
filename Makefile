@@ -61,10 +61,10 @@ help:
 	@echo "  make local-ai-health   - Hit /api/agents/health/local-ai"
 	@echo ""
 	@echo "Autonomy (Spec 018 — requires AUTONOMY_ENABLED=true):"
-	@echo "  make autonomy-run KIND=corpus_growth SOURCE=courtlistener  - one cycle"
-	@echo "  make autonomy-run KIND=test_pillar BUDGET=10              - pillar A"
-	@echo "  make autonomy-status                                      - show beat schedule"
-	@echo "  make autonomy-stop                                        - drain autonomy queue"
+	@echo "  make autonomy-run AUTONOMY_KIND=corpus_growth AUTONOMY_SOURCE=courtlistener  - one cycle"
+	@echo "  make autonomy-run AUTONOMY_KIND=test_pillar AUTONOMY_BUDGET=10              - pillar A"
+	@echo "  make autonomy-status                                                       - show beat schedule"
+	@echo "  make autonomy-stop                                                         - stop consuming from autonomy queue"
 	@echo ""
 	@echo "Misc:"
 	@echo "  make clean             - 'docker compose down -v' + clear caches"
@@ -230,6 +230,8 @@ autonomy-status:
 	$(RUN_WORKER) celery -A lawgraph inspect scheduled
 
 autonomy-stop:
+	# Stops the worker from consuming new tasks from the autonomy queue.
+	# This does NOT purge tasks already queued — use 'celery purge' for that.
 	$(RUN_WORKER) celery -A lawgraph control cancel_consumer autonomy
 
 # ---------------------------------------------------------------------------

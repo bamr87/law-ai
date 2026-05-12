@@ -47,7 +47,7 @@ jobs:
       # ------------------------------------------------------------------
       - name: Start infrastructure services
         if: ${{ !inputs.dry_run }}
-        run: docker compose up -d neo4j postgres redis --wait
+        run: docker compose up -d neo4j postgres redis ollama phoenix --wait
 
       # ------------------------------------------------------------------
       # Coverage — emits backend/coverage.xml via bind mount (./backend:/app).

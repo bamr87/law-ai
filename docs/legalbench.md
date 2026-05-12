@@ -48,7 +48,9 @@ Baselines are captured in the JSON report and surfaced in PR descriptions. There
 
 ## Licenses policy
 
-All LegalBench task data is released under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) by the HazyResearch contributors. Usage is permitted for research and product evaluation. A `LICENSES.md` file must be committed alongside any checked-in LegalBench data fixture; see [BL-20260430-06](../BACKLOG.md) for the tracking item. Do **not** redistribute raw task data without attribution.
+The LegalBench **code and harness** (github.com/HazyResearch/legalbench) is released under the [MIT License](https://opensource.org/licenses/MIT) by the HazyResearch contributors.
+
+The LegalBench **dataset** is released under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Usage is permitted for research and product evaluation provided attribution is included. Note that individual task subsets may carry additional sub-licenses (e.g. ContractNLI data is CC BY 4.0 separately from the LegalBench MIT wrapper). A `LICENSES.md` file must be committed alongside any checked-in LegalBench data fixture; see [BL-20260430-06](../BACKLOG.md) for the tracking item. Do **not** redistribute raw task data without attribution.
 
 ## Regression policy
 

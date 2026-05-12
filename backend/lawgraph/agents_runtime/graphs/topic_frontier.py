@@ -1,8 +1,14 @@
-"""TopicFrontier — 4-node LangGraph workflow (spec 018 T-007).
+"""TopicFrontier — 4-node sequential workflow (spec 018 T-007).
 
 Nodes:
 
     scan_graph → prioritize → dispatch → summarize
+
+Note: Despite the module name referring to "LangGraph", this workflow uses
+direct sequential async execution (‘‘‘await _node_*(state)’’’) rather than a
+``langgraph.graph.StateGraph`` with compiled edges.  A future spec will
+migrate to a proper StateGraph to gain retries, conditional branching, and
+checkpointing (tracked as a BACKLOG follow-up).
 
 ``scan_graph``   reads two Cypher helpers (``list_orphan_citations``,
                  ``list_under_cited_jurisdictions``) and populates the
@@ -159,7 +165,11 @@ def _pick_adapter(
     for name, cand in registry.items():
         if name not in allowed_sources:
             continue
-        if jurisdiction in ("*", getattr(cand, "jurisdiction", "*")):
+        # Match when the *adapter's* jurisdiction is '*' (wildcard) or equals
+        # the requested jurisdiction.  The previous condition was inverted —
+        # it tested whether the *request* jurisdiction was in the adapter's
+        # jurisdiction string, which prevented wildcard adapters from matching.
+        if getattr(cand, "jurisdiction", "*") in ("*", jurisdiction):
             return cand
     for name in allowed_sources:
         if name in registry:

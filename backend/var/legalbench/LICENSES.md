@@ -11,7 +11,8 @@
 
 - **Source**: LegalBench benchmark (HazyResearch / Stanford Law / contributors)
 - **Repository**: https://github.com/HazyResearch/legalbench
-- **License**: MIT License
+- **Code license**: MIT License (covers the LegalBench harness and task wrapper code)
+- **Dataset license**: CC BY 4.0 (covers the task data/items used for evaluation)
 - **Citation**: Guha et al. (2023) "LegalBench: A Collaboratively Built Benchmark for
   Measuring Legal Reasoning in Large Language Models."
 - **Notes**: Tasks in this subset are drawn from publicly available legal
@@ -23,7 +24,8 @@
 
 - **Source**: LegalBench benchmark (HazyResearch / Stanford Law / contributors)
 - **Repository**: https://github.com/HazyResearch/legalbench
-- **License**: MIT License
+- **Code license**: MIT License (covers the LegalBench harness and task wrapper code)
+- **Dataset license**: CC BY 4.0 (covers the task data/items used for evaluation)
 - **Citation**: Same as `core_reasoning` above.
 - **Notes**: Fact patterns are synthetic or drawn from public-domain judicial opinions.
   Court opinions in the United States are not protected by copyright (17 U.S.C. § 105).
@@ -40,7 +42,8 @@
 
 - **Source**: LegalBench benchmark (HazyResearch / Stanford Law / contributors)
 - **Repository**: https://github.com/HazyResearch/legalbench
-- **License**: MIT License
+- **Code license**: MIT License (covers the LegalBench harness and task wrapper code)
+- **Dataset license**: CC BY 4.0 (covers the task data/items used for evaluation)
 - **Notes**: Legal definitions are derived from public-domain legal dictionaries
   and statutory text.
 
@@ -48,7 +51,8 @@
 
 - **Source**: LegalBench benchmark (HazyResearch / Stanford Law / contributors)
 - **Repository**: https://github.com/HazyResearch/legalbench
-- **License**: MIT License
+- **Code license**: MIT License (covers the LegalBench harness and task wrapper code)
+- **Dataset license**: CC BY 4.0 (covers the task data/items used for evaluation)
 - **Notes**: Causation scenarios are synthetic; no copyrightable underlying material.
 
 ---

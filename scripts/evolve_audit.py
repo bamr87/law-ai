@@ -143,11 +143,16 @@ def _scan_coverage() -> list[Candidate]:
 def _scan_legalbench() -> list[Candidate]:
     """Return a candidate if the latest LegalBench report shows a regression.
 
-    Reads the most-recent ``report-*.json`` from ``backend/var/legalbench/`` and
+    Reads the most-recent timestamped JSON from ``backend/var/legalbench/`` and
     checks whether any subset delta is negative (score dropped vs. baseline).
+    Report files are named ``<UTC-timestamp>.json`` (e.g. ``20260501T060000Z.json``);
+    ``baseline.json`` is excluded.
     """
     report_dir = REPO / "backend" / "var" / "legalbench"
-    reports = sorted(report_dir.glob("report-*.json"), reverse=True)
+    reports = sorted(
+        (p for p in report_dir.glob("*.json") if p.name != "baseline.json"),
+        reverse=True,
+    )
     if not reports:
         return []
 

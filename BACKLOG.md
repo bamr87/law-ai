@@ -129,6 +129,9 @@
 - **BL-20260511-25** — *doc-gap, low* — Add `LICENSES.md` alongside any checked-in LegalBench data fixture (CC BY 4.0 attribution). _Surfaced in:_ specs/018-autonomous-framework.
 - **BL-20260511-26** — *test-gap, low* — Add `make test-integration` + `make test-legalbench` to T-012 gate once full Docker stack is available in CI (currently skipped in `--no-deps` mode). _Surfaced in:_ specs/018-autonomous-framework.
 - **BL-20260511-27** — *feature, med* — Wire `run_autonomy --kind corpus_growth` to call `TopicFrontier.run()` (resolves BL-20260511-10 and BL-20260511-20 stubs). _Surfaced in:_ specs/018-autonomous-framework.
+- **BL-20260511-29** — *feature, med* — Implement `--cycle-id` idempotency in `core.autonomy.run_cycle`: look up an existing `AuditEvent` with matching `cycle_id` and return early with the prior result instead of re-running the cycle. Currently the `cycle_id` field is accepted on the CLI but not wired to idempotency logic (`run_autonomy.py:57`). _Surfaced in:_ specs/018-autonomous-framework PR review.
+- **BL-20260511-30** — *feature, high* — Enforce `requires_human_approval=True` quarantine path in `TopicFrontier._node_dispatch`: when any adapter has `requires_human_approval=True`, every `RawDoc` it produces MUST route through `PendingReview` regardless of confidence, matching constitution §5 + NFR-HITL-1. Currently the flag is detected and recorded in state but does not force a quarantine path in `IngestionScout.run_and_commit`. _Surfaced in:_ specs/018-autonomous-framework PR review.
+- **BL-20260511-31** — *refactor, low* — Migrate `TopicFrontier` from sequential async execution to a proper `langgraph.graph.StateGraph` with compiled edges to gain checkpointing, retries, and conditional branching (currently uses direct `await _node_*` calls). _Surfaced in:_ specs/018-autonomous-framework PR review.
 
 ## Claimed
 

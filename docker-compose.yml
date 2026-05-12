@@ -43,7 +43,7 @@ services:
       - redis
     volumes:
       - ./backend:/app
-    command: celery -A lawgraph worker -l info
+    command: celery -A lawgraph worker -l info -Q autonomy,celery
 
   frontend:
     build:
