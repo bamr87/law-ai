@@ -66,7 +66,7 @@ services:
     command: celery -A lawgraph worker --beat -l info -Q autonomy,celery
     healthcheck:
       # Celery workers have no HTTP port — use inspect ping instead.
-      test: ["CMD-SHELL", "celery -A lawgraph inspect ping --destination celery@$$HOSTNAME || exit 1"]
+      test: [ "CMD-SHELL", "celery -A lawgraph inspect ping --destination celery@$$HOSTNAME || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3
