@@ -1,7 +1,7 @@
 # Spec: Docker-Backed Integration Tests for `densify_extraction`
 
 - **ID**: 014-densify-extraction-integration-tests
-- **Status**: draft
+- **Status**: in-progress
 - **Owner**: @bamr87
 - **Created**: 2026-05-08
 - **Roadmap Epic**: Quality Gates — close test-gap identified in spec 002

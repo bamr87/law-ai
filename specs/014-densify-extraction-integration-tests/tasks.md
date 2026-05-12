@@ -13,7 +13,7 @@
 
 ## T-001 — Write the three integration tests
 
-- **Refs**: FR-1, FR-2, FR-3, AC-1, AC-2, AC-3, AC-5, NFR-IDEMPOTENT-1, NFR-ISOLATION-1
+- **Refs**: FR-1, FR-2, FR-3, AC-1, AC-2, AC-3, AC-5, NFR-AUDIT-1, NFR-COVERAGE-1, NFR-IDEMPOTENT-1, NFR-ISOLATION-1
 - **Owner**: @copilot
 - **Status**: `[ ]`
 - **Files**:
@@ -44,7 +44,7 @@
 
 ## T-002 — Wire into `make test-integration` and CI
 
-- **Refs**: FR-4, AC-4
+- **Refs**: FR-4, AC-4, NFR-PERF-1
 - **Owner**: @copilot
 - **Status**: `[ ]`
 - **Files**:

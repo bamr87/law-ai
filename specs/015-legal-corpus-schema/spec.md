@@ -1,7 +1,7 @@
 # Spec: Legal Corpus Schema (Statutes, Codes, Ordinances, Regulations, Derived Documents)
 
 - **ID**: 015-legal-corpus-schema
-- **Status**: in-progress
+- **Status**: shipped
 - **Owner**: @copilot
 - **Created**: 2026-05-09
 - **Roadmap Epic**: Legal corpus + Hybrid GraphRAG foundation (umbrella plan in session memory `/memories/session/plan.md`).

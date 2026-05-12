@@ -1,7 +1,7 @@
 # Spec: Agent Operations Dashboard
 
 - **ID**: 003-agent-ops-dashboard
-- **Status**: planned
+- **Status**: shipped
 - **Owner**: @copilot
 - **Created**: 2026-04-29
 - **Roadmap Epic**: User request 2026-04-29 — "build a dashboard to view/monitor and review all of the AI agents work, progress, results, and output"

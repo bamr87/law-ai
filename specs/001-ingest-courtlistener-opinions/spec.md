@@ -1,7 +1,7 @@
 # Spec: Ingest CourtListener Opinions
 
 - **ID**: 001-ingest-courtlistener-opinions
-- **Status**: draft
+- **Status**: shipped
 - **Owner**: @bamr87
 - **Created**: 2026-04-29
 - **Roadmap Epic**: MVP — first real data source for the knowledge graph
