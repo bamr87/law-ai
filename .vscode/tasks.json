@@ -9,7 +9,11 @@
       "type": "shell",
       "command": "make dev",
       "group": "build",
-      "presentation": { "echo": true, "reveal": "always", "panel": "new" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "panel": "new"
+      },
       "problemMatcher": []
     },
     {
@@ -18,7 +22,11 @@
       "type": "shell",
       "command": "make debug",
       "group": "build",
-      "presentation": { "echo": true, "reveal": "always", "panel": "new" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "panel": "new"
+      },
       "problemMatcher": []
     },
     {
@@ -26,7 +34,10 @@
       "type": "shell",
       "command": "make down",
       "group": "build",
-      "presentation": { "echo": true, "reveal": "always" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
       "problemMatcher": []
     },
     {
@@ -34,7 +45,11 @@
       "type": "shell",
       "command": "make logs",
       "group": "build",
-      "presentation": { "echo": true, "reveal": "always", "panel": "dedicated" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "panel": "dedicated"
+      },
       "problemMatcher": []
     },
     {
@@ -42,7 +57,11 @@
       "type": "shell",
       "command": "make shell-backend",
       "group": "build",
-      "presentation": { "echo": true, "reveal": "always", "panel": "dedicated" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "panel": "dedicated"
+      },
       "problemMatcher": []
     },
     {
@@ -50,31 +69,51 @@
       "type": "shell",
       "command": "make shell-frontend",
       "group": "build",
-      "presentation": { "echo": true, "reveal": "always", "panel": "dedicated" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "panel": "dedicated"
+      },
       "problemMatcher": []
     },
     {
       "label": "Docker: Run All Tests",
       "type": "shell",
       "command": "make test",
-      "group": { "kind": "test", "isDefault": true },
-      "presentation": { "echo": true, "reveal": "always" },
-      "problemMatcher": ["$pytest"]
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": [
+        "$pytest"
+      ]
     },
     {
       "label": "Docker: Backend Tests",
       "type": "shell",
       "command": "make test-backend",
       "group": "test",
-      "presentation": { "echo": true, "reveal": "always" },
-      "problemMatcher": ["$pytest"]
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": [
+        "$pytest"
+      ]
     },
     {
       "label": "Docker: Frontend Tests",
       "type": "shell",
       "command": "make test-frontend",
       "group": "test",
-      "presentation": { "echo": true, "reveal": "always" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
       "problemMatcher": []
     },
     {
@@ -82,7 +121,10 @@
       "type": "shell",
       "command": "make test-coverage",
       "group": "test",
-      "presentation": { "echo": true, "reveal": "always" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
       "problemMatcher": []
     },
     {
@@ -90,15 +132,23 @@
       "type": "shell",
       "command": "make test-integration",
       "group": "test",
-      "presentation": { "echo": true, "reveal": "always" },
-      "problemMatcher": ["$pytest"]
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": [
+        "$pytest"
+      ]
     },
     {
       "label": "Docker: LegalBench Eval",
       "type": "shell",
       "command": "make test-legalbench",
       "group": "test",
-      "presentation": { "echo": true, "reveal": "always" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
       "problemMatcher": []
     },
     {
@@ -106,7 +156,10 @@
       "type": "shell",
       "command": "make lint-specs",
       "group": "test",
-      "presentation": { "echo": true, "reveal": "always" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
       "problemMatcher": []
     },
     {
@@ -114,7 +167,10 @@
       "type": "shell",
       "command": "make lint",
       "group": "build",
-      "presentation": { "echo": true, "reveal": "always" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
       "problemMatcher": []
     },
     {
@@ -122,7 +178,10 @@
       "type": "shell",
       "command": "make typecheck",
       "group": "test",
-      "presentation": { "echo": true, "reveal": "always" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
       "problemMatcher": []
     },
     {
@@ -130,7 +189,10 @@
       "type": "shell",
       "command": "make migrate",
       "group": "build",
-      "presentation": { "echo": true, "reveal": "always" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
       "problemMatcher": []
     },
     {
@@ -138,7 +200,10 @@
       "type": "shell",
       "command": "make ingest",
       "group": "build",
-      "presentation": { "echo": true, "reveal": "always" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
       "problemMatcher": []
     },
     {
@@ -146,7 +211,10 @@
       "type": "shell",
       "command": "docker compose down -v && docker compose up -d neo4j postgres redis --wait && docker compose exec postgres bash /docker-entrypoint-initdb.d/init.sh",
       "group": "build",
-      "presentation": { "echo": true, "reveal": "always" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
       "problemMatcher": []
     },
     {
@@ -154,7 +222,10 @@
       "type": "shell",
       "command": "make local-ai-up",
       "group": "build",
-      "presentation": { "echo": true, "reveal": "always" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
       "problemMatcher": []
     },
     {
@@ -162,7 +233,10 @@
       "type": "shell",
       "command": "make local-ai-pull",
       "group": "build",
-      "presentation": { "echo": true, "reveal": "always" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
       "problemMatcher": []
     },
     {
@@ -170,7 +244,10 @@
       "type": "shell",
       "command": "make local-ai-health",
       "group": "test",
-      "presentation": { "echo": true, "reveal": "always" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
       "problemMatcher": []
     }
   ]

@@ -20,8 +20,7 @@ services:
 
   worker:
     command: >
-      python -m debugpy --listen 0.0.0.0:5679
-      -m celery -A lawgraph worker -l info
+      python -m debugpy --listen 0.0.0.0:5679 -m celery -A lawgraph worker -l info
     ports:
       - "5679:5679"
 
