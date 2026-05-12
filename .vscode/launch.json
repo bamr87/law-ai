@@ -5,7 +5,7 @@
     // They do NOT spawn local Python/Node processes.
     //
     // Prerequisites (one-time):
-    //   1. Start the stack:  `make dev`  (or task "Start Full Stack (Docker)")
+    //   1. Start the stack:  `make dev`  (or task "Docker: Start Full Stack")
     //   2. To enable debugger attach, override the relevant service command so it
     //      starts under debugpy / node --inspect. Create `docker-compose.debug.yml`
     //      and run:

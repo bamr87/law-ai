@@ -1,4 +1,17 @@
 #!/bin/bash
+# init-db.sh — operator/onboarding reset script for LawGraph databases.
+#
+# INVOCATION: run this script from within the backend container or a host env
+# where both `python manage.py` (backend venv) and `cypher-shell` (reachable
+# neo4j) are available.  The stack must already be running (postgres + neo4j).
+#
+# This script is NOT auto-executed by docker-compose.  Postgres initialisation
+# (DB/user creation) is handled by the postgres:16-alpine image's env-var
+# mechanism (POSTGRES_USER/POSTGRES_PASSWORD/POSTGRES_DB).
+#
+# Usage:
+#   make reset-db                  # recommended: uses backend container
+#   docker compose run --rm backend bash backend/scripts/init-db.sh
 set -euo pipefail
 
 echo "🗄️  Initializing LawGraph databases..."

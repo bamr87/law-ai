@@ -12,10 +12,12 @@ flowchart LR
   init-db.sh --> |manage.py migrate| Postgres[(Postgres)]
 ```
 
-On startup, `docker-compose.yml` runs `init-db.sh` inside the `backend` container (after a brief sleep to let Neo4j and Postgres healthchecks pass). After this fix the script will:
+`init-db.sh` is an **operator script** (not auto-run by docker-compose). It is invoked manually (e.g. by `make reset-db` or during onboarding) from a context where both `cypher-shell` and `python manage.py` are reachable — i.e. with the stack running so the neo4j and postgres services are up. The `backend` service's own startup command already runs `python manage.py migrate --noinput` on every boot; `init-db.sh` is the explicit reset/onboarding path. After this fix the script will:
 1. Discover `*.cypher` files under `backend/lawgraph/core/neo4j/migrations/` (correct path).
-2. Apply them in lexicographic order via `cypher-shell`.
-3. Call `python manage.py migrate --noinput` (replaces the dead `psql` loop).
+2. Apply them in lexicographic order via `cypher-shell` (called from a container or host with neo4j reachable on `$NEO4J_URI`).
+3. Call `python manage.py migrate --noinput` (replaces the dead `psql` loop; requires the backend container or a host venv with deps installed).
+
+Note: `init-db.sh` is **not** mounted into the `postgres` container's `docker-entrypoint-initdb.d/` — Postgres initialisation (DB/user creation) is handled entirely by the `postgres:16-alpine` image's built-in env-var mechanism (`POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB`).
 
 ## 2. Component Changes
 
