@@ -209,7 +209,7 @@
     {
       "label": "Docker: Reset Local DBs (Dangerous)",
       "type": "shell",
-      "command": "docker compose down -v && docker compose up -d neo4j postgres redis --wait && docker compose exec postgres bash /docker-entrypoint-initdb.d/init.sh",
+      "command": "docker compose down -v && docker compose up -d neo4j postgres redis --wait && docker compose run --rm --no-deps backend sh -c \"python manage.py migrate --noinput && python manage.py ensure_checkpointer\"",
       "group": "build",
       "presentation": {
         "echo": true,
