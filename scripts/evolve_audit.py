@@ -98,20 +98,28 @@ def _scan_coverage() -> list[Candidate]:
 
     Imports the Django-free ``coverage_audit`` module directly from the backend
     package directory so this script can still run stdlib-only on the host.
+
+    When ``lawgraph.eval.coverage_audit`` is already in ``sys.modules`` (e.g.
+    during pytest runs that monkeypatch ``_DEFAULT_XML``), that existing module
+    is reused rather than loading a fresh copy, so test patches take effect.
     """
     import importlib.util
     import sys
 
-    ca_path = REPO / "backend" / "lawgraph" / "eval" / "coverage_audit.py"
-    if not ca_path.exists():
-        return []
+    # Prefer the already-imported version so test monkeypatches on
+    # ``lawgraph.eval.coverage_audit._DEFAULT_XML`` are respected.
+    ca = sys.modules.get("lawgraph.eval.coverage_audit")
+    if ca is None:
+        ca_path = REPO / "backend" / "lawgraph" / "eval" / "coverage_audit.py"
+        if not ca_path.exists():
+            return []
 
-    spec = importlib.util.spec_from_file_location("coverage_audit", ca_path)
-    if spec is None or spec.loader is None:
-        return []
-    ca = importlib.util.module_from_spec(spec)
-    sys.modules.setdefault("coverage_audit", ca)
-    spec.loader.exec_module(ca)  # type: ignore[union-attr]
+        spec = importlib.util.spec_from_file_location("coverage_audit", ca_path)
+        if spec is None or spec.loader is None:
+            return []
+        ca = importlib.util.module_from_spec(spec)
+        sys.modules.setdefault("coverage_audit", ca)
+        spec.loader.exec_module(ca)  # type: ignore[union-attr]
 
     total = ca.overall_coverage()
     if total is None:
