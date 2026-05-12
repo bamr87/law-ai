@@ -5,7 +5,7 @@ Nodes:
     scan_graph → prioritize → dispatch → summarize
 
 Note: Despite the module name referring to "LangGraph", this workflow uses
-direct sequential async execution (‘‘‘await _node_*(state)’’’) rather than a
+direct sequential async execution (``await _node_*(state)``) rather than a
 ``langgraph.graph.StateGraph`` with compiled edges.  A future spec will
 migrate to a proper StateGraph to gain retries, conditional branching, and
 checkpointing (tracked as a BACKLOG follow-up).
