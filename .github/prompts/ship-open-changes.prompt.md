@@ -37,12 +37,12 @@ User argument (optional) may contain a branch name, a PR title, or both. If abse
    - Public Python functions touched → ensure docstrings + examples per AGENTS.md Coding Standards.
    - If a change is purely internal refactor with no doc impact, state that explicitly in the PR body (`Docs: n/a — internal refactor`).
 
-4. **Quality gates.** Run only the gates relevant to the diff (skip others to save time, but state which you skipped and why):
-   - Python touched: `cd backend && ruff check --fix . && black . && pytest -q --tb=short`
-   - Strict types touched: `cd backend && mypy lawgraph --strict`
-   - Frontend touched: `cd frontend && npm run lint -- --fix && npm test -- --run`
-   - Specs/backlog touched: `python scripts/spec_validator.py && python scripts/backlog_lint.py`
-   - Reasoning logic touched: `Run LegalBench Eval` task — record delta in PR body.
+4. **Quality gates (all run in Docker via `make`).** Run only the gates relevant to the diff (skip others to save time, but state which you skipped and why). Never invoke `pytest`, `ruff`, `black`, `mypy`, or `npm` directly on the host — see [AGENTS.md](../../AGENTS.md) § "Docker-First Workflow":
+   - Python touched: `make lint && make test-backend`
+   - Strict types touched: `make typecheck`
+   - Frontend touched: `make lint && make test-frontend`
+   - Specs/backlog touched: `make lint-specs` (or `python3 scripts/spec_validator.py && python3 scripts/backlog_lint.py`)
+   - Reasoning logic touched: `make test-legalbench` — record delta in PR body.
    - If any gate fails, fix it before continuing. Do not push red.
 
 5. **Backlog + follow-ups (constitution §11).** If this change closes a spec's `/implement` cycle, ensure that spec's `tasks.md` has a populated `## Follow-ups Discovered` and that each follow-up is mirrored in [BACKLOG.md](../../BACKLOG.md) as `BL-YYYYMMDD-NN`. Otherwise, add at least one backlog entry for any TODO/refactor/test-gap noticed during the diff review (or write `_none — justified: <reason>_` in the PR body).

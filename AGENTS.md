@@ -38,20 +38,44 @@ All repo-level instructions for these surfaces live in [.github/copilot-instruct
 
 ---
 
+## Docker-First Workflow (Mandatory)
+
+**All development, testing, linting, and one-off commands run inside Docker containers via the [Makefile](Makefile).** Agents (and humans) MUST NOT invoke `cd backend && pytest …`, `cd frontend && npm …`, `python manage.py …`, `pip install …`, `ruff …`, `mypy …`, `black …`, or any other tool directly on the host. The only sanctioned host-level commands are:
+
+- `make …` (Docker wrappers — preferred)
+- `docker compose …` (when you need raw control)
+- `python3 scripts/spec_validator.py` and `python3 scripts/backlog_lint.py` (stdlib-only, no deps)
+- `git`, `gh`, and editor-driven tools
+
+Why: every contributor — and every agent — gets the same Python 3.11, the same Node 20, the same Neo4j 5, the same Postgres 16, the same Ollama, the same C deps for `eyecite`/`spaCy`. No "works on my machine". No host venv drift. Aligns with constitution §1 (reproducibility) and §4 (auditability of every run).
+
+Legacy `host-*` make targets exist for emergency fallback only and MUST NOT be used in CI, prompts, or docs.
+
 ## Quick Reference (Run These, Don't Reinvent)
 
 Use the [Makefile](Makefile) targets or VS Code tasks in [.vscode/tasks.json](.vscode/tasks.json) — do not invent ad-hoc commands.
 
-| Goal | Command | VS Code Task |
-|------|---------|--------------|
-| Full stack (Docker) | `make dev` | `Start Full Stack (Docker)` |
-| Backend only | `python manage.py runserver 0.0.0.0:8000` (in `backend/`) | `Start Backend (Dev)` |
-| All tests | `make test` | `Run All Tests` |
-| Backend tests + coverage | `cd backend && pytest --cov=app` | `Run Coverage Report` |
-| Lint + format | `make lint` | `Format & Lint All` |
-| Type-check | — | `Type Check (Python + TS)` |
-| LegalBench eval | — | `Run LegalBench Eval` |
-| Reset local DBs | — | `Reset Local DBs (Dangerous)` |
+| Goal | Command (Docker) | VS Code Task |
+|------|------------------|--------------|
+| Full stack | `make dev` | `Docker: Start Full Stack` |
+| Stack with debugger attach | `make debug` | `Docker: Start Full Stack (Debug)` |
+| Stop stack | `make down` | `Docker: Stop Stack` |
+| Tail logs | `make logs` | `Docker: Tail Logs` |
+| Backend shell | `make shell-backend` | `Docker: Backend Shell` |
+| Frontend shell | `make shell-frontend` | `Docker: Frontend Shell` |
+| Run Django command | `make manage CMD='migrate'` | `Docker: Migrate` |
+| All tests | `make test` | `Docker: Run All Tests` |
+| Backend tests | `make test-backend` | `Docker: Backend Tests` |
+| Frontend tests | `make test-frontend` | `Docker: Frontend Tests` |
+| Coverage | `make test-coverage` | `Docker: Coverage Report` |
+| Integration tests | `make test-integration` | `Docker: Integration Tests (real DBs)` |
+| Lint + format | `make lint` | `Docker: Format & Lint All` |
+| Type-check | `make typecheck` | `Docker: Type Check (mypy + tsc)` |
+| LegalBench eval | `make test-legalbench` | `Docker: LegalBench Eval` |
+| Spec/backlog gates | `make lint-specs` | `Docker: Spec & Backlog Validators` |
+| Reset local DBs | `docker compose down -v && make dev` | `Docker: Reset Local DBs (Dangerous)` |
+
+**Debugging.** Use `make debug` to expose `5678` (backend debugpy), `5679` (worker debugpy), and `9229` (frontend node --inspect). Then attach via [.vscode/launch.json](.vscode/launch.json) ("Docker: Attach to backend / worker / frontend").
 
 Project status, tooling rationale, and onboarding live in [README.md](README.md). Do not duplicate that content here.
 
@@ -160,14 +184,14 @@ law-ai/                                 # workspace root (GitHub slug stays `law
 4. **Evaluation** — every new agent must have at least one test in `backend/tests/agents/` that runs against LegalBench subset
 
 ### Testing Standards (Mandatory)
-- **Backend**: pytest + pytest-asyncio + pytest-cov (≥75% coverage)
-- **Frontend**: Vitest + React Testing Library + MSW for API mocking
+- **All tests run in Docker.** Use `make test`, `make test-backend`, `make test-frontend`, `make test-coverage`, `make test-integration`, `make test-legalbench`. Do not run `pytest`, `vitest`, or `npm test` on the host.
+- **Backend**: pytest + pytest-asyncio + pytest-cov (≥75% coverage) — invoked via `docker compose run --rm backend pytest …`
+- **Frontend**: Vitest + React Testing Library + MSW — invoked via `docker compose run --rm frontend npm test`
 - **All new features** must include:
-  - Unit test (fast, mocked)
-  - Integration test (uses real Neo4j/Postgres via docker)
-  - LegalBench regression test (if reasoning changes)
-- Run `Run All Tests` task or `pytest && npm test` before every PR
-- Coverage reports are generated in `htmlcov/` and `coverage/`
+  - Unit test (fast, mocked) — `make test-backend`
+  - Integration test against real Neo4j/Postgres — `make test-integration`
+  - LegalBench regression test (if reasoning changes) — `make test-legalbench`
+- Coverage reports are written to `htmlcov/` and `frontend/coverage/` via the bind mount.
 
 ---
 
@@ -202,15 +226,15 @@ See `prompts/new-agent.md` for the exact prompt template.
 
 ## Evaluation & Quality Gates (Mandatory)
 
-Before any PR:
-1. `make lint` (ruff + black + frontend lint) and `Type Check (Python + TS)` task
-2. `make test` (backend pytest + frontend vitest) — must keep ≥65% coverage
-3. `Run LegalBench Eval` task when reasoning logic changed
-4. Manual smoke test of Analysis Studio + Knowledge Graph in the browser
+Before any PR — every command runs in Docker:
+1. `make lint` (ruff + black + frontend eslint, all in containers) and `make typecheck` (mypy --strict + tsc --noEmit)
+2. `make test` (backend pytest + frontend vitest in containers) — must keep ≥65% coverage
+3. `make test-legalbench` when reasoning logic changed
+4. Manual smoke test of Analysis Studio + Knowledge Graph in the browser (against `make dev`)
 5. **Continuous-evolution gate** ([docs/constitution.md](docs/constitution.md) §11):
    - `tasks.md` for the spec must end with a populated `## Follow-ups Discovered` section.
    - Each follow-up is mirrored into [BACKLOG.md](BACKLOG.md) with a `BL-YYYYMMDD-NN` id.
-   - `python scripts/spec_validator.py` and `python scripts/backlog_lint.py` exit 0.
+   - `make lint-specs` (host stdlib — `python3 scripts/spec_validator.py && python3 scripts/backlog_lint.py`) exits 0.
    - PR description copies the new BACKLOG bullets so reviewers can see what the next agent is set up to inherit.
 
 **LegalBench Integration**  
