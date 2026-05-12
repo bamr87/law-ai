@@ -12,6 +12,8 @@ This document defines every agent that exists or is planned for LawGraph AI. All
 | **Logic Weaver**        | Reasoning  | Build argument maps, detect fallacies, score strength    | Custom reasoning prompts, entailment    | `ArgumentGraph` + fallacy list     | NLI, Fallacy detection         | No    |
 | **Educator**            | Education  | Explain LSAT/Bar answers, generate drills, track skills  | Question bank, performance DB, subgraph | `Explanation` + next_recommended   | Reading Comp, Logical Reasoning| No    |
 | **Orchestrator**        | Meta       | Decompose request, route to agents, manage state, HITL   | LangGraph state machine, shared memory  | `WorkflowTrace` + final artifact   | All (meta)                     | Yes (high-stakes) |
+| **TestSynthesizer**     | Autonomy   | Propose pytest test stubs for untested code paths; writes `*.proposed.py` pending human review. **Live** at [backend/lawgraph/agents_runtime/crews/test_synthesizer/](../backend/lawgraph/agents_runtime/crews/). | AST coverage gap detection, CrewAI crew | `TestProposal` (Pydantic)          | core_reasoning (meta)          | Yes — proposed files require developer approval before merging |
+| **TopicFrontier**       | Autonomy   | Identify orphan citations + under-cited jurisdictions; prioritise ingestion targets via Ollama; dispatch through `IngestionScout`. **Live** at [backend/lawgraph/agents_runtime/graphs/topic_frontier.py](../backend/lawgraph/agents_runtime/graphs/topic_frontier.py). | Neo4j Cypher helpers, Ollama, SOURCE_REGISTRY, IngestionScout | `TopicFrontierOutput` (Pydantic)   | core_reasoning, precedent_retrieval | No (dispatches through IngestionScout HITL gate) |
 
 ## Planned Agents (Post-MVP)
 

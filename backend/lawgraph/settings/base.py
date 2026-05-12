@@ -59,6 +59,11 @@ env = environ.Env(
     AUDIT_PATH=(str, ".audit/provenance.jsonl"),
     MAX_AUDIT_LINES=(int, 10_000),
     KEEP_AUDIT_LINES=(int, 5_000),
+    # Autonomy (spec 018 — disabled by default per constitution §12)
+    AUTONOMY_ENABLED=(bool, False),
+    AUTONOMY_ALLOWED_SOURCES=(list, []),
+    AUTONOMY_DIGEST_DIR=(str, "backend/var/autonomy"),
+    AUTONOMY_MAX_INGEST_PER_CYCLE=(int, 25),
 )
 
 env.read_env(str(BASE_DIR / ".env"), overwrite=False)
@@ -107,6 +112,12 @@ ACCESS_TOKEN_EXPIRE_MINUTES: int = env.int("ACCESS_TOKEN_EXPIRE_MINUTES")
 AUDIT_PATH: str = env("AUDIT_PATH")
 MAX_AUDIT_LINES: int = env.int("MAX_AUDIT_LINES")
 KEEP_AUDIT_LINES: int = env.int("KEEP_AUDIT_LINES")
+
+# Autonomy (spec 018, constitution §12). Default-off kill-switch + empty allow-list.
+AUTONOMY_ENABLED: bool = env.bool("AUTONOMY_ENABLED")
+AUTONOMY_ALLOWED_SOURCES: list[str] = env.list("AUTONOMY_ALLOWED_SOURCES")
+AUTONOMY_DIGEST_DIR: str = env("AUTONOMY_DIGEST_DIR")
+AUTONOMY_MAX_INGEST_PER_CYCLE: int = env.int("AUTONOMY_MAX_INGEST_PER_CYCLE")
 
 
 # ---------------------------------------------------------------------------

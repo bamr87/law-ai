@@ -12,6 +12,35 @@ app = Celery("lawgraph")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 
+# ---------------------------------------------------------------------------
+# Spec 018 T-009: Autonomy beat schedule (all disabled when AUTONOMY_ENABLED=False).
+# Operators activate by setting AUTONOMY_ENABLED=true in their environment.
+# ---------------------------------------------------------------------------
+app.conf.beat_schedule = {
+    # Pillar B — corpus sweep every 6h (constitution §12 invariant I4).
+    "autonomy-content-sweep": {
+        "task": "lawgraph.core.tasks.autonomy_cycle",
+        "schedule": 6 * 3600,  # every 6 hours
+        "kwargs": {"kind": "corpus_growth", "budget": 25},
+        "options": {"queue": "autonomy"},
+    },
+    # Pillar A — nightly test synthesis (06:00 UTC).
+    "autonomy-nightly-tests": {
+        "task": "lawgraph.core.tasks.autonomy_cycle",
+        "schedule": {"type": "crontab", "hour": 6, "minute": 0},
+        "kwargs": {"kind": "test_pillar"},
+        "options": {"queue": "autonomy"},
+    },
+    # Pillar C — daily autonomy digest (07:00 UTC, spec 018 T-010).
+    "autonomy-daily-digest": {
+        "task": "lawgraph.core.tasks.autonomy_cycle",
+        "schedule": {"type": "crontab", "hour": 7, "minute": 0},
+        "kwargs": {"kind": "digest"},
+        "options": {"queue": "autonomy"},
+    },
+}
+app.conf.beat_schedule_filename = "celerybeat-schedule"
+
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self) -> str:  # pragma: no cover - debug helper

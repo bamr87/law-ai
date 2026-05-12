@@ -3,6 +3,7 @@
 	test-integration test-legalbench \
 	lint format typecheck migrate ingest \
 	evolve-audit lint-specs \
+	autonomy-run autonomy-status autonomy-stop \
 	local-ai-up local-ai-down local-ai-pull local-ai-health \
 	host-setup host-test clean
 
@@ -58,6 +59,12 @@ help:
 	@echo "  make local-ai-down     - Stop the above"
 	@echo "  make local-ai-pull     - Pull default Ollama models"
 	@echo "  make local-ai-health   - Hit /api/agents/health/local-ai"
+	@echo ""
+	@echo "Autonomy (Spec 018 — requires AUTONOMY_ENABLED=true):"
+	@echo "  make autonomy-run KIND=corpus_growth SOURCE=courtlistener  - one cycle"
+	@echo "  make autonomy-run KIND=test_pillar BUDGET=10              - pillar A"
+	@echo "  make autonomy-status                                      - show beat schedule"
+	@echo "  make autonomy-stop                                        - drain autonomy queue"
 	@echo ""
 	@echo "Misc:"
 	@echo "  make clean             - 'docker compose down -v' + clear caches"
@@ -119,7 +126,7 @@ test-frontend:
 	$(RUN_FRONTEND) npm test -- --run
 
 test-coverage:
-	$(RUN_BACKEND) pytest --cov=lawgraph --cov-report=html --cov-report=term
+	$(RUN_BACKEND) pytest --cov=lawgraph --cov-report=xml --cov-report=html --cov-report=term
 	$(RUN_FRONTEND) npm run test:coverage
 
 test-smoke:
@@ -191,6 +198,39 @@ local-ai-pull:
 
 local-ai-health:
 	@curl -fsS http://localhost:8000/api/agents/health/local-ai | python3 -m json.tool
+
+# ---------------------------------------------------------------------------
+# Spec 018 T-009: Autonomy management targets
+# ---------------------------------------------------------------------------
+# KIND   — cycle kind: test_pillar | corpus_growth | digest  (default: test_pillar)
+# SOURCE — source adapter name (corpus_growth only; must be in AUTONOMY_ALLOWED_SOURCES)
+# BUDGET — max docs per cycle (optional integer)
+# DRY_RUN— set to --dry-run to print without executing
+
+AUTONOMY_KIND   ?= test_pillar
+AUTONOMY_SOURCE ?=
+AUTONOMY_BUDGET ?=
+AUTONOMY_DRYRUN ?=
+
+_AUTONOMY_ARGS := --kind $(AUTONOMY_KIND)
+ifneq ($(AUTONOMY_SOURCE),)
+_AUTONOMY_ARGS += --source $(AUTONOMY_SOURCE)
+endif
+ifneq ($(AUTONOMY_BUDGET),)
+_AUTONOMY_ARGS += --budget $(AUTONOMY_BUDGET)
+endif
+ifneq ($(AUTONOMY_DRYRUN),)
+_AUTONOMY_ARGS += --dry-run
+endif
+
+autonomy-run:
+	$(RUN_BACKEND_FULL) python manage.py run_autonomy $(_AUTONOMY_ARGS)
+
+autonomy-status:
+	$(RUN_WORKER) celery -A lawgraph inspect scheduled
+
+autonomy-stop:
+	$(RUN_WORKER) celery -A lawgraph control cancel_consumer autonomy
 
 # ---------------------------------------------------------------------------
 # Legacy host-based targets (avoid; emergency fallback only)

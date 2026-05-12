@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import datetime as dt
 import re
-import subprocess
 import sys
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -95,32 +94,78 @@ def _scan_missing_docs() -> list[Candidate]:
 
 
 def _scan_coverage() -> list[Candidate]:
-    cov = REPO / "backend" / ".coverage"
-    if not cov.exists():
+    """Delegate to lawgraph.eval.coverage_audit (spec 018 T-003).
+
+    Imports the Django-free ``coverage_audit`` module directly from the backend
+    package directory so this script can still run stdlib-only on the host.
+    """
+    import importlib.util
+    import sys
+
+    ca_path = REPO / "backend" / "lawgraph" / "eval" / "coverage_audit.py"
+    if not ca_path.exists():
         return []
-    try:
-        result = subprocess.run(
-            ["python", "-m", "coverage", "report", "--format=total"],
-            cwd=REPO / "backend",
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=30,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+
+    spec = importlib.util.spec_from_file_location("coverage_audit", ca_path)
+    if spec is None or spec.loader is None:
         return []
-    total = result.stdout.strip()
-    if not total.isdigit():
+    ca = importlib.util.module_from_spec(spec)
+    sys.modules.setdefault("coverage_audit", ca)
+    spec.loader.exec_module(ca)  # type: ignore[union-attr]
+
+    total = ca.overall_coverage()
+    if total is None:
         return []
-    pct = int(total)
-    if pct >= 75:
+    if total >= 75.0:
         return []
+
+    records = ca.load_coverage_report()
+    worst = [r for r in records if r.pct < 75.0][:5]
+    details = ", ".join(f"{r.module}({r.pct}%)" for r in worst) if worst else "see coverage.xml"
     return [
         Candidate(
             kind="test-gap",
-            severity="high" if pct < 65 else "med",
-            title=f"Backend coverage at {pct}% (gate 65%, target 75%)",
-            rationale="Add unit tests for the lowest-coverage modules listed in `coverage report`.",
+            severity="high" if total < 65.0 else "med",
+            title=f"Backend coverage at {total:.0f}% (gate 65%, target 75%)",
+            rationale=f"Lowest-coverage modules: {details}. Add unit tests.",
+        )
+    ]
+
+
+def _scan_legalbench() -> list[Candidate]:
+    """Return a candidate if the latest LegalBench report shows a regression.
+
+    Reads the most-recent ``report-*.json`` from ``backend/var/legalbench/`` and
+    checks whether any subset delta is negative (score dropped vs. baseline).
+    """
+    report_dir = REPO / "backend" / "var" / "legalbench"
+    reports = sorted(report_dir.glob("report-*.json"), reverse=True)
+    if not reports:
+        return []
+
+    import json as _json
+
+    try:
+        data = _json.loads(reports[0].read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+
+    delta_section = data.get("delta", {})
+    regressions = [
+        (subset, info["delta_pp"])
+        for subset, info in delta_section.items()
+        if isinstance(info, dict) and info.get("delta_pp", 0) < 0
+    ]
+    if not regressions:
+        return []
+
+    details = "; ".join(f"{s}: {d:+.1f}pp" for s, d in regressions)
+    return [
+        Candidate(
+            kind="test-gap",
+            severity="high",
+            title=f"LegalBench regression detected in {len(regressions)} subset(s)",
+            rationale=f"Deltas vs baseline: {details}. Review scoring and prompt changes.",
         )
     ]
 
@@ -160,7 +205,7 @@ def _insert_under_open(new_bullets: list[str]) -> None:
 
 
 def main() -> int:
-    candidates = _scan_todos() + _scan_missing_docs() + _scan_coverage()
+    candidates = _scan_todos() + _scan_missing_docs() + _scan_coverage() + _scan_legalbench()
     if not candidates:
         print("evolve_audit: no new candidates")
         return 0
