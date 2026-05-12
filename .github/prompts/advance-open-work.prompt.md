@@ -36,12 +36,12 @@ The user-supplied argument (if any) selects the target:
    - An open question touches licensing, a new external data source, a model swap, a schema migration that drops data, or removal of a HITL gate.
    - A constitution amendment would be required.
    - Test coverage would drop below 65%.
-5. **Verify gates** before reporting success:
+5. **Verify gates** before reporting success (all gates run in Docker — see [AGENTS.md](../../AGENTS.md) § "Docker-First Workflow"):
    ```bash
-   python scripts/spec_validator.py
-   python scripts/backlog_lint.py
+   python3 scripts/spec_validator.py
+   python3 scripts/backlog_lint.py
    ```
-   If you ran `/implement`, also run `cd backend && pytest -q` and `make lint`. All must exit 0.
+   If you ran `/implement`, also run `make test-backend` and `make lint`. All must exit 0. Never invoke `pytest`, `ruff`, `black`, or `mypy` directly on the host.
 
 ## Constraints
 

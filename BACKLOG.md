@@ -97,7 +97,7 @@
 - **BL-20260430-12** — *infra, low* — Have `app/main.py` lifespan refuse to start when `ENVIRONMENT="production"` and `AGENT_API_KEY` is unset (today it only warns). _Surfaced in:_ specs/009-extend-api-auth.
 - **BL-20260430-13** — *doc-gap, low* — Document the per-router fallback chain (`<ROUTER>_API_KEY` → `AGENT_API_KEY`) in [docs/architecture.md](docs/architecture.md), including a short table mapping routes → settings. _Surfaced in:_ specs/009-extend-api-auth.
 
-- **BL-20260509-01** — *infra, high* — `backend/scripts/init-db.sh` references the pre-rebrand `app/db/neo4j_migrations` and `app/db/postgres_migrations` paths and never picks up `backend/lawgraph/core/neo4j/migrations/*.cypher`. Fix the path and have the script delegate Postgres DDL to `python manage.py migrate` (since all Postgres DDL now lives in Django migrations) so it only owns the Cypher loop. _Surfaced in:_ specs/015-legal-corpus-schema.
+
 - **BL-20260509-02** — *infra, med* — Add a real Cypher migration runner that records applied migrations in a `(:_Migration {id})` Neo4j node so non-idempotent migrations (e.g. data back-fills) become safe later. Today the only safety is `IF NOT EXISTS`. _Surfaced in:_ specs/015-legal-corpus-schema.
 - **BL-20260509-03** — *test-gap, med* — Docker-backed integration test that applies migrations `001`–`007` against a live Neo4j and asserts `SHOW CONSTRAINTS` / `SHOW INDEXES` parity with the file-content checks in `backend/tests/core/test_neo4j_migrations.py`. _Surfaced in:_ specs/015-legal-corpus-schema.
 - **BL-20260509-04** — *test-gap, med* — Live-network nightly smoke test that fetches one real Justia CRS title and re-runs the parser to detect upstream HTML drift. _Surfaced in:_ specs/016-ingest-colorado-statutes.
@@ -105,6 +105,8 @@
 - **BL-20260509-06** — *feature, low* — PDF parsing path for LexisNexis CRS publications as a fallback when the HTML source is unavailable. Requires `pypdf` (already in stack). _Surfaced in:_ specs/016-ingest-colorado-statutes.
 - **BL-20260509-07** — *feature, med* — Citation-resolver pass that creates `(:Case)-[:CITES_STATUTE]->(:StatuteSection)` edges from existing opinion text once the CRS corpus is loaded. Likely lives in a 002.b spec or rolls into spec 018. _Surfaced in:_ specs/016-ingest-colorado-statutes.
 - **BL-20260510-01** — *test-gap, med* — Integration test that exercises the actual `pending_review` Postgres write path (Celery `quarantine_extraction` → Django ORM). Requires running `IngestionScout.run_and_commit` from a sync context (e.g., `asgiref.sync.async_to_sync` wrapper, or a thread via `asyncio.to_thread`) so Django ORM/Celery `.delay` is allowed. The current AC-5 integration test only verifies the summary + Neo4j absence because the async test context triggers scout's JSONL fallback (`scout.py:173 SynchronousOnlyOperation`). _Surfaced in:_ specs/013-ingestion-integration-tests (PR #1 follow-up).
+- **BL-20260511-01** — *infra, med* — Add a real Cypher migration runner that records applied migrations in a `(:_Migration {id})` Neo4j node so non-idempotent migrations (e.g. data back-fills) become safe later. Resolves overlap with BL-20260509-02. _Surfaced in:_ specs/017-fix-init-db-sh.
+- **BL-20260511-02** — *test-gap, low* — Docker-backed integration smoke test that runs `init-db.sh` against live Neo4j and Postgres containers and confirms all seven Cypher migrations were applied (`SHOW CONSTRAINTS`). Resolves overlap with BL-20260509-03. _Surfaced in:_ specs/017-fix-init-db-sh.
 
 ## Claimed
 
@@ -121,4 +123,6 @@
 - **BL-20260429-02** — *refactor, med* — Converted `IngestionScout._quarantine` and `_quarantine_postgres` to native async (no more `asyncio.run` inside the async ingestion loop). HITL items now reach Postgres in production; JSONL becomes a true failure-only fallback. scout.py coverage 81.60% → 90.57%. _Shipped in:_ specs/004-async-quarantine-postgres.
 - **BL-20260430-02** — *refactor, med* — Replaced TODO in backend/lawgraph/main.py by mounting the new `/api/agents` router (registry, runs, backlog, specs). _Shipped in:_ specs/003-agent-ops-dashboard.
 - **BL-20260429-05** — *feature, high* — Resolved citations to existing `Case` nodes via `app.db.citation_resolver` (spec 002, 6 unit tests, 79.51% coverage). _Shipped in:_ specs/002-resolve-citations-to-cases.
+
+- **BL-20260509-01** — *infra, high* — **(resolved 2026-05-11)**: Fixed `backend/scripts/init-db.sh` — corrected `NEO4J_MIGRATIONS` path from `app/db/neo4j_migrations` to `lawgraph/core/neo4j/migrations`; removed dead `psql` Postgres loop; replaced with `python manage.py migrate --noinput`; added `nullglob`-based warning when no Cypher files found. Three new assertions added to `tests/test_configs.py` (syntax check, stale-path absence, Django-delegate presence). _Shipped in:_ specs/017-fix-init-db-sh.
 

@@ -14,6 +14,8 @@ The canonical, repo-wide coding guide for AI agents lives in [AGENTS.md](../AGEN
 - Quick-reference commands ([Makefile](../Makefile)) and VS Code tasks ([.vscode/tasks.json](../.vscode/tasks.json))
 - Quality gates required before every PR
 
+**Docker-first, always.** Every dev/test/lint/typecheck/eval command in this repo runs inside Docker via `make <target>` (which wraps `docker compose run --rm <service>`). Never suggest or run `cd backend && pytest`, `cd frontend && npm test`, `python manage.py …`, `pip install …`, `ruff …`, `mypy …`, `black …`, or `npm install` directly on the host. The only sanctioned host commands are `make …`, `docker compose …`, `python3 scripts/spec_validator.py`, `python3 scripts/backlog_lint.py`, and `git`/`gh`. See AGENTS.md "Docker-First Workflow" for the full table.
+
 Supporting docs:
 - [docs/architecture.md](../docs/architecture.md)
 - [docs/agent-roles.md](../docs/agent-roles.md)

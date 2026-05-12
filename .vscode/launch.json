@@ -1,0 +1,87 @@
+{
+  // VS Code debug configurations for LawGraph AI — DOCKER-ONLY.
+  //
+  // All configs attach to processes running inside `docker compose` services.
+  // They do NOT spawn local Python/Node processes.
+  //
+  // Prerequisites (one-time):
+  //   1. Start the stack:  `make dev`  (or task "Start Full Stack (Docker)")
+  //   2. To enable debugger attach, override the relevant service command so it
+  //      starts under debugpy / node --inspect. Create `docker-compose.debug.yml`
+  //      and run:
+  //        docker compose -f docker-compose.yml -f docker-compose.debug.yml up
+  //
+  //      Example overrides:
+  //        services:
+  //          backend:
+  //            command: >
+  //              sh -c "python manage.py migrate --noinput &&
+  //                     python -m debugpy --listen 0.0.0.0:5678 --wait-for-client
+  //                     -m daphne -b 0.0.0.0 -p 8000 lawgraph.asgi:application"
+  //            ports:
+  //              - "8000:8000"
+  //              - "5678:5678"
+  //          worker:
+  //            command: >
+  //              python -m debugpy --listen 0.0.0.0:5679
+  //              -m celery -A lawgraph worker -l info
+  //            ports:
+  //              - "5679:5679"
+  //          frontend:
+  //            command: sh -c "node --inspect=0.0.0.0:9229 node_modules/.bin/next dev"
+  //            ports:
+  //              - "3000:3000"
+  //              - "9229:9229"
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Docker: Attach to backend (debugpy)",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": { "host": "localhost", "port": 5678 },
+      "pathMappings": [
+        { "localRoot": "${workspaceFolder}/backend", "remoteRoot": "/app" }
+      ],
+      "justMyCode": false,
+      "django": true
+    },
+    {
+      "name": "Docker: Attach to worker (debugpy)",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": { "host": "localhost", "port": 5679 },
+      "pathMappings": [
+        { "localRoot": "${workspaceFolder}/backend", "remoteRoot": "/app" }
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "Docker: Attach to frontend (Next.js node)",
+      "type": "node",
+      "request": "attach",
+      "address": "localhost",
+      "port": 9229,
+      "localRoot": "${workspaceFolder}/frontend",
+      "remoteRoot": "/app",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Docker: Open frontend in Chrome",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/frontend"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Docker: Attach to full stack (backend + worker + frontend)",
+      "configurations": [
+        "Docker: Attach to backend (debugpy)",
+        "Docker: Attach to worker (debugpy)",
+        "Docker: Attach to frontend (Next.js node)"
+      ],
+      "stopAll": true
+    }
+  ]
+}

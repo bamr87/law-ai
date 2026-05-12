@@ -53,6 +53,6 @@ Follow-ups added: <BL-...>, <BL-...>
 Ready for review.
 ```
 
-Before the response, append at least one `BL-YYYYMMDD-NN` entry to [BACKLOG.md](../BACKLOG.md) (e.g. "add streaming variant", "profile cold-start latency", "missing prompt-injection regression test"). Run `python scripts/backlog_lint.py` and `python scripts/spec_validator.py` — both must exit 0.
+Before the response, append at least one `BL-YYYYMMDD-NN` entry to [BACKLOG.md](../BACKLOG.md) (e.g. "add streaming variant", "profile cold-start latency", "missing prompt-injection regression test"). Run `python3 scripts/backlog_lint.py` and `python3 scripts/spec_validator.py` (or `make lint-specs`) — both must exit 0. Run the new agent's tests via `make test-backend` (or `make test-legalbench` for the LegalBench case) — never invoke `pytest` directly on the host. See [AGENTS.md](../AGENTS.md) § "Docker-First Workflow".
 
 Start by reading the existing agent implementations for style consistency.
