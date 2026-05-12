@@ -16,6 +16,12 @@ services:
       - PHOENIX_UI_URL=http://localhost:6006
       - PHOENIX_PROJECT_NAME=lawgraph
       - LANGGRAPH_CHECKPOINTER=postgres
+      # Autonomy loop (spec 018) — default off; set AUTONOMY_ENABLED=True in .env to activate.
+      - AUTONOMY_ENABLED=${AUTONOMY_ENABLED:-False}
+      - AUTONOMY_ALLOWED_SOURCES=${AUTONOMY_ALLOWED_SOURCES:-}
+      # Inside the container, /app == ./backend on host, so var/autonomy is correct.
+      - AUTONOMY_DIGEST_DIR=${AUTONOMY_DIGEST_DIR:-var/autonomy}
+      - AUTONOMY_MAX_INGEST_PER_CYCLE=${AUTONOMY_MAX_INGEST_PER_CYCLE:-25}
     depends_on:
       - postgres
       - neo4j
@@ -38,6 +44,12 @@ services:
       - NEO4J_USER=neo4j
       - NEO4J_PASSWORD=lawgraph-dev
       - DJANGO_SETTINGS_MODULE=lawgraph.settings.dev
+      # Autonomy loop (spec 018) — default off; set AUTONOMY_ENABLED=True in .env to activate.
+      - AUTONOMY_ENABLED=${AUTONOMY_ENABLED:-False}
+      - AUTONOMY_ALLOWED_SOURCES=${AUTONOMY_ALLOWED_SOURCES:-}
+      # Inside the container, /app == ./backend on host, so var/autonomy is correct.
+      - AUTONOMY_DIGEST_DIR=${AUTONOMY_DIGEST_DIR:-var/autonomy}
+      - AUTONOMY_MAX_INGEST_PER_CYCLE=${AUTONOMY_MAX_INGEST_PER_CYCLE:-25}
     depends_on:
       - postgres
       - redis
