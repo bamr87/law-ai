@@ -23,8 +23,11 @@ def _autonomy_enabled(settings: object) -> None:  # type: ignore[type-arg]
 
 
 class TestRunAutonomyBasic:
-    def test_disabled_exits_0_with_warning(self) -> None:
+    def test_disabled_exits_0_with_warning(self, settings: object) -> None:  # type: ignore[type-arg]
         """When AUTONOMY_ENABLED=False the command should still exit 0."""
+        from django.conf import settings as dj
+
+        dj.AUTONOMY_ENABLED = False  # type: ignore[assignment]
         out = StringIO()
         # No exception = exit 0
         call_command("run_autonomy", "--kind", "test_pillar", stdout=out)

@@ -182,8 +182,14 @@ async def _dispatch_target(
     adapter: Any,
     query: str,
     dispatched: list[dict[str, Any]],
+    *,
+    force_quarantine: bool = False,
 ) -> list[dict[str, Any]]:
     """Fetch docs from *adapter* and commit each through *scout*.
+
+    When *force_quarantine* is True (set for adapters whose
+    ``requires_human_approval`` flag is True), every document is routed
+    to the HITL queue regardless of confidence score.
 
     Returns the (potentially extended) *dispatched* list.
     """
@@ -200,7 +206,8 @@ async def _dispatch_target(
                     "case_name": doc.title,
                     "plain_text": doc.text,
                     "absolute_url": doc.source_url,
-                }
+                },
+                force_quarantine=force_quarantine,
             )
             dispatched.append(
                 {
@@ -330,7 +337,10 @@ async def _node_dispatch(
             human_approval_required = True
 
         scout = scout_factory()
-        dispatched = await _dispatch_target(scout, adapter, query, dispatched)
+        dispatched = await _dispatch_target(
+            scout, adapter, query, dispatched,
+            force_quarantine=getattr(adapter, "requires_human_approval", False),
+        )
 
     return {
         **state,

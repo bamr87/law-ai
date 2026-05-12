@@ -3,7 +3,7 @@
 Wraps :func:`lawgraph.core.autonomy.run_cycle` with a Django management
 command so it can be called from:
 
-* The Makefile (``make autonomy-run KIND=content``).
+* The Makefile (``make autonomy-run AUTONOMY_KIND=corpus_growth``).
 * The nightly GitHub Actions workflow.
 * Ad-hoc operator sessions.
 

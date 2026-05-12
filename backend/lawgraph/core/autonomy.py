@@ -92,9 +92,14 @@ def record_policy_violation(
     _persist(event)
 
 
-def record_disabled(*, cycle_type: str, payload: dict[str, Any] | None = None) -> str:
+def record_disabled(
+    *,
+    cycle_type: str,
+    payload: dict[str, Any] | None = None,
+    cycle_id: str | None = None,
+) -> str:
     """Record a single ``autonomy_disabled`` event and return its cycle_id."""
-    cycle_id = str(uuid4())
+    cycle_id = cycle_id or str(uuid4())
     event = _event(
         "autonomy_disabled",
         cycle_id=cycle_id,
@@ -111,7 +116,10 @@ def record_disabled(*, cycle_type: str, payload: dict[str, Any] | None = None) -
 # ---------------------------------------------------------------------------
 @contextmanager
 def _cycle_span(
-    cycle_type: str, payload: dict[str, Any] | None
+    cycle_type: str,
+    payload: dict[str, Any] | None,
+    *,
+    cycle_id: str | None = None,
 ) -> Iterator[dict[str, Any]]:
     """Internal context manager emitting paired start/end events.
 
@@ -119,7 +127,7 @@ def _cycle_span(
     that should appear on the ``autonomy_cycle.end`` event (e.g. counts,
     PR url, digest path).
     """
-    cycle_id = str(uuid4())
+    cycle_id = cycle_id or str(uuid4())
     context: dict[str, Any] = {
         "cycle_id": cycle_id,
         "cycle_type": cycle_type,
@@ -155,6 +163,7 @@ def run_cycle(
     runner: Callable[[dict[str, Any]], Any],
     *,
     payload: dict[str, Any] | None = None,
+    cycle_id: str | None = None,
 ) -> dict[str, Any]:
     """Invoke ``runner`` inside a fully-audited autonomy cycle.
 
@@ -183,15 +192,18 @@ def run_cycle(
     runner is **not** invoked and a single ``autonomy_disabled`` event
     is recorded instead.
     """
+    # Honour caller-supplied idempotency key (--cycle-id CLI flag).
+    _cycle_id: str | None = cycle_id or (payload or {}).get("cycle_id")  # type: ignore[assignment]
+
     if not is_enabled():
-        cycle_id = record_disabled(cycle_type=cycle_type, payload=payload)
+        _cid = record_disabled(cycle_type=cycle_type, payload=payload, cycle_id=_cycle_id)
         return {
-            "cycle_id": cycle_id,
+            "cycle_id": _cid,
             "cycle_type": cycle_type,
             "status": "disabled",
         }
 
-    with _cycle_span(cycle_type, payload) as context:
+    with _cycle_span(cycle_type, payload, cycle_id=_cycle_id) as context:
         result = runner(context)
         context["result"] = result
     return context

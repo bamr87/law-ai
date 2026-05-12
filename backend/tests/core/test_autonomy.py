@@ -24,8 +24,10 @@ def _events(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text().splitlines()]
 
 
-def test_is_enabled_defaults_false() -> None:
+def test_is_enabled_defaults_false(monkeypatch: pytest.MonkeyPatch) -> None:
     # Settings default per constitution §12 invariant I3.
+    # Monkeypatch in case the env has AUTONOMY_ENABLED=True (e.g. docker-compose).
+    monkeypatch.setattr(settings, "AUTONOMY_ENABLED", False)
     assert autonomy.is_enabled() is False
 
 
