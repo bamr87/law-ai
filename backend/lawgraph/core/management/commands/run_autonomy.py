@@ -19,10 +19,13 @@ All runs are logged through ``lawgraph.core.autonomy`` which emits paired
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -161,6 +164,9 @@ def _run_test_pillar(context: dict[str, Any], *, budget: int | None) -> dict[str
     # STUB — BL-20260511-01: Wire up TestSynthesizer crew here.
     # See specs/018-autonomous-framework/tasks.md T-004.
     """
+    logger.warning(
+        "test_pillar runner is a stub (BL-20260511-01) — returning 0 proposed tests"
+    )
     context["note"] = "test_pillar runner not yet implemented (T-004)"
     return {"proposed_tests": 0, "budget": budget}
 
@@ -176,6 +182,9 @@ def _run_corpus_growth(
     # STUB — BL-20260511-02: Wire up TopicFrontier workflow here.
     # See specs/018-autonomous-framework/tasks.md T-007.
     """
+    logger.warning(
+        "corpus_growth runner is a stub (BL-20260511-02) — returning 0 docs queued"
+    )
     context["note"] = "corpus_growth runner not yet implemented (T-007)"
     return {"source": source, "docs_queued": 0, "budget": budget}
 

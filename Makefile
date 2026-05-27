@@ -207,10 +207,27 @@ local-ai-health:
 # BUDGET — max docs per cycle (optional integer)
 # DRY_RUN— set to --dry-run to print without executing
 
-AUTONOMY_KIND   ?= test_pillar
+# Accept short-form aliases so `make autonomy-run KIND=corpus_growth` works.
+ifdef KIND
+AUTONOMY_KIND := $(KIND)
+else
+AUTONOMY_KIND ?= test_pillar
+endif
+ifdef SOURCE
+AUTONOMY_SOURCE := $(SOURCE)
+else
 AUTONOMY_SOURCE ?=
+endif
+ifdef BUDGET
+AUTONOMY_BUDGET := $(BUDGET)
+else
 AUTONOMY_BUDGET ?=
+endif
+ifdef DRY_RUN
+AUTONOMY_DRYRUN := $(DRY_RUN)
+else
 AUTONOMY_DRYRUN ?=
+endif
 
 _AUTONOMY_ARGS := --kind $(AUTONOMY_KIND)
 ifneq ($(AUTONOMY_SOURCE),)

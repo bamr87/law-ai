@@ -80,7 +80,7 @@ A future spec may promote `AutonomyRun` to its own table once the digest needs r
 No new public REST endpoints in this MVP. Internal Django management commands:
 
 - `python manage.py list_sources` — prints registered adapters.
-- `python manage.py run_autonomy --kind {test,content,evolve} [--source NAME] [--budget N] [--cycle-id UUID]` — run one cycle.
+- `python manage.py run_autonomy --kind {test_pillar,corpus_growth,digest} [--source NAME] [--budget N] [--cycle-id UUID]` — run one cycle.
 
 The existing `/api/agents/runs/` endpoint already surfaces `audit.AuditEvent` rows, so the orchestrator's `autonomy_cycle` events are queryable through it without new routes.
 
@@ -96,9 +96,9 @@ No changes to existing agents (`LegalAnalyst`, `PrecedentHunter`, `IngestionScou
 ## 10. Acceptance Criteria
 
 - **AC-1**: `make test-legalbench` exits 0 inside the backend container, writes a JSON report under `backend/var/legalbench/<UTC>.json`, and the report contains at least one record per requested subset (FR-1, FR-2).
-- **AC-2**: Running `python manage.py run_autonomy --kind test --limit 5` writes a `*.proposed.py` file under `backend/tests/autonomy/proposed/` containing at least one `@pytest.mark.skip("autonomy-proposed")`-decorated function (FR-4, FR-5).
-- **AC-3**: Running `python manage.py run_autonomy --kind content --source unknown_source` exits non-zero and emits a provenance event with `event_type='policy_violation'` (FR-9, NFR-AUDIT-1).
-- **AC-4**: Running `python manage.py run_autonomy --kind content --source courtlistener --budget 3` (with `AUTONOMY_ENABLED=True`) creates **zero** new `:Case` nodes that did not pass through `IngestionScout.run_and_commit`'s confidence gate (FR-11, NFR-HITL-1). Verified by an integration test that asserts every new node carries the `IngestionScout` `agent_version`.
+- **AC-2**: Running `python manage.py run_autonomy --kind test_pillar --limit 5` writes a `*.proposed.py` file under `backend/tests/autonomy/proposed/` containing at least one `@pytest.mark.skip("autonomy-proposed")`-decorated function (FR-4, FR-5).
+- **AC-3**: Running `python manage.py run_autonomy --kind corpus_growth --source unknown_source` exits non-zero and emits a provenance event with `event_type='policy_violation'` (FR-9, NFR-AUDIT-1).
+- **AC-4**: Running `python manage.py run_autonomy --kind corpus_growth --source courtlistener --budget 3` (with `AUTONOMY_ENABLED=True`) creates **zero** new `:Case` nodes that did not pass through `IngestionScout.run_and_commit`'s confidence gate (FR-11, NFR-HITL-1). Verified by an integration test that asserts every new node carries the `IngestionScout` `agent_version`.
 - **AC-5**: With `AUTONOMY_ENABLED=False`, `python manage.py run_autonomy --kind corpus_growth` exits 0, makes zero HTTP calls, makes zero Celery dispatches, and emits exactly one provenance event with `event_type='autonomy_disabled'` (FR-16).
 - **AC-6**: `python manage.py list_sources` prints exactly three rows for `courtlistener`, `colorado_statutes`, `statute_scout` and marks each one `allow-listed=False` by default (FR-8, FR-10).
 - **AC-7**: After one nightly cycle in CI, `backend/var/autonomy/digest-<date>.md` exists and contains sections "PRs opened", "BACKLOG items appended", "Docs quarantined", "LegalBench delta" with at least the headers populated (FR-15, NFR-AUDIT-2).
