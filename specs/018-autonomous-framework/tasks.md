@@ -90,7 +90,7 @@
   - `.github/workflows/nightly-tests.yml` (new)
 - **Steps**:
   1. Clone shape from [evolve.yml](../../.github/workflows/evolve.yml). Cron `0 6 * * *` + `workflow_dispatch`.
-  2. Steps: `make test-coverage` → `make test-legalbench` → `python3 scripts/evolve_audit.py` → call `python manage.py run_autonomy --kind test` → open draft PR with `peter-evans/create-pull-request@v6`.
+  2. Steps: `make test-coverage` → `make test-legalbench` → `python3 scripts/evolve_audit.py` → call `python manage.py run_autonomy --kind test_pillar` → open draft PR with `peter-evans/create-pull-request@v6`.
   3. Fail-on-regression: if `evolve_audit.py` adds any LegalBench `severity:high` item, exit non-zero.
 - **Verify**: `gh workflow run nightly-tests.yml -f dry_run=true` (or local `act -W ...`) opens a draft PR with at least one `*.proposed.py` and zero merged commits.
 
@@ -164,11 +164,11 @@
   - `Makefile` (edit — add `autonomy-up`, `autonomy-status`, `autonomy-stop`)
 - **Steps**:
   1. CLI args `--kind`, `--source`, `--budget`, `--cycle-id`. Exit non-zero on policy violation.
-  2. Beat: `content_sweep` every 6h (kind=content, budget=25); `nightly_tests` daily 06:00 UTC; `weekly_evolve` Mondays 13:00 UTC.
+  2. Beat: `autonomy-content-sweep` every 6h (kind=`corpus_growth`, budget=25); `autonomy-nightly-tests` daily 06:00 UTC (kind=`test_pillar`); `autonomy-daily-digest` daily 07:00 UTC (kind=`digest`). The pre-existing `evolve.yml` workflow remains the weekly evolve audit on CI.
   3. Makefile targets shell into `worker` container.
 - **Verify**:
   - `make autonomy-status` prints the schedule.
-  - `python manage.py run_autonomy --kind content --source unknown_source` exits non-zero (AC-3).
+  - `python manage.py run_autonomy --kind corpus_growth --source unknown_source` exits non-zero (AC-3).
 
 ## T-010 — Daily digest task
 

@@ -48,7 +48,7 @@ Reuses the same `peter-evans/create-pull-request` action and the `gh issue creat
 | Orchestrator | `backend/lawgraph/core/autonomy.py` | new `run_cycle` + `AutonomyRun` dataclass |
 | Mgmt cmd | `backend/lawgraph/core/management/commands/run_autonomy.py`, `list_sources.py` | new |
 | Settings | `backend/lawgraph/settings/base.py` | add `AUTONOMY_ENABLED`, `AUTONOMY_ALLOWED_SOURCES`, `AUTONOMY_DIGEST_DIR` |
-| Celery | `backend/lawgraph/celery.py` | beat schedule entries `content_sweep`, `nightly_tests`, `weekly_evolve` |
+| Celery | `backend/lawgraph/celery.py` | beat schedule entries `autonomy-content-sweep` (kind=`corpus_growth`), `autonomy-nightly-tests` (kind=`test_pillar`), `autonomy-daily-digest` (kind=`digest`) |
 | Provenance | `backend/lawgraph/core/provenance.py` | add `log_autonomy_cycle` + `log_policy_violation` helpers |
 | CI | `.github/workflows/nightly-tests.yml` | new (clone of `evolve.yml` with cron `0 6 * * *`) |
 | Audit | `scripts/evolve_audit.py` | extend `_scan_coverage` to use new `coverage_audit.py`; add `_scan_legalbench` |
@@ -69,7 +69,7 @@ LegalBench dataset is pulled from the upstream HazyResearch repo (HuggingFace mi
 
 | Decision | Chosen | Alternatives Considered | Why |
 |----------|--------|-------------------------|-----|
-| Where the orchestrator runs | GitHub Actions cron for `nightly_tests` + `weekly_evolve`; local Celery beat for `content_sweep` | Self-hosted runner; pure-local cron | Matches existing `evolve.yml` pattern; CI runners can't keep Ollama state hot for content sweeps; user confirmed in scope question. |
+| Where the orchestrator runs | GitHub Actions cron for the nightly `test_pillar` run (`nightly-tests.yml`) and the weekly evolve audit (`evolve.yml`); local Celery beat for `autonomy-content-sweep` (`corpus_growth`) and `autonomy-daily-digest` (`digest`) | Self-hosted runner; pure-local cron | Matches existing `evolve.yml` pattern; CI runners can't keep Ollama state hot for content sweeps; user confirmed in scope question. |
 | TestSynthesizer trust level | Propose-only — `*.proposed.py` + `@pytest.mark.skip("autonomy-proposed")` | Append into real test file; comment on existing PR | Safest: every proposal is opt-in, cannot break CI, easy to delete. User confirmed. |
 | LegalBench baseline gating | Commit `LICENSES.md` first, then `baseline.json` | Commit baseline immediately | LegalBench is mixed-license per task; constitution §8 requires license note for new deps/data. User confirmed. |
 | Source-registry shape | `dict[str, SourceAdapter]` with Pydantic `SourceAdapter` base | Plugin entry-points (`importlib.metadata`); class registration via decorator | Simplest possible; matches the small (currently 3) registered set; trivially testable. |
