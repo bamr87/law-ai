@@ -59,6 +59,15 @@ env = environ.Env(
     AUDIT_PATH=(str, ".audit/provenance.jsonl"),
     MAX_AUDIT_LINES=(int, 10_000),
     KEEP_AUDIT_LINES=(int, 5_000),
+    # Autonomy (spec 018 — disabled by default per constitution §12)
+    AUTONOMY_ENABLED=(bool, False),
+    AUTONOMY_ALLOWED_SOURCES=(list, []),
+    # var/autonomy is relative to BASE_DIR (/app inside Docker = ./backend on host).
+    AUTONOMY_DIGEST_DIR=(str, "var/autonomy"),
+    AUTONOMY_MAX_INGEST_PER_CYCLE=(int, 25),
+    # Repo root for BACKLOG.md + specs/ (outside the backend/ volume mount in Docker).
+    # Set REPO_ROOT=/repo in docker-compose when mounting the full repo at /repo.
+    REPO_ROOT=(str, ""),
 )
 
 env.read_env(str(BASE_DIR / ".env"), overwrite=False)
@@ -107,6 +116,18 @@ ACCESS_TOKEN_EXPIRE_MINUTES: int = env.int("ACCESS_TOKEN_EXPIRE_MINUTES")
 AUDIT_PATH: str = env("AUDIT_PATH")
 MAX_AUDIT_LINES: int = env.int("MAX_AUDIT_LINES")
 KEEP_AUDIT_LINES: int = env.int("KEEP_AUDIT_LINES")
+
+# Autonomy (spec 018, constitution §12). Default-off kill-switch + empty allow-list.
+AUTONOMY_ENABLED: bool = env.bool("AUTONOMY_ENABLED")
+AUTONOMY_ALLOWED_SOURCES: list[str] = env.list("AUTONOMY_ALLOWED_SOURCES")
+AUTONOMY_DIGEST_DIR: str = env("AUTONOMY_DIGEST_DIR")
+AUTONOMY_MAX_INGEST_PER_CYCLE: int = env.int("AUTONOMY_MAX_INGEST_PER_CYCLE")
+
+# Repo root for BACKLOG.md / specs/ — populated by REPO_ROOT env var when
+# the full repo is mounted (e.g. ./:/repo in docker-compose). Falls back to
+# three directories above BASE_DIR for host/venv runs.
+_repo_root_env: str = env("REPO_ROOT")
+REPO_ROOT: Path = Path(_repo_root_env) if _repo_root_env else BASE_DIR.parent
 
 
 # ---------------------------------------------------------------------------

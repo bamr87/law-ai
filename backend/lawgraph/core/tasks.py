@@ -24,3 +24,43 @@ def persist_audit_event(event: dict[str, Any]) -> None:
         )
     except Exception as exc:  # pragma: no cover
         logger.warning("persist_audit_event failed: %s", exc)
+
+
+@shared_task(name="lawgraph.core.tasks.autonomy_cycle", ignore_result=False)
+def autonomy_cycle(kind: str = "test_pillar", **kwargs: Any) -> dict[str, Any]:
+    """Celery task that wraps :func:`lawgraph.core.autonomy.run_cycle`.
+
+    This is the single entry-point task used by the beat schedule defined in
+    ``lawgraph.celery``. It forwards *kwargs* as the cycle ``payload`` so each
+    beat entry can pass ``budget``, ``source``, etc. without needing separate
+    task functions.
+
+    The task is always safe to call: ``run_cycle`` short-circuits with
+    ``status="disabled"`` when ``AUTONOMY_ENABLED=False`` (constitution §12 I3).
+    """
+    from lawgraph.core import autonomy
+    from lawgraph.core.management.commands.run_autonomy import (
+        _run_corpus_growth,
+        _run_digest,
+        _run_test_pillar,
+    )
+
+    budget: int | None = kwargs.pop("budget", None)
+    source: str | None = kwargs.pop("source", None)
+
+    def _runner(context: dict[str, Any]) -> dict[str, Any]:
+        if kind == "test_pillar":
+            return _run_test_pillar(context, budget=budget)
+        if kind == "corpus_growth":
+            return _run_corpus_growth(context, source=source, budget=budget)
+        if kind == "digest":
+            return _run_digest(context)
+        raise ValueError(f"Unknown kind: {kind!r}")  # unreachable via beat config
+
+    payload: dict[str, Any] = {
+        "kind": kind,
+        "budget": budget,
+        "source": source,
+        **kwargs,
+    }
+    return autonomy.run_cycle(kind, _runner, payload=payload)

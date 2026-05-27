@@ -28,9 +28,19 @@ _BACKLOG_BULLET_RE = re.compile(
 _SECTION_RE = re.compile(r"^## (Open|Claimed|Done)\s*$")
 _SPEC_STATUS_RE = re.compile(r"^- \*\*Status\*\*:\s*(?P<status>.+)$", re.MULTILINE)
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-BACKLOG_PATH = REPO_ROOT / "BACKLOG.md"
-SPECS_DIR = REPO_ROOT / "specs"
+
+def _repo_root() -> Path:
+    """Return the repository root.
+
+    Reads ``settings.REPO_ROOT`` (backed by the ``REPO_ROOT`` env var) so
+    that the correct path is available whether running on the host or in a
+    Docker container where only ``./backend`` is mounted at ``/app``.
+    Falls back to four ``parents`` above this file for host/venv runs.
+    """
+    from django.conf import settings as _s  # local import to avoid circular
+
+    val: str = getattr(_s, "REPO_ROOT", "") or ""
+    return Path(val) if val else Path(__file__).resolve().parents[3]
 
 
 def _ensure_registry() -> dict[str, type]:
@@ -188,7 +198,8 @@ class AgentRunsView(_Base):
 
 class AgentBacklogView(_Base):
     def get(self, request, *args, **kwargs):
-        if not BACKLOG_PATH.is_file():
+        backlog_path = _repo_root() / "BACKLOG.md"
+        if not backlog_path.is_file():
             return Response(
                 {
                     "counts": {"open": 0, "claimed": 0, "done": 0, "total": 0},
@@ -197,15 +208,16 @@ class AgentBacklogView(_Base):
                     "done": [],
                 }
             )
-        return Response(_parse_backlog(BACKLOG_PATH.read_text(encoding="utf-8")))
+        return Response(_parse_backlog(backlog_path.read_text(encoding="utf-8")))
 
 
 class AgentSpecsView(_Base):
     def get(self, request, *args, **kwargs):
-        if not SPECS_DIR.is_dir():
+        specs_dir = _repo_root() / "specs"
+        if not specs_dir.is_dir():
             return Response({"specs": [], "count": 0})
         out: list[dict[str, str]] = []
-        for entry in sorted(SPECS_DIR.iterdir()):
+        for entry in sorted(specs_dir.iterdir()):
             if not entry.is_dir() or entry.name == "_template":
                 continue
             spec_md = entry / "spec.md"
