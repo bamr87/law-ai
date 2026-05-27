@@ -196,6 +196,96 @@ class AgentRunsView(_Base):
         return Response({"runs": runs, "count": len(runs)})
 
 
+class AgentRunDetailView(_Base):
+    """Return all audit events sharing ``trace_id`` (parent + children).
+
+    Used by the agent ops UI to drill into a single run and see every
+    LLM call, graph query, and HTTP request emitted under one trace.
+    """
+
+    def get(self, request, trace_id: str, *args, **kwargs):
+        events = audit_store.by_trace(trace_id)
+        if not events:
+            return Response({"trace_id": trace_id, "events": [], "count": 0})
+        return Response({"trace_id": trace_id, "events": events, "count": len(events)})
+
+
+class AgentMetricsView(_Base):
+    """Aggregate per-agent metrics from the last N audit events."""
+
+    def get(self, request, *args, **kwargs):
+        limit = _parse_int_strict(
+            request.query_params.get("limit"), default=500, lo=10, hi=5000
+        )
+        events = audit_store.tail(limit)
+        per_agent: dict[str, dict[str, Any]] = {}
+        errors_total = 0
+        for ev in events:
+            if ev.get("type") != "agent_call":
+                continue
+            name = str(ev.get("agent") or "unknown")
+            entry = per_agent.setdefault(
+                name,
+                {
+                    "agent": name,
+                    "count": 0,
+                    "error_count": 0,
+                    "latencies": [],
+                    "confidences": [],
+                    "last_seen": None,
+                    "last_trace_id": None,
+                    "last_model": None,
+                },
+            )
+            entry["count"] += 1
+            inp = ev.get("input") or {}
+            if isinstance(inp, dict) and inp.get("error"):
+                entry["error_count"] += 1
+                errors_total += 1
+            lat = ev.get("latency_ms")
+            if isinstance(lat, (int, float)) and lat >= 0:
+                entry["latencies"].append(float(lat))
+            conf = ev.get("confidence")
+            if isinstance(conf, (int, float)):
+                entry["confidences"].append(float(conf))
+            ts = ev.get("timestamp")
+            if ts and (entry["last_seen"] is None or str(ts) > str(entry["last_seen"])):
+                entry["last_seen"] = ts
+                entry["last_trace_id"] = ev.get("trace_id")
+                entry["last_model"] = ev.get("model")
+
+        def _percentile(values: list[float], pct: float) -> float | None:
+            if not values:
+                return None
+            ordered = sorted(values)
+            idx = max(0, min(len(ordered) - 1, round(pct * (len(ordered) - 1))))
+            return round(ordered[idx], 2)
+
+        out = []
+        for entry in per_agent.values():
+            lats = entry.pop("latencies")
+            confs = entry.pop("confidences")
+            entry["latency_p50_ms"] = _percentile(lats, 0.5)
+            entry["latency_p95_ms"] = _percentile(lats, 0.95)
+            entry["avg_confidence"] = (
+                round(sum(confs) / len(confs), 3) if confs else None
+            )
+            entry["success_rate"] = (
+                round((entry["count"] - entry["error_count"]) / entry["count"], 3)
+                if entry["count"]
+                else None
+            )
+            out.append(entry)
+        out.sort(key=lambda x: x["count"], reverse=True)
+        return Response(
+            {
+                "agents": out,
+                "window_size": len(events),
+                "errors_total": errors_total,
+            }
+        )
+
+
 class AgentBacklogView(_Base):
     def get(self, request, *args, **kwargs):
         backlog_path = _repo_root() / "BACKLOG.md"
@@ -248,6 +338,8 @@ class LocalAIHealthView(_Base):
 urlpatterns = [
     path("", AgentListView.as_view(), name="agents-list"),
     path("runs", AgentRunsView.as_view(), name="agents-runs"),
+    path("runs/<str:trace_id>", AgentRunDetailView.as_view(), name="agents-run-detail"),
+    path("metrics", AgentMetricsView.as_view(), name="agents-metrics"),
     path("backlog", AgentBacklogView.as_view(), name="agents-backlog"),
     path("specs", AgentSpecsView.as_view(), name="agents-specs"),
     path("health/local-ai", LocalAIHealthView.as_view(), name="agents-local-ai-health"),

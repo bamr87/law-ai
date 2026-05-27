@@ -107,7 +107,9 @@ class ProvenanceLogger:
         sources: list[dict] | None = None,
     ) -> str:
         trace_id = str(uuid4())
-        log_entry = {
+        child_trace_ids = input_data.get("child_trace_ids") if isinstance(input_data, dict) else None
+        is_error = bool(input_data.get("error")) if isinstance(input_data, dict) else False
+        log_entry: dict[str, Any] = {
             "trace_id": trace_id,
             "timestamp": datetime.now(UTC).isoformat(),
             "agent": agent_name,
@@ -120,6 +122,16 @@ class ProvenanceLogger:
             "sources": sources[:3] if sources else [],
             "type": "agent_call",
         }
+        # Preserve a minimal `input` view so the audit store can correlate
+        # multi-agent runs (parent → children) and flag error events without
+        # leaking full prompts.
+        input_view: dict[str, Any] = {}
+        if isinstance(child_trace_ids, list) and child_trace_ids:
+            input_view["child_trace_ids"] = [c for c in child_trace_ids if isinstance(c, str)]
+        if is_error:
+            input_view["error"] = True
+        if input_view:
+            log_entry["input"] = input_view
         logger.info(json.dumps(log_entry))
         _persist(log_entry)
         return trace_id

@@ -11,19 +11,26 @@
  */
 
 import {
+    approveLsatProposal,
     askLsatTutor,
     fetchLsatConcepts,
+    fetchLsatGaps,
     fetchLsatPassage,
     fetchLsatPassages,
+    fetchLsatProposals,
     fetchLsatQuestions,
     fetchLsatSections,
     fetchLsatStats,
+    generateLsatProposals,
     gradeLsat,
+    rejectLsatProposal,
     type LsatChoiceLabel,
     type LsatConcept,
     type LsatDifficulty,
+    type LsatGapRow,
     type LsatGradeResponse,
     type LsatPassage,
+    type LsatProposal,
     type LsatQuestion,
     type LsatSection,
     type LsatSectionInfo,
@@ -32,7 +39,7 @@ import {
 } from '@/lib/api'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-type Tab = 'overview' | 'LR' | 'RC' | 'LG' | 'concepts' | 'stats'
+type Tab = 'overview' | 'LR' | 'RC' | 'LG' | 'concepts' | 'stats' | 'authoring'
 
 const TABS: { id: Tab; label: string; hint: string }[] = [
   { id: 'overview', label: 'Overview', hint: 'How the LSAT is built' },
@@ -41,6 +48,7 @@ const TABS: { id: Tab; label: string; hint: string }[] = [
   { id: 'LG', label: 'Logic Games', hint: 'Sequencing & grouping setups' },
   { id: 'concepts', label: 'Concepts', hint: 'Catalog of LSAT reasoning patterns' },
   { id: 'stats', label: 'Stats', hint: 'Your practice history' },
+  { id: 'authoring', label: 'Authoring (HITL)', hint: 'Review AI-drafted questions' },
 ]
 
 const DIFFICULTIES: { label: string; value: LsatDifficulty | 'any' }[] = [
@@ -94,6 +102,7 @@ export default function LsatLab() {
         {tab === 'LG' && <PassagePanel section="LG" onAttempt={onAttempt} />}
         {tab === 'concepts' && <ConceptsPanel />}
         {tab === 'stats' && <StatsPanel session={session} stats={globalStats} />}
+        {tab === 'authoring' && <AuthoringPanel />}
       </div>
     </div>
   )
@@ -1214,5 +1223,300 @@ function ErrorBanner({
         </button>
       )}
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Authoring panel — HITL queue for AI-drafted questions (spec 019 FR-12)
+// ---------------------------------------------------------------------------
+
+function AuthoringPanel() {
+  const [pending, setPending] = useState<LsatProposal[]>([])
+  const [gaps, setGaps] = useState<LsatGapRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [section, setSection] = useState<LsatSection>('LR')
+  const [difficulty, setDifficulty] = useState<LsatDifficulty>('med')
+  const [count, setCount] = useState(1)
+
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [p, g] = await Promise.all([
+        fetchLsatProposals('pending', 50),
+        fetchLsatGaps(10),
+      ])
+      setPending(p.proposals)
+      setGaps(g.gaps)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load proposals')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
+
+  const onGenerate = useCallback(async () => {
+    setGenerating(true)
+    setError(null)
+    try {
+      await generateLsatProposals({ section, difficulty, count })
+      await refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Generation failed')
+    } finally {
+      setGenerating(false)
+    }
+  }, [section, difficulty, count, refresh])
+
+  const onApprove = useCallback(
+    async (id: string) => {
+      setBusy(id)
+      try {
+        await approveLsatProposal(id)
+        setPending((rows) => rows.filter((r) => r.id !== id))
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Approve failed')
+      } finally {
+        setBusy(null)
+      }
+    },
+    [],
+  )
+
+  const onReject = useCallback(async (id: string) => {
+    setBusy(id)
+    try {
+      await rejectLsatProposal(id)
+      setPending((rows) => rows.filter((r) => r.id !== id))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Reject failed')
+    } finally {
+      setBusy(null)
+    }
+  }, [])
+
+  return (
+    <section className="space-y-6">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur">
+        <div className="text-xs uppercase tracking-wider text-amber-400">
+          Human-in-the-loop
+        </div>
+        <h2 className="mt-1 text-2xl font-semibold text-slate-100">
+          Authoring queue
+        </h2>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">
+          The <code className="text-slate-300">LSATContentAuthor</code> agent
+          drafts new questions targeting the concepts where learners score
+          lowest. Every draft lands here for human review before it joins the
+          live question bank.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+          Generate new draft
+        </h3>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="flex flex-col text-xs text-slate-400">
+            Section
+            <select
+              value={section}
+              onChange={(e) => setSection(e.target.value as LsatSection)}
+              className="mt-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+            >
+              <option value="LR">Logical Reasoning</option>
+              <option value="RC">Reading Comprehension</option>
+              <option value="LG">Logic Games</option>
+            </select>
+          </label>
+          <label className="flex flex-col text-xs text-slate-400">
+            Difficulty
+            <select
+              value={difficulty}
+              onChange={(e) =>
+                setDifficulty(e.target.value as LsatDifficulty)
+              }
+              className="mt-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+            >
+              <option value="easy">Easy</option>
+              <option value="med">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </label>
+          <label className="flex flex-col text-xs text-slate-400">
+            Count
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={count}
+              onChange={(e) =>
+                setCount(Math.max(1, Math.min(10, Number(e.target.value) || 1)))
+              }
+              className="mt-1 w-24 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+            />
+          </label>
+          <button
+            onClick={() => void onGenerate()}
+            disabled={generating}
+            className="rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-blue-500/20 transition disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {generating ? 'Drafting…' : 'Draft questions'}
+          </button>
+        </div>
+      </div>
+
+      {gaps.length > 0 && (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+            Weakest measured concepts
+          </h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Tomorrow&apos;s autonomy cycle will target the top row.
+          </p>
+          <table className="mt-3 w-full text-left text-sm">
+            <thead className="text-xs uppercase tracking-wider text-slate-500">
+              <tr>
+                <th className="py-2 pr-4">Section</th>
+                <th className="py-2 pr-4">Concept</th>
+                <th className="py-2 pr-4">Attempts</th>
+                <th className="py-2 pr-4">Accuracy</th>
+              </tr>
+            </thead>
+            <tbody>
+              {gaps.map((g, i) => (
+                <tr
+                  key={`${g.section}-${g.concept}-${i}`}
+                  className="border-t border-slate-800/70 text-slate-300"
+                >
+                  <td className="py-2 pr-4 font-mono text-xs">{g.section}</td>
+                  <td className="py-2 pr-4">{g.concept}</td>
+                  <td className="py-2 pr-4">{g.attempts}</td>
+                  <td className="py-2 pr-4">
+                    {Math.round(g.accuracy * 100)}%
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {error && <ErrorBanner message={error} onRetry={refresh} />}
+
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+            Pending review ({pending.length})
+          </h3>
+          <button
+            onClick={() => void refresh()}
+            className="text-xs text-blue-400 hover:text-blue-300"
+          >
+            Refresh
+          </button>
+        </div>
+        {loading ? (
+          <div className="mt-4 text-sm text-slate-500">Loading…</div>
+        ) : pending.length === 0 ? (
+          <div className="mt-4 text-sm text-slate-500">
+            No drafts waiting for review.
+          </div>
+        ) : (
+          <div className="mt-4 space-y-4">
+            {pending.map((p) => (
+              <ProposalCard
+                key={p.id}
+                proposal={p}
+                busy={busy === p.id}
+                onApprove={() => void onApprove(p.id)}
+                onReject={() => void onReject(p.id)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function ProposalCard({
+  proposal,
+  busy,
+  onApprove,
+  onReject,
+}: {
+  proposal: LsatProposal
+  busy: boolean
+  onApprove: () => void
+  onReject: () => void
+}) {
+  const d = proposal.draft
+  return (
+    <article className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+      <header className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="rounded-md bg-slate-800 px-2 py-0.5 font-mono text-slate-300">
+          {d.section}
+        </span>
+        <span className="rounded-md bg-slate-800 px-2 py-0.5 text-slate-300">
+          {d.difficulty}
+        </span>
+        <span className="text-slate-500">
+          confidence {(proposal.confidence * 100).toFixed(0)}%
+        </span>
+        <span className="text-slate-600">·</span>
+        <span className="text-slate-500">{proposal.model}</span>
+        <span className="ml-auto font-mono text-slate-600">{proposal.id}</span>
+      </header>
+      <div className="mt-3 whitespace-pre-wrap text-sm text-slate-200">
+        {d.stem}
+      </div>
+      <ol className="mt-3 space-y-1 text-sm">
+        {d.choices.map((c) => (
+          <li
+            key={c.label}
+            className={
+              c.label === d.correct
+                ? 'text-emerald-400'
+                : 'text-slate-400'
+            }
+          >
+            <span className="font-mono">{c.label}.</span> {c.text}
+            {c.label === d.correct && (
+              <span className="ml-2 text-xs uppercase tracking-wider">
+                correct
+              </span>
+            )}
+          </li>
+        ))}
+      </ol>
+      <details className="mt-3 text-sm text-slate-400">
+        <summary className="cursor-pointer text-slate-300">Explanation</summary>
+        <p className="mt-2 whitespace-pre-wrap">{d.explanation}</p>
+      </details>
+      <footer className="mt-4 flex items-center justify-end gap-2">
+        <button
+          onClick={onReject}
+          disabled={busy}
+          className="rounded-md border border-red-700/60 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-900/40 disabled:opacity-50"
+        >
+          Reject
+        </button>
+        <button
+          onClick={onApprove}
+          disabled={busy}
+          className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+        >
+          {busy ? 'Working…' : 'Approve & promote'}
+        </button>
+      </footer>
+    </article>
   )
 }

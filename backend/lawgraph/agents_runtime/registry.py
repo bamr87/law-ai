@@ -6,6 +6,7 @@ the /api/agents endpoint for introspection.
 """
 
 from lawgraph.agents_runtime.crews.legal_analyst import LegalAnalyst
+from lawgraph.agents_runtime.crews.lsat_content_author import LSATContentAuthor
 from lawgraph.agents_runtime.crews.precedent_hunter import PrecedentHunter
 from lawgraph.ingestionapp.services.scout import IngestionScout
 
@@ -25,6 +26,7 @@ def register_all_agents() -> None:
     register_agent("LegalAnalyst", LegalAnalyst)
     register_agent("PrecedentHunter", PrecedentHunter)
     register_agent("IngestionScout", IngestionScout)
+    register_agent("LSATContentAuthor", LSATContentAuthor)
     # register_agent("LogicWeaver", LogicWeaver)
     # register_agent("Educator", Educator)
     # register_agent("Orchestrator", Orchestrator)

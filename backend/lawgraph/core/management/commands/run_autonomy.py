@@ -35,7 +35,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--kind",
             default="test_pillar",
-            choices=["test_pillar", "corpus_growth", "digest"],
+            choices=["test_pillar", "corpus_growth", "digest", "lsat_content"],
             help="Kind of cycle to run (default: test_pillar).",
         )
         parser.add_argument(
@@ -119,6 +119,8 @@ class Command(BaseCommand):
                 return _run_corpus_growth(context, source=source, budget=budget)
             if kind == "digest":
                 return _run_digest(context)
+            if kind == "lsat_content":
+                return _run_lsat_content(context, budget=budget)
             raise ValueError(f"Unknown kind: {kind!r}")  # unreachable via argparse
 
         try:
@@ -237,3 +239,62 @@ def _run_digest(context: dict[str, Any]) -> dict[str, Any]:
     digest_path = compose_digest()
     context["digest_path"] = str(digest_path)
     return {"digest_path": str(digest_path)}
+
+
+def _run_lsat_content(
+    context: dict[str, Any], *, budget: int | None
+) -> dict[str, Any]:
+    """Draft LSAT questions targeting the weakest measured `(section, concept)`.
+
+    Spec 019 FR-10. Always persists drafts to the proposal queue with
+    ``status="pending"`` — never auto-approves (constitution §5).
+    """
+    import asyncio
+
+    from lawgraph.agents_runtime.crews.lsat_content_author import (
+        GenerateQuestionsInput,
+        LSATContentAuthor,
+    )
+    from lawgraph.lsat.services import proposals as proposals_store
+
+    count = max(1, min(budget or 5, 10))
+    gaps = proposals_store.gap_analysis(limit=1)
+    if gaps:
+        target_section = gaps[0]["section"]
+        target_concepts = [gaps[0]["concept"]] if gaps[0]["concept"] != "(uncategorised)" else []
+        target_difficulty = "med"
+    else:
+        target_section = "LR"
+        target_concepts = []
+        target_difficulty = "med"
+
+    inp = GenerateQuestionsInput(
+        section=target_section,
+        difficulty=target_difficulty,
+        count=count,
+        concepts=target_concepts,
+    )
+    agent = LSATContentAuthor()
+    output = asyncio.run(agent.run(inp.model_dump()))
+    persisted = 0
+    for draft in output.drafts:
+        proposals_store.record_proposal(
+            draft.model_dump(),
+            agent_trace_id=output.trace_id or "",
+            model=output.model,
+            confidence=output.confidence,
+            source_concept_ids=target_concepts,
+        )
+        persisted += 1
+
+    summary = {
+        "drafts_persisted": persisted,
+        "section": target_section,
+        "difficulty": target_difficulty,
+        "target_concepts": target_concepts,
+        "model": output.model,
+        "degraded": output.degraded,
+        "trace_id": output.trace_id,
+    }
+    context.update(summary)
+    return summary
