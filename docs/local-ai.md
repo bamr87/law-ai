@@ -124,7 +124,7 @@ Every cycle passes through `lawgraph.core.autonomy.run_cycle`, which emits paire
 
 ```bash
 # Trigger a cycle manually (dry-run to preview without side-effects)
-make autonomy-run AUTONOMY_KIND=corpus_growth  # or test_pillar / digest
+make autonomy-run KIND=corpus_growth  # or test_pillar / digest
 python manage.py run_autonomy --kind digest --dry-run
 ```
 

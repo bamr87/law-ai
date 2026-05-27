@@ -154,21 +154,49 @@ class Command(BaseCommand):
 
 
 # ---------------------------------------------------------------------------
-# Sub-runners (thin stubs — real logic will be added in T-004 and T-007)
+# Sub-runners (T-004, T-007)
 # ---------------------------------------------------------------------------
 
 
 def _run_test_pillar(context: dict[str, Any], *, budget: int | None) -> dict[str, Any]:
-    """Placeholder for T-004 TestSynthesizer integration.
+    """Invoke TestSynthesizer for the lowest-coverage modules (T-004).
 
-    # STUB — BL-20260511-01: Wire up TestSynthesizer crew here.
-    # See specs/018-autonomous-framework/tasks.md T-004.
+    Reads coverage data via ``lawgraph.eval.coverage_audit``, then calls
+    :class:`~lawgraph.agents_runtime.crews.test_synthesizer.TestSynthesizer`
+    for each under-threshold module up to *budget*.
     """
-    logger.warning(
-        "test_pillar runner is a stub (BL-20260511-01) — returning 0 proposed tests"
+    from lawgraph.agents_runtime.crews.test_synthesizer import (
+        ProposedTestInput,
+        TestSynthesizer,
     )
-    context["note"] = "test_pillar runner not yet implemented (T-004)"
-    return {"proposed_tests": 0, "budget": budget}
+    from lawgraph.eval.coverage_audit import (
+        COVERAGE_WARN_THRESHOLD,
+        load_coverage_report,
+    )
+
+    records = load_coverage_report()
+    below = [r for r in records if r.pct < COVERAGE_WARN_THRESHOLD]
+    if not below:
+        logger.info("test_pillar: no modules below %.0f%% threshold", COVERAGE_WARN_THRESHOLD)
+        return {"proposed_tests": 0, "budget": budget}
+
+    limit = budget if budget is not None else len(below)
+    synth = TestSynthesizer()
+    proposed = 0
+
+    for rec in below[:limit]:
+        try:
+            inp = ProposedTestInput(
+                module_path=rec.module,
+                missing_lines=rec.missing_lines[:20],
+            )
+            synth.run(inp)
+            proposed += 1
+        except Exception as exc:
+            logger.warning("test_pillar: TestSynthesizer failed for %s: %s", rec.module, exc)
+
+    context["proposed_tests"] = proposed
+    return {"proposed_tests": proposed, "budget": budget}
 
 
 def _run_corpus_growth(
@@ -177,16 +205,25 @@ def _run_corpus_growth(
     source: str | None,
     budget: int | None,
 ) -> dict[str, Any]:
-    """Placeholder for T-007 TopicFrontier integration.
+    """Invoke TopicFrontier workflow for corpus expansion (T-007).
 
-    # STUB — BL-20260511-02: Wire up TopicFrontier workflow here.
-    # See specs/018-autonomous-framework/tasks.md T-007.
+    Runs the :class:`~lawgraph.agents_runtime.graphs.topic_frontier.TopicFrontier`
+    async workflow and returns the dispatch summary.
     """
-    logger.warning(
-        "corpus_growth runner is a stub (BL-20260511-02) — returning 0 docs queued"
-    )
-    context["note"] = "corpus_growth runner not yet implemented (T-007)"
-    return {"source": source, "docs_queued": 0, "budget": budget}
+    import asyncio
+
+    from lawgraph.agents_runtime.graphs.topic_frontier import TopicFrontier
+
+    tf = TopicFrontier()
+    output = asyncio.run(tf.run())
+
+    context["dispatched_count"] = len(output.dispatched)
+    return {
+        "source": source,
+        "docs_queued": len(output.dispatched),
+        "budget": budget,
+        "human_approval_required": output.human_approval_required,
+    }
 
 
 def _run_digest(context: dict[str, Any]) -> dict[str, Any]:
