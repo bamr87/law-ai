@@ -41,7 +41,7 @@ help:
 	@echo ""
 	@echo "Tests (all run in containers):"
 	@echo "  make test              - Backend pytest + frontend vitest"
-	@echo "  make test-backend      - Backend pytest (smoke + specs + backend marks)"
+	@echo "  make test-backend      - Backend pytest (all unit tests, excludes integration+legalbench)"
 	@echo "  make test-frontend     - Frontend vitest"
 	@echo "  make test-coverage     - Coverage reports for backend + frontend"
 	@echo "  make test-smoke        - Repo-wide smoke + spec/backlog lint"
@@ -120,7 +120,7 @@ ingest:
 test: test-backend test-frontend
 
 test-backend:
-	$(RUN_BACKEND) pytest -m "smoke or specs or backend" -q --tb=short
+	$(RUN_BACKEND) pytest -m "not integration and not legalbench" -q --tb=short
 
 test-frontend:
 	$(RUN_FRONTEND) npm test -- --run
@@ -130,7 +130,7 @@ test-coverage:
 	$(RUN_FRONTEND) npm run test:coverage
 
 test-smoke:
-	$(RUN_BACKEND) pytest -m "smoke or specs"
+	$(RUN_BACKEND) pytest -m "not integration and not legalbench"
 
 test-specs:
 	python3 scripts/spec_validator.py

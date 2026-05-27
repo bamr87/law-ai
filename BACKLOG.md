@@ -24,6 +24,9 @@
 
 ## Open
 
+- **BL-20260526-01** — *test-gap, low* — Add a mutation variant test seeding two cases with overlapping aliases to assert `head(collect(c.id))` determinism (mirrors BL-20260429-12 concern). _Surfaced in:_ specs/014-densify-extraction-integration-tests.
+- **BL-20260526-02** — *test-gap, low* — Add a CI check confirming `test_citation_resolver_integration` tests are not collected without `-m integration` (AC-5 isolation contract). _Surfaced in:_ specs/014-densify-extraction-integration-tests.
+
 - **BL-20260503-09** — *feature, med* — Real Channels producers for `/ws/agents/{run_id}` so `LegalAnalyst`/`PrecedentHunter` progress streams to the consumer skeleton landed by spec 011 T-010. Resolves overlap with BL-20260429-24. _Surfaced in:_ specs/011-django-backend.
 - **BL-20260503-10** — *feature, med* — Django admin actions on `ingestionapp.PendingReview` (approve/reject/re-extract) plus matching `core.tasks` to apply the decision back to Neo4j. Resolves overlap with BL-20260429-15. _Surfaced in:_ specs/011-django-backend.
 - **BL-20260503-11** — *feature, low* — `/agents/runs/{trace_id}` view backed by `audit.AuditEvent` joined on `trace_id` so the spec-003 dashboard can drill into a single run. Resolves overlap with BL-20260429-14. _Surfaced in:_ specs/011-django-backend.
@@ -138,7 +141,7 @@
 - **BL-20260429-09** — *feature, med* — claimed-by:specs/018-autonomous-framework — Wire a periodic CI job ("agent-self-review") that runs `scripts/backlog_lint.py` plus a small LLM prompt to flag stale items (>60 days) for triage. _Partially addressed by nightly-tests.yml (spec 018 T-005); full stale-triage LLM pass remains open._ _Surfaced in:_ this file.
 - **BL-20260502-04** — *feature, med* — claimed-by:specs/018-autonomous-framework — Backfill `LegalAnalyst` (BL-20260430-03) and `PrecedentHunter` (BL-20260430-04) onto `LegalWorkflow` once parity proven on LegalBench. _Now tracked as BL-20260511-06._ _Surfaced in:_ specs/010-local-ai-stack.
 - **BL-20260509-04** — *test-gap, med* — claimed-by:specs/018-autonomous-framework — Live-network nightly smoke test that fetches one real Justia CRS title and re-runs the parser to detect upstream HTML drift. _Now tracked as BL-20260511-07._ _Surfaced in:_ specs/016-ingest-colorado-statutes.
-- **BL-20260429-10** — *test-gap, med* — claimed-by:specs/014-densify-extraction-integration-tests — Add Docker-backed integration test for `densify_extraction` against a real Neo4j (currently only `FakeAsyncSession`). _Surfaced in:_ specs/002-resolve-citations-to-cases.
+- **BL-20260429-10** — *test-gap, med* — **(resolved 2026-05-26)**: Shipped via specs/014-densify-extraction-integration-tests. Added `backend/tests/db/test_citation_resolver_integration.py` with three `@pytest.mark.integration` tests: alias-match, idempotency, and no-match-returns-None. Reuses spec-013 fixtures (`neo4j_integration_driver`, `clean_neo4j_db`). _Surfaced in:_ specs/002-resolve-citations-to-cases.
 
 ## Done
 

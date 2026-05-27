@@ -338,7 +338,10 @@ async def _node_dispatch(
 
         scout = scout_factory()
         dispatched = await _dispatch_target(
-            scout, adapter, query, dispatched,
+            scout,
+            adapter,
+            query,
+            dispatched,
             force_quarantine=getattr(adapter, "requires_human_approval", False),
         )
 

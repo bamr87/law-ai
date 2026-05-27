@@ -196,7 +196,9 @@ def run_cycle(
     _cycle_id: str | None = cycle_id or (payload or {}).get("cycle_id")  # type: ignore[assignment]
 
     if not is_enabled():
-        _cid = record_disabled(cycle_type=cycle_type, payload=payload, cycle_id=_cycle_id)
+        _cid = record_disabled(
+            cycle_type=cycle_type, payload=payload, cycle_id=_cycle_id
+        )
         return {
             "cycle_id": _cid,
             "cycle_type": cycle_type,

@@ -15,7 +15,7 @@
 
 - **Refs**: FR-1, FR-2, FR-3, AC-1, AC-2, AC-3, AC-5, NFR-AUDIT-1, NFR-COVERAGE-1, NFR-IDEMPOTENT-1, NFR-ISOLATION-1
 - **Owner**: @copilot
-- **Status**: `[ ]`
+- **Status**: `[x]`
 - **Files**:
   - `backend/tests/db/test_citation_resolver_integration.py` (new)
 - **Steps**:
@@ -46,7 +46,7 @@
 
 - **Refs**: FR-4, AC-4, NFR-PERF-1
 - **Owner**: @copilot
-- **Status**: `[ ]`
+- **Status**: `[x]`
 - **Files**:
   - `Makefile` (no change — `test-integration` already runs `pytest -m integration -v`)
   - `.github/workflows/integration-tests.yml` (no change — runs the same
@@ -65,7 +65,7 @@
 
 - **Refs**: spec metadata; constitution §11
 - **Owner**: @copilot
-- **Status**: `[ ]`
+- **Status**: `[x]`
 - **Files**:
   - [BACKLOG.md](../../BACKLOG.md)
 - **Steps**:
@@ -97,6 +97,8 @@
 > checks this section exists. CI ([scripts/backlog_lint.py](../../scripts/backlog_lint.py))
 > checks the BACKLOG mirror.
 
-- _none_  <!-- to be populated when this spec ships; see spec.md §14 for
+- **BL-20260526-01** — *test-gap, low* — Add a mutation variant test seeding two cases with overlapping aliases to assert `head(collect(c.id))` determinism matches BL-20260429-12 (spec-002 follow-up). _Surfaced in:_ specs/014-densify-extraction-integration-tests.
+- **BL-20260526-02** — *test-gap, low* — Add an integration test asserting `test_citation_resolver_integration` tests are NOT collected by `pytest -q` (no `-m integration`) in the CI environment, confirming AC-5 isolation contract. _Surfaced in:_ specs/014-densify-extraction-integration-tests.
+<!-- original placeholder below -->
   pre-existing items (BL-20260429-11, BL-20260429-21) that are
   intentionally out of scope. -->

@@ -177,7 +177,9 @@ def _run_test_pillar(context: dict[str, Any], *, budget: int | None) -> dict[str
     records = load_coverage_report()
     below = [r for r in records if r.pct < COVERAGE_WARN_THRESHOLD]
     if not below:
-        logger.info("test_pillar: no modules below %.0f%% threshold", COVERAGE_WARN_THRESHOLD)
+        logger.info(
+            "test_pillar: no modules below %.0f%% threshold", COVERAGE_WARN_THRESHOLD
+        )
         return {"proposed_tests": 0, "budget": budget}
 
     limit = budget if budget is not None else len(below)
@@ -193,7 +195,9 @@ def _run_test_pillar(context: dict[str, Any], *, budget: int | None) -> dict[str
             synth.run(inp)
             proposed += 1
         except Exception as exc:
-            logger.warning("test_pillar: TestSynthesizer failed for %s: %s", rec.module, exc)
+            logger.warning(
+                "test_pillar: TestSynthesizer failed for %s: %s", rec.module, exc
+            )
 
     context["proposed_tests"] = proposed
     return {"proposed_tests": proposed, "budget": budget}
