@@ -24,6 +24,8 @@
 
 ## Open
 
+- **BL-20260527-01** — *doc-gap, low* — Author missing doc docs/AO-SDLC.md. Referenced by AGENTS.md but file does not exist.
+
 - **BL-20260503-09** — *feature, med* — Real Channels producers for `/ws/agents/{run_id}` so `LegalAnalyst`/`PrecedentHunter` progress streams to the consumer skeleton landed by spec 011 T-010. Resolves overlap with BL-20260429-24. _Surfaced in:_ specs/011-django-backend.
 - **BL-20260503-10** — *feature, med* — Django admin actions on `ingestionapp.PendingReview` (approve/reject/re-extract) plus matching `core.tasks` to apply the decision back to Neo4j. Resolves overlap with BL-20260429-15. _Surfaced in:_ specs/011-django-backend.
 - **BL-20260503-11** — *feature, low* — `/agents/runs/{trace_id}` view backed by `audit.AuditEvent` joined on `trace_id` so the spec-003 dashboard can drill into a single run. Resolves overlap with BL-20260429-14. _Surfaced in:_ specs/011-django-backend.
