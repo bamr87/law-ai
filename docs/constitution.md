@@ -10,7 +10,7 @@ Every feature must trace to the mission in [AGENTS.md](AGENTS.md): open-source, 
 
 If a proposed feature requires a closed-source LLM as **product runtime**, breaks local-first operation, or removes provenance, the spec **must be rejected**.
 
-**Development orchestration is a separate layer.** GitHub Copilot is the sole sanctioned AI dev surface (Copilot Chat in VS Code + the GitHub Copilot coding agent in the cloud). Specs proposing alternative coding agents (Cursor, Continue.dev, Claude Code, Aider, Codex, Gemini CLI, etc.) or their config files **must be rejected**. See [AGENTS.md](AGENTS.md) § "Development Orchestration".
+**Development orchestration is a separate layer.** GitHub Copilot and Claude Code are the sanctioned AI dev surfaces (Copilot Chat in VS Code + the GitHub Copilot coding agent in the cloud; the Claude Code CLI / IDE extensions + the Claude Agent SDK). This layer is dev-time only: it never changes the **product runtime**, which stays local-first per the rejection rule above — Claude (a closed-source model) must not be wired in as a product-runtime LLM. Specs proposing other coding agents (Cursor, Continue.dev, Aider, Codex, Gemini CLI, etc.) or their config files **must be rejected**. See [AGENTS.md](AGENTS.md) § "Development Orchestration".
 
 ## 2. Tech Stack (Locked)
 
@@ -66,7 +66,7 @@ Every change larger than a typo follows the spec workflow:
 6. Open PR with all four files. CI runs [scripts/spec_validator.py](../scripts/spec_validator.py) drift gate.
 7. Run [/implement](../prompts/implement.md) per task; PRs reference `specs/NNN-...` in description.
 
-See [docs/AO-SDLC.md](AO-SDLC.md) for how phases map onto LawGraph and [docs/AO-SDLC-guide.md](AO-SDLC-guide.md) for the full framework reference.
+See [docs/ao-sdlc.md](ao-sdlc.md) for how phases map onto LawGraph and [docs/ao-sdlc-guide.md](ao-sdlc-guide.md) for the full framework reference.
 
 ## 8. Security Baselines
 

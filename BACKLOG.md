@@ -24,7 +24,6 @@
 
 ## Open
 
-- **BL-20260511-01** — *doc-gap, low* — Author missing doc docs/AO-SDLC.md. Referenced by AGENTS.md but file does not exist.
 - **BL-20260526-01** — *test-gap, low* — Add a mutation variant test seeding two cases with overlapping aliases to assert `head(collect(c.id))` determinism (mirrors BL-20260429-12 concern). _Surfaced in:_ specs/014-densify-extraction-integration-tests.
 - **BL-20260526-02** — *test-gap, low* — Add a CI check confirming `test_citation_resolver_integration` tests are not collected without `-m integration` (AC-5 isolation contract). _Surfaced in:_ specs/014-densify-extraction-integration-tests.
 
@@ -143,6 +142,8 @@
 
 - **BL-20260602-01** — *test-gap, low* — Add an integration test exercising the full `force_quarantine` path against a live Docker stack (adapter with `requires_human_approval=True` → Celery → PendingReview row). _Surfaced in:_ specs/020-enforce-hitl-quarantine.
 - **BL-20260602-02** — *doc-gap, low* — Document the `requires_human_approval` adapter contract and its quarantine enforcement in `docs/architecture.md`. _Surfaced in:_ specs/020-enforce-hitl-quarantine.
+- **BL-20260602-03** — *doc-gap, low* — Fix non-case broken relative links in current governing docs: `docs/constitution.md` links to `AGENTS.md` (3×) but it lives at the repo root, so the href should be `../AGENTS.md` (404s on every platform). _Surfaced in:_ specs/020-fix-ao-sdlc-doc-links.
+- **BL-20260602-04** — *test-gap, med* — Update or historically-annotate the ~120 `backend/app/*` references in shipped specs 011 + `docs/adr/0001-adopt-django-backend.md` (pre-Django-rebrand layout), then promote `test_no_case_mismatched_doc_links` to a full relative-link existence check. _Surfaced in:_ specs/020-fix-ao-sdlc-doc-links.
 
 ## Claimed
 
@@ -168,4 +169,6 @@
 - **BL-20260509-01** — *infra, high* — **(resolved 2026-05-11)**: Fixed `backend/scripts/init-db.sh` — corrected `NEO4J_MIGRATIONS` path from `app/db/neo4j_migrations` to `lawgraph/core/neo4j/migrations`; removed dead `psql` Postgres loop; replaced with `python manage.py migrate --noinput`; added `nullglob`-based warning when no Cypher files found. Three new assertions added to `tests/test_configs.py` (syntax check, stale-path absence, Django-delegate presence). _Shipped in:_ specs/017-fix-init-db-sh.
 
 - **BL-20260511-28** — *feature, high* — **(resolved 2026-05-11)**: Shipped specs/018-autonomous-framework (T-001–T-012). Delivered: ADR 0003 + constitution §12 (6 invariants I1–I6), LegalBench harness (21 tests), coverage_audit + evolve_audit wiring, TestSynthesizer CrewAI crew, nightly-tests.yml workflow, SOURCE_REGISTRY + 3 adapters, core.autonomy kill-switch, run_autonomy management command + Celery beat, TopicFrontier LangGraph (16 tests), compose_digest daily digest, documentation refresh across 4 docs files. 252 unit tests passing; lint clean. Follow-ups BL-20260511-03 through BL-20260511-27 queued in Open. _Claimed from:_ BL-20260429-09, BL-20260502-04, BL-20260509-04.
+
+- **BL-20260511-32** — *doc-gap, low* — **(resolved 2026-06-02)**: Renumbered from a duplicate `BL-20260511-01` (it collided with the spec-017 follow-up of the same id). The referenced doc was never missing — it exists as lowercase `docs/ao-sdlc.md`; the real defect was case-mismatched links (`docs/AO-SDLC.md` / `docs/AO-SDLC-guide.md`) that 404 on case-sensitive filesystems (Linux/CI). Fixed all 7 occurrences + the latent `docs/AO-SDLC.md` entry in `tests/test_docs.py`, added `test_no_case_mismatched_doc_links`, and gated the root structural suite in CI. _Shipped in:_ specs/020-fix-ao-sdlc-doc-links.
 

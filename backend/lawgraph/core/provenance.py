@@ -107,8 +107,12 @@ class ProvenanceLogger:
         sources: list[dict] | None = None,
     ) -> str:
         trace_id = str(uuid4())
-        child_trace_ids = input_data.get("child_trace_ids") if isinstance(input_data, dict) else None
-        is_error = bool(input_data.get("error")) if isinstance(input_data, dict) else False
+        child_trace_ids = (
+            input_data.get("child_trace_ids") if isinstance(input_data, dict) else None
+        )
+        is_error = (
+            bool(input_data.get("error")) if isinstance(input_data, dict) else False
+        )
         log_entry: dict[str, Any] = {
             "trace_id": trace_id,
             "timestamp": datetime.now(UTC).isoformat(),
@@ -127,7 +131,9 @@ class ProvenanceLogger:
         # leaking full prompts.
         input_view: dict[str, Any] = {}
         if isinstance(child_trace_ids, list) and child_trace_ids:
-            input_view["child_trace_ids"] = [c for c in child_trace_ids if isinstance(c, str)]
+            input_view["child_trace_ids"] = [
+                c for c in child_trace_ids if isinstance(c, str)
+            ]
         if is_error:
             input_view["error"] = True
         if input_view:

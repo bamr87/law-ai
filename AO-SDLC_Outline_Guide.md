@@ -98,12 +98,12 @@ This document serves as both a **strategic outline** and **implementation templa
 |------------------------|-----------------------------------------|-----------------------------------|-----------|
 | **Orchestration**     | LangGraph (primary) + CrewAI (roles)   | Complex workflows + team simulation | Stateful graphs, durable execution, role-based crews |
 | **Spec-Driven**       | GitHub Spec Kit                        | Structured planning & memory     | Persistent MD files, /specify /plan /tasks /implement commands |
-| **Coding Agents**     | GitHub Copilot Chat (Agent mode) + GitHub Copilot coding agent | Autonomous implementation       | PR creation, branch mgmt, test running, `@copilot` feedback. **No third-party coding agents permitted in this repo.** |
+| **Coding Agents**     | GitHub Copilot (Chat Agent mode + coding agent) and Claude Code (CLI / IDE) | Autonomous implementation       | PR creation, branch mgmt, test running, `@copilot` feedback. **No other third-party coding agents permitted in this repo.** |
 | **Multi-Agent Chat**  | AutoGen / Microsoft AG2                | Dynamic collaboration & debate   | Conversational patterns, group chat |
 | **CI/CD**             | GitHub Actions / GitLab CI + Auggie CLI or custom verifier | Agent-aware pipelines           | Spec validation gates, behavioral checks, deterministic core |
 | **Roadmap**           | Custom Agent Crew + Aha!/Jira + AI Assistant | Dynamic prioritization         | Data ingestion, forecasting, real-time updates |
 | **Observability**     | Langfuse / LangSmith + Azure Monitor / Prometheus | Agent tracing, evals, costs    | Trace every agent step, regression testing for agents |
-| **LLM Provider (dev orchestration)** | GitHub Copilot (whatever model GitHub serves) | Reasoning, code gen, refactoring inside VS Code + the Copilot coding agent | Single sanctioned dev surface; satisfies enterprise IP/security via GitHub |
+| **LLM Provider (dev orchestration)** | GitHub Copilot (whatever model GitHub serves) or Claude Code (Anthropic Claude) | Reasoning, code gen, refactoring inside VS Code + the Copilot coding agent | Sanctioned dev surfaces; dev-time only, never the product runtime |
 | **LLM Provider (product runtime)** | Ollama (Llama 3.1 70B, Mistral, Phi-3, Qwen2.5) | Legal analysis served to end users | Local-first, open weights, satisfies constitution §1 |
 | **Vector/Memory**     | Chroma or Pinecone + Redis             | RAG over specs/codebase         | Semantic search, project memory |
 | **Security/Compliance**| GitHub CodeQL + Snyk + custom Policy Agents | DevSecOps automation           | SAST/DAST/SCA in pipeline + runtime |
@@ -319,7 +319,7 @@ result = roadmap_crew.kickoff(inputs={"company_okrs": "...", "current_roadmap": 
 ### 6.1 Primary Agents
 
 - **Task Orchestrator** (from Spec Kit): Assigns tasks to Coder agents.
-- **Coder / Implementation Agent**: GitHub Copilot Chat (Agent mode) for in-IDE work and the GitHub Copilot coding agent for cloud cycles. Both create feature branches, implement, write/run tests, commit, and open PRs. No other coding agents are permitted.
+- **Coder / Implementation Agent**: GitHub Copilot Chat (Agent mode) for in-IDE work and the GitHub Copilot coding agent for cloud cycles, or Claude Code (CLI / IDE). They create feature branches, implement, write/run tests, commit, and open PRs. No other third-party coding agents are permitted.
 - **Refactorer & Optimizer**: Post-implementation, suggests performance/security improvements, removes duplication.
 - **Documentation Agent**: Generates/ updates README, API docs, inline comments, user guides.
 - **Code Reviewer Agent** (pre-human): Runs static analysis, suggests fixes, summarizes changes for human reviewer.

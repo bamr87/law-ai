@@ -143,7 +143,10 @@ class AnalysisView(APIView):
                     "use_langgraph": req.use_langgraph,
                     "error": True,
                 },
-                output_data={"error_class": type(exc).__name__, "error": str(exc)[:500]},
+                output_data={
+                    "error_class": type(exc).__name__,
+                    "error": str(exc)[:500],
+                },
                 model="multi-agent",
                 latency_ms=0.0,
                 confidence=0.0,

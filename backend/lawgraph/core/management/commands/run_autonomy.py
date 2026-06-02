@@ -241,9 +241,7 @@ def _run_digest(context: dict[str, Any]) -> dict[str, Any]:
     return {"digest_path": str(digest_path)}
 
 
-def _run_lsat_content(
-    context: dict[str, Any], *, budget: int | None
-) -> dict[str, Any]:
+def _run_lsat_content(context: dict[str, Any], *, budget: int | None) -> dict[str, Any]:
     """Draft LSAT questions targeting the weakest measured `(section, concept)`.
 
     Spec 019 FR-10. Always persists drafts to the proposal queue with
@@ -261,7 +259,9 @@ def _run_lsat_content(
     gaps = proposals_store.gap_analysis(limit=1)
     if gaps:
         target_section = gaps[0]["section"]
-        target_concepts = [gaps[0]["concept"]] if gaps[0]["concept"] != "(uncategorised)" else []
+        target_concepts = (
+            [gaps[0]["concept"]] if gaps[0]["concept"] != "(uncategorised)" else []
+        )
         target_difficulty = "med"
     else:
         target_section = "LR"

@@ -4,27 +4,28 @@
 Build the world's first fully open-source, agent-orchestrated legal intelligence platform that combines multi-agent workflows, Neo4j knowledge graphs, GraphRAG, and interactive visualizations to help lawyers and law students master complex legal content.
 
 **Workflow & Standards**
-- This repo follows a spec-driven workflow ([AO-SDLC](docs/AO-SDLC.md) Level 2). Every non-trivial change starts with a spec under [specs/](specs/) using [/specify](prompts/specify.md) → [/clarify](prompts/clarify.md) → [/plan](prompts/plan.md) → [/tasks](prompts/tasks.md) → [/implement](prompts/implement.md). For autonomous "pick the next thing and ship it" runs, use [/evolve](prompts/evolve.md).
+- This repo follows a spec-driven workflow ([AO-SDLC](docs/ao-sdlc.md) Level 2). Every non-trivial change starts with a spec under [specs/](specs/) using [/specify](prompts/specify.md) → [/clarify](prompts/clarify.md) → [/plan](prompts/plan.md) → [/tasks](prompts/tasks.md) → [/implement](prompts/implement.md). For autonomous "pick the next thing and ship it" runs, use [/evolve](prompts/evolve.md).
 - All specs and PRs must satisfy [docs/constitution.md](docs/constitution.md). CI enforces spec consistency via [scripts/spec_validator.py](scripts/spec_validator.py).
 
-## Development Orchestration (GitHub Copilot Only)
+## Development Orchestration (GitHub Copilot + Claude Code)
 
-**The only sanctioned AI development surface for this repo is GitHub Copilot.** This covers:
+**The sanctioned AI development surfaces for this repo are GitHub Copilot and Claude Code.** They cover:
 
 - **Copilot Chat** in VS Code — Ask, Edit, and Agent modes. Agent mode runs the AO-SDLC chain and `/evolve`.
 - **Inline Copilot completions** in any JetBrains/VS/VS Code surface authenticated to the same GitHub account.
 - **GitHub Copilot coding agent** — the cloud agent that picks up issues assigned to `@copilot` (used by [.github/workflows/evolve.yml](.github/workflows/evolve.yml)).
 - **Copilot Code Review** on pull requests.
+- **Claude Code** — the Claude Code CLI / IDE extensions and the Claude Agent SDK, which run the same AO-SDLC chain and `/evolve` from the shared [prompts/](prompts/).
 
-All repo-level instructions for these surfaces live in [.github/copilot-instructions.md](.github/copilot-instructions.md) and the prompt templates under [prompts/](prompts/). Path-scoped overrides go in `*.instructions.md` files following [Copilot custom instructions docs](https://docs.github.com/copilot).
+Repo-level instructions for Copilot live in [.github/copilot-instructions.md](.github/copilot-instructions.md); for Claude Code they live in [CLAUDE.md](CLAUDE.md). Both defer to this file as the source of truth and share the prompt templates under [prompts/](prompts/). Path-scoped Copilot overrides go in `*.instructions.md` files following [Copilot custom instructions docs](https://docs.github.com/copilot).
 
-**Forbidden in this repo**: Cursor, Continue.dev, Claude Code, Aider, Codex, Gemini CLI, or any other third-party coding agent. Do not commit their config files (`.cursorrules`, `.continuerc.json`, `.aider.conf.yml`, etc.).
+**Forbidden in this repo**: Cursor, Continue.dev, Aider, Codex, Gemini CLI, or any other third-party coding agent. Do not commit their config files (`.cursorrules`, `.continuerc.json`, `.aider.conf.yml`, etc.). The only sanctioned agent configs are Copilot's `.github/copilot-instructions.md` / `*.instructions.md` and Claude Code's [CLAUDE.md](CLAUDE.md) / `.claude/`.
 
-**Important distinction**: This restriction applies to **how the codebase is built**. The **product runtime LLM** that serves end users is still Ollama (local-first, open weights) per [docs/constitution.md](docs/constitution.md) §1. The two layers are independent:
+**Important distinction**: This applies to **how the codebase is built**. The **product runtime LLM** that serves end users is still Ollama (local-first, open weights) per [docs/constitution.md](docs/constitution.md) §1 — Claude is a dev-time tool only and must never be wired in as the product runtime. The two layers are independent:
 
 | Layer | Tool | Why |
 |-------|------|-----|
-| Dev orchestration (writing/refactoring this repo) | GitHub Copilot only | Single sanctioned surface; consistent custom instructions; CI integration |
+| Dev orchestration (writing/refactoring this repo) | GitHub Copilot or Claude Code | Sanctioned surfaces; shared custom instructions + prompt templates; CI integration |
 | Product runtime (what the deployed app uses to answer legal questions) | Ollama (open-source models) | Constitution §1: open-source, privacy-first, local-first |
 
 

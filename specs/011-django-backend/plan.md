@@ -73,7 +73,7 @@ The dashed arrows are the only persistence paths owned by Django. Solid arrows f
 - **Neo4j migrations** — unchanged. The two existing files under [backend/app/db/neo4j_migrations/](../../backend/app/db/neo4j_migrations/) (`001_case_constraints.cypher`, `002_case_aliases.cypher`) move to `backend/lawgraph/core/neo4j/migrations/` and the runner remains a thin shell script invoked from `backend/scripts/init-db.sh`.
 - **LangGraph checkpointer** — owned by the library; FR-13 isolates it in schema `langgraph` via the new `manage.py ensure_checkpointer` command.
 
-All migrations are idempotent and forward-only (Constitution §3 of [AO-SDLC-guide.md](../../docs/AO-SDLC-guide.md)).
+All migrations are idempotent and forward-only (Constitution §3 of [ao-sdlc-guide.md](../../docs/ao-sdlc-guide.md)).
 
 ## 4. Tech Choices & Alternatives
 
