@@ -177,3 +177,52 @@ async def test_analysis_per_router_override(
         "/api/analysis", json=body, headers={"X-API-Key": "analysis-key"}
     )
     assert res.status_code == 200
+
+
+# --- Spec 021: agent WebSocket streaming ---
+
+
+@pytest.mark.asyncio
+async def test_agent_ws_events_emitted(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-6 / AC-1: three group_send calls emitted (LA step + PH step + complete)."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    import lawgraph.analysis.urls as analysis_urls
+
+    mock_layer: MagicMock = MagicMock()
+    mock_layer.group_send = AsyncMock()
+    monkeypatch.setattr(analysis_urls, "get_channel_layer", lambda: mock_layer)
+
+    res = await client.post("/api/analysis", json={"text": "Tort claim."})
+    assert res.status_code == 200
+
+    calls = mock_layer.group_send.call_args_list
+    assert len(calls) == 3
+
+    # Each call: group_send(group_name, {"type": "agent_event", "payload": {...}})
+    payloads = [c.args[1]["payload"] for c in calls]
+    assert payloads[0]["type"] == "agent_step"
+    assert payloads[0]["agent"] == "LegalAnalyst"
+    assert payloads[1]["type"] == "agent_step"
+    assert payloads[1]["agent"] == "PrecedentHunter"
+    assert payloads[2]["type"] == "complete"
+    assert payloads[2]["analysis_id"] == res.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_agent_ws_events_resilient_to_channel_layer_failure(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-1 / AC-2: channel layer exception does not abort the analysis."""
+    import lawgraph.analysis.urls as analysis_urls
+
+    def boom() -> None:
+        raise RuntimeError("Redis unavailable")
+
+    monkeypatch.setattr(analysis_urls, "get_channel_layer", boom)
+
+    res = await client.post("/api/analysis", json={"text": "Contract dispute."})
+    assert res.status_code == 200
+    assert res.json()["id"].startswith("an-")
