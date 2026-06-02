@@ -238,6 +238,36 @@ class TestNodeDispatch:
             )
         assert state["human_approval_required"] is True
 
+    @pytest.mark.asyncio
+    async def test_force_quarantine_passed_when_adapter_requires_approval(
+        self, settings
+    ) -> None:
+        """BL-20260511-30: run_and_commit receives force_quarantine=True."""
+        adapter = self._make_adapter("courtlistener")
+        adapter.requires_human_approval = True
+        scout = AsyncMock()
+        scout.run_and_commit = AsyncMock(
+            return_value={"committed": False, "confidence": 0.95, "pending": True}
+        )
+        with patch.object(
+            tf_module.settings,
+            "AUTONOMY_ALLOWED_SOURCES",
+            ["courtlistener"],
+            create=True,
+        ):
+            await _node_dispatch(
+                {
+                    "trace_id": "t",
+                    "targets": [{"query": "q", "jurisdiction": "*", "priority": 1}],
+                },
+                registry={"courtlistener": adapter},
+                scout_factory=MagicMock(return_value=scout),
+            )
+        # Verify force_quarantine=True was passed to run_and_commit
+        scout.run_and_commit.assert_called_once()
+        _, kwargs = scout.run_and_commit.call_args
+        assert kwargs["force_quarantine"] is True
+
 
 # ---------------------------------------------------------------------------
 # _node_summarize — logs provenance

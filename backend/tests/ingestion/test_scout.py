@@ -113,6 +113,34 @@ async def test_low_confidence_routes_to_postgres_when_available(
 
 
 @pytest.mark.asyncio
+async def test_force_quarantine_routes_high_confidence_to_hitl(
+    tmp_path, monkeypatch
+) -> None:
+    """BL-20260511-30: force_quarantine=True must quarantine even high-conf docs.
+
+    When the source adapter has requires_human_approval=True, TopicFrontier
+    passes force_quarantine=True. This test verifies that a document that would
+    otherwise be committed to Neo4j is instead routed to the HITL queue.
+    """
+    quarantine_dir = tmp_path / "pending_review"
+    monkeypatch.setattr(scout_module, "PENDING_REVIEW_DIR", quarantine_dir)
+
+    scout = IngestionScout()
+    celery_mock = MagicMock(return_value=None)
+    monkeypatch.setattr(scout, "_quarantine_via_celery", celery_mock)
+
+    # HIGH_CONF_OPINION would normally commit to Neo4j (confidence >= 0.7)
+    summary = await scout.run_and_commit(HIGH_CONF_OPINION, force_quarantine=True)
+
+    # Must be quarantined, not committed
+    assert summary["committed"] is False
+    assert summary["pending"] is True
+    assert summary["edges"] == 0
+    # Celery dispatch must have been called (quarantine path)
+    celery_mock.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_quarantine_via_celery_dispatches_with_expected_payload(
     monkeypatch,
 ) -> None:
