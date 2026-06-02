@@ -6,6 +6,7 @@ import asyncio
 import logging
 import secrets
 import time
+from collections.abc import Awaitable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -101,6 +102,19 @@ async def _emit_ws_event(
         )
 
 
+async def _timed[T](awaitable: Awaitable[T]) -> tuple[T, float]:
+    """Await *awaitable*, returning ``(result, elapsed_ms)``.
+
+    Lets each agent coroutine report its **own** wall-clock latency instead of
+    the combined ``asyncio.gather`` duration (spec 021 §5 FR-2: ``latency_ms``
+    in ``agent_step`` / ``AgentTraceEntry`` is per-agent, mirroring
+    ``trace_id``/``confidence``).
+    """
+    start = time.perf_counter()
+    result = await awaitable
+    return result, (time.perf_counter() - start) * 1000.0
+
+
 async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
     analyst = LegalAnalyst()
     hunter = PrecedentHunter()
@@ -112,8 +126,9 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
     }
     analysis_id = _new_analysis_id()
     started = time.perf_counter()
-    irac, precedents = await asyncio.gather(
-        analyst.run(payload), hunter.run(payload)  # type: ignore[no-untyped-call]
+    (irac, analyst_ms), (precedents, hunter_ms) = await asyncio.gather(
+        _timed(analyst.run(payload)),  # type: ignore[no-untyped-call]
+        _timed(hunter.run(payload)),  # type: ignore[no-untyped-call]
     )
     total_ms = (time.perf_counter() - started) * 1000.0
     confidence = round((irac.confidence + precedents.confidence) / 2, 4)
@@ -127,7 +142,7 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
             "type": "agent_step",
             "agent": "LegalAnalyst",
             "trace_id": irac.trace_id,
-            "latency_ms": round(total_ms, 2),
+            "latency_ms": round(analyst_ms, 2),
             "confidence": irac.confidence,
         },
     )
@@ -137,7 +152,7 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
             "type": "agent_step",
             "agent": "PrecedentHunter",
             "trace_id": precedents.trace_id,
-            "latency_ms": round(total_ms, 2),
+            "latency_ms": round(hunter_ms, 2),
             "confidence": precedents.confidence,
         },
     )
@@ -154,9 +169,7 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
     sources: list[dict[str, str]] = [
         {"title": str(s.get("title", "")), "url": str(s.get("url", ""))}
         for s in irac_sources
-    ] + [
-        {"title": p.title, "url": p.url} for p in precedents.precedents
-    ]
+    ] + [{"title": p.title, "url": p.url} for p in precedents.precedents]
     provenance.log_agent_call(  # type: ignore[no-untyped-call]
         agent_name="AnalysisStudio",
         input_data={
@@ -179,13 +192,13 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
         AgentTraceEntry(
             agent="LegalAnalyst",
             trace_id=irac.trace_id,
-            latency_ms=round(total_ms, 2),
+            latency_ms=round(analyst_ms, 2),
             confidence=irac.confidence,
         ),
         AgentTraceEntry(
             agent="PrecedentHunter",
             trace_id=precedents.trace_id,
-            latency_ms=round(total_ms, 2),
+            latency_ms=round(hunter_ms, 2),
             confidence=precedents.confidence,
         ),
     ]
