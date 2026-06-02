@@ -58,15 +58,15 @@ GITHUB_BRANCH = os.environ.get("DOCS_GIT_BRANCH", "main")
 # Extensions
 # ---------------------------------------------------------------------------
 extensions = [
-    "sphinx.ext.autodoc",          # pull docstrings from the source
-    "sphinx.ext.autosummary",      # auto-generate one page per module
-    "sphinx.ext.napoleon",         # Google/NumPy docstring styles
-    "sphinx.ext.viewcode",         # render highlighted source alongside docs
-    "sphinx.ext.linkcode",         # deep-link each symbol to GitHub
-    "sphinx.ext.intersphinx",      # link out to Python/Django/DRF docs
-    "sphinx.ext.autosectionlabel", # stable cross-reference targets
-    "myst_parser",                 # render docs/*.md (architecture, ADRs, ...)
-    "sphinxcontrib.mermaid",       # render embedded Mermaid diagrams
+    "sphinx.ext.autodoc",  # pull docstrings from the source
+    "sphinx.ext.autosummary",  # auto-generate one page per module
+    "sphinx.ext.napoleon",  # Google/NumPy docstring styles
+    "sphinx.ext.viewcode",  # render highlighted source alongside docs
+    "sphinx.ext.linkcode",  # deep-link each symbol to GitHub
+    "sphinx.ext.intersphinx",  # link out to Python/Django/DRF docs
+    "sphinx.ext.autosectionlabel",  # stable cross-reference targets
+    "myst_parser",  # render docs/*.md (architecture, ADRs, ...)
+    "sphinxcontrib.mermaid",  # render embedded Mermaid diagrams
 ]
 
 templates_path = []
@@ -158,6 +158,7 @@ html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 html_title = "LawGraph AI Documentation"
 
+
 # ---------------------------------------------------------------------------
 # linkcode: map a documented Python object back to its source on GitHub.
 # ---------------------------------------------------------------------------
@@ -224,6 +225,9 @@ def _generate_openapi_schema(app, *_args) -> None:
     every ``sphinx-build`` and the API reference cannot drift from the views.
     Failures are downgraded to a warning so an unrelated docs build still runs.
     """
+    import logging
+
+    logger = logging.getLogger(__name__)
     target = DOCS_DIR / "api" / "schema.yml"
     try:
         from drf_spectacular.generators import SchemaGenerator
@@ -231,17 +235,22 @@ def _generate_openapi_schema(app, *_args) -> None:
 
         schema = SchemaGenerator().get_schema(request=None, public=True)
         target.write_bytes(OpenApiYamlRenderer().render(schema))
+        return
+    except ImportError as exc:
+        # drf-spectacular not installed (e.g. offline/slim build): expected.
+        logger.warning("Skipping OpenAPI schema generation: %s", exc)
     except Exception as exc:  # noqa: BLE001 — never hard-fail the whole build here
-        logger = __import__("logging").getLogger(__name__)
-        logger.warning("Could not generate OpenAPI schema: %s", exc)
-        if not target.exists():
-            target.write_text(
-                "openapi: 3.0.3\ninfo:\n  title: LawGraph AI API\n"
-                "  version: 0.1.0\npaths: {}\n"
-            )
+        # Unexpected failure while introspecting the DRF views: log loudly but
+        # keep the docs build alive so the rest of the site still renders.
+        logger.error("Could not generate OpenAPI schema: %s", exc)
+
+    if not target.exists():
+        target.write_text(
+            "openapi: 3.0.3\ninfo:\n  title: LawGraph AI API\n"
+            "  version: 0.1.0\npaths: {}\n"
+        )
 
 
 def setup(app) -> None:
     """Sphinx extension hook: wire build-time schema generation."""
     app.connect("builder-inited", _generate_openapi_schema)
-
