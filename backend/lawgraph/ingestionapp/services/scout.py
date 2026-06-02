@@ -114,13 +114,24 @@ class IngestionScout:
     # ------------------------------------------------------------------
     # Commit
     # ------------------------------------------------------------------
-    async def run_and_commit(self, payload: dict[str, Any]) -> dict[str, Any]:
+    async def run_and_commit(
+        self, payload: dict[str, Any], *, force_quarantine: bool = False
+    ) -> dict[str, Any]:
         """Extract then either commit to Neo4j or quarantine.
+
+        Parameters
+        ----------
+        payload:
+            Raw document dict passed to :meth:`extract`.
+        force_quarantine:
+            When *True*, always route to the HITL queue regardless of
+            confidence score.  Set this when the source adapter's
+            ``requires_human_approval`` flag is True (spec 018 NFR-HITL-1).
 
         Returns a small summary dict suitable for the CLI run report.
         """
         result = self.extract(payload)
-        if not result.is_high_confidence(self._threshold):
+        if force_quarantine or not result.is_high_confidence(self._threshold):
             await self._quarantine(result, payload)
             return {
                 "case_id": result.case_id,

@@ -65,6 +65,10 @@ The response includes `phoenix_trace_url` and `langgraph_thread_id` — paste ei
 | `PHOENIX_COLLECTOR_ENDPOINT` | `http://phoenix:6006/v1/traces` | **Unset disables tracing entirely.** Required no-op for tests. |
 | `PHOENIX_UI_URL` | `http://localhost:6006` | Used to build deep-links in API responses. |
 | `PHOENIX_PROJECT_NAME` | `lawgraph` | Phoenix tab label. |
+| `AUTONOMY_ENABLED` | `false` | **Kill-switch** for all scheduled autonomy loops (spec 018 §12 invariant I3). Set to `true` to activate. |
+| `AUTONOMY_ALLOWED_SOURCES` | `[]` | Comma-separated list of source adapter names permitted for autonomous ingestion (e.g. `courtlistener,cap`). |
+| `AUTONOMY_MAX_INGEST_PER_CYCLE` | `25` | Hard cap on documents ingested per corpus-growth cycle. |
+| `AUTONOMY_DIGEST_DIR` | `backend/var/autonomy/` | Directory where daily digest files (`digest-YYYY-MM-DD.md`) are written. |
 
 ## Hardware tiers
 
@@ -103,6 +107,26 @@ The Postgres checkpointer survives `docker compose restart backend`. Run `Reset 
 - **`phoenix.reachable=false`** — confirm port 6006 is free (`lsof -i :6006`); the Next.js dev server does not collide today, but other Phoenix installs do.
 - **`checkpointer.reachable=false` with "langgraph not installed"** — install the optional extra: `cd backend && pip install -e ".[dev,local-ai]"`.
 - **Workflow returns `"Insufficient sources to answer confidently"`** — the default retriever returns no passages until the GraphRAG hookup lands ([BL-20260502-04](../BACKLOG.md)). Inject a custom retriever for now.
+
+## Autonomy Loop
+
+Spec 018 adds a scheduled autonomy loop that runs inside the same Docker stack. It is **disabled by default** (`AUTONOMY_ENABLED=false`). Operators activate it by setting `AUTONOMY_ENABLED=true` in their environment.
+
+Three beat entries are registered in `lawgraph/celery.py`:
+
+| Beat entry | Schedule | Kind | Notes |
+|---|---|---|---|
+| `autonomy-content-sweep` | every 6 h | `corpus_growth` | Fetches new docs via allowed source adapters; routes through `IngestionScout`. |
+| `autonomy-nightly-tests` | 06:00 UTC daily | `test_pillar` | Synthesises proposed tests via `TestSynthesizer`; writes `*.proposed.py` files pending human review. |
+| `autonomy-daily-digest` | 07:00 UTC daily | `digest` | Aggregates last 24 h of `autonomy_*` audit events into `var/autonomy/digest-YYYY-MM-DD.md`. |
+
+Every cycle passes through `lawgraph.core.autonomy.run_cycle`, which emits paired `autonomy_cycle.start` / `autonomy_cycle.end` provenance events and enforces the kill-switch. See [ADR 0003](../docs/adr/0003-autonomy-orchestrator.md) and [docs/constitution.md](constitution.md) §12 for the full set of invariants (I1–I6).
+
+```bash
+# Trigger a cycle manually (dry-run to preview without side-effects)
+make autonomy-run KIND=corpus_growth  # or test_pillar / digest
+python manage.py run_autonomy --kind digest --dry-run
+```
 
 ## Related specs
 

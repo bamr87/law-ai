@@ -3,6 +3,7 @@
 	test-integration test-legalbench \
 	lint format typecheck migrate ingest \
 	evolve-audit lint-specs \
+	autonomy-run autonomy-status autonomy-stop \
 	local-ai-up local-ai-down local-ai-pull local-ai-health \
 	host-setup host-test clean
 
@@ -40,7 +41,7 @@ help:
 	@echo ""
 	@echo "Tests (all run in containers):"
 	@echo "  make test              - Backend pytest + frontend vitest"
-	@echo "  make test-backend      - Backend pytest (smoke + specs + backend marks)"
+	@echo "  make test-backend      - Backend pytest (all unit tests, excludes integration+legalbench)"
 	@echo "  make test-frontend     - Frontend vitest"
 	@echo "  make test-coverage     - Coverage reports for backend + frontend"
 	@echo "  make test-smoke        - Repo-wide smoke + spec/backlog lint"
@@ -58,6 +59,12 @@ help:
 	@echo "  make local-ai-down     - Stop the above"
 	@echo "  make local-ai-pull     - Pull default Ollama models"
 	@echo "  make local-ai-health   - Hit /api/agents/health/local-ai"
+	@echo ""
+	@echo "Autonomy (Spec 018 — requires AUTONOMY_ENABLED=true):"
+	@echo "  make autonomy-run KIND=corpus_growth SOURCE=courtlistener  - one cycle (also accepts AUTONOMY_KIND/SOURCE)"
+	@echo "  make autonomy-run KIND=test_pillar BUDGET=10               - pillar A"
+	@echo "  make autonomy-status                                       - show beat schedule"
+	@echo "  make autonomy-stop                                         - stop consuming from autonomy queue (does NOT purge)"
 	@echo ""
 	@echo "Misc:"
 	@echo "  make clean             - 'docker compose down -v' + clear caches"
@@ -113,17 +120,17 @@ ingest:
 test: test-backend test-frontend
 
 test-backend:
-	$(RUN_BACKEND) pytest -m "smoke or specs or backend" -q --tb=short
+	$(RUN_BACKEND) pytest -m "not integration and not legalbench" -q --tb=short
 
 test-frontend:
 	$(RUN_FRONTEND) npm test -- --run
 
 test-coverage:
-	$(RUN_BACKEND) pytest --cov=lawgraph --cov-report=html --cov-report=term
+	$(RUN_BACKEND) pytest --cov=lawgraph --cov-report=xml --cov-report=html --cov-report=term
 	$(RUN_FRONTEND) npm run test:coverage
 
 test-smoke:
-	$(RUN_BACKEND) pytest -m "smoke or specs"
+	$(RUN_BACKEND) pytest -m "not integration and not legalbench"
 
 test-specs:
 	python3 scripts/spec_validator.py
@@ -191,6 +198,58 @@ local-ai-pull:
 
 local-ai-health:
 	@curl -fsS http://localhost:8000/api/agents/health/local-ai | python3 -m json.tool
+
+# ---------------------------------------------------------------------------
+# Spec 018 T-009: Autonomy management targets
+# ---------------------------------------------------------------------------
+# KIND   — cycle kind: test_pillar | corpus_growth | digest  (default: test_pillar)
+# SOURCE — source adapter name (corpus_growth only; must be in AUTONOMY_ALLOWED_SOURCES)
+# BUDGET — max docs per cycle (optional integer)
+# DRY_RUN— set to --dry-run to print without executing
+
+# Accept short-form aliases so `make autonomy-run KIND=corpus_growth` works.
+ifdef KIND
+AUTONOMY_KIND := $(KIND)
+else
+AUTONOMY_KIND ?= test_pillar
+endif
+ifdef SOURCE
+AUTONOMY_SOURCE := $(SOURCE)
+else
+AUTONOMY_SOURCE ?=
+endif
+ifdef BUDGET
+AUTONOMY_BUDGET := $(BUDGET)
+else
+AUTONOMY_BUDGET ?=
+endif
+ifdef DRY_RUN
+AUTONOMY_DRYRUN := $(DRY_RUN)
+else
+AUTONOMY_DRYRUN ?=
+endif
+
+_AUTONOMY_ARGS := --kind $(AUTONOMY_KIND)
+ifneq ($(AUTONOMY_SOURCE),)
+_AUTONOMY_ARGS += --source $(AUTONOMY_SOURCE)
+endif
+ifneq ($(AUTONOMY_BUDGET),)
+_AUTONOMY_ARGS += --budget $(AUTONOMY_BUDGET)
+endif
+ifneq ($(AUTONOMY_DRYRUN),)
+_AUTONOMY_ARGS += --dry-run
+endif
+
+autonomy-run:
+	$(RUN_BACKEND_FULL) python manage.py run_autonomy $(_AUTONOMY_ARGS)
+
+autonomy-status:
+	$(RUN_WORKER) celery -A lawgraph inspect scheduled
+
+autonomy-stop:
+	# Stops the worker from consuming new tasks from the autonomy queue.
+	# This does NOT purge tasks already queued — use 'celery purge' for that.
+	$(RUN_WORKER) celery -A lawgraph control cancel_consumer autonomy
 
 # ---------------------------------------------------------------------------
 # Legacy host-based targets (avoid; emergency fallback only)

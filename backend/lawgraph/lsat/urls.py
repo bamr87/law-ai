@@ -19,7 +19,7 @@ from lawgraph.core import audit_jsonl as audit_store
 from lawgraph.core.auth import RequireLsat
 from lawgraph.lsat.services.bank import (
     ChoiceLabel,
-    Difficulty,  # noqa: F401  re-exported for tests
+    Difficulty,
     Section,
     load_bank,
     load_concepts,
@@ -27,6 +27,7 @@ from lawgraph.lsat.services.bank import (
     load_sections,
     public_view,
 )
+from lawgraph.lsat.services import proposals as proposals_store
 from lawgraph.lsat.services.tutor import TutorRequest, TutorResponse, tutor
 
 logger = logging.getLogger("lawgraph.lsat")
@@ -278,6 +279,149 @@ class TutorView(_Base):
         return Response(body.model_dump())
 
 
+# ---------------------------------------------------------------------------
+# Authoring / proposal endpoints (spec 019 FR-7)
+# ---------------------------------------------------------------------------
+
+
+class _GenerateProposalsRequest(BaseModel):
+    section: Section
+    difficulty: Difficulty
+    count: int = 1
+    concepts: list[str] = []
+    passage_id: str | None = None
+
+
+class ProposalsView(_Base):
+    """``GET /api/lsat/proposals`` — list proposals filtered by status."""
+
+    def get(self, request, *args, **kwargs):
+        status_q = request.query_params.get("status", "pending")
+        limit = _bounded_int(
+            request.query_params.get("limit"), default=200, lo=1, hi=1000
+        )
+        rows = proposals_store.list_proposals(status=status_q, limit=limit)
+        return Response({"proposals": rows, "count": len(rows), "status": status_q})
+
+
+class ProposalGenerateView(_Base):
+    """``POST /api/lsat/proposals/generate`` — synchronously draft N questions."""
+
+    def post(self, request, *args, **kwargs):
+        try:
+            req = _GenerateProposalsRequest.model_validate(request.data)
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        from lawgraph.agents_runtime.crews.lsat_content_author import (
+            GenerateQuestionsInput,
+            LSATContentAuthor,
+        )
+
+        agent = LSATContentAuthor()
+        try:
+            output = async_to_sync(agent.run)(
+                GenerateQuestionsInput(**req.model_dump()).model_dump()
+            )
+        except Exception as exc:
+            logger.exception("LSATContentAuthor.run failed: %s", exc)
+            return Response(
+                {"detail": f"draft generation failed: {type(exc).__name__}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        persisted: list[dict[str, Any]] = []
+        for draft in output.drafts:
+            pid = proposals_store.record_proposal(
+                draft.model_dump(),
+                agent_trace_id=output.trace_id or "",
+                model=output.model,
+                confidence=output.confidence,
+                source_concept_ids=req.concepts,
+            )
+            row = proposals_store.get_proposal(pid)
+            if row is not None:
+                persisted.append(row)
+        return Response(
+            {
+                "proposals": persisted,
+                "trace_id": output.trace_id,
+                "model": output.model,
+                "degraded": output.degraded,
+                "count": len(persisted),
+            }
+        )
+
+
+class _StatusUpdateRequest(BaseModel):
+    note: str | None = None
+    reviewer: str | None = None
+
+
+class ProposalApproveView(_Base):
+    """``POST /api/lsat/proposals/<id>/approve`` — promote draft to bank."""
+
+    def post(self, request, proposal_id: str, *args, **kwargs):
+        try:
+            req = _StatusUpdateRequest.model_validate(request.data or {})
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        try:
+            row = proposals_store.promote_to_bank(
+                proposal_id,
+                reviewer=req.reviewer or "anonymous",
+                note=req.note,
+            )
+        except KeyError as exc:
+            raise Http404("proposal not found") from exc
+        except ValueError as exc:
+            return Response(
+                {"detail": str(exc)}, status=status.HTTP_409_CONFLICT
+            )
+        return Response(row)
+
+
+class ProposalRejectView(_Base):
+    """``POST /api/lsat/proposals/<id>/reject`` — mark draft rejected."""
+
+    def post(self, request, proposal_id: str, *args, **kwargs):
+        try:
+            req = _StatusUpdateRequest.model_validate(request.data or {})
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        existing = proposals_store.get_proposal(proposal_id)
+        if existing is None:
+            raise Http404("proposal not found")
+        if existing.get("status") != "pending":
+            return Response(
+                {"detail": f"already {existing.get('status')}"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        row = proposals_store.set_status(
+            proposal_id,
+            "rejected",
+            reviewer=req.reviewer or "anonymous",
+            note=req.note,
+        )
+        return Response(row)
+
+
+class GapsView(_Base):
+    """``GET /api/lsat/gaps`` — weakest `(section, concept)` pairs."""
+
+    def get(self, request, *args, **kwargs):
+        limit = _bounded_int(
+            request.query_params.get("limit"), default=10, lo=1, hi=100
+        )
+        gaps = proposals_store.gap_analysis(limit=limit)
+        return Response({"gaps": gaps, "count": len(gaps), "limit": limit})
+
+
 urlpatterns = [
     path("sections", SectionsView.as_view(), name="lsat-sections"),
     path(
@@ -304,4 +448,22 @@ urlpatterns = [
     path("grade", GradeView.as_view(), name="lsat-grade"),
     path("stats", StatsView.as_view(), name="lsat-stats"),
     path("tutor", TutorView.as_view(), name="lsat-tutor"),
+    # Authoring / HITL proposal queue (spec 019 FR-7)
+    path("proposals", ProposalsView.as_view(), name="lsat-proposals"),
+    path(
+        "proposals/generate",
+        ProposalGenerateView.as_view(),
+        name="lsat-proposals-generate",
+    ),
+    path(
+        "proposals/<str:proposal_id>/approve",
+        ProposalApproveView.as_view(),
+        name="lsat-proposals-approve",
+    ),
+    path(
+        "proposals/<str:proposal_id>/reject",
+        ProposalRejectView.as_view(),
+        name="lsat-proposals-reject",
+    ),
+    path("gaps", GapsView.as_view(), name="lsat-gaps"),
 ]

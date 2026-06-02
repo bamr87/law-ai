@@ -165,10 +165,10 @@ export default function Home() {
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 py-8 text-xs text-slate-500 sm:flex-row">
           <div>© 2026 LawGraph AI · Released under AGPL-3.0</div>
           <div className="flex items-center gap-4">
-            <a href="#" className="hover:text-slate-300">Architecture</a>
-            <a href="#" className="hover:text-slate-300">Constitution</a>
-            <a href="#" className="hover:text-slate-300">BACKLOG</a>
-            <a href="#" className="hover:text-slate-300">GitHub</a>
+            <a href="https://github.com/bamr87/law-ai/blob/main/docs/architecture.md" target="_blank" rel="noopener noreferrer" className="hover:text-slate-300">Architecture</a>
+            <a href="https://github.com/bamr87/law-ai/blob/main/docs/constitution.md" target="_blank" rel="noopener noreferrer" className="hover:text-slate-300">Constitution</a>
+            <a href="https://github.com/bamr87/law-ai/blob/main/BACKLOG.md" target="_blank" rel="noopener noreferrer" className="hover:text-slate-300">BACKLOG</a>
+            <a href="https://github.com/bamr87/law-ai" target="_blank" rel="noopener noreferrer" className="hover:text-slate-300">GitHub</a>
           </div>
         </div>
       </footer>
