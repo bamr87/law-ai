@@ -7,14 +7,15 @@ import logging
 import secrets
 import time
 from datetime import UTC, datetime
+from typing import Any
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.urls import path
 from pydantic import BaseModel, Field, ValidationError
-from rest_framework import status
-from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework import status  # type: ignore[import-untyped]
+from rest_framework.response import Response  # type: ignore[import-untyped]
+from rest_framework.views import APIView  # type: ignore[import-untyped]
 
 from lawgraph.agents_runtime.crews.legal_analyst import IRACOutput, LegalAnalyst
 from lawgraph.agents_runtime.crews.precedent_hunter import (
@@ -79,7 +80,7 @@ async def _emit_ws_event(
             f"agent-run-{analysis_id}",
             {"type": "agent_event", "payload": payload},
         )
-        provenance.log_agent_call(
+        provenance.log_agent_call(  # type: ignore[no-untyped-call]
             agent_name="AnalysisStudio",
             input_data={
                 "event_type": "ws_event_sent",
@@ -103,7 +104,7 @@ async def _emit_ws_event(
 async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
     analyst = LegalAnalyst()
     hunter = PrecedentHunter()
-    payload = {
+    payload: dict[str, str | bool | None] = {
         "text": req.text,
         "jurisdiction": req.jurisdiction,
         "case_id": req.case_id,
@@ -111,7 +112,9 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
     }
     analysis_id = _new_analysis_id()
     started = time.perf_counter()
-    irac, precedents = await asyncio.gather(analyst.run(payload), hunter.run(payload))
+    irac, precedents = await asyncio.gather(  # type: ignore[no-untyped-call]
+        analyst.run(payload), hunter.run(payload)
+    )
     total_ms = (time.perf_counter() - started) * 1000.0
     confidence = round((irac.confidence + precedents.confidence) / 2, 4)
     requires_human_review = confidence < HITL_THRESHOLD or "Pending human review" in (
@@ -147,10 +150,13 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
             "requires_human_review": requires_human_review,
         },
     )
-    sources = list(irac.sources) + [
+    sources: list[dict[str, str]] = [
+        {"title": str(s.get("title", "")), "url": str(s.get("url", ""))}
+        for s in irac.sources
+    ] + [
         {"title": p.title, "url": p.url} for p in precedents.precedents
     ]
-    provenance.log_agent_call(
+    provenance.log_agent_call(  # type: ignore[no-untyped-call]
         agent_name="AnalysisStudio",
         input_data={
             "analysis_id": analysis_id,
@@ -199,7 +205,7 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
 class AnalysisView(APIView):
     permission_classes = [RequireAnalysis]
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request: Any, *args: Any, **kwargs: Any) -> Any:
         try:
             req = AnalysisRequest.model_validate(request.data)
         except ValidationError as exc:
@@ -209,7 +215,7 @@ class AnalysisView(APIView):
         try:
             body = async_to_sync(_run_analysis)(req)
         except Exception as exc:
-            provenance.log_agent_call(
+            provenance.log_agent_call(  # type: ignore[no-untyped-call]
                 agent_name="AnalysisStudio",
                 input_data={
                     "jurisdiction": req.jurisdiction,
