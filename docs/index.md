@@ -53,6 +53,7 @@ adr/0004-sphinx-documentation
 
 reference/index
 api/index
+frontend
 ```
 
 ## Indices

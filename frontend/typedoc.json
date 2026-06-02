@@ -1,0 +1,13 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["lib", "components"],
+  "entryPointStrategy": "expand",
+  "tsconfig": "tsconfig.json",
+  "out": "docs-api",
+  "readme": "none",
+  "name": "LawGraph AI Frontend",
+  "includeVersion": true,
+  "excludeExternals": true,
+  "exclude": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx", "**/mocks/**"],
+  "skipErrorChecking": true
+}

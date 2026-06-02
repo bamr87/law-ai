@@ -39,6 +39,9 @@ dependencies = [
     # Spec 016: Justia CRS HTML parsing in
     # lawgraph/ingestionapp/services/colorado_statutes.py.
     "lxml>=5.3.0",
+    # ADR 0004: serves the OpenAPI schema + Swagger/Redoc at /api/* and is
+    # imported by lawgraph/urls.py + settings, so it is a base runtime dep.
+    "drf-spectacular>=0.28",
 ]
 
 [project.optional-dependencies]
@@ -102,7 +105,6 @@ docs = [
     "myst-parser>=4.0",          # render docs/*.md (MyST/CommonMark)
     "sphinx-rtd-theme>=3.0",     # HTML theme
     "sphinxcontrib-mermaid>=1.0", # render embedded Mermaid diagrams
-    "drf-spectacular>=0.28",     # OpenAPI schema from DRF views/serializers
     "interrogate>=1.7",          # docstring-coverage drift gate
 ]
 

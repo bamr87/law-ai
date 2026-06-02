@@ -15,3 +15,5 @@ ADRs are the canonical place to record decisions that **deviate from or amend** 
 | ID    | Title                            | Status   | Constitution clauses touched |
 | ----- | -------------------------------- | -------- | ---------------------------- |
 | 0001  | [Adopt Django backend](0001-adopt-django-backend.md) | accepted | §2 (tech stack), §11 (mission-drift guard) |
+| 0003  | [Autonomy orchestrator](0003-autonomy-orchestrator.md) | accepted | §12 (autonomy invariants) |
+| 0004  | [Sphinx documentation](0004-sphinx-documentation.md) | accepted | §2 (tech stack), §9 (documentation) |

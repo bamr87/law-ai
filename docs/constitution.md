@@ -82,6 +82,12 @@ See [docs/ao-sdlc.md](ao-sdlc.md) for how phases map onto LawGraph and [docs/ao-
 - New agent roles update [docs/agent-roles.md](agent-roles.md).
 - New external data sources update `docs/data-sources.md` (create if missing).
 - Graph schema changes update `docs/data-model.md` (create if missing).
+- The API reference is **generated**, not hand-written: the Python reference
+  comes from source docstrings and the REST schema from the DRF views via
+  Sphinx + drf-spectacular ([ADR 0004](adr/0004-sphinx-documentation.md)). Every
+  public symbol must carry a docstring, and PRs must keep `make docs` green —
+  CI rebuilds the reference from source so docs cannot drift. See
+  [docs/documentation.md](documentation.md).
 
 ## 10. Autonomy Level
 

@@ -162,7 +162,9 @@ law-ai/                                 # workspace root (GitHub slug stays `law
 ### Python
 - Use `ruff` + `black` (line length 88)
 - Strict type hints + `mypy --strict`
-- All public functions must have docstrings with examples
+- All public functions must have docstrings with examples. The Sphinx API
+  reference is generated from these docstrings ([ADR 0004](docs/adr/0004-sphinx-documentation.md));
+  keep `make docs` green and watch the `interrogate` docstring-coverage gate.
 - Agent prompts must be in `backend/lawgraph/agents_runtime/prompts/` as `.md` or `.txt` files (versioned)
 
 ### TypeScript / React

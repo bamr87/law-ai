@@ -92,6 +92,7 @@ docs/_build/
 docs/reference/_autosummary/
 docs/api/schema.yml
 docs/docs-build.sqlite3
+frontend/docs-api/
 
 # OS
 .DS_Store

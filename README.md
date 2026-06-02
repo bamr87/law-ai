@@ -22,7 +22,7 @@ cp .env.example .env
 make dev
 # or: docker compose up --build
 
-# 4. Open http://localhost:3000 (frontend) and http://localhost:8000/docs (API)
+# 4. Open http://localhost:3000 (frontend) and http://localhost:8000/api/docs (API)
 ```
 
 **Alternative (local without Docker)**:
@@ -60,7 +60,7 @@ Copilot Chat (Agent mode) auto-loads [.github/copilot-instructions.md](.github/c
 - **`.vscode/tasks.json`** — One-click tasks for Docker, testing, LegalBench eval, ingestion
 - **`.vscode/settings.json`** — Strict formatting + type checking enforced on save
 - **`prompts/`** — Reusable prompt templates (`new-agent.md`, `implement-feature.md`)
-- **`docs/`** — Architecture, data model, and agent specifications (Mermaid diagrams included)
+- **`docs/`** — Architecture, data model, and agent specifications (Mermaid diagrams included). The Python/REST API reference is **generated** from source via Sphinx — run `make docs` (see [docs/documentation.md](docs/documentation.md), [ADR 0004](docs/adr/0004-sphinx-documentation.md)).
 - **Pre-configured Docker stack** — Postgres + Neo4j + Ollama + Redis + Backend + Frontend
 
 ## Common Workflows

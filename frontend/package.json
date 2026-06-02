@@ -10,7 +10,8 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "docs": "typedoc"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.100.0",
@@ -41,6 +42,7 @@
     "postcss": "^8.5.0",
     "prettier": "^3.8.0",
     "tailwindcss": "^4.2.0",
+    "typedoc": "^0.28.19",
     "typescript": "^5.9.0",
     "vitest": "^4.1.0"
   }

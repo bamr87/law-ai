@@ -3,6 +3,7 @@
 	test-integration test-legalbench \
 	lint format typecheck migrate ingest \
 	evolve-audit lint-specs \
+	docs docs-serve docs-linkcheck docs-coverage \
 	autonomy-run autonomy-status autonomy-stop \
 	local-ai-up local-ai-down local-ai-pull local-ai-health \
 	host-setup host-test clean
@@ -53,6 +54,12 @@ help:
 	@echo "  make lint              - ruff + black + frontend lint --fix (in containers)"
 	@echo "  make format            - black + ruff fix + prettier (in containers)"
 	@echo "  make typecheck         - mypy --strict + tsc --noEmit (in containers)"
+	@echo ""
+	@echo "Docs (ADR 0004 — generated from source docstrings + DRF schema):"
+	@echo "  make docs              - Build the Sphinx site (fails on warnings)"
+	@echo "  make docs-serve        - Build, then serve at http://localhost:8001"
+	@echo "  make docs-linkcheck    - Check internal + external links"
+	@echo "  make docs-coverage     - Docstring-coverage gate (interrogate)"
 	@echo ""
 	@echo "Local AI stack (Spec 010):"
 	@echo "  make local-ai-up       - Start postgres/redis/neo4j/ollama/phoenix"
@@ -177,6 +184,27 @@ lint-specs:
 evolve-audit:
 	python3 scripts/evolve_audit.py
 	$(MAKE) lint-specs
+
+# ---------------------------------------------------------------------------
+# Documentation (ADR 0004). The Python API reference is generated from source
+# docstrings and the REST schema from the DRF views, so docs cannot drift.
+# Runs on the host (like lint-specs) because the build spans docs/ (repo root)
+# and the backend package. First: pip install -e "backend[docs]".
+# ---------------------------------------------------------------------------
+DOCS_OUT := docs/_build/html
+
+docs:
+	sphinx-build -b html -W --keep-going docs $(DOCS_OUT)
+
+docs-serve: docs
+	@echo "Serving docs at http://localhost:8001 (Ctrl-C to stop)"
+	python3 -m http.server 8001 --directory $(DOCS_OUT)
+
+docs-linkcheck:
+	sphinx-build -b linkcheck docs docs/_build/linkcheck
+
+docs-coverage:
+	cd backend && interrogate lawgraph -c pyproject.toml
 
 # ---------------------------------------------------------------------------
 # Spec 010: Local AI stack
