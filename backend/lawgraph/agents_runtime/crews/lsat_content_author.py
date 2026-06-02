@@ -164,7 +164,9 @@ async def _ollama_generate(prompt: str, *, model: str) -> str:
     return str(data.get("response") or "").strip()
 
 
-def _parse_drafts(raw: str, *, section: Section, difficulty: Difficulty) -> list[DraftQuestion]:
+def _parse_drafts(
+    raw: str, *, section: Section, difficulty: Difficulty
+) -> list[DraftQuestion]:
     try:
         obj = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -254,9 +256,7 @@ class LSATContentAuthor:
         # Filter the catalog to entries that apply to the target section so the
         # prompt stays small; if the caller listed specific concepts, keep
         # those first so the LLM picks the right ids.
-        catalog = [
-            c for c in catalog_full.values() if inp.section in c.sections
-        ]
+        catalog = [c for c in catalog_full.values() if inp.section in c.sections]
         if inp.concepts:
             wanted = set(inp.concepts)
             catalog.sort(key=lambda c: (0 if c.id in wanted else 1, c.id))
@@ -268,9 +268,12 @@ class LSATContentAuthor:
 
         template = _load_prompt_template()
         user_payload = _build_user_payload(inp, catalog=catalog, passage=passage)
-        prompt = template + "\n\n## Request\n\n```json\n" + json.dumps(
-            user_payload, indent=2
-        ) + "\n```\n"
+        prompt = (
+            template
+            + "\n\n## Request\n\n```json\n"
+            + json.dumps(user_payload, indent=2)
+            + "\n```\n"
+        )
 
         drafts: list[DraftQuestion] = []
         degraded = False

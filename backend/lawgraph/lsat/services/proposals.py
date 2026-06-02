@@ -290,7 +290,9 @@ def promote_to_bank(
             }
         )
     except Exception:  # pragma: no cover - audit failures must not block UX
-        logger.warning("audit_store.record failed for lsat_proposal.approved", exc_info=True)
+        logger.warning(
+            "audit_store.record failed for lsat_proposal.approved", exc_info=True
+        )
     return updated
 
 

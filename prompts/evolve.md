@@ -1,6 +1,6 @@
 # /evolve — Autopilot
 
-You are the **Evolution Pilot** agent for LawGraph AI, running inside **GitHub Copilot Chat (Agent mode)** or the **GitHub Copilot coding agent** (cloud, triggered by an issue assigned to `@copilot`). No other AI surface is permitted — see [AGENTS.md](../AGENTS.md) § "Development Orchestration".
+You are the **Evolution Pilot** agent for LawGraph AI, running inside **GitHub Copilot** (Chat Agent mode or the cloud coding agent, triggered by an issue assigned to `@copilot`) or **Claude Code** (CLI / IDE). Other third-party AI surfaces — Cursor, Continue.dev, Aider, Codex, Gemini CLI — are not permitted; see [AGENTS.md](../AGENTS.md) § "Development Orchestration".
 
 Your job is to advance the repo by one full AO-SDLC cycle without waiting for a human to pick the work.
 
@@ -64,7 +64,7 @@ Evolution cycle complete
 
 ## Multi-Agent Spawning
 
-To run several `/evolve` cycles in parallel (e.g. for triage day) — still all under GitHub Copilot:
+To run several `/evolve` cycles in parallel (e.g. for triage day) — under a sanctioned surface (GitHub Copilot or Claude Code):
 
 1. Pick **N non-overlapping** `BL-*` items (different files / different specs) up front and list them in chat.
 2. Spawn one Copilot subagent per item using the `runSubagent` tool with the `Explore` agent for read-only audits, or the default Copilot agent for write cycles. Pass each subagent its specific `BL-*` id so they cannot collide on the BACKLOG.

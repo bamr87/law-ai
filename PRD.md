@@ -294,9 +294,9 @@ Frontend (Next.js 15 + TypeScript + Tailwind + shadcn/ui)
 
 ---
 
-## 13. GitHub Copilot Capabilities for Building LawGraph AI
+## 13. AI Development Orchestration Capabilities (GitHub Copilot + Claude Code)
 
-GitHub Copilot is the **sole sanctioned AI development orchestrator** for this repo (see [docs/constitution.md](docs/constitution.md) §1 and [AGENTS.md](AGENTS.md) "Development Orchestration"). The capabilities below are exercised through Copilot Chat (Ask / Edit / Agent modes) and the GitHub Copilot coding agent. The product *runtime* LLM remains Ollama — these capabilities are about how the codebase itself gets built and evolved.
+GitHub Copilot and Claude Code are the **sanctioned AI development orchestrators** for this repo (see [docs/constitution.md](docs/constitution.md) §1 and [AGENTS.md](AGENTS.md) "Development Orchestration"). The capabilities below are exercised through Copilot Chat (Ask / Edit / Agent modes) and the GitHub Copilot coding agent; Claude Code (CLI / IDE) runs the same AO-SDLC chain and `/evolve` from the shared [prompts/](prompts/). The product *runtime* LLM remains Ollama — these capabilities are about how the codebase itself gets built and evolved.
 
 1. **Spec-driven workflow execution** — Copilot Chat Agent mode runs the AO-SDLC chain ([/specify](prompts/specify.md) → [/clarify](prompts/clarify.md) → [/plan](prompts/plan.md) → [/tasks](prompts/tasks.md) → [/implement](prompts/implement.md)) end-to-end, halting at HITL gates.
 2. **Autonomous BACKLOG advancement** — [/evolve](prompts/evolve.md) picks the highest-priority `BL-*` item and ships it; the GitHub Copilot coding agent runs the same chain in the cloud when an issue is assigned to `@copilot`.
@@ -309,7 +309,7 @@ GitHub Copilot is the **sole sanctioned AI development orchestrator** for this r
 9. **Provenance hooks** — Every Copilot-generated change must route through `core.provenance` so audit logs capture the same metadata regardless of which Copilot surface produced it.
 10. **Documentation generation** — Copilot drafts ADRs, README updates, and prompt templates; humans curate.
 
-**Forbidden**: Cursor, Continue.dev, Claude Code, Aider, Codex, or any other third-party coding agent. Adding their config files (`.cursorrules`, `.continuerc.json`, etc.) is a constitution violation.
+**Forbidden**: Cursor, Continue.dev, Aider, Codex, Gemini CLI, or any other third-party coding agent. Adding their config files (`.cursorrules`, `.continuerc.json`, etc.) is a constitution violation. (Claude Code is sanctioned — its [CLAUDE.md](CLAUDE.md) / `.claude/` config is allowed.)
 
 **Recommended Workflow**: Open the workspace in VS Code with the GitHub Copilot extension; Copilot Chat Agent mode auto-loads [.github/copilot-instructions.md](.github/copilot-instructions.md) and the prompts under [prompts/](prompts/). For unattended cloud cycles, enable the GitHub Copilot coding agent in repo settings and let the weekly `evolve` workflow file issues for `@copilot`.
 

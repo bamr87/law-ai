@@ -1,7 +1,7 @@
 
 # AO-SDLC in LawGraph AI
 
-This page maps the [AI Agent-Orchestrated SDLC framework](AO-SDLC-guide.md) onto the concrete files, agents, and tools in this repository. The framework guide is the **reference**; this page is the **implementation**.
+This page maps the [AI Agent-Orchestrated SDLC framework](ao-sdlc-guide.md) onto the concrete files, agents, and tools in this repository. The framework guide is the **reference**; this page is the **implementation**.
 
 LawGraph currently operates at **Autonomy Level 2 (Collaborative)** per [docs/constitution.md](constitution.md) §10.
 
@@ -25,7 +25,7 @@ The framework's generic agent roles correspond to LawGraph crews documented in [
 |---|---|
 | Spec Writer / Clarifier | Prompts in [prompts/specify.md](../prompts/specify.md) and [prompts/clarify.md](../prompts/clarify.md) (no dedicated runtime agent yet) |
 | System Architect | Prompt [/plan](../prompts/plan.md) (no runtime agent yet) |
-| Implementation Agent | GitHub Copilot Coding Agent driven by [prompts/implement.md](../prompts/implement.md) |
+| Implementation Agent | GitHub Copilot coding agent or Claude Code, driven by [prompts/implement.md](../prompts/implement.md) |
 | Test Generator | Pytest fixtures in [backend/tests/conftest.py](../backend/tests/conftest.py); generation is **planned** |
 | Security / DevSecOps | CodeQL + dep scanning in [.github/workflows/ci.yml](../.github/workflows/ci.yml) — **planned**, currently only ruff + mypy |
 | Domain Specialists | `LegalAnalyst`, `PrecedentHunter`, future `IngestionScout`, `LogicWeaver`, `Educator` (see [agent-roles.md](agent-roles.md)) |

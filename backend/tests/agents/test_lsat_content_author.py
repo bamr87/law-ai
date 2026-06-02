@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 
 def _valid_drafts_payload(count: int = 1, section: str = "LR") -> str:
@@ -43,7 +43,7 @@ class TestPydanticContracts:
             GenerateQuestionsInput,
         )
 
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             GenerateQuestionsInput(section="LR", difficulty="med", count=11)
 
     def test_draft_requires_5_choices_in_order(self) -> None:
@@ -52,8 +52,8 @@ class TestPydanticContracts:
             DraftQuestion,
         )
 
-        choices = [DraftChoice(label=l, text="x") for l in ["A", "B", "C", "D"]]
-        with pytest.raises(Exception):
+        choices = [DraftChoice(label=label, text="x") for label in ["A", "B", "C", "D"]]
+        with pytest.raises(ValidationError):
             DraftQuestion(
                 section="LR",
                 difficulty="med",
@@ -70,12 +70,15 @@ class TestPydanticContracts:
             DraftQuestion,
         )
 
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             DraftQuestion(
                 section="LR",
                 difficulty="med",
                 stem="x",
-                choices=[DraftChoice(label=l, text="x") for l in ["A", "B", "C", "D", "E"]],
+                choices=[
+                    DraftChoice(label=label, text="x")
+                    for label in ["A", "B", "C", "D", "E"]
+                ],
                 correct="F",  # type: ignore[arg-type]
                 explanation="x",
             )
@@ -87,11 +90,16 @@ class TestRunSuccess:
         from lawgraph.agents_runtime.crews import lsat_content_author as mod
 
         agent = mod.LSATContentAuthor()
-        with patch.object(
-            mod, "_ollama_generate", new=AsyncMock(return_value=_valid_drafts_payload(2))
-        ) as mock_ollama, patch.object(
-            mod.provenance, "log_agent_call", return_value="trace-abc"
-        ) as mock_log:
+        with (
+            patch.object(
+                mod,
+                "_ollama_generate",
+                new=AsyncMock(return_value=_valid_drafts_payload(2)),
+            ) as mock_ollama,
+            patch.object(
+                mod.provenance, "log_agent_call", return_value="trace-abc"
+            ) as mock_log,
+        ):
             out = await agent.run(
                 {"section": "LR", "difficulty": "med", "count": 2, "concepts": []}
             )
@@ -111,12 +119,15 @@ class TestRunSuccess:
         from lawgraph.agents_runtime.crews import lsat_content_author as mod
 
         agent = mod.LSATContentAuthor()
-        with patch.object(
-            mod, "_ollama_generate", new=AsyncMock(return_value=_valid_drafts_payload(1))
-        ), patch.object(mod.provenance, "log_agent_call", return_value="trace-pad"):
-            out = await agent.run(
-                {"section": "LR", "difficulty": "med", "count": 3}
-            )
+        with (
+            patch.object(
+                mod,
+                "_ollama_generate",
+                new=AsyncMock(return_value=_valid_drafts_payload(1)),
+            ),
+            patch.object(mod.provenance, "log_agent_call", return_value="trace-pad"),
+        ):
+            out = await agent.run({"section": "LR", "difficulty": "med", "count": 3})
         assert len(out.drafts) == 3
 
 
@@ -129,12 +140,13 @@ class TestRunFallback:
 
         agent = mod.LSATContentAuthor()
         boom = AsyncMock(side_effect=httpx.ConnectError("nope"))
-        with patch.object(mod, "_ollama_generate", new=boom), patch.object(
-            mod.provenance, "log_agent_call", return_value="trace-fallback"
-        ) as mock_log:
-            out = await agent.run(
-                {"section": "RC", "difficulty": "hard", "count": 1}
-            )
+        with (
+            patch.object(mod, "_ollama_generate", new=boom),
+            patch.object(
+                mod.provenance, "log_agent_call", return_value="trace-fallback"
+            ) as mock_log,
+        ):
+            out = await agent.run({"section": "RC", "difficulty": "hard", "count": 1})
         assert out.degraded is True
         assert out.model == "fallback/offline"
         assert out.confidence == 0.0
@@ -149,11 +161,12 @@ class TestRunFallback:
         from lawgraph.agents_runtime.crews import lsat_content_author as mod
 
         agent = mod.LSATContentAuthor()
-        with patch.object(
-            mod, "_ollama_generate", new=AsyncMock(return_value="not json")
-        ), patch.object(mod.provenance, "log_agent_call", return_value="trace-bad"):
-            out = await agent.run(
-                {"section": "LR", "difficulty": "med", "count": 1}
-            )
+        with (
+            patch.object(
+                mod, "_ollama_generate", new=AsyncMock(return_value="not json")
+            ),
+            patch.object(mod.provenance, "log_agent_call", return_value="trace-bad"),
+        ):
+            out = await agent.run({"section": "LR", "difficulty": "med", "count": 1})
         assert out.degraded is True
         assert out.model == "fallback/offline"

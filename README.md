@@ -4,7 +4,7 @@
 
 **AI-Native Development Environment for Building the Open Legal Intelligence Platform**
 
-This workspace is configured for **GitHub Copilot exclusively** as the AI development orchestrator (Copilot Chat in VS Code, Copilot Edits, and the GitHub Copilot coding agent). The product runtime LLM is still local-first via Ollama — see [docs/constitution.md](docs/constitution.md) §1.
+This workspace is configured for **GitHub Copilot and Claude Code** as the sanctioned AI development orchestrators (Copilot Chat / Copilot Edits / the GitHub Copilot coding agent, and the Claude Code CLI / IDE extensions). The product runtime LLM is still local-first via Ollama — see [docs/constitution.md](docs/constitution.md) §1.
 
 > **Status**: Core scaffolding, testing framework, agent stubs, API layer, and frontend dashboard are complete. Run `docker compose up` to start developing immediately.
 
@@ -32,9 +32,9 @@ make dev-backend   # in one terminal
 make dev-frontend  # in another
 ```
 
-## How to Work with GitHub Copilot Here
+## How to Work with AI Agents Here (Copilot or Claude Code)
 
-### Supported Surfaces (Copilot only)
+### Supported Surfaces
 
 | Surface | Best For | How to Use |
 |---------|----------|------------|
@@ -42,16 +42,17 @@ make dev-frontend  # in another
 | **Copilot Chat — Edit / Agent mode** | Multi-file feature work, running [/specify](prompts/specify.md) → [/implement](prompts/implement.md) chains | Open the chat panel, select Agent mode, type `/specify <intent>` or `/evolve` |
 | **GitHub Copilot Coding Agent** | Hands-off cloud cycles | Assign an issue (e.g. the one auto-filed by [.github/workflows/evolve.yml](.github/workflows/evolve.yml)) to `@copilot` |
 | **Inline Copilot completions** | Local typing assistance | Always-on; respects [.github/copilot-instructions.md](.github/copilot-instructions.md) |
+| **Claude Code (CLI / IDE)** | Multi-file feature work, running the AO-SDLC chain + `/evolve` | Open Claude Code in the repo; it auto-loads [CLAUDE.md](CLAUDE.md). Type `/specify <intent>` or `/evolve` |
 
-Other AI coding tools (Cursor, Continue.dev, Claude Code, Aider, Codex) are **not supported** — do not add their config files. All agent prompting lives in [prompts/](prompts/) and [.github/copilot-instructions.md](.github/copilot-instructions.md).
+Other AI coding tools (Cursor, Continue.dev, Aider, Codex, Gemini CLI) are **not supported** — do not add their config files. Agent prompting lives in [prompts/](prompts/), with surface-specific guides in [.github/copilot-instructions.md](.github/copilot-instructions.md) (Copilot) and [CLAUDE.md](CLAUDE.md) (Claude Code).
 
 ### The Golden Rule
 
-**Always start by telling Copilot:**
+**Always start by telling your agent:**
 
 > "Read AGENTS.md, docs/constitution.md, and docs/architecture.md first. Then implement [feature] following LawGraph standards."
 
-Copilot Chat in Agent mode auto-loads [.github/copilot-instructions.md](.github/copilot-instructions.md), which already points to those files.
+Copilot Chat (Agent mode) auto-loads [.github/copilot-instructions.md](.github/copilot-instructions.md) and Claude Code auto-loads [CLAUDE.md](CLAUDE.md); both already point to those files.
 
 ## Workspace Highlights
 

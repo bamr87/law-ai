@@ -29,10 +29,19 @@ def _isolate_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     real_data_dir = bank_mod.DATA_DIR
     sandbox = tmp_path / "lsat_data"
     sandbox.mkdir()
-    for name in ("lr_bank.json", "rc_bank.json", "lg_bank.json", "concepts.json", "passages.json", "sections.json"):
+    for name in (
+        "lr_bank.json",
+        "rc_bank.json",
+        "lg_bank.json",
+        "concepts.json",
+        "passages.json",
+        "sections.json",
+    ):
         src = real_data_dir / name
         if src.is_file():
-            (sandbox / name).write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+            (sandbox / name).write_text(
+                src.read_text(encoding="utf-8"), encoding="utf-8"
+            )
     monkeypatch.setattr(bank_mod, "DATA_DIR", sandbox)
     bank_mod.load_bank.cache_clear()
     bank_mod.load_concepts.cache_clear()
@@ -178,8 +187,8 @@ async def test_generate_persists_and_lists(client: AsyncClient) -> None:
                     "difficulty": "med",
                     "stem": "Sample stem from LLM.",
                     "choices": [
-                        {"label": l, "text": l}
-                        for l in ["A", "B", "C", "D", "E"]
+                        {"label": label, "text": label}
+                        for label in ["A", "B", "C", "D", "E"]
                     ],
                     "correct": "B",
                     "explanation": "Because B.",
