@@ -94,6 +94,17 @@ nlp = [
     #   pip install -e ".[nlp]"
     "blackstone @ git+https://github.com/ICLRandD/Blackstone.git",
 ]
+docs = [
+    # ADR 0004: Sphinx-based documentation. Auto-generates the Python API
+    # reference from source docstrings + renders the existing docs/*.md as-is.
+    #   pip install -e ".[docs]"  (then: make docs)
+    "sphinx>=8.1",
+    "myst-parser>=4.0",          # render docs/*.md (MyST/CommonMark)
+    "sphinx-rtd-theme>=3.0",     # HTML theme
+    "sphinxcontrib-mermaid>=1.0", # render embedded Mermaid diagrams
+    "drf-spectacular>=0.28",     # OpenAPI schema from DRF views/serializers
+    "interrogate>=1.7",          # docstring-coverage drift gate
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -166,3 +177,23 @@ exclude_lines = [
     "raise NotImplementedError",
     "if TYPE_CHECKING:",
 ]
+# ---------------------------------------------------------------------------
+# Docstring-coverage drift gate (ADR 0004, docs/documentation.md).
+# AGENTS.md "Coding Standards" mandates docstrings on all public functions;
+# `interrogate` enforces that quantitatively so the generated Sphinx API
+# reference cannot silently drift from undocumented code.
+# Threshold is a ratchet: raise `fail-under` as coverage improves, never lower.
+# ---------------------------------------------------------------------------
+[tool.interrogate]
+fail-under = 55
+ignore-init-method = true
+ignore-init-module = true
+ignore-magic = true
+ignore-private = true
+ignore-nested-functions = true
+ignore-property-decorators = true
+ignore-module = false
+ignore-semiprivate = true
+exclude = ["tests", "scripts", "migrations", "var", "build", "manage.py"]
+omit-covered-files = true
+verbose = 1

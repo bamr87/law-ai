@@ -86,6 +86,13 @@ coverage/
 *.db
 *.sqlite3
 
+# Generated documentation (Sphinx build output + generated reference stubs).
+# Source docstrings/Markdown are the source of truth; these are regenerated.
+docs/_build/
+docs/reference/_autosummary/
+docs/api/schema.yml
+docs/docs-build.sqlite3
+
 # OS
 .DS_Store
 Thumbs.db

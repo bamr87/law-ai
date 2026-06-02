@@ -10,22 +10,25 @@ direct sequential async execution (``await _node_*(state)``) rather than a
 migrate to a proper StateGraph to gain retries, conditional branching, and
 checkpointing (tracked as a BACKLOG follow-up).
 
-``scan_graph``   reads two Cypher helpers (``list_orphan_citations``,
-                 ``list_under_cited_jurisdictions``) and populates the
-                 state with gap data.
+``scan_graph``
+    reads two Cypher helpers (``list_orphan_citations``,
+    ``list_under_cited_jurisdictions``) and populates the state with gap data.
 
-``prioritize``   calls Ollama with the versioned prompt template and
-                 returns up to 3 ranked fetch targets.
+``prioritize``
+    calls Ollama with the versioned prompt template and returns up to 3
+    ranked fetch targets.
 
-``dispatch``     iterates the targets, calls ``SOURCE_REGISTRY[name].fetch``
-                 for each, then routes every :class:`RawDoc` through
-                 ``IngestionScout.run_and_commit``.  **Never** writes Neo4j
-                 directly (constitution §12 invariant I1).
+``dispatch``
+    iterates the targets, calls ``SOURCE_REGISTRY[name].fetch`` for each,
+    then routes every :class:`RawDoc` through ``IngestionScout.run_and_commit``.
+    **Never** writes Neo4j directly (constitution §12 invariant I1).
 
-``summarize``    logs the full cycle summary via ``core.provenance`` and
-                 returns a :class:`TopicFrontierOutput`.
+``summarize``
+    logs the full cycle summary via ``core.provenance`` and returns a
+    :class:`TopicFrontierOutput`.
 
 Design notes:
+
 - Every LLM call is logged; every Neo4j write goes through
   ``IngestionScout.run_and_commit`` (which carries ``agent_version``).
 - ``human_approval_required`` is set on any adapter whose

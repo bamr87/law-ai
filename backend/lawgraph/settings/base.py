@@ -145,6 +145,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "drf_spectacular",
     "channels",
     # LawGraph apps
     "lawgraph.core.apps.CoreConfig",
@@ -236,6 +237,20 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ("lawgraph.core.auth.ApiKeyAuthentication",),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "UNAUTHENTICATED_USER": None,
+    # drf-spectacular generates the OpenAPI schema from the DRF views/serializers
+    # so the REST API docs stay in lock-step with the code (ADR 0004).
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# OpenAPI schema metadata (served at /api/schema, /api/docs, /api/redoc).
+SPECTACULAR_SETTINGS = {
+    "TITLE": "LawGraph AI API",
+    "DESCRIPTION": (
+        "Open-source agent-orchestrated legal intelligence platform. "
+        "See docs/architecture.md for the full system design."
+    ),
+    "VERSION": "0.1.0",
+    "SERVE_INCLUDE_SCHEMA": False,
 }
 
 # Channels
