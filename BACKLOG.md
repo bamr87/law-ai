@@ -24,6 +24,7 @@
 
 ## Open
 
+- **BL-20260511-01** — *doc-gap, low* — Author missing doc docs/AO-SDLC.md. Referenced by AGENTS.md but file does not exist.
 - **BL-20260526-01** — *test-gap, low* — Add a mutation variant test seeding two cases with overlapping aliases to assert `head(collect(c.id))` determinism (mirrors BL-20260429-12 concern). _Surfaced in:_ specs/014-densify-extraction-integration-tests.
 - **BL-20260526-02** — *test-gap, low* — Add a CI check confirming `test_citation_resolver_integration` tests are not collected without `-m integration` (AC-5 isolation contract). _Surfaced in:_ specs/014-densify-extraction-integration-tests.
 
