@@ -16,6 +16,14 @@ services:
       - PHOENIX_UI_URL=http://localhost:6006
       - PHOENIX_PROJECT_NAME=lawgraph
       - LANGGRAPH_CHECKPOINTER=postgres
+      # Autonomy loop (spec 018) — default off; set AUTONOMY_ENABLED=True in .env to activate.
+      - AUTONOMY_ENABLED=${AUTONOMY_ENABLED:-False}
+      - AUTONOMY_ALLOWED_SOURCES=${AUTONOMY_ALLOWED_SOURCES:-}
+      # Inside the container, /app == ./backend on host, so var/autonomy is correct.
+      - AUTONOMY_DIGEST_DIR=${AUTONOMY_DIGEST_DIR:-var/autonomy}
+      - AUTONOMY_MAX_INGEST_PER_CYCLE=${AUTONOMY_MAX_INGEST_PER_CYCLE:-25}
+      # Repo root for BACKLOG.md + specs/ (mounted at /repo below).
+      - REPO_ROOT=/repo
     depends_on:
       - postgres
       - neo4j
@@ -24,6 +32,7 @@ services:
       - phoenix
     volumes:
       - ./backend:/app
+      - ./:/repo
     command: sh -c "python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py ensure_checkpointer && daphne -b 0.0.0.0 -p 8000 lawgraph.asgi:application"
 
   worker:
@@ -38,12 +47,30 @@ services:
       - NEO4J_USER=neo4j
       - NEO4J_PASSWORD=lawgraph-dev
       - DJANGO_SETTINGS_MODULE=lawgraph.settings.dev
+      # Autonomy loop (spec 018) — default off; set AUTONOMY_ENABLED=True in .env to activate.
+      - AUTONOMY_ENABLED=${AUTONOMY_ENABLED:-False}
+      - AUTONOMY_ALLOWED_SOURCES=${AUTONOMY_ALLOWED_SOURCES:-}
+      # Inside the container, /app == ./backend on host, so var/autonomy is correct.
+      - AUTONOMY_DIGEST_DIR=${AUTONOMY_DIGEST_DIR:-var/autonomy}
+      - AUTONOMY_MAX_INGEST_PER_CYCLE=${AUTONOMY_MAX_INGEST_PER_CYCLE:-25}
+      # Repo root for BACKLOG.md + specs/ (mounted at /repo below).
+      - REPO_ROOT=/repo
     depends_on:
       - postgres
       - redis
     volumes:
       - ./backend:/app
-    command: celery -A lawgraph worker -l info
+      - ./:/repo
+    # --beat embeds the beat scheduler so crontab entries fire in local dev.
+    # In production, run a dedicated beat container instead.
+    command: celery -A lawgraph worker --beat -l info -Q autonomy,celery
+    healthcheck:
+      # Celery workers have no HTTP port — use inspect ping instead.
+      test: [ "CMD-SHELL", "celery -A lawgraph inspect ping --destination celery@$$HOSTNAME || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   frontend:
     build:
@@ -71,7 +98,6 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./backend/scripts/init-db.sh:/docker-entrypoint-initdb.d/init.sh:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U lawgraph" ]
       interval: 10s

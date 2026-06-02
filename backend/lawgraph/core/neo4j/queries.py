@@ -123,3 +123,58 @@ async def get_last_ingest_at(session: AsyncSession) -> datetime | None:
     if isinstance(raw, datetime):
         return raw
     return datetime.fromisoformat(str(raw))
+
+
+# ---------------------------------------------------------------------------
+# TopicFrontier gap-detection helpers (spec 018 T-007)
+# ---------------------------------------------------------------------------
+
+LIST_ORPHAN_CITATIONS_CYPHER = """
+MATCH (x:Citation)
+WHERE NOT (x)<-[:RESOLVES_TO]-(:Case)
+  AND NOT (x)<-[:HAS_CITATION]-(:Case)-[:CITES]->(:Case)
+RETURN x.normalized AS citation
+ORDER BY x.normalized
+LIMIT $limit
+"""
+
+LIST_UNDER_CITED_JURISDICTIONS_CYPHER = """
+MATCH (c:Case)
+WITH c.court AS court, count(*) AS cnt
+WHERE cnt < 5 AND court IS NOT NULL
+WITH split(court, '-')[0] AS jurisdiction, sum(cnt) AS total
+RETURN jurisdiction
+ORDER BY total ASC
+LIMIT $limit
+"""
+
+
+async def list_orphan_citations(session: AsyncSession, *, limit: int = 20) -> list[str]:
+    """Return normalized citation strings that have no resolved :Case target.
+
+    These are :Citation nodes that exist in the graph but have never been
+    linked to a :Case via a CITES or RESOLVES_TO relationship.  Used by
+    TopicFrontier to prioritise what to fetch next.
+
+    Returns an empty list when Neo4j is not reachable; callers should
+    handle the empty-list case gracefully (TopicFrontier will still run
+    the prioritize node with an empty input and return an empty array).
+    """
+    result = await session.run(LIST_ORPHAN_CITATIONS_CYPHER, {"limit": limit})
+    records = [r async for r in result]
+    return [str(r["citation"]) for r in records if r["citation"]]
+
+
+async def list_under_cited_jurisdictions(
+    session: AsyncSession, *, limit: int = 10
+) -> list[str]:
+    """Return jurisdiction tags that have fewer than 5 :Case nodes.
+
+    Groups by the first segment of ``Case.court`` (e.g. ``"us"`` from
+    ``"us-9th-circuit"``).  Returns at most *limit* tags sorted by
+    ascending case count so the TopicFrontier prioritizes truly empty
+    jurisdictions first.
+    """
+    result = await session.run(LIST_UNDER_CITED_JURISDICTIONS_CYPHER, {"limit": limit})
+    records = [r async for r in result]
+    return [str(r["jurisdiction"]) for r in records if r["jurisdiction"]]

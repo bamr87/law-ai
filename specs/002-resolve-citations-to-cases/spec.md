@@ -1,7 +1,7 @@
 # Spec: Resolve Citations to Case Nodes (Graph Densification)
 
 - **ID**: 002-resolve-citations-to-cases
-- **Status**: planned
+- **Status**: shipped
 - **Owner**: @copilot
 - **Created**: 2026-04-29
 - **Roadmap Epic**: BL-20260429-05 (graph densification)

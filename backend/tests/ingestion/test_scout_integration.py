@@ -14,8 +14,12 @@ NFR-IDEMPOTENT-1: Verified by test_idempotency_no_duplicate_nodes.
 
 from __future__ import annotations
 
-import pytest
+from collections.abc import AsyncGenerator
 
+import pytest
+import pytest_asyncio
+
+import lawgraph.core.neo4j.driver as _neo4j_drv_mod
 from lawgraph.ingestionapp.services.scout import IngestionScout
 
 # All tests in this module need the same event loop as the session-scoped
@@ -27,6 +31,31 @@ pytestmark = [
     pytest.mark.integration,
     pytest.mark.asyncio(loop_scope="session"),
 ]
+
+
+# ---------------------------------------------------------------------------
+# Patch the global Neo4j driver singleton so IngestionScout.run_and_commit()
+# uses the same session-loop driver as the integration fixtures rather than
+# creating a new one that may be bound to a different event loop.
+# ---------------------------------------------------------------------------
+@pytest_asyncio.fixture(scope="session", autouse=True, loop_scope="session")
+async def _patch_neo4j_singleton(
+    neo4j_integration_driver,
+) -> AsyncGenerator[None, None]:
+    """Replace the process-wide driver with the session-scoped integration driver.
+
+    ``IngestionScout.run_and_commit`` calls ``get_neo4j_driver()`` which returns
+    a module-level singleton.  If that singleton was created on a different event
+    loop (or before the session loop was running), neo4j raises
+    ``RuntimeError: Future attached to a different loop``.  Pointing the
+    singleton at the already-initialised fixture driver — which lives on the
+    correct session loop — avoids the mismatch entirely.
+    """
+    original = _neo4j_drv_mod._driver
+    _neo4j_drv_mod._driver = neo4j_integration_driver
+    yield
+    _neo4j_drv_mod._driver = original
+
 
 # ---------------------------------------------------------------------------
 # Fixture opinions (spec 013 plan.md §8)

@@ -1,7 +1,7 @@
 # Spec: Colorado Statute Ingestion (CRS Title 18, MVP slice)
 
 - **ID**: 016-ingest-colorado-statutes
-- **Status**: in-progress
+- **Status**: shipped
 - **Owner**: @copilot
 - **Created**: 2026-05-09
 - **Roadmap Epic**: Legal corpus + Hybrid GraphRAG foundation (umbrella plan in session memory `/memories/session/plan.md`).

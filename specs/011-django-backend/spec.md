@@ -1,7 +1,7 @@
 # Spec: Refactor Backend from FastAPI to Django
 
 - **ID**: 011-django-backend
-- **Status**: draft
+- **Status**: shipped
 - **Owner**: @copilot
 - **Created**: 2026-05-03
 - **Roadmap Epic**: backend-platform-modernization (no upstream issue yet — created via this spec)

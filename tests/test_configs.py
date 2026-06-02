@@ -61,3 +61,38 @@ def test_env_example_documents_known_keys(repo_root: Path) -> None:
     assert all("=" in line for line in non_comment), (
         ".env.example contains lines without '='"
     )
+
+
+# ---------------------------------------------------------------------------
+# init-db.sh correctness — spec 017 T-002
+# ---------------------------------------------------------------------------
+
+def test_init_db_sh_syntax_valid(repo_root: Path) -> None:
+    """AC-4: bash -n must exit 0 (no syntax errors)."""
+    import subprocess
+
+    script = repo_root / "backend" / "scripts" / "init-db.sh"
+    result = subprocess.run(["bash", "-n", str(script)], capture_output=True)
+    assert result.returncode == 0, (
+        f"init-db.sh has syntax errors:\n{result.stderr.decode()}"
+    )
+
+
+def test_init_db_sh_no_stale_paths(repo_root: Path) -> None:
+    """AC-3: old pre-rebrand paths must not appear in the script."""
+    script = (repo_root / "backend" / "scripts" / "init-db.sh").read_text()
+    for stale in ("app/db/neo4j_migrations", "app/db/postgres_migrations"):
+        assert stale not in script, (
+            f"init-db.sh still references the stale pre-rebrand path: {stale!r}"
+        )
+
+
+def test_init_db_sh_delegates_postgres_to_django(repo_root: Path) -> None:
+    """AC-2: Postgres DDL must be driven by manage.py migrate, not raw psql."""
+    script = (repo_root / "backend" / "scripts" / "init-db.sh").read_text()
+    assert "manage.py migrate" in script, (
+        "init-db.sh must call 'manage.py migrate' to drive Postgres DDL"
+    )
+    assert "psql" not in script, (
+        "init-db.sh must not call psql directly (Postgres DDL now lives in Django migrations)"
+    )

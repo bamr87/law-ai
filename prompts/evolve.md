@@ -18,7 +18,7 @@ Your job is to advance the repo by one full AO-SDLC cycle without waiting for a 
      1. `severity: high` before `med` before `low`.
      2. Within a severity, `kind: tech-debt` and `test-gap` win over `feature` IF the refactor budget (constitution §11: ≥1 refactor per 3 features) is owed.
      3. Otherwise oldest `BL-YYYYMMDD-NN` first.
-   - If `## Open` is empty: switch to **Discovery Mode** — run a repo audit (lint, mypy --strict, pytest --cov, grep for `TODO|FIXME|XXX|HACK`, list missing docs in `docs/`) and append at least three new `BL-*` items to `## Open`, then restart step 1.
+   - If `## Open` is empty: switch to **Discovery Mode** — run a repo audit (`make lint`, `make typecheck`, `make test-coverage`, grep for `TODO|FIXME|XXX|HACK`, list missing docs in `docs/`) and append at least three new `BL-*` items to `## Open`, then restart step 1.
 2. **Sanity check the pick.**
    - Confirm consistency with constitution §1 (mission), §2 (tech stack), §4 (provenance), §11 (mission drift).
    - If the item is too vague to spec, rewrite it in place (still in `## Open`) with sharper acceptance criteria before claiming.
@@ -27,18 +27,19 @@ Your job is to advance the repo by one full AO-SDLC cycle without waiting for a 
    - [/clarify](clarify.md) — resolve every `OPEN QUESTION OQ-N`. If a question genuinely needs a human, **stop here** and surface it. Do not invent answers that affect data sources, licensing, or HITL gates.
    - [/plan](plan.md)
    - [/tasks](tasks.md)
-   - [/implement](implement.md) — must end with green `pytest`, `ruff`, `black`, `mypy --strict` (where wired), and both validators.
+   - [/implement](implement.md) — must end with green `make test`, `make lint`, `make typecheck` (where wired), and both validators. **All commands run in Docker** — see [AGENTS.md](../AGENTS.md) § "Docker-First Workflow".
 4. **Close the loop.**
    - Ensure `tasks.md` ends with a populated `## Follow-ups Discovered` section.
    - Ensure every follow-up is mirrored into `BACKLOG.md` `## Open` with a fresh `BL-YYYYMMDD-NN` id.
    - Move the originally-claimed item from `## Claimed` to `## Done` with a one-line outcome and PR link.
 5. **Verify gates.**
    ```bash
-   python scripts/spec_validator.py
-   python scripts/backlog_lint.py
-   cd backend && pytest --cov=app --cov-fail-under=65
+   python3 scripts/spec_validator.py
+   python3 scripts/backlog_lint.py
+   make test-backend         # runs pytest in the backend container
+   make test-coverage        # enforces ≥65% via container pytest --cov
    ```
-   All four must exit 0. If any fails, fix forward; do not relax gates.
+   All must exit 0. If any fails, fix forward; do not relax gates. **Never** run `pytest`, `ruff`, `black`, or `mypy` directly on the host.
 
 ## Stop Conditions (must surface to human)
 
@@ -57,7 +58,7 @@ Evolution cycle complete
 - Spec: specs/NNN-<slug>/
 - PR: <url or "draft pending">
 - Follow-ups added: BL-…, BL-…, …
-- Gates: spec_validator ✓ backlog_lint ✓ pytest ✓ ruff/black ✓
+- Gates: spec_validator ✓ backlog_lint ✓ make test ✓ make lint ✓
 - Next suggested pick: BL-YYYYMMDD-NN (<reason>)
 ```
 

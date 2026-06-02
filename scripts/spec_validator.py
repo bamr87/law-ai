@@ -31,10 +31,24 @@ SPEC_DIR_RE = re.compile(r"^\d{3}-[a-z0-9][a-z0-9-]*$")
 ID_RE = re.compile(r"\b((?:FR|NFR|AC)-[A-Z0-9-]+)\b")
 OPEN_Q_RE = re.compile(r"OPEN QUESTION\s+OQ-\d+", re.IGNORECASE)
 STATUS_RE = re.compile(r"^- \*\*Status\*\*:\s*([a-z\-]+)", re.IGNORECASE | re.MULTILINE)
+# Task status markers — supports both the canonical `- **Status**: `[x]``
+# block format and the compact `- [x] **T-NNN** — …` line format used by
+# specs/005-lsat-lab.
+TASK_STATUS_BLOCK_RE = re.compile(
+    r"^- \*\*Status\*\*:\s*`\[([ x~])\]`", re.MULTILINE
+)
+TASK_STATUS_INLINE_RE = re.compile(
+    r"^- \[([ x~])\]\s+\*\*T-\d", re.MULTILINE
+)
 # Statuses that may legitimately still contain OPEN QUESTION blocks and
 # requirement IDs not yet mirrored into tasks.md. The spec workflow expects
 # `/clarify` to resolve OQs before the spec advances to `clarified`+.
 PRE_CLARIFY_STATUSES = {"draft"}
+# Statuses that assert "all task work is complete". Validator rejects these
+# when tasks.md still contains any `[ ]` or `[~]` task. Conversely, leaving
+# unchecked tasks while declaring a not-shipped status is fine — that's the
+# normal in-flight case.
+SHIPPED_STATUSES = {"shipped"}
 TEMPLATE_PLACEHOLDER = "FR-1"  # appears in _template; ignored there
 
 # Literal substrings that only ever appear in specs/_template/ files. If any of
@@ -75,9 +89,15 @@ def validate_spec(spec_dir: Path) -> list[str]:
     plan = spec_dir / "plan.md"
     tasks = spec_dir / "tasks.md"
 
+    def _rel(p: Path) -> str:
+        try:
+            return str(p.relative_to(REPO_ROOT))
+        except ValueError:
+            return str(p)
+
     for required in (spec, plan, tasks):
         if not required.is_file():
-            errors.append(f"missing {required.relative_to(REPO_ROOT)}")
+            errors.append(f"missing {_rel(required)}")
     if errors:
         return errors
 
@@ -91,7 +111,7 @@ def validate_spec(spec_dir: Path) -> list[str]:
     open_qs = OPEN_Q_RE.findall(spec_text)
     if open_qs and not is_pre_clarify:
         errors.append(
-            f"{spec.relative_to(REPO_ROOT)}: {len(open_qs)} unresolved OPEN QUESTION block(s) "
+            f"{_rel(spec)}: {len(open_qs)} unresolved OPEN QUESTION block(s) "
             f"(status='{status}'; resolve via /clarify or downgrade status to 'draft')"
         )
 
@@ -101,14 +121,41 @@ def validate_spec(spec_dir: Path) -> list[str]:
     missing = sorted(spec_ids - task_ids)
     if missing and not is_pre_clarify:
         errors.append(
-            f"{tasks.relative_to(REPO_ROOT)}: requirement(s) not referenced by any task: "
+            f"{_rel(tasks)}: requirement(s) not referenced by any task: "
             + ", ".join(missing)
         )
 
     if "## Follow-ups Discovered" not in tasks_text:
         errors.append(
-            f"{tasks.relative_to(REPO_ROOT)}: missing required section '## Follow-ups Discovered' "
+            f"{_rel(tasks)}: missing required section '## Follow-ups Discovered' "
             "(use '_none_' if there are truly no follow-ups)"
+        )
+
+    # Status ↔ task-state consistency: a spec marked `shipped` must have every
+    # task ticked off. Catches the drift fixed by the 2026-05-10 audit where
+    # several specs sat at `draft`/`planned` long after all tasks were done.
+    task_marks = TASK_STATUS_BLOCK_RE.findall(tasks_text)
+    task_marks += TASK_STATUS_INLINE_RE.findall(tasks_text)
+    unfinished = [m for m in task_marks if m != "x"]
+    if status in SHIPPED_STATUSES and unfinished:
+        errors.append(
+            f"{_rel(spec)}: status='shipped' but "
+            f"{len(unfinished)} task(s) in tasks.md are not marked `[x]` — "
+            "either finish the tasks or downgrade the status to 'in-progress'."
+        )
+    # Symmetric check: every task `[x]` but status still pre-shipped means
+    # the bump was forgotten. Only enforced when at least one task exists so
+    # an empty/skeleton tasks.md (e.g. fresh /tasks output) does not trip it.
+    if (
+        task_marks
+        and not unfinished
+        and status not in SHIPPED_STATUSES
+        and status != ""
+    ):
+        errors.append(
+            f"{_rel(spec)}: all {len(task_marks)} task(s) in tasks.md are "
+            f"marked `[x]` but status='{status}' — bump status to 'shipped' "
+            "or mark the open follow-up tasks accordingly."
         )
 
     # Leftover-template-placeholder check: catches the "I copied _template/
@@ -118,7 +165,7 @@ def validate_spec(spec_dir: Path) -> list[str]:
         for marker in TEMPLATE_MARKERS:
             if marker in text:
                 errors.append(
-                    f"{path.relative_to(REPO_ROOT)}: leftover template placeholder "
+                    f"{_rel(path)}: leftover template placeholder "
                     f"{marker!r} — replace with concrete content from specs/_template/"
                 )
 

@@ -40,6 +40,13 @@ jobs:
       - name: Start Docker services
         run: docker compose up -d neo4j postgres redis --wait
 
+      - name: Apply Django migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://lawgraph:lawgraph-dev@localhost:5432/lawgraph
+          DJANGO_SETTINGS_MODULE: lawgraph.settings.dev
+        run: python manage.py migrate --noinput
+
       - name: Run integration tests
         working-directory: backend
         env:

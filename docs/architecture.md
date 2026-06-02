@@ -56,6 +56,7 @@ flowchart TB
 | **API Layer**          | Django REST Framework views for analysis, graph queries, ingestion, LSAT (+ Channels consumers for agent streaming) | `backend/lawgraph/{analysis,graph,lsat,agentsapi,ingestionapp}/` |
 | **Frontend**           | Interactive graph, real-time agent streaming, LSAT practice, library            | `frontend/app/` + `components/GraphViewer.tsx` |
 | **Evaluation**         | LegalBench harness + custom legal reasoning tests                               | `backend/lawgraph/eval/` |
+| **Autonomy Loop**      | Scheduled cycles (corpus growth, test synthesis, digest) controlled by `AUTONOMY_ENABLED` kill-switch; single audited entry point via `lawgraph.core.autonomy.run_cycle`; every cycle emits paired provenance events | `backend/lawgraph/core/autonomy.py`, `celery.py`, `agents_runtime/crews/test_synthesizer/`, `agents_runtime/graphs/topic_frontier.py` |
 
 ---
 
@@ -68,6 +69,28 @@ flowchart TB
 5. Results streamed to frontend via WebSocket
 6. User approves → results committed to project workspace + graph updated
 7. Full trace (prompts, tool calls, retrievals) saved in `provenance` table
+
+---
+
+## Autonomy Loop (Spec 018)
+
+The autonomy loop runs inside the same Docker Compose stack as the main API. It is disabled by default (`AUTONOMY_ENABLED=false`) per [docs/constitution.md](constitution.md) §12 invariant I3 (kill-switch).
+
+```mermaid
+flowchart LR
+  Beat["Celery Beat\n(3 schedules)"] --> Entry["autonomy.run_cycle()\n(single audited entry point)"]
+  Entry -->|corpus_growth| TF["TopicFrontier LangGraph"]
+  Entry -->|test_pillar| TS["TestSynthesizer CrewAI"]
+  Entry -->|digest| Digest["compose_digest()"]
+  TF -->|dispatch via| Scout["IngestionScout\n(HITL gate preserved)"]
+  TS -->|writes| Proposed["*.proposed.py\n(pending human review)"]
+  Digest -->|writes| DigestFile["var/autonomy/digest-YYYY-MM-DD.md"]
+  Entry --> Provenance["AuditEvent\n(autonomy_cycle.start/end)"]
+```
+
+See [ADR 0003](adr/0003-autonomy-orchestrator.md) for the full design rationale and the six invariants (I1–I6).
+
+The `baseline.json` for LegalBench regression tracking will be committed after the first green harness run; its commit SHA will be recorded in [docs/legalbench.md](legalbench.md) `## Baseline scores`.
 
 ---
 

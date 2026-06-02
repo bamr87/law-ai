@@ -166,6 +166,41 @@ export function fetchSpecs() {
   return getJson<{ specs: SpecInfo[]; count: number }>('/api/agents/specs')
 }
 
+export interface LocalAIHealth {
+  ollama: { reachable: boolean; models: string[]; error?: string }
+  checkpointer: { kind: string; reachable: boolean; error?: string }
+  phoenix: { reachable: boolean; ui_url: string; enabled: boolean; error?: string }
+}
+
+export function fetchLocalAIHealth() {
+  return getJson<LocalAIHealth>('/api/agents/health/local-ai')
+}
+
+export interface AgentMetric {
+  agent: string
+  count: number
+  error_count: number
+  latency_p50_ms: number | null
+  latency_p95_ms: number | null
+  avg_confidence: number | null
+  success_rate: number | null
+  last_seen: string | null
+  last_trace_id: string | null
+  last_model: string | null
+}
+
+export function fetchAgentMetrics(limit = 500) {
+  return getJson<{ agents: AgentMetric[]; window_size: number; errors_total: number }>(
+    `/api/agents/metrics?limit=${limit}`,
+  )
+}
+
+export function fetchRunDetail(traceId: string) {
+  return getJson<{ trace_id: string; events: AgentRun[]; count: number }>(
+    `/api/agents/runs/${encodeURIComponent(traceId)}`,
+  )
+}
+
 // --- LSAT Lab (spec 005) ---
 
 export type LsatChoiceLabel = 'A' | 'B' | 'C' | 'D' | 'E'
@@ -373,6 +408,138 @@ export async function askLsatTutor(
   }
   return (await res.json()) as LsatTutorResponse
 }
+
+// --- LSAT Content Authoring (spec 019) ---
+
+export type LsatProposalStatus = 'pending' | 'approved' | 'rejected'
+
+export interface LsatProposalDraft {
+  section: LsatSection
+  difficulty: LsatDifficulty
+  stem: string
+  choices: LsatChoice[]
+  correct: LsatChoiceLabel
+  explanation: string
+  concepts: string[]
+  passage_id?: string | null
+  confidence: number
+}
+
+export interface LsatProposal {
+  id: string
+  status: LsatProposalStatus
+  created_at: string
+  updated_at: string
+  section: LsatSection
+  difficulty: LsatDifficulty
+  agent_trace_id: string
+  model: string
+  confidence: number
+  source_concept_ids: string[]
+  draft: LsatProposalDraft
+  reviewer?: string | null
+  note?: string | null
+  question_id?: string | null
+}
+
+export interface LsatGapRow {
+  section: LsatSection
+  concept: string
+  attempts: number
+  correct: number
+  accuracy: number
+}
+
+export interface GenerateLsatProposalsRequest {
+  section: LsatSection
+  difficulty: LsatDifficulty
+  count?: number
+  concepts?: string[]
+  passage_id?: string | null
+}
+
+export interface GenerateLsatProposalsResponse {
+  proposals: LsatProposal[]
+  trace_id: string | null
+  model: string
+  degraded: boolean
+  count: number
+}
+
+export function fetchLsatProposals(
+  status: LsatProposalStatus | 'all' = 'pending',
+  limit = 50,
+) {
+  const qs = new URLSearchParams({ status, limit: String(limit) })
+  return getJson<{
+    proposals: LsatProposal[]
+    count: number
+    status: string
+  }>(`/api/lsat/proposals?${qs.toString()}`)
+}
+
+export async function generateLsatProposals(
+  req: GenerateLsatProposalsRequest,
+): Promise<GenerateLsatProposalsResponse> {
+  const res = await apiFetch(`/api/lsat/proposals/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(
+      `Generate proposals failed (${res.status}): ${detail.slice(0, 200)}`,
+    )
+  }
+  return (await res.json()) as GenerateLsatProposalsResponse
+}
+
+export async function approveLsatProposal(
+  id: string,
+  note?: string,
+): Promise<LsatProposal> {
+  const res = await apiFetch(
+    `/api/lsat/proposals/${encodeURIComponent(id)}/approve`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note: note ?? null }),
+    },
+  )
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(`Approve failed (${res.status}): ${detail.slice(0, 200)}`)
+  }
+  return (await res.json()) as LsatProposal
+}
+
+export async function rejectLsatProposal(
+  id: string,
+  note?: string,
+): Promise<LsatProposal> {
+  const res = await apiFetch(
+    `/api/lsat/proposals/${encodeURIComponent(id)}/reject`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note: note ?? null }),
+    },
+  )
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(`Reject failed (${res.status}): ${detail.slice(0, 200)}`)
+  }
+  return (await res.json()) as LsatProposal
+}
+
+export function fetchLsatGaps(limit = 10) {
+  const qs = new URLSearchParams({ limit: String(limit) })
+  return getJson<{ gaps: LsatGapRow[]; count: number; limit: number }>(
+    `/api/lsat/gaps?${qs.toString()}`,
+  )
+}
+
 
 // --- Knowledge Graph (spec 006) ---
 

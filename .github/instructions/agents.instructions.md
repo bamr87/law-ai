@@ -47,13 +47,13 @@ class MyAgent:
 
 ## Mandatory Tests
 
-For every new or modified agent, add **all** of the following under [backend/tests/agents/](../../backend/tests/agents/):
+For every new or modified agent, add **all** of the following under [backend/tests/agents/](../../backend/tests/agents/) and run them **inside Docker** (never on the host):
 
-1. Unit test with mocked LLM + tools (fast).
-2. Integration test using docker-compose Neo4j/Postgres.
-3. LegalBench regression test on the relevant subset when reasoning logic changed. Record the score delta in the PR description.
+1. Unit test with mocked LLM + tools (fast). Run via `make test-backend`.
+2. Integration test using docker-compose Neo4j/Postgres. Run via `make test-integration`.
+3. LegalBench regression test on the relevant subset when reasoning logic changed. Run via `make test-legalbench` and record the score delta in the PR description.
 
-Coverage for new agent code must keep total backend coverage ≥75%.
+Coverage for new agent code must keep total backend coverage ≥75% (`make test-coverage`).
 
 ## Forbidden
 

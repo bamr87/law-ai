@@ -43,8 +43,14 @@ Baselines are captured in the JSON report and surfaced in PR descriptions. There
 
 | Task subset           | Baseline score | Recorded in commit | Notes |
 |-----------------------|----------------|--------------------|-------|
-| `core_reasoning`      | _TBD_          | _TBD_              | Establish on the next reasoning-touching spec. |
-| `precedent_retrieval` | _TBD_          | _TBD_              | Establish after GraphRAG hookup ([BL-20260502-04](../BACKLOG.md)). |
+| `core_reasoning`      | _TBD_          | _TBD_              | Establish on the next reasoning-touching spec. TopicFrontier prompt uses this subset. |
+| `precedent_retrieval` | _TBD_          | _TBD_              | Establish after GraphRAG hookup ([BL-20260502-04](../BACKLOG.md)). TopicFrontier prompt uses this subset. |
+
+## Licenses policy
+
+The LegalBench **code and harness** (github.com/HazyResearch/legalbench) is released under the [MIT License](https://opensource.org/licenses/MIT) by the HazyResearch contributors.
+
+The LegalBench **dataset** is released under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Usage is permitted for research and product evaluation provided attribution is included. Note that individual task subsets may carry additional sub-licenses (e.g. ContractNLI data is CC BY 4.0 separately from the LegalBench MIT wrapper). A `LICENSES.md` file must be committed alongside any checked-in LegalBench data fixture; see [BL-20260430-06](../BACKLOG.md) for the tracking item. Do **not** redistribute raw task data without attribution.
 
 ## Regression policy
 

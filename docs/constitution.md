@@ -103,6 +103,19 @@ The repo must always grow forward. Every implementation cycle MUST end with expl
 - **Refactor budget.** At least one `refactor` or `tech-debt` BACKLOG item should be promoted into `specs/` for every three feature specs shipped, to prevent rot.
 - **Tests stay aligned.** When a `BL-*` item is promoted into a spec, the new `tasks.md` must add or extend tests covering the BACKLOG'd concern — self-evolution never lowers coverage.
 
+## 12. Autonomy Loop Invariants
+
+Recorded by [docs/adr/0003-autonomy-orchestrator.md](adr/0003-autonomy-orchestrator.md). The `AutonomyOrchestrator` and any future autonomous loop in this repo MUST satisfy all of the following — CI and code-review reject violations:
+
+- **I1 — No auto-merge.** Every loop ends in either a draft PR (code) or a `PendingReview` row (data). No GitHub Actions workflow may be granted permissions sufficient to merge a PR; no Celery task may write to a `:Case`/`:Statute` node outside `IngestionScout.run_and_commit`.
+- **I2 — Closed source registry.** Recursion expands within `lawgraph.ingestionapp.sources.SOURCE_REGISTRY` whose member name appears in `AUTONOMY_ALLOWED_SOURCES`. Adding a new adapter is its own `/specify` cycle (preserves §5).
+- **I3 — Kill-switch.** A single settings flag (`AUTONOMY_ENABLED`, default `False`) short-circuits every loop with one provenance event (`event_type='autonomy_disabled'`). Operators must explicitly opt-in per environment.
+- **I4 — One audited entry point.** Every cycle is invoked through `lawgraph.core.autonomy.run_cycle()` and emits paired `autonomy_cycle.start` + `autonomy_cycle.end` provenance events. The daily digest under `AUTONOMY_DIGEST_DIR` is the canonical human-review surface.
+- **I5 — Propose-only test synthesis.** Autonomy-generated tests land as `*.proposed.py` decorated with `@pytest.mark.skip("autonomy-proposed")`. Reviewers must explicitly un-skip.
+- **I6 — Provenance preserved.** Every adapter dispatch records `{adapter_name, query, items_returned, items_quarantined}`; every LLM call goes through `lawgraph.core.provenance` (preserves §4).
+
+Promotion to Level 3 — even for narrow change classes — requires a separate ADR amending §10 and these invariants.
+
 ---
 
 **Amendments to this constitution require an ADR in `docs/adr/` and review by a human maintainer.**
