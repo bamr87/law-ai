@@ -112,8 +112,8 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
     }
     analysis_id = _new_analysis_id()
     started = time.perf_counter()
-    irac, precedents = await asyncio.gather(  # type: ignore[no-untyped-call]
-        analyst.run(payload), hunter.run(payload)
+    irac, precedents = await asyncio.gather(
+        analyst.run(payload), hunter.run(payload)  # type: ignore[no-untyped-call]
     )
     total_ms = (time.perf_counter() - started) * 1000.0
     confidence = round((irac.confidence + precedents.confidence) / 2, 4)
@@ -150,9 +150,10 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
             "requires_human_review": requires_human_review,
         },
     )
+    irac_sources: list[Any] = list(irac.sources)  # type: ignore[no-untyped-call]
     sources: list[dict[str, str]] = [
         {"title": str(s.get("title", "")), "url": str(s.get("url", ""))}
-        for s in irac.sources
+        for s in irac_sources
     ] + [
         {"title": p.title, "url": p.url} for p in precedents.precedents
     ]
