@@ -1,6 +1,6 @@
 # Spec: Agent WebSocket Streaming — Live Progress from LegalAnalyst & PrecedentHunter
 
-- **ID**: 021-agent-ws-streaming
+- **ID**: 022-agent-ws-streaming
 - **Status**: shipped
 - **Owner**: @copilot
 - **Created**: 2026-06-02

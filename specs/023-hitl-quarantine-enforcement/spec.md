@@ -1,6 +1,6 @@
 # Spec: HITL Quarantine Enforcement — Test Coverage & Regression Guard
 
-- **ID**: 021-hitl-quarantine-enforcement
+- **ID**: 023-hitl-quarantine-enforcement
 - **Status**: clarified
 - **Owner**: @copilot
 - **Created**: 2026-06-02

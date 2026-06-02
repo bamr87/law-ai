@@ -24,8 +24,8 @@
 
 ## Open
 
-- **BL-20260602-05** — *feature, low* — Sequential agent execution mode (opt-in flag) for `_run_analysis` so `agent_step` events stream progressively in real-time instead of arriving together after `asyncio.gather` completes. _Surfaced in:_ specs/021-agent-ws-streaming.
-- **BL-20260602-06** — *feature, low* — Frontend progress bar wired to `/ws/agents/{analysis_id}` WebSocket events: render a live step-by-step trace in the Analysis Studio UI when `agent_step` events arrive. _Surfaced in:_ specs/021-agent-ws-streaming.
+- **BL-20260602-05** — *feature, low* — Sequential agent execution mode (opt-in flag) for `_run_analysis` so `agent_step` events stream progressively in real-time instead of arriving together after `asyncio.gather` completes. _Surfaced in:_ specs/022-agent-ws-streaming.
+- **BL-20260602-06** — *feature, low* — Frontend progress bar wired to `/ws/agents/{analysis_id}` WebSocket events: render a live step-by-step trace in the Analysis Studio UI when `agent_step` events arrive. _Surfaced in:_ specs/022-agent-ws-streaming.
 
 - **BL-20260526-01** — *test-gap, low* — Add a mutation variant test seeding two cases with overlapping aliases to assert `head(collect(c.id))` determinism (mirrors BL-20260429-12 concern). _Surfaced in:_ specs/014-densify-extraction-integration-tests.
 - **BL-20260526-02** — *test-gap, low* — Add a CI check confirming `test_citation_resolver_integration` tests are not collected without `-m integration` (AC-5 isolation contract). _Surfaced in:_ specs/014-densify-extraction-integration-tests.
@@ -143,8 +143,8 @@
 
 - **BL-20260602-01** — *test-gap, low* — Add an integration test exercising the full `force_quarantine` path against a live Docker stack (adapter with `requires_human_approval=True` → Celery → PendingReview row). _Surfaced in:_ specs/020-enforce-hitl-quarantine.
 - **BL-20260602-02** — *doc-gap, low* — Document the `requires_human_approval` adapter contract and its quarantine enforcement in `docs/architecture.md`. _Surfaced in:_ specs/020-enforce-hitl-quarantine.
-- **BL-20260602-03** — *doc-gap, low* — Fix non-case broken relative links in current governing docs: `docs/constitution.md` links to `AGENTS.md` (3×) but it lives at the repo root, so the href should be `../AGENTS.md` (404s on every platform). _Surfaced in:_ specs/020-fix-ao-sdlc-doc-links.
-- **BL-20260602-04** — *test-gap, med* — Update or historically-annotate the ~120 `backend/app/*` references in shipped specs 011 + `docs/adr/0001-adopt-django-backend.md` (pre-Django-rebrand layout), then promote `test_no_case_mismatched_doc_links` to a full relative-link existence check. _Surfaced in:_ specs/020-fix-ao-sdlc-doc-links.
+- **BL-20260602-03** — *doc-gap, low* — Fix non-case broken relative links in current governing docs: `docs/constitution.md` links to `AGENTS.md` (3×) but it lives at the repo root, so the href should be `../AGENTS.md` (404s on every platform). _Surfaced in:_ specs/021-fix-ao-sdlc-doc-links.
+- **BL-20260602-04** — *test-gap, med* — Update or historically-annotate the ~120 `backend/app/*` references in shipped specs 011 + `docs/adr/0001-adopt-django-backend.md` (pre-Django-rebrand layout), then promote `test_no_case_mismatched_doc_links` to a full relative-link existence check. _Surfaced in:_ specs/021-fix-ao-sdlc-doc-links.
 
 ## Claimed
 
@@ -155,8 +155,8 @@
 
 ## Done
 
-- **BL-20260503-09** — *feature, med* — **(resolved 2026-06-02)**: Wired `_emit_ws_event` helper into `_run_analysis`; emits `agent_step:LegalAnalyst`, `agent_step:PrecedentHunter`, and `complete` events to the `agent-run-{analysis_id}` channel group after `asyncio.gather` returns. Fire-and-forget: Redis failure is non-fatal. Two new unit tests: `test_agent_ws_events_emitted` (AC-1) and `test_agent_ws_events_resilient_to_channel_layer_failure` (AC-2). Coverage 81.73%, lint clean. _Shipped in:_ specs/021-agent-ws-streaming.
-- **BL-20260429-24** — *feature, med* — **(resolved 2026-06-02)**: WS-streaming half resolved by BL-20260503-09 / specs/021-agent-ws-streaming. SSE variant remains as a follow-up (see spec 021 §13). _Surfaced in:_ specs/007-analysis-studio.
+- **BL-20260503-09** — *feature, med* — **(resolved 2026-06-02)**: Wired `_emit_ws_event` helper into `_run_analysis`; emits `agent_step:LegalAnalyst`, `agent_step:PrecedentHunter`, and `complete` events to the `agent-run-{analysis_id}` channel group after `asyncio.gather` returns. Fire-and-forget: Redis failure is non-fatal. Two new unit tests: `test_agent_ws_events_emitted` (AC-1) and `test_agent_ws_events_resilient_to_channel_layer_failure` (AC-2). Coverage 81.73%, lint clean. _Shipped in:_ specs/022-agent-ws-streaming.
+- **BL-20260429-24** — *feature, med* — **(resolved 2026-06-02)**: WS-streaming half resolved by BL-20260503-09 / specs/022-agent-ws-streaming. SSE variant remains as a follow-up (see spec 022 §13). _Surfaced in:_ specs/007-analysis-studio.
 
 - **BL-20260511-30** — *feature, high* — **(resolved 2026-06-02)**: Verified and tested `force_quarantine=True` propagation from `TopicFrontier._node_dispatch` through `_dispatch_target` to `IngestionScout.run_and_commit`. Implementation confirmed at `topic_frontier.py:345` and `scout.py:134`. Two new unit tests added: `test_force_quarantine_passed_when_adapter_requires_approval` (AC-1) and `test_force_quarantine_routes_high_confidence_to_hitl` (AC-2). Follow-ups BL-20260602-01, BL-20260602-02 queued in Open. _Shipped in:_ specs/020-enforce-hitl-quarantine.
 
@@ -174,5 +174,5 @@
 
 - **BL-20260511-28** — *feature, high* — **(resolved 2026-05-11)**: Shipped specs/018-autonomous-framework (T-001–T-012). Delivered: ADR 0003 + constitution §12 (6 invariants I1–I6), LegalBench harness (21 tests), coverage_audit + evolve_audit wiring, TestSynthesizer CrewAI crew, nightly-tests.yml workflow, SOURCE_REGISTRY + 3 adapters, core.autonomy kill-switch, run_autonomy management command + Celery beat, TopicFrontier LangGraph (16 tests), compose_digest daily digest, documentation refresh across 4 docs files. 252 unit tests passing; lint clean. Follow-ups BL-20260511-03 through BL-20260511-27 queued in Open. _Claimed from:_ BL-20260429-09, BL-20260502-04, BL-20260509-04.
 
-- **BL-20260511-32** — *doc-gap, low* — **(resolved 2026-06-02)**: Renumbered from a duplicate `BL-20260511-01` (it collided with the spec-017 follow-up of the same id). The referenced doc was never missing — it exists as lowercase `docs/ao-sdlc.md`; the real defect was case-mismatched links (`docs/AO-SDLC.md` / `docs/AO-SDLC-guide.md`) that 404 on case-sensitive filesystems (Linux/CI). Fixed all 7 occurrences + the latent `docs/AO-SDLC.md` entry in `tests/test_docs.py`, added `test_no_case_mismatched_doc_links`, and gated the root structural suite in CI. _Shipped in:_ specs/020-fix-ao-sdlc-doc-links.
+- **BL-20260511-32** — *doc-gap, low* — **(resolved 2026-06-02)**: Renumbered from a duplicate `BL-20260511-01` (it collided with the spec-017 follow-up of the same id). The referenced doc was never missing — it exists as lowercase `docs/ao-sdlc.md`; the real defect was case-mismatched links (`docs/AO-SDLC.md` / `docs/AO-SDLC-guide.md`) that 404 on case-sensitive filesystems (Linux/CI). Fixed all 7 occurrences + the latent `docs/AO-SDLC.md` entry in `tests/test_docs.py`, added `test_no_case_mismatched_doc_links`, and gated the root structural suite in CI. _Shipped in:_ specs/021-fix-ao-sdlc-doc-links.
 

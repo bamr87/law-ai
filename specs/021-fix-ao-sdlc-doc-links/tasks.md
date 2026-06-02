@@ -76,7 +76,7 @@
 - **Owner**: @bamr87
 - **Status**: `[x]`
 - **Steps**:
-  1. `python3 scripts/spec_validator.py` → `PASS specs/020-fix-ao-sdlc-doc-links` (AC-4).
+  1. `python3 scripts/spec_validator.py` → `PASS specs/021-fix-ao-sdlc-doc-links` (AC-4).
   2. `python3 scripts/backlog_lint.py` → exit 0 (AC-1).
   3. Backend container: `pytest tests/ -m "not backend and not frontend"` green (AC-3).
   4. `make test-backend` green (no collateral on the Django suite).
@@ -100,5 +100,5 @@
 
 > Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id.
 
-- BL-20260602-01 — *doc-gap, low* — Fix non-case broken relative links in current governing docs: `docs/constitution.md` links to `AGENTS.md` (3×) but it lives at the repo root, so the href should be `../AGENTS.md` (404s on every platform). _Surfaced in:_ specs/020-fix-ao-sdlc-doc-links.
-- BL-20260602-02 — *test-gap, med* — Update or historically-annotate the ~120 `backend/app/*` references in shipped specs 011 + `docs/adr/0001-adopt-django-backend.md` (pre-Django-rebrand layout), then promote `test_no_case_mismatched_doc_links` to a full relative-link existence check. _Surfaced in:_ specs/020-fix-ao-sdlc-doc-links.
+- BL-20260602-01 — *doc-gap, low* — Fix non-case broken relative links in current governing docs: `docs/constitution.md` links to `AGENTS.md` (3×) but it lives at the repo root, so the href should be `../AGENTS.md` (404s on every platform). _Surfaced in:_ specs/021-fix-ao-sdlc-doc-links.
+- BL-20260602-02 — *test-gap, med* — Update or historically-annotate the ~120 `backend/app/*` references in shipped specs 011 + `docs/adr/0001-adopt-django-backend.md` (pre-Django-rebrand layout), then promote `test_no_case_mismatched_doc_links` to a full relative-link existence check. _Surfaced in:_ specs/021-fix-ao-sdlc-doc-links.

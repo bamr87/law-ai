@@ -1,6 +1,6 @@
 # Spec: Fix AO-SDLC Doc-Link Case Mismatch + Restore Backlog Gate
 
-- **ID**: 020-fix-ao-sdlc-doc-links
+- **ID**: 021-fix-ao-sdlc-doc-links
 - **Status**: shipped
 - **Owner**: @bamr87
 - **Created**: 2026-06-02
@@ -70,7 +70,7 @@ None.
 - **AC-1**: `python3 scripts/backlog_lint.py` exits 0 (no duplicate ids; no removed entries).
 - **AC-2**: A case-sensitive scan of all `*.md` reports 0 case-only link mismatches (the 7 AO-SDLC links resolve).
 - **AC-3**: `pytest tests/ -m "not backend and not frontend"` is green when run in a Linux/case-sensitive environment (verified in the backend container via the `/repo` mount), including the new `test_no_case_mismatched_doc_links`.
-- **AC-4**: `python3 scripts/spec_validator.py` reports `PASS specs/020-fix-ao-sdlc-doc-links`.
+- **AC-4**: `python3 scripts/spec_validator.py` reports `PASS specs/021-fix-ao-sdlc-doc-links`.
 - **AC-5**: `.github/workflows/ci.yml` defines a job that runs the root structural tier, so FR-3/FR-4 are gated in CI.
 
 ## 11. LegalBench Impact

@@ -118,5 +118,5 @@
 
 > Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id.
 
-- **BL-20260602-05** — *feature, low* — Sequential agent execution mode (opt-in flag) for `_run_analysis` so events stream progressively in real-time instead of arriving together after `asyncio.gather`. Current implementation emits all three events after both agents finish. _Surfaced in:_ specs/021-agent-ws-streaming.
-- **BL-20260602-06** — *feature, low* — Frontend progress bar wired to `/ws/agents/{analysis_id}` events: render a live step-by-step trace in the Analysis Studio UI when `agent_step` events arrive. _Surfaced in:_ specs/021-agent-ws-streaming.
+- **BL-20260602-05** — *feature, low* — Sequential agent execution mode (opt-in flag) for `_run_analysis` so events stream progressively in real-time instead of arriving together after `asyncio.gather`. Current implementation emits all three events after both agents finish. _Surfaced in:_ specs/022-agent-ws-streaming.
+- **BL-20260602-06** — *feature, low* — Frontend progress bar wired to `/ws/agents/{analysis_id}` events: render a live step-by-step trace in the Analysis Studio UI when `agent_step` events arrive. _Surfaced in:_ specs/022-agent-ws-streaming.
