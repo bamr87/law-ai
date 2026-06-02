@@ -1,6 +1,6 @@
 # GitHub Copilot Instructions
 
-GitHub Copilot is the **only** sanctioned AI development surface for this repo (Copilot Chat in VS Code — Ask / Edit / Agent modes — plus inline completions and the GitHub Copilot coding agent in the cloud). Cursor, Continue.dev, Claude Code, Aider, Codex, Gemini CLI, and any other third-party coding agents are forbidden. See [AGENTS.md](../AGENTS.md) § "Development Orchestration" and [docs/constitution.md](../docs/constitution.md) §1.
+GitHub Copilot is a sanctioned AI development surface for this repo (Copilot Chat in VS Code — Ask / Edit / Agent modes — plus inline completions and the GitHub Copilot coding agent in the cloud); **Claude Code** is also sanctioned and reads its own guide at [CLAUDE.md](../CLAUDE.md). Cursor, Continue.dev, Aider, Codex, Gemini CLI, and any other third-party coding agents are forbidden. See [AGENTS.md](../AGENTS.md) § "Development Orchestration" and [docs/constitution.md](../docs/constitution.md) §1.
 
 The canonical, repo-wide coding guide for AI agents lives in [AGENTS.md](../AGENTS.md).
 
