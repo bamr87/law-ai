@@ -132,7 +132,27 @@ class AnalysisView(APIView):
             return Response(
                 {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
             )
-        body = async_to_sync(_run_analysis)(req)
+        try:
+            body = async_to_sync(_run_analysis)(req)
+        except Exception as exc:
+            provenance.log_agent_call(
+                agent_name="AnalysisStudio",
+                input_data={
+                    "jurisdiction": req.jurisdiction,
+                    "case_id": req.case_id,
+                    "use_langgraph": req.use_langgraph,
+                    "error": True,
+                },
+                output_data={"error_class": type(exc).__name__, "error": str(exc)[:500]},
+                model="multi-agent",
+                latency_ms=0.0,
+                confidence=0.0,
+                sources=[],
+            )
+            return Response(
+                {"detail": f"Analysis failed: {type(exc).__name__}: {str(exc)[:200]}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         return Response(body.model_dump())
 
 

@@ -65,6 +65,52 @@ def tail(limit: int = 50) -> list[dict[str, Any]]:
     return out
 
 
+def by_trace(trace_id: str, max_scan: int = 5000) -> list[dict[str, Any]]:
+    """Return events whose ``trace_id`` matches ``trace_id`` (or whose
+    ``input.child_trace_ids`` contains it), oldest first.
+
+    Also walks parent → children: if any matched event lists child_trace_ids,
+    events with those ids are pulled in too. This makes the analysis dashboard
+    show every leg of a multi-agent run when given any one of its trace_ids.
+
+    Scans up to the last ``max_scan`` lines to keep cost bounded.
+    """
+    path = _path()
+    if not path.is_file() or not trace_id:
+        return []
+    buf: deque[str] = deque(maxlen=max_scan)
+    with path.open("r", encoding="utf-8") as fh:
+        for raw in fh:
+            line = raw.rstrip("\n")
+            if line:
+                buf.append(line)
+    parsed: list[dict[str, Any]] = []
+    for line in buf:
+        try:
+            parsed.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+
+    wanted: set[str] = {trace_id}
+    # Expand 2 hops: collect child_trace_ids from any event already in scope,
+    # then re-scan once. Two passes cover parent→children and child→sibling
+    # via parent pointer, which is enough for the current AnalysisStudio fan-out.
+    for _ in range(2):
+        before = len(wanted)
+        for ev in parsed:
+            tid = ev.get("trace_id")
+            inp = ev.get("input") if isinstance(ev.get("input"), dict) else {}
+            children = (inp or {}).get("child_trace_ids") or []
+            if tid in wanted and isinstance(children, list):
+                wanted.update(c for c in children if isinstance(c, str))
+            if isinstance(children, list) and any(c in wanted for c in children) and isinstance(tid, str):
+                    wanted.add(tid)
+        if len(wanted) == before:
+            break
+
+    return [ev for ev in parsed if ev.get("trace_id") in wanted]
+
+
 def _rotate_if_needed(path: Path) -> None:
     """Truncate to the last ``KEEP_AUDIT_LINES`` when the file outgrows the cap."""
     cap = settings.MAX_AUDIT_LINES
