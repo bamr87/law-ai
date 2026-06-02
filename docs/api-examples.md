@@ -104,11 +104,51 @@ curl "http://localhost:8000/api/lsat/gaps?limit=10"
 
 ## Analysis Studio — `/api/analysis`
 
+### Run analysis (HTTP)
+
 ```bash
-curl -X POST http://localhost:8000/api/analysis/run \
+# POST returns IRAC analysis JSON. Simultaneously emits three WebSocket events
+# to the agent-run-{id} channel group (see WS section below).
+curl -X POST http://localhost:8000/api/analysis \
   -H 'Content-Type: application/json' \
-  -d '{"case_text": "Brown v. Board of Education ...", "jurisdiction": "US"}'
+  -H 'X-API-Key: $ANALYSIS_API_KEY' \
+  -d '{"text": "Brown v. Board of Education — equal protection claim."}'
 ```
+
+**Response** (`200 OK`):
+```json
+{
+  "id": "an-a1b2c3d4e5f6",
+  "issue": "...",
+  "rule": "...",
+  "application": "...",
+  "conclusion": "...",
+  "confidence": 0.85,
+  "requires_human_review": false,
+  "sources": [...],
+  "latency_ms": 1234.5,
+  "langgraph_thread_id": null
+}
+```
+
+### Live progress via WebSocket (spec 021)
+
+After `POST /api/analysis`, three events are published to the
+`agent-run-{id}` Redis channel group (consumed by `/ws/agents/{id}`):
+
+```
+{"type": "agent_step", "agent": "LegalAnalyst",     "trace_id": "...", "latency_ms": ..., "confidence": 0.9}
+{"type": "agent_step", "agent": "PrecedentHunter",  "trace_id": "...", "latency_ms": ..., "confidence": 0.8}
+{"type": "complete",   "analysis_id": "an-...",     "confidence": 0.85, "requires_human_review": false}
+```
+
+Connect to the WS before posting to receive all three events:
+```javascript
+const ws = new WebSocket(`ws://localhost:8000/ws/agents/${analysisId}`);
+ws.onmessage = (e) => console.log(JSON.parse(e.data));
+```
+
+Events are fire-and-forget — a Redis outage does not abort the HTTP response.
 
 ---
 

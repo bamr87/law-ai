@@ -24,10 +24,12 @@
 
 ## Open
 
+- **BL-20260602-05** — *feature, low* — Sequential agent execution mode (opt-in flag) for `_run_analysis` so `agent_step` events stream progressively in real-time instead of arriving together after `asyncio.gather` completes. _Surfaced in:_ specs/021-agent-ws-streaming.
+- **BL-20260602-06** — *feature, low* — Frontend progress bar wired to `/ws/agents/{analysis_id}` WebSocket events: render a live step-by-step trace in the Analysis Studio UI when `agent_step` events arrive. _Surfaced in:_ specs/021-agent-ws-streaming.
+
 - **BL-20260526-01** — *test-gap, low* — Add a mutation variant test seeding two cases with overlapping aliases to assert `head(collect(c.id))` determinism (mirrors BL-20260429-12 concern). _Surfaced in:_ specs/014-densify-extraction-integration-tests.
 - **BL-20260526-02** — *test-gap, low* — Add a CI check confirming `test_citation_resolver_integration` tests are not collected without `-m integration` (AC-5 isolation contract). _Surfaced in:_ specs/014-densify-extraction-integration-tests.
 
-- **BL-20260503-09** — *feature, med* — Real Channels producers for `/ws/agents/{run_id}` so `LegalAnalyst`/`PrecedentHunter` progress streams to the consumer skeleton landed by spec 011 T-010. Resolves overlap with BL-20260429-24. _Surfaced in:_ specs/011-django-backend.
 - **BL-20260503-10** — *feature, med* — Django admin actions on `ingestionapp.PendingReview` (approve/reject/re-extract) plus matching `core.tasks` to apply the decision back to Neo4j. Resolves overlap with BL-20260429-15. _Surfaced in:_ specs/011-django-backend.
 - **BL-20260503-11** — *feature, low* — `/agents/runs/{trace_id}` view backed by `audit.AuditEvent` joined on `trace_id` so the spec-003 dashboard can drill into a single run. Resolves overlap with BL-20260429-14. _Surfaced in:_ specs/011-django-backend.
 - **BL-20260503-12** — *feature, med* — Per-token rate limiting via `django-ratelimit` keyed on `request.auth.key_hash`. Resolves overlap with BL-20260430-09. _Surfaced in:_ specs/011-django-backend.
@@ -62,7 +64,6 @@
 - **BL-20260502-07** — *feature, low* — Langfuse fallback path if Phoenix license terms change; abstract the OTEL exporter behind `settings.OBSERVABILITY_BACKEND`. _Surfaced in:_ specs/010-local-ai-stack.
 - **BL-20260502-08** — *test-gap, low* — CI matrix entry that runs the spec-010 Postgres+Ollama integration test (currently only locally executable). _Surfaced in:_ specs/010-local-ai-stack.
 
-- **BL-20260429-24** — *feature, med* — Stream agent trace events to the `/analysis` UI via SSE so users see `LegalAnalyst` → `PrecedentHunter` progress instead of waiting for a single JSON response. _Surfaced in:_ specs/007-analysis-studio.
 - **BL-20260429-25** — *feature, med* — Persist analyses (request + response + trace_ids) in Postgres so users can revisit a run by `analysis_id` and the `/agents/runs/{trace_id}` drill-down (BL-20260429-14) can join across child traces. _Surfaced in:_ specs/007-analysis-studio.
 - **BL-20260429-26** — *feature, low* — "Save & share" — let signed-in users bookmark an analysis with a slug and produce a shareable URL. _Surfaced in:_ specs/007-analysis-studio.
 - **BL-20260429-27** — *test-gap, low* — Playwright smoke test hitting `/analysis` end-to-end against a Docker stack (form fill → result render → trace ID copy). _Surfaced in:_ specs/007-analysis-studio.
@@ -153,6 +154,9 @@
 - **BL-20260429-10** — *test-gap, med* — **(resolved 2026-05-26)**: Shipped via specs/014-densify-extraction-integration-tests. Added `backend/tests/db/test_citation_resolver_integration.py` with three `@pytest.mark.integration` tests: alias-match, idempotency, and no-match-returns-None. Reuses spec-013 fixtures (`neo4j_integration_driver`, `clean_neo4j_db`). _Surfaced in:_ specs/002-resolve-citations-to-cases.
 
 ## Done
+
+- **BL-20260503-09** — *feature, med* — **(resolved 2026-06-02)**: Wired `_emit_ws_event` helper into `_run_analysis`; emits `agent_step:LegalAnalyst`, `agent_step:PrecedentHunter`, and `complete` events to the `agent-run-{analysis_id}` channel group after `asyncio.gather` returns. Fire-and-forget: Redis failure is non-fatal. Two new unit tests: `test_agent_ws_events_emitted` (AC-1) and `test_agent_ws_events_resilient_to_channel_layer_failure` (AC-2). Coverage 81.73%, lint clean. _Shipped in:_ specs/021-agent-ws-streaming.
+- **BL-20260429-24** — *feature, med* — **(resolved 2026-06-02)**: WS-streaming half resolved by BL-20260503-09 / specs/021-agent-ws-streaming. SSE variant remains as a follow-up (see spec 021 §13). _Surfaced in:_ specs/007-analysis-studio.
 
 - **BL-20260511-30** — *feature, high* — **(resolved 2026-06-02)**: Verified and tested `force_quarantine=True` propagation from `TopicFrontier._node_dispatch` through `_dispatch_target` to `IngestionScout.run_and_commit`. Implementation confirmed at `topic_frontier.py:345` and `scout.py:134`. Two new unit tests added: `test_force_quarantine_passed_when_adapter_requires_approval` (AC-1) and `test_force_quarantine_routes_high_confidence_to_hitl` (AC-2). Follow-ups BL-20260602-01, BL-20260602-02 queued in Open. _Shipped in:_ specs/020-enforce-hitl-quarantine.
 

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import secrets
 import time
 from datetime import UTC, datetime
 
 from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.urls import path
 from pydantic import BaseModel, Field, ValidationError
 from rest_framework import status
@@ -52,8 +54,50 @@ class AnalysisResponse(BaseModel):
     langgraph_thread_id: str | None = None
 
 
+_logger = logging.getLogger(__name__)
+
+
 def _new_analysis_id() -> str:
     return f"an-{secrets.token_hex(6)}"
+
+
+async def _emit_ws_event(
+    analysis_id: str,
+    payload: dict[str, object],
+) -> None:
+    """Send a progress event to the ``agent-run-{analysis_id}`` WS group.
+
+    Fire-and-forget: if the channel layer is unavailable (no Redis, no
+    subscriber), the error is logged but never re-raised so that a Redis
+    outage cannot abort an analysis run (spec 021 AC-2, FR-1).
+    """
+    try:
+        layer = get_channel_layer()
+        if layer is None:
+            return
+        await layer.group_send(
+            f"agent-run-{analysis_id}",
+            {"type": "agent_event", "payload": payload},
+        )
+        provenance.log_agent_call(
+            agent_name="AnalysisStudio",
+            input_data={
+                "event_type": "ws_event_sent",
+                "source": "analysis",
+                "analysis_id": analysis_id,
+                "ws_event_type": str(payload.get("type")),
+            },
+            output_data={},
+            model="channels",
+            latency_ms=0.0,
+            confidence=1.0,
+        )
+    except Exception:
+        _logger.warning(
+            "WS event emit failed for analysis_id=%s",
+            analysis_id,
+            exc_info=True,
+        )
 
 
 async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
@@ -65,6 +109,7 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
         "case_id": req.case_id,
         "use_langgraph": req.use_langgraph,
     }
+    analysis_id = _new_analysis_id()
     started = time.perf_counter()
     irac, precedents = await asyncio.gather(analyst.run(payload), hunter.run(payload))
     total_ms = (time.perf_counter() - started) * 1000.0
@@ -72,10 +117,39 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
     requires_human_review = confidence < HITL_THRESHOLD or "Pending human review" in (
         irac.conclusion or ""
     )
+    # Emit WS step events — fire-and-forget. Redis failure is non-fatal (AC-2).
+    await _emit_ws_event(
+        analysis_id,
+        {
+            "type": "agent_step",
+            "agent": "LegalAnalyst",
+            "trace_id": irac.trace_id,
+            "latency_ms": round(total_ms, 2),
+            "confidence": irac.confidence,
+        },
+    )
+    await _emit_ws_event(
+        analysis_id,
+        {
+            "type": "agent_step",
+            "agent": "PrecedentHunter",
+            "trace_id": precedents.trace_id,
+            "latency_ms": round(total_ms, 2),
+            "confidence": precedents.confidence,
+        },
+    )
+    await _emit_ws_event(
+        analysis_id,
+        {
+            "type": "complete",
+            "analysis_id": analysis_id,
+            "confidence": confidence,
+            "requires_human_review": requires_human_review,
+        },
+    )
     sources = list(irac.sources) + [
         {"title": p.title, "url": p.url} for p in precedents.precedents
     ]
-    analysis_id = _new_analysis_id()
     provenance.log_agent_call(
         agent_name="AnalysisStudio",
         input_data={
