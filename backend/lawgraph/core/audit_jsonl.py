@@ -103,8 +103,12 @@ def by_trace(trace_id: str, max_scan: int = 5000) -> list[dict[str, Any]]:
             children = (inp or {}).get("child_trace_ids") or []
             if tid in wanted and isinstance(children, list):
                 wanted.update(c for c in children if isinstance(c, str))
-            if isinstance(children, list) and any(c in wanted for c in children) and isinstance(tid, str):
-                    wanted.add(tid)
+            if (
+                isinstance(children, list)
+                and any(c in wanted for c in children)
+                and isinstance(tid, str)
+            ):
+                wanted.add(tid)
         if len(wanted) == before:
             break
 

@@ -378,9 +378,7 @@ class ProposalApproveView(_Base):
         except KeyError as exc:
             raise Http404("proposal not found") from exc
         except ValueError as exc:
-            return Response(
-                {"detail": str(exc)}, status=status.HTTP_409_CONFLICT
-            )
+            return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
         return Response(row)
 
 
