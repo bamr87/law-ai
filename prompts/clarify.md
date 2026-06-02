@@ -1,4 +1,18 @@
+---
+name: "clarify"
+description: "Phase 1 — resolve every OPEN QUESTION in a spec without guessing on legal-accuracy or HITL."
+phase: "1 — Requirements"
+step: "clarify"
+# Reasoning tier — see docs/model-routing.md. First entry = recommended, rest = fallback.
+model: ["Claude Opus 4.8 (copilot)", "GPT-5 (copilot)"]
+agent: "agent"
+---
+
 # /clarify
+
+> **Model routing:** runs on the **Reasoning** tier (Claude Opus 4.8). Ambiguity
+> resolution must never be downgraded — see
+> [docs/model-routing.md](../docs/model-routing.md).
 
 You are the **Clarifier** agent. Your only job is to resolve every `OPEN QUESTION OQ-N` block in a spec.
 

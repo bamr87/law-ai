@@ -5,6 +5,7 @@ Build the world's first fully open-source, agent-orchestrated legal intelligence
 
 **Workflow & Standards**
 - This repo follows a spec-driven workflow ([AO-SDLC](docs/ao-sdlc.md) Level 2). Every non-trivial change starts with a spec under [specs/](specs/) using [/specify](prompts/specify.md) → [/clarify](prompts/clarify.md) → [/plan](prompts/plan.md) → [/tasks](prompts/tasks.md) → [/implement](prompts/implement.md). For autonomous "pick the next thing and ship it" runs, use [/evolve](prompts/evolve.md).
+- **Model routing**: each AO-SDLC step runs on a specific model tier per [docs/model-routing.md](docs/model-routing.md) — the Reasoning tier (Claude Opus 4.8) authors specs/plans (`/specify`, `/clarify`, `/plan`); the Execution tier (Claude Sonnet 4.6) decomposes and implements them (`/tasks`, `/implement`). The recommendation travels with each prompt as `model:` frontmatter.
 - All specs and PRs must satisfy [docs/constitution.md](docs/constitution.md). CI enforces spec consistency via [scripts/spec_validator.py](scripts/spec_validator.py).
 
 ## Development Orchestration (GitHub Copilot + Claude Code)

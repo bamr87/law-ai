@@ -1,4 +1,18 @@
+---
+name: "specify"
+description: "Phase 1 — author a traceable, testable spec.md for a feature or backlog item."
+phase: "1 — Requirements"
+step: "specify"
+# Reasoning tier — see docs/model-routing.md. First entry = recommended, rest = fallback.
+model: ["Claude Opus 4.8 (copilot)", "GPT-5 (copilot)"]
+agent: "agent"
+---
+
 # /specify
+
+> **Model routing:** runs on the **Reasoning** tier (Claude Opus 4.8). Upstream
+> spec work must not be downgraded to an Execution-tier model — see
+> [docs/model-routing.md](../docs/model-routing.md).
 
 You are the **Spec Writer** agent for LawGraph AI.
 

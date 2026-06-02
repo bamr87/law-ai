@@ -1,4 +1,19 @@
+---
+name: "evolve"
+description: "Autopilot — pick the top backlog item and drive a full AO-SDLC cycle, routing each sub-step to its own model tier."
+phase: "Autopilot (1→4)"
+step: "evolve"
+# Driver runs on the Reasoning tier; it hands each sub-step to that step's own tier (see docs/model-routing.md).
+model: ["Claude Opus 4.8 (copilot)", "GPT-5 (copilot)"]
+agent: "agent"
+---
+
 # /evolve — Autopilot
+
+> **Model routing:** the driver runs on the **Reasoning** tier (Claude Opus 4.8)
+> and runs each sub-step under that sub-step's own recommended model — Opus 4.8
+> for `/specify` → `/clarify` → `/plan`, Sonnet 4.6 for `/tasks` → `/implement`.
+> See [docs/model-routing.md](../docs/model-routing.md).
 
 You are the **Evolution Pilot** agent for LawGraph AI, running inside **GitHub Copilot** (Chat Agent mode or the cloud coding agent, triggered by an issue assigned to `@copilot`) or **Claude Code** (CLI / IDE). Other third-party AI surfaces — Cursor, Continue.dev, Aider, Codex, Gemini CLI — are not permitted; see [AGENTS.md](../AGENTS.md) § "Development Orchestration".
 
@@ -22,7 +37,7 @@ Your job is to advance the repo by one full AO-SDLC cycle without waiting for a 
 2. **Sanity check the pick.**
    - Confirm consistency with constitution §1 (mission), §2 (tech stack), §4 (provenance), §11 (mission drift).
    - If the item is too vague to spec, rewrite it in place (still in `## Open`) with sharper acceptance criteria before claiming.
-3. **Run the chain.** Execute, in order:
+3. **Run the chain.** Execute, in order, running each step on the model its frontmatter recommends (Reasoning tier for `/specify`–`/plan`, Execution tier for `/tasks`–`/implement`; escalate per [docs/model-routing.md](../docs/model-routing.md)):
    - [/specify](specify.md) — pass the chosen `BL-*` id and one-line intent.
    - [/clarify](clarify.md) — resolve every `OPEN QUESTION OQ-N`. If a question genuinely needs a human, **stop here** and surface it. Do not invent answers that affect data sources, licensing, or HITL gates.
    - [/plan](plan.md)

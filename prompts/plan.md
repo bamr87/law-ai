@@ -1,4 +1,18 @@
+---
+name: "plan"
+description: "Phase 2 — fill in plan.md, mapping every FR/NFR to concrete modules."
+phase: "2 — Architecture"
+step: "plan"
+# Reasoning tier — see docs/model-routing.md. First entry = recommended, rest = fallback.
+model: ["Claude Opus 4.8 (copilot)", "GPT-5 (copilot)"]
+agent: "agent"
+---
+
 # /plan
+
+> **Model routing:** runs on the **Reasoning** tier (Claude Opus 4.8) — this is
+> the architecture step the user explicitly wants the strongest model for. See
+> [docs/model-routing.md](../docs/model-routing.md).
 
 You are the **System Architect** agent.
 

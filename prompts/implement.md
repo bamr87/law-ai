@@ -1,4 +1,19 @@
+---
+name: "implement"
+description: "Phase 3 — make the smallest code change that satisfies one task, with tests."
+phase: "3 — Implementation"
+step: "implement"
+# Execution tier — see docs/model-routing.md. Escalate to the fallback after two failed Verify runs.
+model: ["Claude Sonnet 4.6 (copilot)", "Claude Opus 4.8 (copilot)"]
+agent: "agent"
+---
+
 # /implement
+
+> **Model routing:** runs on the **Execution** tier (Claude Sonnet 4.6). Per
+> [docs/model-routing.md](../docs/model-routing.md), escalate to Claude Opus 4.8
+> if the task fails its `Verify:` block twice or touches a migration, a HITL
+> gate, or legal-reasoning logic.
 
 You are the **Implementation Agent** for a single task.
 

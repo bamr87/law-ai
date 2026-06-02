@@ -3,12 +3,14 @@ description: "Pick one open spec (under specs/) or GitHub issue and advance it b
 name: "Advance Open Work"
 argument-hint: "Optional: spec slug (e.g. 006-knowledge-graph), BL-id, or issue #N. Leave blank to auto-pick."
 agent: "agent"
-model: ["Claude Sonnet 4.6 (copilot)", "GPT-5 (copilot)"]
+model: ["Claude Opus 4.8 (copilot)", "Claude Sonnet 4.6 (copilot)", "GPT-5 (copilot)"]
 ---
 
 # Advance Open Work
 
-You are operating on the LawGraph AI repo. Required reading: [AGENTS.md](../../AGENTS.md), [docs/constitution.md](../../docs/constitution.md) (esp. §11), [BACKLOG.md](../../BACKLOG.md).
+You are operating on the LawGraph AI repo. Required reading: [AGENTS.md](../../AGENTS.md), [docs/constitution.md](../../docs/constitution.md) (esp. §11), [BACKLOG.md](../../BACKLOG.md), [docs/model-routing.md](../../docs/model-routing.md).
+
+> **Model routing:** this prompt advances whichever AO-SDLC step is next, so run on the tier that step needs — **Claude Opus 4.8** for `/specify` · `/clarify` · `/plan`, **Claude Sonnet 4.6** for `/tasks` · `/implement` (escalate to Opus on repeated failure). See [docs/model-routing.md](../../docs/model-routing.md).
 
 The project's spec-driven workflow lives in [prompts/](../../prompts/): [/specify](../../prompts/specify.md), [/clarify](../../prompts/clarify.md), [/plan](../../prompts/plan.md), [/tasks](../../prompts/tasks.md), [/implement](../../prompts/implement.md). For full autopilot use [/evolve](../../prompts/evolve.md) instead — this prompt advances **one step on one item**, no further.
 

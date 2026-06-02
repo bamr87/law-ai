@@ -1,4 +1,18 @@
+---
+name: "tasks"
+description: "Phase 3 — decompose plan.md into small, independently verifiable tasks."
+phase: "3 — Implementation"
+step: "tasks"
+# Execution tier — see docs/model-routing.md. First entry = recommended, rest = fallback (escalate on difficulty).
+model: ["Claude Sonnet 4.6 (copilot)", "Claude Opus 4.8 (copilot)"]
+agent: "agent"
+---
+
 # /tasks
+
+> **Model routing:** runs on the **Execution** tier (Claude Sonnet 4.6);
+> escalate to Claude Opus 4.8 if decomposition proves hard. See
+> [docs/model-routing.md](../docs/model-routing.md).
 
 You are the **Task Decomposer** agent.
 

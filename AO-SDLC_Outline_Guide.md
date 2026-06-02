@@ -153,6 +153,20 @@ This document serves as both a **strategic outline** and **implementation templa
 
 **Why Deterministic Core?** Critical infrastructure changes (IaC, secrets, networking) benefit from predictability; agents excel at creative/analytical tasks around it.
 
+### 2.6 Model Routing by Phase
+
+Not every step needs the same model. Route each AO-SDLC step to the **smallest model that can do it well** so premium reasoning tokens are spent where a mistake is most expensive (the upstream spec/plan steps) and cheaper models handle mechanical downstream execution. This makes the workflow more **accurate** (right model per job), more **efficient** (cost), and more **versatile** (explicit fallbacks + escalation).
+
+| Tier | Model | Steps |
+|------|-------|-------|
+| **Reasoning** | Claude Opus 4.8 (fallback GPT-5) | `/specify`, `/clarify`, `/plan` — deep requirements, ambiguity resolution, architecture, constitution-compliance judgement. |
+| **Execution** | Claude Sonnet 4.6 (fallback Opus 4.8) | `/tasks`, `/implement`, `/implement-feature`, `/new-agent` — decomposition and code generation against an already-clarified spec/plan. |
+| **Review / alt** | GPT-5 | Cross-model second opinion on high-stakes specs; fallback when a Claude tier is unavailable. |
+
+`/evolve` runs as a Reasoning-tier driver that hands each sub-step to that step's own tier. Escalate an Execution-tier step to its Reasoning-tier fallback after two failed `Verify:` runs or when it touches a migration, a HITL gate, or legal-reasoning logic; never downgrade the upstream steps to save cost.
+
+In this repo the policy is implemented in [docs/model-routing.md](docs/model-routing.md) and mirrored as `model:` frontmatter in every prompt under `prompts/` and `.github/prompts/`. Keep those three in sync. (In a generic CrewAI/LangGraph deployment, set each agent's `llm=` to the tier above and add a retry edge that swaps in the fallback model.)
+
 ---
 
 ## 3. Phase 0: Strategic Vision, Roadmap Development & Portfolio Alignment

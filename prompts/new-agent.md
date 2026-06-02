@@ -1,4 +1,18 @@
+---
+name: "new-agent"
+description: "Phase 3 — scaffold a new LawGraph agent role with structured output and a LegalBench test."
+phase: "3 — Implementation"
+step: "new-agent"
+# Execution tier — see docs/model-routing.md. Escalate to the fallback if reasoning logic is non-trivial.
+model: ["Claude Sonnet 4.6 (copilot)", "Claude Opus 4.8 (copilot)"]
+agent: "agent"
+---
+
 # Prompt Template: Implement New LawGraph Agent
+
+> **Model routing:** runs on the **Execution** tier (Claude Sonnet 4.6);
+> escalate to Claude Opus 4.8 if the agent's reasoning logic is non-trivial. See
+> [docs/model-routing.md](../docs/model-routing.md).
 
 You are an expert legal AI engineer building LawGraph AI.
 

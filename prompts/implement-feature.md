@@ -1,4 +1,18 @@
+---
+name: "implement-feature"
+description: "Phase 3 — build a multi-layer feature (API → agent → UI → tests) end to end."
+phase: "3 — Implementation"
+step: "implement-feature"
+# Execution tier — see docs/model-routing.md. Escalate to the fallback for reasoning-heavy features.
+model: ["Claude Sonnet 4.6 (copilot)", "Claude Opus 4.8 (copilot)"]
+agent: "agent"
+---
+
 # Prompt Template: Implement Feature in LawGraph AI
+
+> **Model routing:** runs on the **Execution** tier (Claude Sonnet 4.6);
+> escalate to Claude Opus 4.8 for reasoning-heavy features. See
+> [docs/model-routing.md](../docs/model-routing.md).
 
 **Feature Request**: {Brief description of feature, e.g. "Add support for UK legislation via legislation.gov.uk API"}
 
