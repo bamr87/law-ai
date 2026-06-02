@@ -24,6 +24,8 @@
 
 ## Open
 
+- **BL-20260602-05** — *infra, med* — Add a CI check (extend `scripts/spec_validator.py` or a new `scripts/prompt_lint.py`) that asserts every `model:` value in `prompts/*.md` and `.github/prompts/*.prompt.md` matches a tier in [docs/model-routing.md](docs/model-routing.md), so the routing table and prompt frontmatter cannot silently drift. _Surfaced in:_ docs/model-routing.md.
+- **BL-20260602-06** — *tech-debt, low* — De-duplicate the AO-SDLC framework guide: `AO-SDLC_Outline_Guide.md` (repo root) is a verbatim copy of [docs/ao-sdlc-guide.md](docs/ao-sdlc-guide.md). Make the root file a thin pointer (or delete it) so the two cannot diverge. _Surfaced in:_ docs/model-routing.md.
 - **BL-20260526-01** — *test-gap, low* — Add a mutation variant test seeding two cases with overlapping aliases to assert `head(collect(c.id))` determinism (mirrors BL-20260429-12 concern). _Surfaced in:_ specs/014-densify-extraction-integration-tests.
 - **BL-20260526-02** — *test-gap, low* — Add a CI check confirming `test_citation_resolver_integration` tests are not collected without `-m integration` (AC-5 isolation contract). _Surfaced in:_ specs/014-densify-extraction-integration-tests.
 
