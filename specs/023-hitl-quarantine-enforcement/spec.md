@@ -1,7 +1,7 @@
 # Spec: HITL Quarantine Enforcement — Test Coverage & Regression Guard
 
 - **ID**: 023-hitl-quarantine-enforcement
-- **Status**: clarified
+- **Status**: shipped
 - **Owner**: @copilot
 - **Created**: 2026-06-02
 - **Roadmap Epic**: BACKLOG BL-20260511-30
