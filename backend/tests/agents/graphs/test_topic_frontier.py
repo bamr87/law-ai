@@ -440,13 +440,22 @@ class TestHumanApprovalDefault:
 
 @pytest.mark.integration
 @pytest.mark.django_db(transaction=True)
-def test_requires_human_approval_produces_pending_review_row(settings) -> None:
+def test_requires_human_approval_produces_pending_review_row(
+    settings, monkeypatch
+) -> None:
     from asgiref.sync import async_to_sync
 
     from lawgraph.ingestionapp.models import PendingReview
 
     settings.CELERY_TASK_ALWAYS_EAGER = True
     settings.CELERY_TASK_EAGER_PROPAGATES = True
+    # Eager Celery executes the quarantine task's synchronous Django ORM writes
+    # inline — here, inside the async_to_sync event loop below — which Django
+    # rejects with SynchronousOnlyOperation, so the scout silently falls back to
+    # JSONL and no PendingReview row is written (BL-20260510-01). In production
+    # the task runs in a separate worker process (no running loop), so this
+    # guard only bites in eager tests; allow sync ORM for this controlled run.
+    monkeypatch.setenv("DJANGO_ALLOW_ASYNC_UNSAFE", "1")
 
     source_url = "https://example.com/hitl/quarantine-me"
     adapter = MagicMock()

@@ -9,8 +9,8 @@
 
 ---
 
-> NOTE: The actual test module is `backend/tests/agents/graphs/test_topic_frontier.py`
-> (the `tests/autonomy/...` path in this file predates the agents/graphs layout).
+> NOTE: The test module is `backend/tests/agents/graphs/test_topic_frontier.py`.
+> Verify commands run Docker-first (`docker compose run --rm backend pytest …`).
 
 ## T-001 — Add unit test: force_quarantine=True propagates to run_and_commit
 
@@ -38,7 +38,7 @@
   1. Patch `IngestionScout.run_and_commit` to return `{"committed": False, "pending": True, "confidence": 0.5}`.
   2. Call `_dispatch_target` with `force_quarantine=True`.
   3. Assert `entry["committed"] is False`.
-- **Verify**: `pytest tests/autonomy/test_topic_frontier.py::test_dispatch_summary_shows_not_committed_when_force_quarantine -q` passes.
+- **Verify**: `docker compose run --rm --no-deps backend pytest tests/agents/graphs/test_topic_frontier.py::test_dispatch_summary_shows_not_committed_when_force_quarantine -q` passes.
 
 ## T-003 — Strengthen existing test: assert run_and_commit called with force_quarantine=True
 
@@ -70,7 +70,7 @@
      lookup is `PendingReview.objects.filter(pk=raw_doc.source_url).exists()`, not
      `filter(source=...)` as originally drafted in FR-4.
   6. Assert dispatch summary entry has `committed=False`.
-- **Verify**: `pytest tests/autonomy/test_topic_frontier.py::test_requires_human_approval_produces_pending_review_row -m integration -v` passes.
+- **Verify**: `docker compose run --rm backend pytest tests/agents/graphs/test_topic_frontier.py::test_requires_human_approval_produces_pending_review_row -m integration -v` passes.
 
 ## T-005 — Quality gate
 
