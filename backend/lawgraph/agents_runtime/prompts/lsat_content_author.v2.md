@@ -64,7 +64,7 @@ Respond with a single JSON object:
         {"label": "D", "text": "…"},
         {"label": "E", "text": "…"}
       ],
-      "correct": "<one of A-E, chosen so keys are spread across all five letters>",
+      "correct": "<one of A-E; vary this across a multi-item batch, and for a single item pick the position at random rather than defaulting to B/C>",
       "explanation": "Correct <key> because … . Each other choice fails because … (name every distractor).",
       "concepts": ["parallel-reasoning"],
       "confidence": 0.0-1.0
@@ -84,6 +84,6 @@ Respond with a single JSON object:
 - [ ] Exactly `count` items in `drafts`.
 - [ ] Every item has 5 choices A..E in order.
 - [ ] `correct` label exists in `choices`.
-- [ ] Across the batch, the correct answers cover A-E and do not cluster on B/C.
+- [ ] Correct answers do not cluster on B/C; when `count` > 1, their positions vary across items (aim to use all of A-E once `count` ≥ 5).
 - [ ] `concepts` non-empty and drawn from the catalog when possible.
 - [ ] `confidence` reflects how sure you are the key is right (lower it if you had to guess).
