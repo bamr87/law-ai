@@ -55,23 +55,23 @@
                 },
                 {
                     "label": "B",
-                    "text": "The comparable cities all simultaneously enacted downtown congestion-pricing tolls."
-                },
-                {
-                    "label": "C",
                     "text": "Some downtown residents oppose the construction noise."
                 },
                 {
-                    "label": "D",
+                    "label": "C",
                     "text": "Light-rail riders in those cities reported high satisfaction."
+                },
+                {
+                    "label": "D",
+                    "text": "The comparable cities all simultaneously enacted downtown congestion-pricing tolls."
                 },
                 {
                     "label": "E",
                     "text": "The proposed line will run mostly underground."
                 }
             ],
-            "correct": "B",
-            "explanation": "The argument infers causation from correlation across comparable cities. B introduces a confound — congestion-pricing tolls — that may explain the congestion drop instead of the rail line, undermining the causal inference. A attacks cost (irrelevant to congestion). C, D, E are off-point.",
+            "correct": "D",
+            "explanation": "The argument infers causation from correlation across comparable cities. D introduces a confound — congestion-pricing tolls — that may explain the congestion drop instead of the rail line, undermining the causal inference. A attacks cost (irrelevant to congestion). B, C, and E are off-point.",
             "concepts": [
                 "causation-vs-correlation",
                 "weaken",
@@ -140,23 +140,23 @@
                 },
                 {
                     "label": "B",
-                    "text": "confuses the volume of submissions with the diversity of viewpoints in those submissions."
-                },
-                {
-                    "label": "C",
                     "text": "assumes without warrant that all freelance writers lack primary sources."
                 },
                 {
-                    "label": "D",
+                    "label": "C",
                     "text": "fails to consider that some published pieces cite more than three sources."
                 },
                 {
-                    "label": "E",
+                    "label": "D",
                     "text": "infers a general rule from a single anecdote."
+                },
+                {
+                    "label": "E",
+                    "text": "confuses the volume of submissions with the diversity of viewpoints in those submissions."
                 }
             ],
-            "correct": "B",
-            "explanation": "The critics' claim is about *diversity of viewpoints*. The editor rebuts using *submission volume*. Equating the two is the flaw — submission count and viewpoint diversity are different measures. A, C, D, E mischaracterize the structure.",
+            "correct": "E",
+            "explanation": "The critics' claim is about *diversity of viewpoints*. The editor rebuts using *submission volume*. Equating the two is the flaw — submission count and viewpoint diversity are different measures, so E names it. A, B, C, and D mischaracterize the structure.",
             "concepts": [
                 "equivocation",
                 "flaw-in-reasoning"
@@ -224,23 +224,23 @@
                 },
                 {
                     "label": "B",
-                    "text": "treats absence of evidence as evidence of absence."
-                },
-                {
-                    "label": "C",
                     "text": "relies on a sample that is too small."
                 },
                 {
-                    "label": "D",
+                    "label": "C",
                     "text": "draws a conclusion about an individual from claims about a group."
+                },
+                {
+                    "label": "D",
+                    "text": "treats absence of evidence as evidence of absence."
                 },
                 {
                     "label": "E",
                     "text": "appeals to popular opinion rather than to facts."
                 }
             ],
-            "correct": "B",
-            "explanation": "Lack of supporting evidence does not establish the opposite conclusion (the ordinance might still preserve the character even if no survey has been produced). This is the appeal-to-ignorance flaw.",
+            "correct": "D",
+            "explanation": "Lack of supporting evidence does not establish the opposite conclusion (the ordinance might still preserve the character even if no survey has been produced). This appeal-to-ignorance flaw is captured by D. A, B, C, and E describe errors the columnist did not commit.",
             "concepts": [
                 "appeal-to-ignorance",
                 "flaw-in-reasoning"
@@ -257,15 +257,15 @@
             "choices": [
                 {
                     "label": "A",
-                    "text": "The defendant will win the appeal."
+                    "text": "There are no other grounds on which the appeal could be won."
                 },
                 {
                     "label": "B",
-                    "text": "Showing improper jury instructions is sufficient to win an appeal."
+                    "text": "The defendant will win the appeal."
                 },
                 {
                     "label": "C",
-                    "text": "There are no other grounds on which the appeal could be won."
+                    "text": "Showing improper jury instructions is sufficient to win an appeal."
                 },
                 {
                     "label": "D",
@@ -276,8 +276,8 @@
                     "text": "Misapplication of the statute would have been the stronger ground."
                 }
             ],
-            "correct": "C",
-            "explanation": "The argument lists two ways to win and rules one out, then concludes the other must be the route to a win. That move only works if those two were the *only* possible grounds. Choice C makes that necessary assumption explicit.",
+            "correct": "A",
+            "explanation": "The argument lists two ways to win and rules one out, then concludes the other must be the route to a win. That move only works if those two were the *only* possible grounds. Choice A makes that necessary assumption explicit. B, C, D, and E add facts the argument neither states nor requires.",
             "concepts": [
                 "necessary-assumption",
                 "conditional-reasoning"
@@ -288,6 +288,117 @@
                     "url": "https://7sage.com/lesson/lr-necessary-assumption/"
                 }
             ],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "lr-008",
+            "section": "LR",
+            "type": "LR",
+            "difficulty": "med",
+            "stem": "Researcher: Patients who received the new therapy recovered faster than those who received the standard treatment. So the new therapy must be more effective than the standard treatment.\n\nWhich one of the following, if true, most strengthens the researcher's argument?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "The new therapy is more expensive than the standard treatment."
+                },
+                {
+                    "label": "B",
+                    "text": "Some patients given the standard treatment also recovered quickly."
+                },
+                {
+                    "label": "C",
+                    "text": "The two groups of patients were similar in age, overall health, and severity of illness."
+                },
+                {
+                    "label": "D",
+                    "text": "The researcher has studied the standard treatment for many years."
+                },
+                {
+                    "label": "E",
+                    "text": "A few patients given the new therapy reported mild side effects."
+                }
+            ],
+            "correct": "C",
+            "explanation": "Moving from 'recovered faster' to 'more effective' assumes the two groups were comparable to begin with. C rules out the alternative that the new-therapy group was simply healthier, strengthening the causal claim. A and E raise cost and side-effects, which are irrelevant to effectiveness. B and D neither support nor close the gap.",
+            "concepts": [
+                "strengthen",
+                "causation-vs-correlation"
+            ],
+            "references": [],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "lr-009",
+            "section": "LR",
+            "type": "LR",
+            "difficulty": "med",
+            "stem": "Only employees who completed the safety course may operate the forklift. No temporary worker has completed the safety course.\n\nIf the statements above are true, which one of the following must also be true?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "Some temporary workers may operate the forklift."
+                },
+                {
+                    "label": "B",
+                    "text": "Every employee who completed the safety course operates the forklift."
+                },
+                {
+                    "label": "C",
+                    "text": "Anyone who operates the forklift is a temporary worker."
+                },
+                {
+                    "label": "D",
+                    "text": "Completing the safety course is sufficient to be allowed to operate the forklift."
+                },
+                {
+                    "label": "E",
+                    "text": "No temporary worker may operate the forklift."
+                }
+            ],
+            "correct": "E",
+            "explanation": "'Only those who completed the course may operate' means operating requires completion (operate → completed). The contrapositive is ¬completed → ¬operate. Since no temporary worker completed the course, no temporary worker may operate the forklift — E. A contradicts this. B and D treat a necessary condition as if it were sufficient. C reverses the conditional.",
+            "concepts": [
+                "conditional-reasoning",
+                "contrapositive"
+            ],
+            "references": [],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "lr-010",
+            "section": "LR",
+            "type": "LR",
+            "difficulty": "hard",
+            "stem": "Critic: If a film is a commercial success, it will be widely imitated. This year's top-grossing comedy has already spawned a dozen imitators. So it was a commercial success.\n\nThe critic's reasoning is most vulnerable to the criticism that it…",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "takes a condition that guarantees an outcome to be required for that outcome."
+                },
+                {
+                    "label": "B",
+                    "text": "treats a result that the premise says would follow from success as if it established success."
+                },
+                {
+                    "label": "C",
+                    "text": "relies on a sample of films that is too small to support a generalization."
+                },
+                {
+                    "label": "D",
+                    "text": "assumes that what is true of one comedy is true of all comedies."
+                },
+                {
+                    "label": "E",
+                    "text": "confuses the popularity of a film with its artistic merit."
+                }
+            ],
+            "correct": "B",
+            "explanation": "The premise says success → imitation. The critic observes imitation and infers success, affirming the consequent — imitation could arise for other reasons. B names this error. A describes the converse mistake (necessary vs. sufficient) the critic did not make. C, D, and E raise issues the argument does not turn on.",
+            "concepts": [
+                "flaw-in-reasoning",
+                "conditional-reasoning"
+            ],
+            "references": [],
             "source": "original (CC0)"
         }
     ]

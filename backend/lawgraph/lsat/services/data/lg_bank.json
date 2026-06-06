@@ -18,19 +18,19 @@
                 },
                 {
                     "label": "C",
-                    "text": "F, H, K, J, G"
+                    "text": "K, F, H, J, G"
                 },
                 {
                     "label": "D",
-                    "text": "K, G, F, H, J"
+                    "text": "F, H, K, J, G"
                 },
                 {
                     "label": "E",
-                    "text": "F, H, J, G, K"
+                    "text": "H, F, G, J, K"
                 }
             ],
-            "correct": "C",
-            "explanation": "Only C satisfies all three rules. A: F=1 and H=3 are not adjacent (Rule 1). B: J is fifth, not fourth (Rule 2). D: K is first (Rule 3). E: J is third, not fourth (Rule 2). C: F-H is (1,2) ✓, J=4 ✓, K=3 ≠ 1 ✓.",
+            "correct": "D",
+            "explanation": "Apply the rules as eliminators. A puts F first and H third — not the required immediate F-H block (Rule 1). B places J fifth, violating Rule 2 (J fourth). C starts with K, violating Rule 3. E reverses the block, putting H before F (Rule 1). D — F, H, K, J, G — satisfies all three: F is immediately before H, J is fourth, and K is not first.",
             "concepts": [
                 "sequencing",
                 "elimination-grid"
@@ -57,23 +57,23 @@
                 },
                 {
                     "label": "B",
-                    "text": "G argues first."
-                },
-                {
-                    "label": "C",
                     "text": "K argues second."
                 },
                 {
-                    "label": "D",
+                    "label": "C",
                     "text": "J argues fifth."
                 },
                 {
-                    "label": "E",
+                    "label": "D",
                     "text": "K argues third."
+                },
+                {
+                    "label": "E",
+                    "text": "G argues first."
                 }
             ],
-            "correct": "B",
-            "explanation": "If H=3, Rule 1 forces F=2. Rule 2 fixes J=4. Slots 1 and 5 remain for G and K. Rule 3 forbids K=1, so G=1 and K=5. Therefore G argues first must be true.",
+            "correct": "E",
+            "explanation": "If H=3, Rule 1 forces F=2. Rule 2 fixes J=4. Slots 1 and 5 remain for G and K, and Rule 3 forbids K=1, so G=1 and K=5. Therefore E — G argues first — must be true. A is false (F=2); B and D misplace K (K=5); C is false (J=4).",
             "concepts": [
                 "sequencing",
                 "must-be-true"
@@ -111,7 +111,83 @@
                 }
             ],
             "correct": "A",
-            "explanation": "If G=5, the F-H block (Rule 1) and J=4 (Rule 2) leave only one valid layout: F=1, H=2, K=3, J=4, G=5. So K argues third must be true. (E is forbidden by Rule 3; B/C/D are inconsistent with the forced layout.)",
+            "explanation": "If G=5, the F-H block (Rule 1) and J=4 (Rule 2) leave only one valid layout: F=1, H=2, K=3, J=4, G=5. So A — K argues third — must be true. E is forbidden by Rule 3; B, C, and D are inconsistent with the forced layout.",
+            "concepts": [
+                "sequencing",
+                "must-be-true"
+            ],
+            "references": [],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "lg-004",
+            "section": "LG",
+            "type": "LG",
+            "difficulty": "hard",
+            "passage_id": "lg-game-001",
+            "stem": "Which one of the following CANNOT be true?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "K argues fifth."
+                },
+                {
+                    "label": "B",
+                    "text": "H argues first."
+                },
+                {
+                    "label": "C",
+                    "text": "G argues third."
+                },
+                {
+                    "label": "D",
+                    "text": "F argues second."
+                },
+                {
+                    "label": "E",
+                    "text": "K argues third."
+                }
+            ],
+            "correct": "B",
+            "explanation": "Only three orders satisfy the rules: F-H-G-J-K, F-H-K-J-G, and G-F-H-J-K. In every one the F-H block places H in slot 2 or 3, so H can never argue first — B cannot be true. K fifth (A), G third (C), F second (D), and K third (E) each occur in at least one valid order.",
+            "concepts": [
+                "sequencing",
+                "could-be-true-except"
+            ],
+            "references": [],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "lg-005",
+            "section": "LG",
+            "type": "LG",
+            "difficulty": "med",
+            "passage_id": "lg-game-001",
+            "stem": "If K argues third, then which one of the following must be true?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "H argues first."
+                },
+                {
+                    "label": "B",
+                    "text": "F argues second."
+                },
+                {
+                    "label": "C",
+                    "text": "G argues fifth."
+                },
+                {
+                    "label": "D",
+                    "text": "G argues first."
+                },
+                {
+                    "label": "E",
+                    "text": "H argues fourth."
+                }
+            ],
+            "correct": "C",
+            "explanation": "If K=3 and J=4 (Rule 2), the F-H block (Rule 1) can only fit in slots 1-2, leaving slot 5 for G. The single valid order is F, H, K, J, G. So C — G argues fifth — must be true. A and D misplace G and H, B places F second (F=1), and E puts H fourth (H=2).",
             "concepts": [
                 "sequencing",
                 "must-be-true"

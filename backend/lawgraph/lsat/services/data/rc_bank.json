@@ -14,23 +14,23 @@
                 },
                 {
                     "label": "B",
-                    "text": "The shift from rigid pleading to notice pleading reflected a deliberate trade of doctrinal predictability for procedural access."
-                },
-                {
-                    "label": "C",
                     "text": "Modern federal procedure has eliminated all procedural barriers facing pro se litigants."
                 },
                 {
-                    "label": "D",
+                    "label": "C",
                     "text": "The drafters of the Federal Rules of Civil Procedure rejected the influence of the common-law tradition."
                 },
                 {
-                    "label": "E",
+                    "label": "D",
                     "text": "Twombly and Iqbal returned the federal courts to nineteenth-century pleading standards."
+                },
+                {
+                    "label": "E",
+                    "text": "The shift from rigid pleading to notice pleading reflected a deliberate trade of doctrinal predictability for procedural access."
                 }
             ],
-            "correct": "B",
-            "explanation": "The passage's central thesis is that the move to notice pleading was a *trade-off*: the drafters knowingly sacrificed some predictability to widen the courthouse door. B captures both halves. A overstates ('always'). C is contradicted by the closing paragraph. D is too strong — the passage says drafters were *informed by* the tradition, not that they rejected it. E confuses the post-Iqbal tightening with a full reversion.",
+            "correct": "E",
+            "explanation": "The passage's central thesis is that the move to notice pleading was a *trade-off*: the drafters knowingly sacrificed some predictability to widen the courthouse door. E captures both halves. A overstates ('always'). B is contradicted by the closing paragraph. C is too strong — the passage says drafters were *informed by* the tradition, not that they rejected it. D confuses the post-Iqbal tightening with a full reversion.",
             "concepts": [
                 "main-point",
                 "rc-structure"
@@ -52,11 +52,11 @@
                 },
                 {
                     "label": "B",
-                    "text": "qualified concern."
+                    "text": "open hostility."
                 },
                 {
                     "label": "C",
-                    "text": "open hostility."
+                    "text": "qualified concern."
                 },
                 {
                     "label": "D",
@@ -67,8 +67,8 @@
                     "text": "scholarly bewilderment."
                 }
             ],
-            "correct": "B",
-            "explanation": "The author concedes that the cases addressed real problems (mass-tort fishing expeditions) but worries they 'risk reintroducing the very access barrier the 1938 drafters set out to dismantle.' That hedged worry is qualified concern, not endorsement, hostility, indifference, or bewilderment.",
+            "correct": "C",
+            "explanation": "The author concedes that the cases addressed real problems (mass-tort fishing expeditions) but worries they 'risk reintroducing the very access barrier the 1938 drafters set out to dismantle.' That hedged worry is qualified concern (C), not endorsement, hostility, indifference, or bewilderment.",
             "concepts": [
                 "author-attitude",
                 "rc-tone"
@@ -82,33 +82,108 @@
             "type": "RC",
             "difficulty": "easy",
             "passage_id": "rc-passage-001",
-            "stem": "According to the passage, the original Federal Rules of Civil Procedure were adopted in…",
+            "stem": "According to the passage, the original Federal Rules of Civil Procedure took effect in…",
             "choices": [
                 {
                     "label": "A",
-                    "text": "1908."
-                },
-                {
-                    "label": "B",
-                    "text": "1925."
-                },
-                {
-                    "label": "C",
                     "text": "1938."
                 },
                 {
-                    "label": "D",
+                    "label": "B",
+                    "text": "1948."
+                },
+                {
+                    "label": "C",
                     "text": "1957."
                 },
                 {
-                    "label": "E",
+                    "label": "D",
                     "text": "1966."
+                },
+                {
+                    "label": "E",
+                    "text": "1975."
                 }
             ],
-            "correct": "C",
-            "explanation": "Detail question. The passage states 'the 1938 drafters' — the Federal Rules of Civil Procedure took effect that year. Other dates appear nowhere in the passage.",
+            "correct": "A",
+            "explanation": "Detail question. The passage states that 'the original Federal Rules of Civil Procedure … took effect in 1938.' 1957 is the year of Conley v. Gibson; the other dates appear nowhere as the adoption year.",
             "concepts": [
                 "detail-question"
+            ],
+            "references": [],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "rc-004",
+            "section": "RC",
+            "type": "RC",
+            "difficulty": "med",
+            "passage_id": "rc-passage-001",
+            "stem": "The author mentions the Field Code of 1848 primarily in order to…",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "argue that fact pleading was superior to the notice pleading that followed it."
+                },
+                {
+                    "label": "B",
+                    "text": "illustrate an early reform effort that solved some problems but introduced new ones."
+                },
+                {
+                    "label": "C",
+                    "text": "show that New York courts led all other jurisdictions in procedural innovation."
+                },
+                {
+                    "label": "D",
+                    "text": "demonstrate that the writ system was never genuinely abandoned."
+                },
+                {
+                    "label": "E",
+                    "text": "establish that procedural reform inevitably fails."
+                }
+            ],
+            "correct": "B",
+            "explanation": "The Field Code is introduced as a 'partial remedy' to the writ system, but the next paragraph explains that 'fact pleading … generated its own pathologies.' B captures that role — an early reform that helped yet created new problems. A and E overstate the point; C and D assert claims the passage never makes.",
+            "concepts": [
+                "rc-structure"
+            ],
+            "references": [],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "rc-005",
+            "section": "RC",
+            "type": "RC",
+            "difficulty": "hard",
+            "passage_id": "rc-passage-001",
+            "stem": "It can most reasonably be inferred from the passage that defenders of Twombly and Iqbal believe that…",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "notice pleading should be abolished entirely."
+                },
+                {
+                    "label": "B",
+                    "text": "pro se litigants rarely file meritorious claims."
+                },
+                {
+                    "label": "C",
+                    "text": "Conley v. Gibson was wrongly decided from the outset."
+                },
+                {
+                    "label": "D",
+                    "text": "changes in litigation since 1938 justify a more demanding pleading standard."
+                },
+                {
+                    "label": "E",
+                    "text": "the Field Code offered a better model than the Federal Rules."
+                }
+            ],
+            "correct": "D",
+            "explanation": "Defenders 'note that mass-tort and antitrust complaints had created discovery abuses the 1938 drafters could not have foreseen' — i.e., new litigation conditions warrant a tougher standard, which is D. A, B, C, and E go well beyond anything the defenders are said to claim.",
+            "concepts": [
+                "rc-structure",
+                "author-attitude"
             ],
             "references": [],
             "source": "original (CC0)"
