@@ -39,10 +39,14 @@ from lawgraph.lsat.services.bank import (
 
 logger = logging.getLogger("lawgraph.agents.lsat_content_author")
 
-PROMPT_VERSION = "lsat_content_author/1"
+PROMPT_VERSION = "lsat_content_author/2"
 PROMPT_PATH = (
-    Path(__file__).resolve().parent.parent / "prompts" / "lsat_content_author.v1.md"
+    Path(__file__).resolve().parent.parent / "prompts" / "lsat_content_author.v2.md"
 )
+
+# Choice labels in canonical order; used to spread fallback answer keys across
+# A-E instead of always defaulting to "A" (see _fallback_draft).
+_CHOICE_LABELS: tuple[ChoiceLabel, ...] = ("A", "B", "C", "D", "E")
 
 _MAX_COUNT = 10
 _MAX_STEM_CHARS = 1500
@@ -195,13 +199,18 @@ def _parse_drafts(
 # ---------------------------------------------------------------------------
 
 
-def _fallback_draft(inp: GenerateQuestionsInput) -> DraftQuestion:
+def _fallback_draft(inp: GenerateQuestionsInput, index: int = 0) -> DraftQuestion:
     """Deterministic placeholder used when Ollama is unreachable.
 
     The draft is intentionally low-quality and labelled with confidence 0.0
     so reviewers always reject it; the point is to keep the autonomy cycle
     auditable rather than to ship real content from the fallback path.
+
+    ``index`` rotates the placeholder answer key across A-E so a batch of
+    fallback drafts never collapses onto a single label (the same positional
+    bias we guard against for real content).
     """
+    correct = _CHOICE_LABELS[index % len(_CHOICE_LABELS)]
     return DraftQuestion(
         section=inp.section,
         difficulty=inp.difficulty,
@@ -216,7 +225,7 @@ def _fallback_draft(inp: GenerateQuestionsInput) -> DraftQuestion:
             DraftChoice(label="D", text="placeholder choice D"),
             DraftChoice(label="E", text="placeholder choice E"),
         ],
-        correct="A",
+        correct=correct,
         explanation=(
             "Offline fallback draft. The author agent could not reach Ollama; "
             "this row exists solely to keep the autonomy cycle auditable and "
@@ -284,17 +293,17 @@ class LSATContentAuthor:
             drafts = drafts[: inp.count]
             # Pad with fallback drafts if the LLM returned fewer than asked.
             while len(drafts) < inp.count:
-                drafts.append(_fallback_draft(inp))
+                drafts.append(_fallback_draft(inp, len(drafts)))
         except (TimeoutError, httpx.HTTPError, OSError, ValueError) as exc:
             logger.info("LSATContentAuthor falling back to offline: %s", exc)
             degraded = True
             model_used = "fallback/offline"
-            drafts = [_fallback_draft(inp) for _ in range(inp.count)]
+            drafts = [_fallback_draft(inp, i) for i in range(inp.count)]
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning("LSATContentAuthor unexpected error: %s", exc, exc_info=True)
             degraded = True
             model_used = "fallback/offline"
-            drafts = [_fallback_draft(inp) for _ in range(inp.count)]
+            drafts = [_fallback_draft(inp, i) for i in range(inp.count)]
 
         latency_ms = (time.perf_counter() - started) * 1000.0
         # Aggregate confidence = mean draft confidence (0.0 on degraded path).

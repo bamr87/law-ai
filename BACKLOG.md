@@ -24,6 +24,9 @@
 
 ## Open
 
+- **BL-20260606-01** — *feature, med* — Per-attempt answer-choice shuffling at serve time (with a stateless grade-time remap token) so the same question presents its key in different positions across attempts, instead of the current fixed-per-question placement. Requires making explanations label-agnostic or remapping label references safely. _Surfaced in:_ branch claude/lsat-multiple-choice-fix.
+- **BL-20260606-02** — *test-gap, med* — Add an answer-key distribution assertion to the LSATContentAuthor pipeline (or a post-generation balancer) so AI-drafted batches are checked/rebalanced for A-E spread before reaching the HITL queue, not just guided by the prompt. _Surfaced in:_ branch claude/lsat-multiple-choice-fix.
+- **BL-20260606-03** — *feature, low* — Grow the seed bank beyond 20 questions (more passages/games, additional concepts) to widen practice coverage now that the bank loader and distribution guard support it. _Surfaced in:_ branch claude/lsat-multiple-choice-fix.
 - **BL-20260602-05** — *feature, low* — Sequential agent execution mode (opt-in flag) for `_run_analysis` so `agent_step` events stream progressively in real-time instead of arriving together after `asyncio.gather` completes. _Surfaced in:_ specs/022-agent-ws-streaming.
 - **BL-20260602-06** — *feature, low* — Frontend progress bar wired to `/ws/agents/{analysis_id}` WebSocket events: render a live step-by-step trace in the Analysis Studio UI when `agent_step` events arrive. _Surfaced in:_ specs/022-agent-ws-streaming.
 
