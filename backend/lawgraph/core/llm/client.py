@@ -99,9 +99,7 @@ def _otel_span(endpoint: str) -> Any:
     try:
         from opentelemetry import trace
 
-        return trace.get_tracer("lawgraph.llm").start_as_current_span(
-            f"llm.{endpoint}"
-        )
+        return trace.get_tracer("lawgraph.llm").start_as_current_span(f"llm.{endpoint}")
     except Exception:  # pragma: no cover - optional dependency missing
         import contextlib
 

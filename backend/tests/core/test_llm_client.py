@@ -21,7 +21,6 @@ from lawgraph.core.llm import (
 )
 from lawgraph.core.llm import client as client_module
 
-
 # ---------------------------------------------------------------------------
 # Fakes
 # ---------------------------------------------------------------------------
@@ -214,9 +213,7 @@ class TestOtherEndpoints:
         assert audit_events[0]["endpoint"] == "embed"
         assert audit_events[0]["response_hash"] == "vectors:2"
 
-    def test_generate_sync_with_retry(
-        self, audit_events: list[dict[str, Any]]
-    ) -> None:
+    def test_generate_sync_with_retry(self, audit_events: list[dict[str, Any]]) -> None:
         fake = _FakeSyncOllama([TimeoutError("slow"), "done"])
         client = _client(fake)
         assert client.generate_sync("p") == "done"
