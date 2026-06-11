@@ -21,6 +21,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from lawgraph.core import audit_jsonl as audit_store
+from lawgraph.core.llm import LLMError
 from lawgraph.core.settings_proxy import settings_proxy as settings
 from lawgraph.lsat.services.bank import (
     ChoiceLabel,
@@ -134,30 +135,28 @@ def _build_prompt(
 
 
 # ---------------------------------------------------------------------------
-# Ollama client (lightweight; avoids langchain dependency)
+# Ollama access via the unified audited client (spec 024 FR-3)
 # ---------------------------------------------------------------------------
 
 
 async def _ollama_generate(prompt: str, *, model: str) -> str:
-    """Call Ollama's /api/generate and return the raw response text.
+    """Generate via :class:`lawgraph.core.llm.LLMClient` (retry + provenance).
 
-    Raises ``httpx.HTTPError`` / ``asyncio.TimeoutError`` on failure so the
-    caller can fall back gracefully.
+    Raises :class:`lawgraph.core.llm.LLMError` on failure so the caller can
+    fall back gracefully. Kept as a module-level seam so tests can patch it.
     """
-    url = settings.OLLAMA_BASE_URL.rstrip("/") + "/api/generate"
-    payload = {
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "options": {"temperature": 0.2},
-        "format": "json",
-    }
-    timeout = httpx.Timeout(settings.OLLAMA_REQUEST_TIMEOUT_S)
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        resp = await client.post(url, json=payload)
-        resp.raise_for_status()
-        data = resp.json()
-    return str(data.get("response") or "").strip()
+    from lawgraph.core.llm import get_llm_client
+
+    text = await get_llm_client().generate(
+        prompt,
+        model=model,
+        temperature=0.2,
+        json_format=True,
+        caller="lsat_tutor",
+        prompt_id="lsat-tutor",
+        prompt_version="1",
+    )
+    return text.strip()
 
 
 def _parse_llm_payload(text: str) -> tuple[str, list[str]]:
@@ -258,7 +257,7 @@ async def tutor(req: TutorRequest, q: Question) -> TutorResponse:
             model_used = settings.OLLAMA_DEFAULT_MODEL
             # Heuristic confidence: longer, structured responses tend to be better.
             confidence = 0.85 if next_steps and len(coaching) > 80 else 0.7
-    except (TimeoutError, httpx.HTTPError, OSError) as exc:
+    except (TimeoutError, httpx.HTTPError, OSError, LLMError) as exc:
         logger.info("LSAT tutor falling back to offline path: %s", exc)
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning("LSAT tutor unexpected error: %s", exc, exc_info=True)

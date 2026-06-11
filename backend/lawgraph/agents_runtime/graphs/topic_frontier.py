@@ -39,9 +39,6 @@ import json
 import logging
 import secrets
 import time
-import urllib.error
-import urllib.request
-from pathlib import Path
 from typing import Any, TypedDict
 
 from pydantic import BaseModel, Field
@@ -53,10 +50,6 @@ logger = logging.getLogger("lawgraph.graphs.topic_frontier")
 
 AGENT_VERSION = "lawgraph.agents_runtime.graphs.topic_frontier.v1"
 PROMPT_VERSION = "1"
-
-_PROMPT_PATH = (
-    Path(__file__).parent.parent / "prompts" / "topic_frontier_prioritize.v1.md"
-)
 
 # ---------------------------------------------------------------------------
 # Output models
@@ -112,27 +105,28 @@ class TopicFrontierState(TypedDict, total=False):
 
 
 def _load_prompt() -> str:
-    return _PROMPT_PATH.read_text(encoding="utf-8")
+    from lawgraph.agents_runtime.prompts.loader import load_prompt
+
+    return load_prompt("topic_frontier_prioritize", version="1").text
 
 
 def _call_ollama(prompt: str, *, model: str, base_url: str, timeout: int = 120) -> str:
-    """Call Ollama ``/api/generate`` and return the raw text response.
+    """Generate via the unified audited client (spec 024 FR-3).
 
-    Raises :class:`RuntimeError` on network failure so callers can fall back
-    gracefully.
+    Raises :class:`RuntimeError` on failure so callers can fall back
+    gracefully (contract preserved from the original urllib implementation).
     """
-    payload = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode()
-    req = urllib.request.Request(
-        f"{base_url.rstrip('/')}/api/generate",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
+    from lawgraph.core.llm import LLMClient, LLMError
+
+    client = LLMClient(host=base_url, model=model, timeout_s=float(timeout))
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            body = json.loads(resp.read())
-            return str(body.get("response", ""))
-    except urllib.error.URLError as exc:
+        return client.generate_sync(
+            prompt,
+            caller="topic_frontier.prioritize",
+            prompt_id="topic_frontier_prioritize",
+            prompt_version=PROMPT_VERSION,
+        )
+    except LLMError as exc:
         raise RuntimeError(f"Ollama unreachable at {base_url}: {exc}") from exc
 
 

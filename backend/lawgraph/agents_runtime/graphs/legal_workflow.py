@@ -1,8 +1,9 @@
 """LegalWorkflow — 3-node LangGraph: retrieve → analyze → cite_check.
 
 Spec 010 FR-3. Designed to be safe to import even when the ``local-ai``
-extra is not installed: the heavy ``langgraph`` / ``langchain-ollama``
-imports are deferred until ``LegalWorkflow.invoke`` is actually called.
+extra is not installed: the heavy ``langgraph`` import is deferred until
+``LegalWorkflow.invoke`` is actually called. LLM access goes through the
+unified audited client in ``lawgraph.core.llm`` (spec 024).
 
 Tests can inject a fake ``llm_factory`` and ``cite_resolver`` to exercise
 the node graph without Ollama or Neo4j running.
@@ -87,15 +88,15 @@ Retriever = Callable[[LegalWorkflowState], Awaitable[list[dict[str, Any]]]]
 
 
 def _default_llm_factory() -> _LLMLike:
-    """Build a real ``ChatOllama`` instance against the configured Ollama."""
-    from langchain_ollama import ChatOllama
+    """Build the unified audited Ollama client (spec 024 FR-2).
 
-    return ChatOllama(
-        base_url=settings.OLLAMA_BASE_URL,
-        model=settings.OLLAMA_DEFAULT_MODEL,
-        temperature=0.0,
-        timeout=settings.OLLAMA_REQUEST_TIMEOUT_S,
-    )
+    Returns an adapter satisfying the ``_LLMLike`` protocol so node code
+    is agnostic to the transport. Retry, timeout, and provenance live in
+    :class:`lawgraph.core.llm.LLMClient`.
+    """
+    from lawgraph.core.llm import LLMClientAdapter
+
+    return LLMClientAdapter(temperature=0.0, caller="legal_workflow")
 
 
 async def _default_cite_resolver(citations: list[str]) -> dict[str, str | None]:
@@ -119,6 +120,17 @@ async def _default_retriever(
     insufficient-sources refusal path. Tests inject a richer retriever.
     """
     return []
+
+
+def _node_prompt(name: str) -> Any:
+    """Load the versioned prompt template for a workflow node (spec 024 FR-5).
+
+    Templates live in ``agents_runtime/prompts/legal_workflow/``; the full
+    rendered prompt is hashed into the provenance event by the LLM client.
+    """
+    from lawgraph.agents_runtime.prompts.loader import load_prompt
+
+    return load_prompt(f"legal_workflow/{name}", version=PROMPT_VERSION)
 
 
 # ---------------------------------------------------------------------------
@@ -206,12 +218,9 @@ class LegalWorkflow:
         if not question:
             return {"queries": [], "retrieved": []}
         llm = self._llm_factory()
-        prompt = (
-            "You are a legal research assistant. Draft up to 3 short search "
-            "queries (Cypher-friendly) for the question below. Return ONLY "
-            'JSON: {"queries": [str], "rationale": str}.\n\n'
-            f"Jurisdiction: {state.get('jurisdiction') or 'any'}\n"
-            f"Question: {question}"
+        prompt = _node_prompt("retrieve").render(
+            jurisdiction=state.get("jurisdiction") or "any",
+            question=question,
         )
         raw = _coerce_text(await llm.ainvoke(prompt))
         parsed = _parse_json(raw, {"queries": [question], "rationale": "fallback"})
@@ -243,11 +252,9 @@ class LegalWorkflow:
             f"{item.get('snippet', '')[:500]}\nURL: {item.get('source_url') or ''}"
             for idx, item in enumerate(retrieved)
         )
-        prompt = (
-            "Answer the question using ONLY the passages below. Cite every "
-            "legal proposition. Return strict JSON with keys answer, "
-            "citations (array of {text, source_url}), confidence (0..1).\n\n"
-            f"Question: {question}\n\nPassages:\n{passages}"
+        prompt = _node_prompt("analyze").render(
+            question=question,
+            passages=passages,
         )
         raw = _coerce_text(await llm.ainvoke(prompt))
         parsed = _parse_json(

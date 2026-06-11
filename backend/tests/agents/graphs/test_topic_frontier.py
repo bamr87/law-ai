@@ -86,11 +86,14 @@ class TestParseTargets:
 
 
 class TestCallOllama:
-    def test_raises_on_url_error(self) -> None:
-        import urllib.error
+    def test_raises_on_llm_error(self) -> None:
+        from lawgraph.core.llm import LLMError
 
         with (
-            patch("urllib.request.urlopen", side_effect=urllib.error.URLError("down")),
+            patch(
+                "lawgraph.core.llm.LLMClient.generate_sync",
+                side_effect=LLMError("down"),
+            ),
             pytest.raises(RuntimeError, match="Ollama unreachable"),
         ):
             _call_ollama("prompt", model="llama3", base_url="http://localhost:11434")

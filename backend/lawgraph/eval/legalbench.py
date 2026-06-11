@@ -18,7 +18,6 @@ from ``backend/var/legalbench/`` cache directories.
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 import time
@@ -78,26 +77,18 @@ class LegalBenchConfig:
 
 
 def _call_ollama(prompt: str, *, model: str, base_url: str, timeout: int = 120) -> str:
-    """Send a generate request to the local Ollama HTTP API.
+    """Send a generate request via the unified audited client (spec 024 FR-3).
 
-    Deliberately avoids importing ``langchain_ollama`` so the eval harness
-    works even when the ``local-ai`` extras aren't installed.
+    Raises :class:`RuntimeError` on failure (contract preserved from the
+    original urllib implementation) so :func:`run_eval` can score the item
+    as incorrect and continue.
     """
-    import urllib.error
-    import urllib.request
+    from lawgraph.core.llm import LLMClient, LLMError
 
-    payload = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode()
-    req = urllib.request.Request(
-        f"{base_url.rstrip('/')}/api/generate",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
+    client = LLMClient(host=base_url, model=model, timeout_s=float(timeout))
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            body = json.loads(resp.read())
-            return str(body.get("response", ""))
-    except urllib.error.URLError as exc:
+        return client.generate_sync(prompt, caller="legalbench")
+    except LLMError as exc:
         raise RuntimeError(
             f"Ollama is unreachable at {base_url}: {exc}. "
             "Is the local-ai stack running? Try: make local-ai-up"

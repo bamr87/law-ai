@@ -24,6 +24,11 @@
 
 ## Open
 
+- **BL-20260611-01** — *refactor, low* — Drop `langchain-ollama` from the `[local-ai]` extra once the `LLMClientAdapter` has soaked; `legal_workflow` no longer imports `ChatOllama`. _Surfaced in:_ specs/024-unified-llm-client.
+- **BL-20260611-02** — *feature, med* — Wire `LLMClient.generate_stream` into the analysis WS path for token-level `agent_token` events (extends BL-20260602-05/-06; roadmap Phase 4). _Surfaced in:_ specs/024-unified-llm-client.
+- **BL-20260611-03** — *refactor, low* — Remove the unused `chromadb` dependency when Phase-2 GraphRAG lands on Neo4j native vector indexes (roadmap Phase 2; specs 025–026). _Surfaced in:_ specs/024-unified-llm-client.
+- **BL-20260611-04** — *doc-gap, low* — Keep `docs/roadmap-framework-ai-integration.md` phase markers current as roadmap specs 025–030 ship. _Surfaced in:_ specs/024-unified-llm-client.
+- **BL-20260611-05** — *test-gap, low* — Add an integration test exercising `LLMClient.generate` against the real Ollama container (`-m integration`) to catch ollama-package response-shape drift. _Surfaced in:_ specs/024-unified-llm-client.
 - **BL-20260606-01** — *feature, med* — Per-attempt answer-choice shuffling at serve time (with a stateless grade-time remap token) so the same question presents its key in different positions across attempts, instead of the current fixed-per-question placement. Requires making explanations label-agnostic or remapping label references safely. _Surfaced in:_ branch claude/lsat-multiple-choice-fix.
 - **BL-20260606-02** — *test-gap, med* — Add an answer-key distribution assertion to the LSATContentAuthor pipeline (or a post-generation balancer) so AI-drafted batches are checked/rebalanced for A-E spread before reaching the HITL queue, not just guided by the prompt. _Surfaced in:_ branch claude/lsat-multiple-choice-fix.
 - **BL-20260606-03** — *feature, low* — Grow the seed bank beyond 20 questions (more passages/games, additional concepts) to widen practice coverage now that the bank loader and distribution guard support it. _Surfaced in:_ branch claude/lsat-multiple-choice-fix.

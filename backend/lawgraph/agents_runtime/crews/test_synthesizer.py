@@ -21,8 +21,6 @@ from __future__ import annotations
 import logging
 import re
 import textwrap
-import urllib.error
-import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -38,7 +36,6 @@ logger = logging.getLogger("lawgraph.agents_runtime.crews.test_synthesizer")
 # ---------------------------------------------------------------------------
 
 AGENT_VERSION = "lawgraph.agents_runtime.crews.test_synthesizer.v1"
-_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "test_synthesizer.v1.md"
 _PROPOSED_DIR = Path("backend/tests/autonomy/proposed")
 _SKIP_DECORATOR = '@pytest.mark.skip("autonomy-proposed")'
 _SKIP_MARKER = "autonomy-proposed"
@@ -85,26 +82,29 @@ class ProposedTest(BaseModel):
 
 
 def _load_prompt_template() -> str:
-    """Read the versioned prompt template from disk."""
-    return _PROMPT_PATH.read_text(encoding="utf-8")
+    """Resolve the versioned prompt via the shared loader (spec 024 FR-5)."""
+    from lawgraph.agents_runtime.prompts.loader import load_prompt
+
+    return load_prompt("test_synthesizer", version="1").text
 
 
 def _call_ollama(prompt: str, *, model: str, base_url: str, timeout: int = 120) -> str:
-    """POST to Ollama /api/generate and return the response text."""
-    import json
+    """Generate via the unified audited client (spec 024 FR-3).
 
-    payload = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode()
-    req = urllib.request.Request(
-        f"{base_url.rstrip('/')}/api/generate",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
+    Raises :class:`RuntimeError` on failure (contract preserved from the
+    original urllib implementation).
+    """
+    from lawgraph.core.llm import LLMClient, LLMError
+
+    client = LLMClient(host=base_url, model=model, timeout_s=float(timeout))
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode())
-            return str(data.get("response", ""))
-    except urllib.error.URLError as exc:
+        return client.generate_sync(
+            prompt,
+            caller="test_synthesizer",
+            prompt_id="test_synthesizer",
+            prompt_version="1",
+        )
+    except LLMError as exc:
         raise RuntimeError(f"Ollama call failed: {exc}") from exc
 
 

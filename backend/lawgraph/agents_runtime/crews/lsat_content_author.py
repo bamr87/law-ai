@@ -19,12 +19,12 @@ from __future__ import annotations
 import json
 import logging
 import time
-from pathlib import Path
 from typing import Any
 
 import httpx
 from pydantic import BaseModel, Field, model_validator
 
+from lawgraph.core.llm import LLMError
 from lawgraph.core.provenance import provenance
 from lawgraph.core.settings_proxy import settings_proxy as settings
 from lawgraph.lsat.services.bank import (
@@ -40,9 +40,6 @@ from lawgraph.lsat.services.bank import (
 logger = logging.getLogger("lawgraph.agents.lsat_content_author")
 
 PROMPT_VERSION = "lsat_content_author/2"
-PROMPT_PATH = (
-    Path(__file__).resolve().parent.parent / "prompts" / "lsat_content_author.v2.md"
-)
 
 # Choice labels in canonical order; used to spread fallback answer keys across
 # A-E instead of always defaulting to "A" (see _fallback_draft).
@@ -116,9 +113,10 @@ class GenerateQuestionsOutput(BaseModel):
 
 
 def _load_prompt_template() -> str:
-    if not PROMPT_PATH.is_file():  # pragma: no cover - prompts ship with code
-        raise FileNotFoundError(f"missing prompt file: {PROMPT_PATH}")
-    return PROMPT_PATH.read_text(encoding="utf-8")
+    """Resolve the versioned prompt via the shared loader (spec 024 FR-5)."""
+    from lawgraph.agents_runtime.prompts.loader import load_prompt
+
+    return load_prompt("lsat_content_author", version="2").text
 
 
 def _build_user_payload(
@@ -147,25 +145,28 @@ def _build_user_payload(
 
 
 # ---------------------------------------------------------------------------
-# Ollama client (lightweight; mirrors lsat.services.tutor pattern)
+# Ollama access via the unified audited client (spec 024 FR-3)
 # ---------------------------------------------------------------------------
 
 
 async def _ollama_generate(prompt: str, *, model: str) -> str:
-    url = settings.OLLAMA_BASE_URL.rstrip("/") + "/api/generate"
-    payload = {
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "options": {"temperature": 0.4},
-        "format": "json",
-    }
-    timeout = httpx.Timeout(settings.OLLAMA_REQUEST_TIMEOUT_S)
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        resp = await client.post(url, json=payload)
-        resp.raise_for_status()
-        data = resp.json()
-    return str(data.get("response") or "").strip()
+    """Generate via :class:`lawgraph.core.llm.LLMClient` (retry + provenance).
+
+    Kept as a module-level seam so tests can patch it without touching the
+    crew logic.
+    """
+    from lawgraph.core.llm import get_llm_client
+
+    text = await get_llm_client().generate(
+        prompt,
+        model=model,
+        temperature=0.4,
+        json_format=True,
+        caller="lsat_content_author",
+        prompt_id="lsat_content_author",
+        prompt_version="2",
+    )
+    return text.strip()
 
 
 def _parse_drafts(
@@ -294,7 +295,7 @@ class LSATContentAuthor:
             # Pad with fallback drafts if the LLM returned fewer than asked.
             while len(drafts) < inp.count:
                 drafts.append(_fallback_draft(inp, len(drafts)))
-        except (TimeoutError, httpx.HTTPError, OSError, ValueError) as exc:
+        except (TimeoutError, httpx.HTTPError, OSError, ValueError, LLMError) as exc:
             logger.info("LSATContentAuthor falling back to offline: %s", exc)
             degraded = True
             model_used = "fallback/offline"
