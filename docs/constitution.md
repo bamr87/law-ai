@@ -91,6 +91,8 @@ This repo currently operates at **AO-SDLC Level 2 (Collaborative)**: agents draf
 - Langfuse (or equivalent) traces wired up.
 - ADR documenting which classes of change may auto-merge.
 
+**Level 2.5 carve-out (per [ADR 0004](adr/0004-claude-autonomy-surface.md), proposed — effective on acceptance):** exactly one narrow class, **AM-1** (live-ifying a passing `*.proposed.py` autonomy test, test-only diff, all gates green), may auto-merge. Every other class stays draft-PR + human-approved. Full Level 3 still requires a further ADR.
+
 ## 11. Continuous Evolution (Self-Improving Repo)
 
 The repo must always grow forward. Every implementation cycle MUST end with explicit follow-ups so future agents and humans inherit a richer task graph than they started with.
@@ -107,7 +109,7 @@ The repo must always grow forward. Every implementation cycle MUST end with expl
 
 Recorded by [docs/adr/0003-autonomy-orchestrator.md](adr/0003-autonomy-orchestrator.md). The `AutonomyOrchestrator` and any future autonomous loop in this repo MUST satisfy all of the following — CI and code-review reject violations:
 
-- **I1 — No auto-merge.** Every loop ends in either a draft PR (code) or a `PendingReview` row (data). No GitHub Actions workflow may be granted permissions sufficient to merge a PR; no Celery task may write to a `:Case`/`:Statute` node outside `IngestionScout.run_and_commit`.
+- **I1 — No auto-merge** _(amended by [ADR 0004](adr/0004-claude-autonomy-surface.md), proposed)_**.** Every loop ends in either a draft PR (code) or a `PendingReview` row (data). No GitHub Actions workflow may be granted permissions sufficient to merge a PR; no Celery task may write to a `:Case`/`:Statute` node outside `IngestionScout.run_and_commit`. **Sole exception — class AM-1:** a single dedicated workflow may squash-merge a PR whose entire diff is removing `@pytest.mark.skip("autonomy-proposed")` from `*.proposed.py` files, when all gates are green and it carries the `auto-merge:AM-1` label (ADR 0004 §2). No other workflow gets merge permission.
 - **I2 — Closed source registry.** Recursion expands within `lawgraph.ingestionapp.sources.SOURCE_REGISTRY` whose member name appears in `AUTONOMY_ALLOWED_SOURCES`. Adding a new adapter is its own `/specify` cycle (preserves §5).
 - **I3 — Kill-switch.** A single settings flag (`AUTONOMY_ENABLED`, default `False`) short-circuits every loop with one provenance event (`event_type='autonomy_disabled'`). Operators must explicitly opt-in per environment.
 - **I4 — One audited entry point.** Every cycle is invoked through `lawgraph.core.autonomy.run_cycle()` and emits paired `autonomy_cycle.start` + `autonomy_cycle.end` provenance events. The daily digest under `AUTONOMY_DIGEST_DIR` is the canonical human-review surface.
@@ -115,6 +117,17 @@ Recorded by [docs/adr/0003-autonomy-orchestrator.md](adr/0003-autonomy-orchestra
 - **I6 — Provenance preserved.** Every adapter dispatch records `{adapter_name, query, items_returned, items_quarantined}`; every LLM call goes through `lawgraph.core.provenance` (preserves §4).
 
 Promotion to Level 3 — even for narrow change classes — requires a separate ADR amending §10 and these invariants.
+
+## 13. Claude Code Autonomy Surface
+
+Recorded by [ADR 0004](adr/0004-claude-autonomy-surface.md) (proposed). Claude Code is a sanctioned **unattended** dev surface alongside the Copilot loop. The Claude evolve loop ([.github/workflows/evolve-claude.yml](../.github/workflows/evolve-claude.yml), runbook [prompts/evolve.md](../prompts/evolve.md)) MUST satisfy:
+
+- **All §12 invariants apply** (I1 as amended above, I3 kill-switch, I4 audited entry, I5 propose-only tests, I6 provenance). Every cycle records a `SessionRun` and is reviewable via `GET /api/agents/sessions`, `GET /api/agents/autonomy`, and the daily digest.
+- **Default-off.** The scheduled loop no-ops unless explicitly opted in (`vars.EVOLVE_CLAUDE_ENABLED`), mirroring `AUTONOMY_ENABLED`. See [docs/claude-code-autonomous-guide.md](claude-code-autonomous-guide.md).
+- **Dev-time credential only.** Claude Code auth in CI (`CLAUDE_CODE_OAUTH_TOKEN` / `ANTHROPIC_API_KEY`) edits the repo; it MUST NOT reach a product-runtime code path (§1). The product runtime stays Ollama / local-first.
+- **Binding stop conditions** (prompts/evolve.md): halt and surface to a human on any OPEN QUESTION touching licensing, a new data source, a model swap, a destructive migration, or a HITL gate; on any change needing a constitution amendment; or on saturation (3 zero-yield cycles).
+
+Docker-first is enforced for Claude Code by [.claude/settings.json](../.claude/settings.json) (a `PreToolUse` hook blocking host `pytest`/`ruff`/`mypy`/`npm`/`pip`/`manage.py`).
 
 ---
 
