@@ -1,0 +1,91 @@
+name: Evolve (Claude autopilot)
+
+# Unattended AO-SDLC cycle driven by Claude Code (constitution §13, ADR 0004).
+# Picks the top `## Open` BACKLOG item and runs the /asdlc-evolve chain to a
+# DRAFT PR — never auto-merge (§12 I1). Complements evolve.yml (the Copilot /
+# discovery half) which runs Mondays; this runs Tuesdays to avoid collisions.
+#
+# DEFAULT-OFF kill-switch (§12 I3): the job is skipped unless the repo variable
+# EVOLVE_CLAUDE_ENABLED == 'true'. Enabling also requires a Claude Code dev-time
+# credential secret (CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`, or
+# ANTHROPIC_API_KEY). This credential edits the repo only — never a product
+# runtime path (§1). See docs/claude-code-autonomous-guide.md.
+
+on:
+  schedule:
+    - cron: "0 14 * * 2"
+  workflow_dispatch:
+    inputs:
+      backlog_id:
+        description: "BL-YYYYMMDD-NN to work (blank = auto-pick the top Open item)"
+        required: false
+        default: ""
+
+# No `merge`-granting permission anywhere here. Draft PRs only.
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+concurrency:
+  group: evolve-claude
+  cancel-in-progress: false
+
+jobs:
+  evolve:
+    # Kill-switch: opt in per-repo with `gh variable set EVOLVE_CLAUDE_ENABLED --body true`.
+    if: ${{ vars.EVOLVE_CLAUDE_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Pick the backlog item
+        id: pick
+        run: |
+          BL="${{ github.event.inputs.backlog_id }}"
+          if [ -z "$BL" ]; then BL="$(python3 scripts/pick_backlog_item.py --id-only)"; fi
+          echo "backlog_id=$BL" >> "$GITHUB_OUTPUT"
+          if [ -z "$BL" ]; then
+            echo "No actionable Open item — Claude will run Discovery Mode."
+          else
+            echo "Selected: $BL"
+          fi
+
+      # Runs Claude Code headless. It reads CLAUDE.md + .claude/skills and runs
+      # the /asdlc-evolve chain, ending in a draft PR. The Docker-first hook in
+      # .claude/settings.json keeps test/lint inside containers.
+      #
+      # NOTE: this is the unattended-loop wiring; the exact action version and
+      # in-runner Docker availability should be confirmed on the first real run
+      # (it can't be validated without the CI secret). The base-action variant
+      # `anthropics/claude-code-base-action` is the alternative for pure headless.
+      - name: Run /asdlc-evolve via Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          # One of these is required (dev-time credential — never product runtime).
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Run the AO-SDLC autonomous cycle by following prompts/evolve.md exactly,
+            via the /asdlc-evolve skill.
+
+            Work item: "${{ steps.pick.outputs.backlog_id }}" (if blank, switch to
+            Discovery Mode and append >=3 new BL-* items instead of inventing feature work).
+
+            Hard rules (constitution §11/§12/§13):
+            - End in a DRAFT pull request: `gh pr create --draft`. Do NOT merge anything.
+            - Run every dev/test/lint command inside Docker via `make` (the
+              .claude/settings.json hook blocks host pytest/ruff/mypy/npm/pip/manage.py).
+            - Close the loop: tasks.md ends with `## Follow-ups Discovered`, mirror each
+              into BACKLOG `## Open` with `python3 scripts/next_backlog_id.py`, move the
+              claimed item to `## Done`, copy the new BACKLOG bullets into the PR body.
+            - STOP and open an issue for a human (do not proceed) on any OPEN QUESTION
+              touching licensing, a new data source, a model swap, a destructive
+              migration, or a HITL gate; or any change needing a constitution amendment.
+            - Label the PR `evolve` and `autonomy`.
