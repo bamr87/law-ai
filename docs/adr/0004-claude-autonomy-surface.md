@@ -37,7 +37,7 @@ The maintainer's stated preference (this review) is to **carve a single, narrow 
 
 Everything outside AM-1 remains **draft-PR-only, human-approved** (Level 2). This promotes the repo to **Level 2.5** for AM-1 alone; full Level 3 still requires a further ADR.
 
-**Implementation is deferred and gated on this ADR's acceptance.** WS2 ships the evolve loop ending in **draft** PRs only; the AM-1 auto-merge workflow is a tracked follow-up (`BL-20260615-06`) built once this ADR is merged.
+**Implementation** ships with this ADR — [.github/workflows/am1-automerge.yml](../../.github/workflows/am1-automerge.yml) + [scripts/check_am1_eligible.py](../../scripts/check_am1_eligible.py) (tested) — but is **inert until both** (a) this ADR is accepted by merging, **and** (b) `vars.AM1_AUTOMERGE_ENABLED=true` is set. It is the sole workflow with merge permission, fails closed on any guard, and only ever acts on the proposed-test un-skip class. WS2's evolve loop still ends in **draft** PRs.
 
 ## Consequences
 
