@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import shutil
 import subprocess
 from collections.abc import AsyncGenerator, Generator
 
@@ -140,17 +141,32 @@ async def redis_client() -> AsyncGenerator[Redis, None]:
 # ---------------------------------------------------------------------------
 @pytest.fixture(scope="session")
 def docker_services():
-    """Spin up neo4j + postgres + redis for integration tests.
+    """Ensure neo4j + postgres + redis are up for integration tests.
 
     Uses the existing docker-compose.yml with health checks added in T-001.
+
+    Two run modes (Docker-first per CLAUDE.md):
+
+    * **In-container** (``make test-integration`` → ``docker compose run --rm
+      backend pytest -m integration``): there is no ``docker`` CLI inside the
+      backend container, and the Makefile target already brought the stack up
+      on the host *before* invoking pytest. We detect the missing CLI and
+      no-op — the services are reachable on the compose network by name.
+    * **Host** (a developer running pytest directly): the ``docker`` CLI is
+      present, so we manage the stack's lifecycle here.
     """
+    docker = shutil.which("docker")
+    if docker is None:
+        # No CLI → running inside a container; the orchestrator owns lifecycle.
+        yield
+        return
     subprocess.run(
-        ["docker", "compose", "up", "-d", "neo4j", "postgres", "redis", "--wait"],
+        [docker, "compose", "up", "-d", "neo4j", "postgres", "redis", "--wait"],
         check=True,
     )
     yield
     # Teardown: stop services but don't remove volumes (faster for repeated runs)
-    subprocess.run(["docker", "compose", "down"], check=False)
+    subprocess.run([docker, "compose", "down"], check=False)
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
@@ -161,10 +177,15 @@ async def neo4j_integration_driver(docker_services):
     keeps the driver bound to the same event loop across tests; without it,
     pytest-asyncio creates a new loop per test and the driver's pending
     futures end up "attached to a different loop".
+
+    Endpoint is read from ``NEO4J_URI``/``NEO4J_USER``/``NEO4J_PASSWORD`` so the
+    in-container run (Makefile injects ``bolt://neo4j:7687``) and a host run
+    (defaults to ``bolt://localhost:7687``) both connect.
     """
-    driver = AsyncGraphDatabase.driver(
-        "bolt://localhost:7687", auth=("neo4j", "lawgraph-dev")
-    )
+    uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+    user = os.getenv("NEO4J_USER", "neo4j")
+    password = os.getenv("NEO4J_PASSWORD", "lawgraph-dev")
+    driver = AsyncGraphDatabase.driver(uri, auth=(user, password))
     await driver.verify_connectivity()
     yield driver
     await driver.close()
@@ -180,11 +201,13 @@ async def postgres_integration_pool(docker_services):
     if asyncpg is None:
         pytest.skip("asyncpg not installed")
 
-    pool = await asyncpg.create_pool(
-        "postgresql://lawgraph:lawgraph-dev@localhost:5432/lawgraph",
-        min_size=1,
-        max_size=5,
-    )
+    # Prefer an injected Postgres DSN (Makefile sets DATABASE_URL to the compose
+    # ``postgres`` host). Ignore the module-level sqlite default — asyncpg needs
+    # a real postgres:// URL — and fall back to the host-published port.
+    dsn = os.getenv("DATABASE_URL", "")
+    if not dsn.startswith(("postgresql://", "postgres://")):
+        dsn = "postgresql://lawgraph:lawgraph-dev@localhost:5432/lawgraph"
+    pool = await asyncpg.create_pool(dsn, min_size=1, max_size=5)
     yield pool
     await pool.close()
 
