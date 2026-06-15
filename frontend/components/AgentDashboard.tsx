@@ -3,17 +3,22 @@
 import {
     fetchAgentMetrics,
     fetchAgents,
+    fetchAutonomy,
     fetchBacklog,
     fetchLocalAIHealth,
     fetchRunDetail,
     fetchRuns,
+    fetchSessionDetail,
+    fetchSessions,
     fetchSpecs,
     runAnalysis,
     type AgentInfo,
     type AgentMetric,
     type AgentRun,
+    type AutonomyState,
     type BacklogResponse,
     type LocalAIHealth,
+    type SessionRun,
     type SpecInfo,
 } from '@/lib/api'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -39,6 +44,8 @@ interface DashboardState {
   specs: PanelState<{ specs: SpecInfo[]; count: number }>
   health: PanelState<LocalAIHealth>
   metrics: PanelState<{ agents: AgentMetric[]; window_size: number; errors_total: number }>
+  autonomy: PanelState<AutonomyState>
+  sessions: PanelState<{ sessions: SessionRun[]; count: number }>
 }
 
 async function load<T>(
@@ -62,6 +69,8 @@ export default function AgentDashboard() {
     specs: emptyState(),
     health: emptyState(),
     metrics: emptyState(),
+    autonomy: emptyState(),
+    sessions: emptyState(),
   })
   const [paused, setPaused] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -73,6 +82,7 @@ export default function AgentDashboard() {
   const [recentlyAdded, setRecentlyAdded] = useState<Set<string>>(new Set())
   const [launchAgent, setLaunchAgent] = useState<AgentInfo | null>(null)
   const [drillTraceId, setDrillTraceId] = useState<string | null>(null)
+  const [drillSessionId, setDrillSessionId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -96,6 +106,12 @@ export default function AgentDashboard() {
         ),
         load(() => fetchAgentMetrics(500), (s) =>
           setState((prev) => ({ ...prev, metrics: s })),
+        ),
+        load(fetchAutonomy, (s) =>
+          setState((prev) => ({ ...prev, autonomy: s })),
+        ),
+        load(() => fetchSessions({ limit: 25 }), (s) =>
+          setState((prev) => ({ ...prev, sessions: s })),
         ),
       ]).then(() => {
         if (!cancelled) setLastUpdated(new Date())
@@ -181,6 +197,13 @@ export default function AgentDashboard() {
         backlog={state.backlog.data?.counts}
         specCount={state.specs.data?.count}
         latencies={latencySeries}
+      />
+
+      {/* Autonomy mission-control row */}
+      <AutonomyPanel
+        loading={state.autonomy.loading}
+        error={state.autonomy.error}
+        data={state.autonomy.data}
       />
 
       {/* System health row */}
@@ -329,6 +352,18 @@ export default function AgentDashboard() {
         >
           <SpecsPanel specs={state.specs.data?.specs ?? []} loading={state.specs.loading} />
         </Panel>
+
+        <Panel
+          title="Sessions"
+          subtitle="Change ledger — every agent work-session (newest first)"
+          loading={state.sessions.loading}
+          error={state.sessions.error}
+        >
+          <SessionsList
+            sessions={state.sessions.data?.sessions ?? []}
+            onDrill={setDrillSessionId}
+          />
+        </Panel>
       </div>
 
       {/* Agent launch modal */}
@@ -348,6 +383,18 @@ export default function AgentDashboard() {
         <RunDetailModal
           traceId={drillTraceId}
           onClose={() => setDrillTraceId(null)}
+        />
+      )}
+
+      {/* Session drill-in (change-ledger timeline) */}
+      {drillSessionId && (
+        <SessionDetailModal
+          sessionId={drillSessionId}
+          onClose={() => setDrillSessionId(null)}
+          onTrace={(tid) => {
+            setDrillSessionId(null)
+            setDrillTraceId(tid)
+          }}
         />
       )}
     </div>
@@ -1301,6 +1348,365 @@ function MetricsPanel({
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// AutonomyPanel — kill-switch state + recent autonomous-cycle activity (WS3)
+// ---------------------------------------------------------------------------
+
+function cycleTone(status: string | null): 'emerald' | 'red' | 'slate' {
+  return status === 'ok'
+    ? 'emerald'
+    : status === 'error'
+      ? 'red'
+      : 'slate'
+}
+
+function AutonomyPanel({
+  loading,
+  error,
+  data,
+}: {
+  loading: boolean
+  error: string | null
+  data: AutonomyState | null
+}) {
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+        <SkeletonLines />
+      </div>
+    )
+  }
+  if (error || !data) return null
+  const { enabled, last_cycle, recent_cycles, recent_violations, allowed_sources } =
+    data
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="text-xs font-medium uppercase tracking-wider text-slate-500">
+          Autonomy
+        </div>
+        <span
+          className={
+            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ' +
+            (enabled
+              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+              : 'border-amber-500/40 bg-amber-500/10 text-amber-300')
+          }
+        >
+          <span
+            className={
+              'inline-block h-1.5 w-1.5 rounded-full ' +
+              (enabled ? 'animate-pulse bg-emerald-400' : 'bg-amber-400')
+            }
+          />
+          {enabled ? 'ENABLED' : 'kill-switch OFF'}
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        {last_cycle ? (
+          <div className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2">
+            <span className="text-slate-500">Last cycle</span>
+            <span className="font-mono text-slate-200">
+              {last_cycle.cycle_type ?? 'cycle'}
+            </span>
+            <Pill tone={cycleTone(last_cycle.status)}>
+              {last_cycle.status ?? '—'}
+            </Pill>
+            {last_cycle.duration_ms != null && (
+              <span className="tabular-nums text-slate-500">
+                {Math.round(last_cycle.duration_ms)} ms
+              </span>
+            )}
+            <span className="text-slate-500">
+              {relativeTime(new Date(last_cycle.completed_at))}
+            </span>
+          </div>
+        ) : (
+          <span className="text-slate-500">No autonomy cycles recorded yet.</span>
+        )}
+        {allowed_sources.length > 0 && (
+          <span className="text-[10px] text-slate-500">
+            sources: {allowed_sources.join(', ')}
+          </span>
+        )}
+        {recent_violations.length > 0 && (
+          <Pill tone="red">
+            {recent_violations.length} policy violation
+            {recent_violations.length !== 1 ? 's' : ''}
+          </Pill>
+        )}
+      </div>
+      {recent_cycles.length > 1 && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] text-slate-600">recent:</span>
+          {recent_cycles.slice(0, 16).map((c, i) => (
+            <span
+              key={c.cycle_id ?? i}
+              title={`${c.cycle_type ?? 'cycle'} · ${c.status ?? '—'} · ${c.completed_at}`}
+              className={
+                'inline-block h-2 w-2 rounded-full ' +
+                (c.status === 'ok'
+                  ? 'bg-emerald-400/80'
+                  : c.status === 'error'
+                    ? 'bg-red-400/80'
+                    : 'bg-slate-600')
+              }
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// SessionsList — the change ledger (WS4): one row per agent work-session
+// ---------------------------------------------------------------------------
+
+function SourceBadge({ source }: { source: string }) {
+  const tones: Record<string, string> = {
+    claude_code: 'bg-orange-500/15 text-orange-300 border-orange-500/30',
+    copilot: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+    celery: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+    human: 'bg-slate-700/40 text-slate-300 border-slate-600/40',
+  }
+  const tone = tones[source] ?? 'bg-slate-700/40 text-slate-300 border-slate-600/40'
+  return (
+    <span
+      className={
+        'inline-flex shrink-0 items-center rounded border px-1.5 text-[9px] uppercase tracking-wider ' +
+        tone
+      }
+    >
+      {source}
+    </span>
+  )
+}
+
+function sessionStatusTone(status: string): 'emerald' | 'amber' | 'red' | 'slate' {
+  if (status === 'completed') return 'emerald'
+  if (status === 'running') return 'amber'
+  if (status === 'failed' || status === 'blocked') return 'red'
+  return 'slate'
+}
+
+function SessionsList({
+  sessions,
+  onDrill,
+}: {
+  sessions: SessionRun[]
+  onDrill: (sessionId: string) => void
+}) {
+  if (sessions.length === 0) {
+    return (
+      <ul>
+        <EmptyState message="No agent sessions recorded yet." />
+      </ul>
+    )
+  }
+  return (
+    <ul className="max-h-96 space-y-1.5 overflow-auto pr-1">
+      {sessions.map((s) => (
+        <li
+          key={s.session_id}
+          className="rounded-md border border-slate-800 bg-slate-900/30 p-2 text-xs transition hover:border-slate-700"
+        >
+          <button
+            type="button"
+            onClick={() => onDrill(s.session_id)}
+            className="flex w-full items-center justify-between gap-2 text-left"
+            aria-label={`Open session ${s.session_id}`}
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <Pill tone={sessionStatusTone(s.status)}>{s.status}</Pill>
+              <SourceBadge source={s.agent_source} />
+              <span className="truncate font-mono text-slate-200">
+                {s.kind || s.agent_name || s.session_id.slice(0, 8)}
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-2 text-[11px] text-slate-500">
+              {s.backlog_items_added.length > 0 && (
+                <span title="backlog items added">
+                  +{s.backlog_items_added.length} BL
+                </span>
+              )}
+              {s.prs_created.length > 0 && (
+                <span title="PRs created">{s.prs_created.length} PR</span>
+              )}
+              {s.started_at && <span>{relativeTime(new Date(s.started_at))}</span>}
+            </div>
+          </button>
+          {s.spec_claimed && (
+            <div className="mt-1 truncate pl-1 font-mono text-[10px] text-slate-500">
+              spec: {s.spec_claimed}
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// SessionDetailModal — one session + its full provenance timeline (WS4)
+// ---------------------------------------------------------------------------
+
+function SessionDetailModal({
+  sessionId,
+  onClose,
+  onTrace,
+}: {
+  sessionId: string
+  onClose: () => void
+  onTrace?: (traceId: string) => void
+}) {
+  const [session, setSession] = useState<SessionRun | null>(null)
+  const [events, setEvents] = useState<AgentRun[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    fetchSessionDetail(sessionId)
+      .then((data) => {
+        if (!cancelled) {
+          setSession(data.session)
+          setEvents(data.events)
+          setLoading(false)
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'fetch failed')
+          setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [sessionId])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Session details"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="w-full max-w-3xl rounded-xl border border-slate-700 bg-slate-900 shadow-2xl">
+        <header className="flex items-center justify-between border-b border-slate-800 px-5 py-3">
+          <div className="min-w-0">
+            <h2 className="font-semibold text-slate-100">Session</h2>
+            <p className="mt-0.5 truncate font-mono text-[11px] text-slate-500">
+              {sessionId}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded p-1 text-slate-500 hover:text-slate-200"
+          >
+            ✕
+          </button>
+        </header>
+
+        <div className="max-h-[70vh] overflow-auto p-5">
+          {loading && <SkeletonLines />}
+          {error && (
+            <p className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+              {error}
+            </p>
+          )}
+          {!loading && !error && session && (
+            <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
+              <Pill tone={sessionStatusTone(session.status)}>{session.status}</Pill>
+              <SourceBadge source={session.agent_source} />
+              {session.kind && (
+                <span className="font-mono text-slate-300">{session.kind}</span>
+              )}
+              {session.spec_claimed && (
+                <span className="font-mono text-[10px] text-slate-500">
+                  {session.spec_claimed}
+                </span>
+              )}
+              {session.backlog_items_added.map((bl) => (
+                <Pill key={bl} tone="blue">
+                  {bl}
+                </Pill>
+              ))}
+            </div>
+          )}
+          {!loading && !error && session?.summary && (
+            <pre className="mb-4 max-h-32 overflow-auto whitespace-pre-wrap rounded-md border border-slate-800 bg-slate-950/60 p-3 text-[11px] leading-relaxed text-slate-300">
+              {session.summary}
+            </pre>
+          )}
+          {events && events.length === 0 && (
+            <p className="text-sm text-slate-400">
+              No audit events linked to this session yet.
+            </p>
+          )}
+          {events && events.length > 0 && (
+            <>
+              <div className="mb-2 text-xs text-slate-400">
+                {events.length} event{events.length !== 1 ? 's' : ''} in this session
+              </div>
+              <ol className="space-y-2">
+                {events.map((ev, i) => {
+                  const traceId = ev.trace_id as string | undefined
+                  return (
+                    <li
+                      key={i}
+                      className="rounded-md border border-slate-800 bg-slate-950/40 p-2 text-xs"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <TypeIcon type={String(ev.type ?? '')} />
+                          <span className="truncate font-mono text-slate-200">
+                            {String(ev.agent ?? ev.type ?? 'event')}
+                          </span>
+                          {ev.model != null && (
+                            <span className="shrink-0 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
+                              {String(ev.model)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2 text-[10px] text-slate-500">
+                          {ev.latency_ms != null && (
+                            <span>{Math.round(Number(ev.latency_ms))} ms</span>
+                          )}
+                          {ev.timestamp != null && (
+                            <span>{relativeTime(new Date(String(ev.timestamp)))}</span>
+                          )}
+                          {traceId && onTrace && (
+                            <button
+                              type="button"
+                              onClick={() => onTrace(traceId)}
+                              className="rounded border border-blue-600/40 bg-blue-600/10 px-1.5 text-blue-300 hover:border-blue-500"
+                            >
+                              trace →
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ol>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -47,6 +47,51 @@ beforeEach(() => {
         specs: [{ id: '003-agent-ops-dashboard', status: 'planned' }],
       }),
     ),
+    http.get(`${BASE}/api/agents/autonomy`, () =>
+      HttpResponse.json({
+        enabled: false,
+        allowed_sources: ['courtlistener'],
+        last_cycle: {
+          cycle_id: 'c-1',
+          cycle_type: 'evolve',
+          status: 'ok',
+          duration_ms: 1234,
+          completed_at: '2026-06-15T12:00:00Z',
+        },
+        recent_cycles: [
+          {
+            cycle_id: 'c-1',
+            cycle_type: 'evolve',
+            status: 'ok',
+            duration_ms: 1234,
+            completed_at: '2026-06-15T12:00:00Z',
+          },
+        ],
+        recent_violations: [],
+      }),
+    ),
+    http.get(`${BASE}/api/agents/sessions`, () =>
+      HttpResponse.json({
+        count: 1,
+        sessions: [
+          {
+            session_id: 'sess-xyz',
+            agent_source: 'claude_code',
+            agent_name: 'Evolution Pilot',
+            kind: 'evolve',
+            status: 'completed',
+            started_at: '2026-06-15T11:55:00Z',
+            ended_at: '2026-06-15T12:00:00Z',
+            root_trace_id: 't-1',
+            spec_claimed: 'specs/099-demo',
+            backlog_items_added: ['BL-20260615-09'],
+            prs_created: ['pr#1'],
+            summary: 'shipped a thing',
+            metadata: {},
+          },
+        ],
+      }),
+    ),
   )
 })
 
@@ -77,6 +122,17 @@ describe('AgentDashboard', () => {
       expect(screen.getByText(/Done: 5/)).toBeInTheDocument()
     })
     expect(screen.getByText('003-agent-ops-dashboard')).toBeInTheDocument()
+  })
+
+  it('renders the autonomy panel and session ledger (WS3/WS4)', async () => {
+    render(<AgentDashboard />)
+    await waitFor(() => {
+      // Autonomy mission-control: kill-switch state + a session-ledger row.
+      expect(screen.getByText('kill-switch OFF')).toBeInTheDocument()
+      expect(screen.getByText('Sessions')).toBeInTheDocument()
+    })
+    expect(screen.getByText(/specs\/099-demo/)).toBeInTheDocument()
+    expect(screen.getByText('+1 BL')).toBeInTheDocument()
   })
 
   it('surfaces panel-level errors without crashing the page', async () => {
