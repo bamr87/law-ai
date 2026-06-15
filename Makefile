@@ -4,8 +4,8 @@
 	lint format typecheck migrate ingest \
 	evolve-audit lint-specs \
 	autonomy-run autonomy-status autonomy-stop \
-	local-ai-up local-ai-down local-ai-pull local-ai-health \
-	host-setup host-test clean
+	local-ai-up local-ai-down local-ai-pull local-ai-health validate-claude-code \
+	lsat-author-demo legal-analyst-demo host-setup host-test clean
 
 # =============================================================================
 # Docker is the canonical dev/test surface. Every target below shells into
@@ -59,6 +59,9 @@ help:
 	@echo "  make local-ai-down     - Stop the above"
 	@echo "  make local-ai-pull     - Pull default Ollama models"
 	@echo "  make local-ai-health   - Hit /api/agents/health/local-ai"
+	@echo "  make validate-claude-code - Validate the dev-time Claude Code OAuth integration (LSAT)"
+	@echo "  make lsat-author-demo  - Run the LSATContentAuthor agent live (via Claude Code when opted in)"
+	@echo "  make legal-analyst-demo - Run the LegalAnalyst IRAC agent live (via Claude Code when opted in)"
 	@echo ""
 	@echo "Autonomy (Spec 018 — requires AUTONOMY_ENABLED=true):"
 	@echo "  make autonomy-run KIND=corpus_growth SOURCE=courtlistener  - one cycle (also accepts AUTONOMY_KIND/SOURCE)"
@@ -198,6 +201,21 @@ local-ai-pull:
 
 local-ai-health:
 	@curl -fsS http://localhost:8000/api/agents/health/local-ai | python3 -m json.tool
+
+validate-claude-code:
+	$(RUN_BACKEND_FULL) python manage.py validate_claude_code
+
+# Live LSATContentAuthor agent run. Routes through Claude Code when opted in
+# (LSAT_LLM_PROVIDER=claude_code + token in backend/.env). Pass extra flags via
+# ARGS, e.g. `make lsat-author-demo ARGS='--section RC --difficulty hard'`.
+lsat-author-demo:
+	$(DC) run --rm --no-deps -e PHOENIX_COLLECTOR_ENDPOINT= backend \
+		python manage.py run_lsat_author $(ARGS)
+
+# Live LegalAnalyst (IRAC) run — routes through Claude Code when opted in.
+legal-analyst-demo:
+	$(DC) run --rm --no-deps -e PHOENIX_COLLECTOR_ENDPOINT= backend \
+		python manage.py run_legal_analyst $(ARGS)
 
 # ---------------------------------------------------------------------------
 # Spec 018 T-009: Autonomy management targets

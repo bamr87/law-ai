@@ -25,6 +25,7 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, Field, model_validator
 
+from lawgraph.core import claude_code
 from lawgraph.core.provenance import provenance
 from lawgraph.core.settings_proxy import settings_proxy as settings
 from lawgraph.lsat.services.bank import (
@@ -146,6 +147,74 @@ def _build_user_payload(
     return payload
 
 
+# Short system steer used only on the Claude Code path (Ollama's /api/generate
+# has no system role, so its instructions live in the prompt template instead).
+_LLM_SYSTEM = (
+    "You are an LSAT item writer. Follow the instructions exactly and respond "
+    "with a single JSON object only — no preamble and no markdown code fences. "
+    "Each question must have exactly five answer choices labeled A, B, C, D, and "
+    "E in that order, with no duplicate labels and no empty choices."
+)
+
+# JSON Schema for the drafts response, used as a structured-output constraint on
+# the Claude Code path so Opus returns schema-valid JSON every time (no prose,
+# no truncated objects). Structured outputs forbids length/size constraints, so
+# the exact 5-choice rule and field caps are still enforced by DraftQuestion
+# (Pydantic) after parsing. ``passage_id`` is intentionally omitted — the agent
+# owns it — so ``additionalProperties: false`` keeps it out of the model output.
+_DRAFTS_RESPONSE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "drafts": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "section": {"type": "string", "enum": ["LR", "RC", "LG"]},
+                    "difficulty": {
+                        "type": "string",
+                        "enum": ["easy", "med", "hard"],
+                    },
+                    "stem": {"type": "string"},
+                    "choices": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "label": {
+                                    "type": "string",
+                                    "enum": list(_CHOICE_LABELS),
+                                },
+                                "text": {"type": "string"},
+                            },
+                            "required": ["label", "text"],
+                            "additionalProperties": False,
+                        },
+                    },
+                    "correct": {"type": "string", "enum": list(_CHOICE_LABELS)},
+                    "explanation": {"type": "string"},
+                    "concepts": {"type": "array", "items": {"type": "string"}},
+                    "confidence": {"type": "number"},
+                },
+                "required": [
+                    "section",
+                    "difficulty",
+                    "stem",
+                    "choices",
+                    "correct",
+                    "explanation",
+                    "concepts",
+                    "confidence",
+                ],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["drafts"],
+    "additionalProperties": False,
+}
+
+
 # ---------------------------------------------------------------------------
 # Ollama client (lightweight; mirrors lsat.services.tutor pattern)
 # ---------------------------------------------------------------------------
@@ -168,11 +237,53 @@ async def _ollama_generate(prompt: str, *, model: str) -> str:
     return str(data.get("response") or "").strip()
 
 
+async def _generate(prompt: str) -> tuple[str, str]:
+    """Route generation to the configured provider; return ``(raw, model_label)``.
+
+    Uses the dev-time Claude Code OAuth provider when an operator has opted in
+    (:func:`claude_code.is_active`); otherwise local Ollama — the product
+    default. Raises on provider/transport failure so :meth:`LSATContentAuthor.run`
+    degrades to the deterministic offline draft.
+    """
+    if claude_code.is_active():
+        raw = await claude_code.generate(
+            prompt, system=_LLM_SYSTEM, response_schema=_DRAFTS_RESPONSE_SCHEMA
+        )
+        return raw, claude_code.model_label()
+    raw = await _ollama_generate(prompt, model=settings.OLLAMA_DEFAULT_MODEL)
+    return raw, settings.OLLAMA_DEFAULT_MODEL
+
+
+def _normalize_choices(item: dict[str, Any]) -> None:
+    """Coerce ``item['choices']`` to the canonical A-E set when possible.
+
+    Models occasionally emit a stray, empty, or duplicate choice (structured
+    outputs can't cap array length). When every label A-E has non-empty text,
+    rebuild exactly five choices in order (first non-empty text per label wins);
+    otherwise leave it for ``DraftQuestion`` to reject.
+    """
+    raw_choices = item.get("choices")
+    if not isinstance(raw_choices, list):
+        return
+    by_label: dict[str, str] = {}
+    for ch in raw_choices:
+        if not isinstance(ch, dict):
+            continue
+        label = ch.get("label")
+        text = str(ch.get("text") or "").strip()
+        if label in _CHOICE_LABELS and label not in by_label and text:
+            by_label[label] = text
+    if all(label in by_label for label in _CHOICE_LABELS):
+        item["choices"] = [
+            {"label": label, "text": by_label[label]} for label in _CHOICE_LABELS
+        ]
+
+
 def _parse_drafts(
     raw: str, *, section: Section, difficulty: Difficulty
 ) -> list[DraftQuestion]:
     try:
-        obj = json.loads(raw)
+        obj = claude_code.loads_first_json(raw)
     except json.JSONDecodeError as exc:
         raise ValueError(f"LLM response not JSON: {exc}") from exc
     raw_drafts = obj.get("drafts") if isinstance(obj, dict) else None
@@ -185,6 +296,7 @@ def _parse_drafts(
         # Backfill required fields the LLM sometimes drops.
         item.setdefault("section", section)
         item.setdefault("difficulty", difficulty)
+        _normalize_choices(item)
         try:
             out.append(DraftQuestion.model_validate(item))
         except Exception as exc:
@@ -286,15 +398,25 @@ class LSATContentAuthor:
 
         drafts: list[DraftQuestion] = []
         degraded = False
-        model_used = settings.OLLAMA_DEFAULT_MODEL
+        model_used = (
+            claude_code.model_label()
+            if claude_code.is_active()
+            else settings.OLLAMA_DEFAULT_MODEL
+        )
         try:
-            raw = await _ollama_generate(prompt, model=model_used)
+            raw, model_used = await _generate(prompt)
             drafts = _parse_drafts(raw, section=inp.section, difficulty=inp.difficulty)
             drafts = drafts[: inp.count]
             # Pad with fallback drafts if the LLM returned fewer than asked.
             while len(drafts) < inp.count:
                 drafts.append(_fallback_draft(inp, len(drafts)))
-        except (TimeoutError, httpx.HTTPError, OSError, ValueError) as exc:
+        except (
+            TimeoutError,
+            httpx.HTTPError,
+            OSError,
+            ValueError,
+            claude_code.ClaudeCodeUnavailableError,
+        ) as exc:
             logger.info("LSATContentAuthor falling back to offline: %s", exc)
             degraded = True
             model_used = "fallback/offline"

@@ -271,6 +271,91 @@ async def test_tutor_uses_llm_when_available(
 
 
 @pytest.mark.asyncio
+async def test_tutor_routes_to_claude_code_when_active(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Dev-time opt-in: when Claude Code is active the tutor uses it, not Ollama."""
+    from lawgraph.core import claude_code as cc_mod
+
+    async def fake_generate(prompt: str, *, system: str | None = None) -> str:
+        return (
+            '{"coaching": "Claude Code walkthrough of the contrapositive.", '
+            '"next_steps": ["Diagram conditionals", "Recheck modus tollens"]}'
+        )
+
+    # Force the dev-only gate on without depending on the test environment.
+    monkeypatch.setattr(cc_mod, "is_active", lambda: True)
+    monkeypatch.setattr(cc_mod, "generate", fake_generate)
+    monkeypatch.setattr(cc_mod, "model", lambda: "claude-opus-4-8")
+
+    bank = load_bank()
+    qid = next(iter(bank))
+    res = await client.post(
+        "/api/lsat/tutor", json={"question_id": qid, "user_question": "Why is C wrong?"}
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["used_llm"] is True
+    assert body["model"] == "claude_code/claude-opus-4-8"
+    assert "Claude Code walkthrough" in body["coaching"]
+    assert len(body["next_steps"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_tutor_claude_code_strips_markdown_fence(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A fenced ```json block from Claude still parses into structured coaching."""
+    from lawgraph.core import claude_code as cc_mod
+
+    async def fenced(prompt: str, *, system: str | None = None) -> str:
+        return (
+            "```json\n"
+            '{"coaching": "Fenced but valid.", "next_steps": ["Step one"]}\n'
+            "```"
+        )
+
+    monkeypatch.setattr(cc_mod, "is_active", lambda: True)
+    monkeypatch.setattr(cc_mod, "generate", fenced)
+
+    bank = load_bank()
+    qid = next(iter(bank))
+    res = await client.post("/api/lsat/tutor", json={"question_id": qid})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["used_llm"] is True
+    assert body["coaching"] == "Fenced but valid."
+    assert body["next_steps"] == ["Step one"]
+
+
+@pytest.mark.asyncio
+async def test_tutor_falls_back_when_claude_code_errors(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Claude Code transport failure degrades to the offline path, never 500s."""
+    import httpx
+
+    from lawgraph.core import claude_code as cc_mod
+
+    async def boom(prompt: str, *, system: str | None = None) -> str:
+        raise httpx.ConnectError("oauth endpoint unreachable")
+
+    monkeypatch.setattr(cc_mod, "is_active", lambda: True)
+    monkeypatch.setattr(cc_mod, "generate", boom)
+
+    bank = load_bank()
+    qid, q = next(iter(bank.items()))
+    res = await client.post(
+        "/api/lsat/tutor", json={"question_id": qid, "user_choice": q.correct}
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["used_llm"] is False
+    assert body["coaching"]
+    assert body["model"] == "fallback/offline"
+
+
+@pytest.mark.asyncio
 async def test_tutor_unknown_question_returns_404(client: AsyncClient) -> None:
     res = await client.post(
         "/api/lsat/tutor", json={"question_id": "nope", "user_choice": "A"}
