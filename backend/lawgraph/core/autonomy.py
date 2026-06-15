@@ -112,6 +112,45 @@ def record_disabled(
 
 
 # ---------------------------------------------------------------------------
+# Change-ledger (WS4): mirror each cycle into a SessionRun row. Best-effort —
+# the ledger never breaks a cycle.
+# ---------------------------------------------------------------------------
+_STATUS_TO_LEDGER = {"ok": "completed", "error": "failed", "disabled": "disabled"}
+
+
+def _ledger_start(
+    cycle_id: str, cycle_type: str, payload: dict[str, Any] | None
+) -> None:
+    from lawgraph.audit import session_ledger
+
+    session_ledger.start_session(
+        cycle_id,
+        agent_source="celery",
+        agent_name="AutonomyOrchestrator",
+        kind=cycle_type,
+        root_trace_id=cycle_id,
+        metadata={"payload_keys": sorted((payload or {}).keys())},
+    )
+
+
+def _ledger_finalize(cycle_id: str, context: dict[str, Any]) -> None:
+    from lawgraph.audit import session_ledger
+
+    extra = {
+        k: v
+        for k, v in context.items()
+        if k not in {"cycle_id", "cycle_type", "status", "result"}
+    }
+    result = context.get("result")
+    session_ledger.finalize_session(
+        cycle_id,
+        status=_STATUS_TO_LEDGER.get(str(context.get("status")), "completed"),
+        summary=str(result)[:1000] if result is not None else "",
+        metadata_update=extra or None,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 @contextmanager
@@ -140,6 +179,7 @@ def _cycle_span(
         payload=payload or {},
     )
     _persist(start_event)
+    _ledger_start(cycle_id, cycle_type, payload)
     started = time.monotonic()
     try:
         yield context
@@ -156,6 +196,7 @@ def _cycle_span(
             **{k: v for k, v in context.items() if k not in {"cycle_id", "cycle_type"}},
         )
         _persist(end_event)
+        _ledger_finalize(cycle_id, context)
 
 
 def run_cycle(

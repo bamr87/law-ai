@@ -20,6 +20,7 @@ def persist_audit_event(event: dict[str, Any]) -> None:
             kind=event.get("type") or "unknown",
             trace_id=event.get("trace_id", "") or "",
             agent_version=event.get("agent_version", "") or "",
+            session_id=str(event.get("session_id") or event.get("cycle_id") or ""),
             payload=event,
         )
     except Exception as exc:  # pragma: no cover

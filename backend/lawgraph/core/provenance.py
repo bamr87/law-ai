@@ -18,9 +18,11 @@ import inspect
 import json
 import logging
 import time
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Any, TypeVar
-from collections.abc import Callable
 from uuid import uuid4
 
 from lawgraph.core import audit_jsonl as audit_store
@@ -28,6 +30,43 @@ from lawgraph.core import audit_jsonl as audit_store
 logger = logging.getLogger("lawgraph.provenance")
 
 F = TypeVar("F", bound=Callable[..., Any])
+
+# ---------------------------------------------------------------------------
+# Session context (WS4) — ambient session_id/spec_id/backlog_item_id tag for
+# every event emitted inside ``session_scope(...)``, so a whole agent run is
+# groupable on the change ledger without threading ids through every call.
+# ---------------------------------------------------------------------------
+_session_ctx: ContextVar[dict[str, str] | None] = ContextVar(
+    "provenance_session", default=None
+)
+
+
+@contextmanager
+def session_scope(
+    session_id: str, *, spec_id: str = "", backlog_item_id: str = ""
+) -> Iterator[None]:
+    """Tag every provenance event emitted in this scope with ``session_id``."""
+    token = _session_ctx.set(
+        {
+            "session_id": session_id,
+            "spec_id": spec_id,
+            "backlog_item_id": backlog_item_id,
+        }
+    )
+    try:
+        yield
+    finally:
+        _session_ctx.reset(token)
+
+
+def current_session() -> dict[str, str] | None:
+    """Return the ambient session context dict, or ``None``."""
+    return _session_ctx.get()
+
+
+def _event_session_id(event: dict[str, Any]) -> str:
+    """Ledger key for an event: explicit ``session_id`` or autonomy ``cycle_id``."""
+    return str(event.get("session_id") or event.get("cycle_id") or "")
 
 
 def _persist(event: dict[str, Any]) -> None:
@@ -45,6 +84,7 @@ def _persist(event: dict[str, Any]) -> None:
             kind=kind,
             trace_id=event.get("trace_id", "") or "",
             agent_version=event.get("agent_version", "") or "",
+            session_id=_event_session_id(event),
             payload=event,
         )
     except Exception as exc:
@@ -105,6 +145,10 @@ class ProvenanceLogger:
         latency_ms: float,
         confidence: float | None = None,
         sources: list[dict] | None = None,
+        *,
+        session_id: str = "",
+        spec_id: str = "",
+        backlog_item_id: str = "",
     ) -> str:
         trace_id = str(uuid4())
         child_trace_ids = (
@@ -138,6 +182,17 @@ class ProvenanceLogger:
             input_view["error"] = True
         if input_view:
             log_entry["input"] = input_view
+        # Change-ledger linkage (WS4): explicit args win, else the ambient
+        # session_scope() context, so autonomous runs auto-tag their events.
+        ctx = _session_ctx.get() or {}
+        for key, explicit in (
+            ("session_id", session_id),
+            ("spec_id", spec_id),
+            ("backlog_item_id", backlog_item_id),
+        ):
+            value = explicit or ctx.get(key, "")
+            if value:
+                log_entry[key] = value
         logger.info(json.dumps(log_entry))
         _persist(log_entry)
         return trace_id
