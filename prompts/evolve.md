@@ -62,11 +62,19 @@ Evolution cycle complete
 - Next suggested pick: BL-YYYYMMDD-NN (<reason>)
 ```
 
+## Execution surface
+
+This runbook is surface-agnostic. The two sanctioned surfaces invoke it differently:
+
+- **Claude Code** — run the `/asdlc-evolve` skill (it loads this file). Each chain step is a skill: `/asdlc-specify → /asdlc-clarify → /asdlc-plan → /asdlc-tasks → /asdlc-implement`. End in a **draft** PR (`gh pr create --draft`) — constitution §12 I1 forbids auto-merge. Docker-first is enforced by the `.claude/settings.json` hook (host `pytest`/`ruff`/`mypy`/`npm`/`pip`/`manage.py` are blocked). For unattended/scheduled runs see [.github/workflows/evolve-claude.yml](../.github/workflows/evolve-claude.yml) when present.
+- **GitHub Copilot** — Chat Agent mode, or assign a tracking issue to `@copilot` for the cloud coding agent.
+
 ## Multi-Agent Spawning
 
-To run several `/evolve` cycles in parallel (e.g. for triage day) — under a sanctioned surface (GitHub Copilot or Claude Code):
+To run several `/evolve` cycles in parallel (e.g. for triage day) — under a sanctioned surface:
 
-1. Pick **N non-overlapping** `BL-*` items (different files / different specs) up front and list them in chat.
-2. Spawn one Copilot subagent per item using the `runSubagent` tool with the `Explore` agent for read-only audits, or the default Copilot agent for write cycles. Pass each subagent its specific `BL-*` id so they cannot collide on the BACKLOG.
-3. For cloud parallelism, file one issue per `BL-*` item and assign each to `@copilot`; the GitHub Copilot coding agent will run them concurrently.
-4. Serialize the final `BACKLOG.md` edits — only one agent at a time may move bullets between sections to avoid merge conflicts. Use git rebase if a conflict occurs; do not force-push shared branches.
+1. Pick **N non-overlapping** `BL-*` items (different files / different specs) up front and list them.
+2. Spawn one subagent per item, each passed its specific `BL-*` id so they cannot collide on the BACKLOG:
+   - **Claude Code:** one `Agent` per item (the `Explore` agent for read-only audits, the default agent for write cycles), or a `Workflow` that pipelines the items.
+   - **GitHub Copilot:** the `runSubagent` tool, or file one issue per item assigned to `@copilot` for cloud parallelism.
+3. Serialize the final `BACKLOG.md` edits — only one agent at a time may move bullets between sections to avoid merge conflicts. Use git rebase if a conflict occurs; do not force-push shared branches.
