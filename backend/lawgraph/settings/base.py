@@ -26,6 +26,19 @@ env = environ.Env(
     FALLBACK_MODEL=(str, "mistral:7b-instruct-q4_K_M"),
     OLLAMA_DEFAULT_MODEL=(str, "mistral:7b-instruct-q4_K_M"),
     OLLAMA_REQUEST_TIMEOUT_S=(float, 120.0),
+    # LSAT LLM provider selector. Default "ollama" (product runtime, local-first
+    # per constitution §1). "claude_code" is a dev-time-only opt-in that routes
+    # the LSAT tutor through a local Claude Code OAuth subscription; it is
+    # ignored outside development (see lawgraph.core.claude_code).
+    LSAT_LLM_PROVIDER=(str, "ollama"),
+    # Claude Code OAuth (dev-time only). Token comes from `claude setup-token`.
+    ANTHROPIC_BASE_URL=(str, "https://api.anthropic.com"),
+    CLAUDE_CODE_OAUTH_TOKEN=(str, ""),
+    CLAUDE_CODE_MODEL=(str, "claude-opus-4-8"),
+    CLAUDE_CODE_MAX_TOKENS=(int, 2048),
+    CLAUDE_CODE_REQUEST_TIMEOUT_S=(float, 60.0),
+    # Retry attempts for transient Anthropic errors (429/5xx/529 overloaded).
+    CLAUDE_CODE_MAX_RETRIES=(int, 3),
     LANGGRAPH_CHECKPOINTER=(str, "postgres"),
     LANGGRAPH_CHECKPOINTER_SCHEMA=(str, "langgraph"),
     PHOENIX_COLLECTOR_ENDPOINT=(str, ""),
@@ -86,6 +99,17 @@ DEFAULT_MODEL: str = env("DEFAULT_MODEL")
 FALLBACK_MODEL: str = env("FALLBACK_MODEL")
 OLLAMA_DEFAULT_MODEL: str = env("OLLAMA_DEFAULT_MODEL")
 OLLAMA_REQUEST_TIMEOUT_S: float = env.float("OLLAMA_REQUEST_TIMEOUT_S")
+
+# LSAT LLM provider + Claude Code OAuth (dev-time only — see
+# lawgraph.core.claude_code; Ollama stays the product runtime per constitution §1).
+LSAT_LLM_PROVIDER: str = env("LSAT_LLM_PROVIDER")
+ANTHROPIC_BASE_URL: str = env("ANTHROPIC_BASE_URL")
+CLAUDE_CODE_OAUTH_TOKEN: str = env("CLAUDE_CODE_OAUTH_TOKEN")
+CLAUDE_CODE_MODEL: str = env("CLAUDE_CODE_MODEL")
+CLAUDE_CODE_MAX_TOKENS: int = env.int("CLAUDE_CODE_MAX_TOKENS")
+CLAUDE_CODE_REQUEST_TIMEOUT_S: float = env.float("CLAUDE_CODE_REQUEST_TIMEOUT_S")
+CLAUDE_CODE_MAX_RETRIES: int = env.int("CLAUDE_CODE_MAX_RETRIES")
+
 LANGGRAPH_CHECKPOINTER: str = env("LANGGRAPH_CHECKPOINTER")
 LANGGRAPH_CHECKPOINTER_SCHEMA: str = env("LANGGRAPH_CHECKPOINTER_SCHEMA")
 

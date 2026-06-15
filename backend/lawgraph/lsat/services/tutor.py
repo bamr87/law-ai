@@ -21,6 +21,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from lawgraph.core import audit_jsonl as audit_store
+from lawgraph.core import claude_code
 from lawgraph.core.settings_proxy import settings_proxy as settings
 from lawgraph.lsat.services.bank import (
     ChoiceLabel,
@@ -133,6 +134,14 @@ def _build_prompt(
     return "\n\n".join(parts)
 
 
+# Short system steer used only on the Claude Code path (Ollama's /api/generate
+# has no system role, so its instructions live in the prompt body instead).
+_LLM_SYSTEM = (
+    "You are an LSAT tutor. Follow the user's instructions exactly and respond "
+    "with JSON only — no preamble and no markdown code fences."
+)
+
+
 # ---------------------------------------------------------------------------
 # Ollama client (lightweight; avoids langchain dependency)
 # ---------------------------------------------------------------------------
@@ -160,10 +169,31 @@ async def _ollama_generate(prompt: str, *, model: str) -> str:
     return str(data.get("response") or "").strip()
 
 
+# ---------------------------------------------------------------------------
+# Provider routing
+# ---------------------------------------------------------------------------
+
+
+async def _generate_coaching(prompt: str) -> tuple[str, str]:
+    """Generate raw coaching text via the configured provider.
+
+    Routes to the dev-time Claude Code OAuth provider when an operator has
+    opted in *and* the dev gate passes (:func:`claude_code.is_active`);
+    otherwise uses local Ollama — the product-runtime default. Returns
+    ``(raw_text, model_label)``; raises on provider/transport failure so the
+    caller can fall back to the deterministic offline path.
+    """
+    if claude_code.is_active():
+        raw = await claude_code.generate(prompt, system=_LLM_SYSTEM)
+        return raw, claude_code.model_label()
+    raw = await _ollama_generate(prompt, model=settings.OLLAMA_DEFAULT_MODEL)
+    return raw, settings.OLLAMA_DEFAULT_MODEL
+
+
 def _parse_llm_payload(text: str) -> tuple[str, list[str]]:
     """Best-effort parse of the JSON-only contract returned by the prompt."""
     try:
-        obj = json.loads(text)
+        obj = claude_code.loads_first_json(text)
     except json.JSONDecodeError:
         # Treat the whole response as the coaching paragraph.
         return text.strip()[:1_500], []
@@ -251,14 +281,19 @@ async def tutor(req: TutorRequest, q: Question) -> TutorResponse:
     confidence = 0.55
 
     try:
-        raw = await _ollama_generate(prompt, model=settings.OLLAMA_DEFAULT_MODEL)
+        raw, model_label = await _generate_coaching(prompt)
         coaching, next_steps = _parse_llm_payload(raw)
         if coaching:
             used_llm = True
-            model_used = settings.OLLAMA_DEFAULT_MODEL
+            model_used = model_label
             # Heuristic confidence: longer, structured responses tend to be better.
             confidence = 0.85 if next_steps and len(coaching) > 80 else 0.7
-    except (TimeoutError, httpx.HTTPError, OSError) as exc:
+    except (
+        TimeoutError,
+        httpx.HTTPError,
+        OSError,
+        claude_code.ClaudeCodeUnavailableError,
+    ) as exc:
         logger.info("LSAT tutor falling back to offline path: %s", exc)
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning("LSAT tutor unexpected error: %s", exc, exc_info=True)

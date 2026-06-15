@@ -30,14 +30,19 @@ def test_health_endpoint_shape(
     async def _fake_err() -> dict:
         return {"reachable": False, "detail": "no"}
 
+    async def _fake_claude() -> dict:
+        return {"provider": "claude_code", "reachable": False, "reason": "off"}
+
     monkeypatch.setattr(agents_api, "_probe_ollama", _fake_ok)
     monkeypatch.setattr(agents_api, "_probe_checkpointer", _fake_err)
     monkeypatch.setattr(agents_api, "_probe_phoenix", _fake_ok)
+    monkeypatch.setattr(agents_api, "_probe_claude_code", _fake_claude)
 
     resp = client.get("/api/agents/health/local-ai")
     assert resp.status_code == 200
     body = resp.json()
-    assert set(body) == {"ollama", "checkpointer", "phoenix"}
+    assert set(body) == {"ollama", "checkpointer", "phoenix", "claude_code"}
     assert body["ollama"]["reachable"] is True
     assert body["checkpointer"]["reachable"] is False
     assert body["phoenix"]["reachable"] is True
+    assert body["claude_code"]["provider"] == "claude_code"

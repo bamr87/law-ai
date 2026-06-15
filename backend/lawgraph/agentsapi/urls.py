@@ -139,6 +139,17 @@ async def _probe_checkpointer() -> dict[str, Any]:
     return {"kind": kind, "reachable": True}
 
 
+async def _probe_claude_code() -> dict[str, Any]:
+    """Dev-time-only Claude Code OAuth reachability (constitution §1).
+
+    Delegates to :func:`lawgraph.core.claude_code.probe`, which refuses to call
+    out outside development and reports inline rather than raising.
+    """
+    from lawgraph.core import claude_code
+
+    return await claude_code.probe()
+
+
 async def _probe_phoenix() -> dict[str, Any]:
     from urllib.parse import urlsplit
 
@@ -327,10 +338,18 @@ class LocalAIHealthView(_Base):
         async def _gather() -> dict[str, Any]:
             import asyncio as _asyncio
 
-            ollama, checkpointer, phoenix = await _asyncio.gather(
-                _probe_ollama(), _probe_checkpointer(), _probe_phoenix()
+            ollama, checkpointer, phoenix, claude = await _asyncio.gather(
+                _probe_ollama(),
+                _probe_checkpointer(),
+                _probe_phoenix(),
+                _probe_claude_code(),
             )
-            return {"ollama": ollama, "checkpointer": checkpointer, "phoenix": phoenix}
+            return {
+                "ollama": ollama,
+                "checkpointer": checkpointer,
+                "phoenix": phoenix,
+                "claude_code": claude,
+            }
 
         return Response(async_to_sync(_gather)())
 
