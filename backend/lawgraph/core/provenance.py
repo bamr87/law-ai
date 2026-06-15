@@ -97,6 +97,16 @@ def _persist(event: dict[str, Any]) -> None:
         except Exception:
             pass
 
+    # Best-effort live fan-out to the dashboard activity feed (WS3). Lazy
+    # import avoids a Channels dependency on the audit hot path; the helper
+    # never raises, so a missing channel layer can't break the audit write.
+    try:
+        from lawgraph.agentsapi.broadcast import broadcast_activity
+
+        broadcast_activity(event)
+    except Exception:  # pragma: no cover - defence in depth, never break audit
+        pass
+
 
 class ProvenanceLogger:
     """Central audit logger for LawGraph AI."""
@@ -144,7 +154,7 @@ class ProvenanceLogger:
         model: str,
         latency_ms: float,
         confidence: float | None = None,
-        sources: list[dict] | None = None,
+        sources: list[dict[str, Any]] | None = None,
         *,
         session_id: str = "",
         spec_id: str = "",
@@ -199,7 +209,7 @@ class ProvenanceLogger:
 
     @staticmethod
     def log_graph_query(
-        cypher: str, params: dict, result_count: int, latency_ms: float
+        cypher: str, params: dict[str, Any], result_count: int, latency_ms: float
     ) -> None:
         log_entry = {
             "timestamp": datetime.now(UTC).isoformat(),

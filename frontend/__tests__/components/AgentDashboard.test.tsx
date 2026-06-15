@@ -1,12 +1,40 @@
 import AgentDashboard from '@/components/AgentDashboard'
 import { server } from '@/mocks/server'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const BASE = 'http://localhost:8000'
 
+// Deterministic WebSocket double so the live-feed hook never makes a real
+// connection attempt during component tests.
+class MockWebSocket {
+  static instances: MockWebSocket[] = []
+  onopen: (() => void) | null = null
+  onmessage: ((ev: { data: string }) => void) | null = null
+  onclose: (() => void) | null = null
+  onerror: (() => void) | null = null
+  constructor() {
+    MockWebSocket.instances.push(this)
+  }
+  close() {
+    this.onclose?.()
+  }
+  serverOpen() {
+    this.onopen?.()
+  }
+  serverSend(obj: unknown) {
+    this.onmessage?.({ data: JSON.stringify(obj) })
+  }
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
 beforeEach(() => {
+  MockWebSocket.instances = []
+  vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket)
   server.use(
     http.get(`${BASE}/api/agents`, () =>
       HttpResponse.json({
@@ -133,6 +161,28 @@ describe('AgentDashboard', () => {
     })
     expect(screen.getByText(/specs\/099-demo/)).toBeInTheDocument()
     expect(screen.getByText('+1 BL')).toBeInTheDocument()
+  })
+
+  it('shows a Live badge and activity strip when a WS frame arrives (WS3)', async () => {
+    render(<AgentDashboard />)
+    await screen.findByText('Registry')
+
+    // Default: socket not yet open → polling fallback shown.
+    expect(screen.getByTestId('live-badge')).toHaveTextContent('Polling')
+
+    const ws = MockWebSocket.instances.at(-1)!
+    act(() => {
+      ws.serverOpen()
+      ws.serverSend({ type: 'ready', feed: 'agents-activity' })
+      ws.serverSend({ type: 'agent_call', agent: 'LegalAnalyst', latency_ms: 50 })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('live-badge')).toHaveTextContent('Live')
+      expect(screen.getByTestId('live-activity-strip')).toHaveTextContent(
+        'LegalAnalyst',
+      )
+    })
   })
 
   it('surfaces panel-level errors without crashing the page', async () => {

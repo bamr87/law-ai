@@ -21,6 +21,10 @@ import {
     type SessionRun,
     type SpecInfo,
 } from '@/lib/api'
+import {
+    useAgentActivity,
+    type ActivityEvent,
+} from '@/lib/useAgentActivity'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 const POLL_MS = 5000
@@ -84,6 +88,10 @@ export default function AgentDashboard() {
   const [drillTraceId, setDrillTraceId] = useState<string | null>(null)
   const [drillSessionId, setDrillSessionId] = useState<string | null>(null)
 
+  // Live activity feed (WS3) — a real-time layer over the 5s poll. When the
+  // socket is down, `connected` is false and polling remains the source of truth.
+  const activity = useAgentActivity({ max: 30 })
+
   useEffect(() => {
     let cancelled = false
     const refresh = () => {
@@ -135,6 +143,19 @@ export default function AgentDashboard() {
     const id = setInterval(() => setTick((t) => t + 1), 1000)
     return () => clearInterval(id)
   }, [])
+
+  // A live event means a new audit row landed — refresh the runs + metrics
+  // panels immediately rather than waiting for the next poll tick. Skipped
+  // while paused. `activity.lastEventAt` only changes on a real frame.
+  useEffect(() => {
+    if (paused || activity.lastEventAt == null) return
+    void load(() => fetchRuns(runLimit), (s) =>
+      setState((prev) => ({ ...prev, runs: s })),
+    )
+    void load(() => fetchAgentMetrics(500), (s) =>
+      setState((prev) => ({ ...prev, metrics: s })),
+    )
+  }, [activity.lastEventAt, paused, runLimit])
 
   const filteredRuns = useMemo(() => {
     const runs = state.runs.data?.runs ?? []
@@ -189,6 +210,12 @@ export default function AgentDashboard() {
         paused={paused}
         onTogglePause={() => setPaused((p) => !p)}
         lastUpdated={lastUpdated}
+        live={activity.connected}
+      />
+
+      <LiveActivityStrip
+        connected={activity.connected}
+        events={activity.events}
       />
 
       <KPIStrip
@@ -409,10 +436,12 @@ function ControlBar({
   paused,
   onTogglePause,
   lastUpdated,
+  live,
 }: {
   paused: boolean
   onTogglePause: () => void
   lastUpdated: Date | null
+  live: boolean
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-2.5">
@@ -430,14 +459,99 @@ function ControlBar({
           </span>
         )}
       </div>
-      <button
-        type="button"
-        onClick={onTogglePause}
-        className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300 transition hover:border-blue-500/50 hover:text-white"
-      >
-        {paused ? '▶ Resume' : '⏸ Pause'}
-      </button>
+      <div className="flex items-center gap-2">
+        <span
+          data-testid="live-badge"
+          title={
+            live
+              ? 'Live WebSocket feed connected'
+              : 'WebSocket offline — falling back to polling'
+          }
+          className={
+            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ' +
+            (live
+              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+              : 'border-slate-700 bg-slate-800/40 text-slate-500')
+          }
+        >
+          <span
+            className={
+              'inline-block h-1.5 w-1.5 rounded-full ' +
+              (live ? 'animate-pulse bg-emerald-400' : 'bg-slate-500')
+            }
+          />
+          {live ? 'Live' : 'Polling'}
+        </span>
+        <button
+          type="button"
+          onClick={onTogglePause}
+          className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300 transition hover:border-blue-500/50 hover:text-white"
+        >
+          {paused ? '▶ Resume' : '⏸ Pause'}
+        </button>
+      </div>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// LiveActivityStrip — real-time ticker of streamed provenance frames (WS3)
+// ---------------------------------------------------------------------------
+
+function LiveActivityStrip({
+  connected,
+  events,
+}: {
+  connected: boolean
+  events: ActivityEvent[]
+}) {
+  // Hidden until there's something live to show — keeps the chrome quiet when
+  // the socket is unavailable and the dashboard is poll-only.
+  if (!connected && events.length === 0) return null
+  return (
+    <div
+      className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-2"
+      data-testid="live-activity-strip"
+    >
+      <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-emerald-300">
+        <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+        Live
+      </span>
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+        {events.length === 0 ? (
+          <span className="text-[11px] text-slate-500">
+            Connected — waiting for activity…
+          </span>
+        ) : (
+          events.slice(0, 12).map((ev, i) => <ActivityChip key={i} event={ev} />)
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ActivityChip({ event }: { event: ActivityEvent }) {
+  const label = event.agent ?? event.cycle_type ?? event.type
+  const isError = event.status === 'error' || event.status === 'failed'
+  const time = event.timestamp ? new Date(event.timestamp) : null
+  return (
+    <span
+      className={
+        'inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] ' +
+        (isError
+          ? 'border-red-500/40 bg-red-500/10 text-red-300'
+          : 'border-slate-700 bg-slate-800/40 text-slate-300')
+      }
+      title={time ? time.toISOString() : event.type}
+    >
+      <TypeIcon type={event.type} />
+      <span className="max-w-[140px] truncate font-mono">{label}</span>
+      {event.latency_ms != null && (
+        <span className="tabular-nums text-slate-500">
+          {Math.round(Number(event.latency_ms))}ms
+        </span>
+      )}
+    </span>
   )
 }
 
