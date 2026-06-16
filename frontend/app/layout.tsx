@@ -1,4 +1,4 @@
-import NavBar from '@/components/NavBar'
+import { AppShell } from '@/components/AppShell'
 import type { Metadata } from 'next'
 import { Providers } from './providers'
 import './globals.css'
@@ -20,11 +20,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <Providers>
-          {/* Centered, side-bordered column — the shared EDGAR shell. */}
-          <div className="mx-auto flex min-h-svh max-w-[1200px] flex-col border-x border-border">
-            <NavBar />
-            {children}
-          </div>
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>
