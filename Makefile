@@ -1,7 +1,7 @@
 .PHONY: help setup dev down logs ps debug shell-backend shell-frontend manage \
 	test test-backend test-frontend test-coverage test-smoke test-specs \
 	test-integration test-legalbench \
-	lint format typecheck migrate ingest \
+	lint format typecheck migrate ingest ingest-sample \
 	evolve-audit lint-specs \
 	autonomy-run autonomy-status autonomy-stop \
 	local-ai-up local-ai-down local-ai-pull local-ai-health validate-claude-code \
@@ -115,6 +115,11 @@ migrate:
 
 ingest:
 	$(RUN_BACKEND_FULL) python scripts/ingest_sample.py --source courtlistener --limit 500
+
+# Small seed for the Knowledge Graph explorer's empty-state CTA — a few cases
+# + citations so `/graph` renders a neighborhood without the full 500-item pull.
+ingest-sample:
+	$(RUN_BACKEND_FULL) python scripts/ingest_sample.py --source courtlistener --limit 5
 
 # ---------------------------------------------------------------------------
 # Tests (Docker-only)
