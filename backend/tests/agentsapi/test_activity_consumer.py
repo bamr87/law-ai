@@ -70,9 +70,7 @@ async def test_activity_consumer_ready_and_forwards_frame() -> None:
     frame = {"type": "agent_call", "agent": "LegalAnalyst", "trace_id": "abc-123"}
     layer = get_channel_layer()
     assert layer is not None
-    await layer.group_send(
-        ACTIVITY_GROUP, {"type": "activity.event", "event": frame}
-    )
+    await layer.group_send(ACTIVITY_GROUP, {"type": "activity.event", "event": frame})
     forwarded = await communicator.receive_json_from()
     assert forwarded == frame
 
