@@ -1,79 +1,54 @@
 'use client'
 
-import { fetchAgents, fetchBacklog, fetchSpecs } from '@/lib/api'
-import { useEffect, useState } from 'react'
+import { cn } from '@/lib/cn'
+import { useAgents, useBacklog, useSpecs } from '@/lib/queries'
+import { useHydrated } from '@/lib/useHydrated'
+import { type Tone, toneDot } from '@/components/ui'
 
-interface Stats {
-  agents: number | null
-  backlogOpen: number | null
-  backlogDone: number | null
-  specsTotal: number | null
-  specsShipped: number | null
-  online: boolean
-}
-
-const initial: Stats = {
-  agents: null,
-  backlogOpen: null,
-  backlogDone: null,
-  specsTotal: null,
-  specsShipped: null,
-  online: false,
-}
-
+/** Compact live status strip on the landing page — driven by the shared
+ *  React Query hooks instead of a bespoke 3-endpoint poller. */
 export default function HomeStats() {
-  const [stats, setStats] = useState<Stats>(initial)
+  const hydrated = useHydrated()
+  const agents = useAgents()
+  const backlog = useBacklog()
+  const specs = useSpecs()
 
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      try {
-        const [a, b, s] = await Promise.all([
-          fetchAgents(),
-          fetchBacklog(),
-          fetchSpecs(),
-        ])
-        if (cancelled) return
-        setStats({
-          agents: a.count,
-          backlogOpen: b.counts.open,
-          backlogDone: b.counts.done,
-          specsTotal: s.count,
-          specsShipped: s.specs.filter((x) => x.status === 'shipped').length,
-          online: true,
-        })
-      } catch {
-        if (!cancelled) setStats({ ...initial, online: false })
-      }
-    }
-    void load()
-    const id = setInterval(load, 10_000)
-    return () => {
-      cancelled = true
-      clearInterval(id)
-    }
-  }, [])
+  // Gate live values behind hydration so the first client render matches SSR.
+  const online = hydrated && agents.isSuccess
+  const offline = hydrated && agents.isError
+  const shipped = specs.data?.specs.filter((s) => s.status === 'shipped').length
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 p-1 backdrop-blur">
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-slate-800/40 sm:grid-cols-4">
-        <Stat label="Backend" value={stats.online ? 'Online' : 'Offline'} accent={stats.online ? 'emerald' : 'red'} pulse={stats.online} />
-        <Stat label="Agents" value={stats.agents ?? '—'} accent="blue" />
+    <div className="relative overflow-hidden rounded-2xl border border-border bg-surface/60 p-1 backdrop-blur">
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border/60 sm:grid-cols-4">
+        <Stat
+          label="Backend"
+          value={online ? 'Online' : offline ? 'Offline' : '…'}
+          tone={online ? 'success' : offline ? 'danger' : 'brand'}
+          pulse={online}
+        />
+        <Stat
+          label="Agents"
+          value={hydrated ? (agents.data?.count ?? '—') : '…'}
+          tone="brand"
+        />
         <Stat
           label="Backlog"
-          value={stats.backlogOpen ?? '—'}
-          sub={stats.backlogDone != null ? `${stats.backlogDone} shipped` : undefined}
-          accent="amber"
+          value={hydrated ? (backlog.data?.counts.open ?? '—') : '…'}
+          sub={
+            hydrated && backlog.data
+              ? `${backlog.data.counts.done} shipped`
+              : undefined
+          }
+          tone="warning"
         />
         <Stat
           label="Specs"
-          value={stats.specsTotal ?? '—'}
+          value={hydrated ? (specs.data?.count ?? '—') : '…'}
           sub={
-            stats.specsShipped != null
-              ? `${stats.specsShipped} shipped`
-              : undefined
+            hydrated && shipped != null ? `${shipped} shipped` : undefined
           }
-          accent="indigo"
+          tone="accent"
         />
       </div>
     </div>
@@ -84,38 +59,31 @@ function Stat({
   label,
   value,
   sub,
-  accent,
+  tone,
   pulse,
 }: {
   label: string
   value: number | string
   sub?: string
-  accent: 'emerald' | 'blue' | 'amber' | 'indigo' | 'red'
+  tone: Tone
   pulse?: boolean
 }) {
-  const dot: Record<string, string> = {
-    emerald: 'bg-emerald-400',
-    blue: 'bg-blue-400',
-    amber: 'bg-amber-400',
-    indigo: 'bg-indigo-400',
-    red: 'bg-red-400',
-  }
   return (
-    <div className="bg-slate-950/60 px-4 py-3">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-slate-500">
+    <div className="bg-canvas-soft/70 px-4 py-3">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-subtle">
         <span
-          className={
-            'inline-block h-1.5 w-1.5 rounded-full ' +
-            dot[accent] +
-            (pulse ? ' animate-pulse' : '')
-          }
+          className={cn(
+            'inline-block h-1.5 w-1.5 rounded-full',
+            toneDot[tone],
+            pulse && 'animate-pulse',
+          )}
         />
         {label}
       </div>
-      <div className="mt-1 text-2xl font-semibold tabular-nums text-slate-100">
+      <div className="mt-1 text-2xl font-semibold tabular-nums text-ink">
         {value}
       </div>
-      {sub && <div className="text-xs text-slate-500">{sub}</div>}
+      {sub && <div className="text-xs text-subtle">{sub}</div>}
     </div>
   )
 }
