@@ -935,6 +935,8 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
   LegalAnalyst: 'IRAC-style analysis of legal issues with precedent retrieval.',
   PrecedentHunter: 'Searches the knowledge graph for relevant case precedents.',
   IngestionScout: 'Discovers and queues new legal opinions from public sources.',
+  StatuteScout: 'Discovers and queues statutes/ordinances from public sources.',
+  LSATContentAuthor: 'Drafts LSAT practice questions for human (HITL) review.',
 }
 
 function AgentCard({

@@ -6,9 +6,10 @@ Two layers:
     on the ``agents-activity`` group is forwarded verbatim → disconnect.
 
 The consumer is driven via a direct ``group_send`` (mirroring
-``test_consumer.py``) rather than ``broadcast_activity``: the helper wraps
-``async_to_sync``, which is a no-op inside a running event loop, so it is
-exercised through its pure ``compact_event`` core instead.
+``test_consumer.py``). ``broadcast_activity`` itself dispatches the send to a
+worker thread, so the regression test below checks that it works from inside a
+running event loop (the bug: it used to ``async_to_sync`` on the caller's loop
+and silently no-op, so agent calls from async views never reached the feed).
 """
 
 from __future__ import annotations
@@ -17,7 +18,12 @@ import pytest
 from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator
 
-from lawgraph.agentsapi.broadcast import ACTIVITY_GROUP, compact_event
+import lawgraph.agentsapi.broadcast as broadcast_mod
+from lawgraph.agentsapi.broadcast import (
+    ACTIVITY_GROUP,
+    broadcast_activity,
+    compact_event,
+)
 from lawgraph.agentsapi.consumers import AgentActivityConsumer
 
 
@@ -75,3 +81,40 @@ async def test_activity_consumer_ready_and_forwards_frame() -> None:
     assert forwarded == frame
 
     await communicator.disconnect()
+
+
+class _InlineExecutor:
+    """Runs submitted work synchronously so the dispatch is assertable."""
+
+    def submit(self, fn, *args, **kwargs):
+        fn(*args, **kwargs)
+
+
+@pytest.mark.asyncio
+async def test_broadcast_activity_dispatches_from_async_context(monkeypatch) -> None:
+    """Regression: calling broadcast_activity from inside a running event loop
+    must still dispatch the compact frame (it used to async_to_sync on the
+    caller's loop and silently no-op — agent calls from async views were lost).
+    """
+    captured: list[dict] = []
+    monkeypatch.setattr(broadcast_mod, "_send", captured.append)
+    monkeypatch.setattr(broadcast_mod, "_dispatch", _InlineExecutor())
+
+    # We are inside a running event loop (this is an async test).
+    broadcast_activity(
+        {"type": "agent_call", "agent": "LegalAnalyst", "input_hash": 999}
+    )
+
+    assert captured == [{"type": "agent_call", "agent": "LegalAnalyst"}]
+
+
+def test_broadcast_activity_skips_http_requests(monkeypatch) -> None:
+    """http_request frames are filtered before any dispatch."""
+    calls: list = []
+    monkeypatch.setattr(
+        broadcast_mod,
+        "_dispatch",
+        type("E", (), {"submit": lambda self, *a: calls.append(a)})(),
+    )
+    broadcast_activity({"type": "http_request", "path": "/x"})
+    assert calls == []
