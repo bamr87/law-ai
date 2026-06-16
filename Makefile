@@ -116,10 +116,11 @@ migrate:
 ingest:
 	$(RUN_BACKEND_FULL) python scripts/ingest_sample.py --source courtlistener --limit 500
 
-# Small seed for the Knowledge Graph explorer's empty-state CTA — a few cases
-# + citations so `/graph` renders a neighborhood without the full 500-item pull.
+# Offline seed for the Knowledge Graph explorer's empty-state CTA — a handful
+# of landmark cases + citations so `/graph` renders a neighborhood. No network
+# or API token (unlike `make ingest`, which pulls from CourtListener).
 ingest-sample:
-	$(RUN_BACKEND_FULL) python scripts/ingest_sample.py --source courtlistener --limit 5
+	$(RUN_BACKEND_FULL) python scripts/ingest_sample.py --source sample
 
 # ---------------------------------------------------------------------------
 # Tests (Docker-only)
