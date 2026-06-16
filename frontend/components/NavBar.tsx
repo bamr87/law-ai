@@ -3,28 +3,18 @@
 import { cn } from '@/lib/cn'
 import { useAgents } from '@/lib/queries'
 import { useHydrated } from '@/lib/useHydrated'
-import {
-  Bot,
-  GraduationCap,
-  LayoutDashboard,
-  Menu,
-  Network,
-  Scale,
-  X,
-  type LucideIcon,
-} from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-const LINKS: { href: string; label: string; short: string; icon: LucideIcon }[] =
-  [
-    { href: '/', label: 'Dashboard', short: 'Home', icon: LayoutDashboard },
-    { href: '/agents', label: 'Agent Ops', short: 'Agents', icon: Bot },
-    { href: '/analysis', label: 'Analysis Studio', short: 'Analysis', icon: Scale },
-    { href: '/graph', label: 'Knowledge Graph', short: 'Graph', icon: Network },
-    { href: '/lsat', label: 'LSAT Lab', short: 'LSAT', icon: GraduationCap },
-  ]
+const LINKS = [
+  { href: '/', label: 'Dashboard', short: 'Home' },
+  { href: '/agents', label: 'Agent Ops', short: 'Agents' },
+  { href: '/analysis', label: 'Analysis Studio', short: 'Analysis' },
+  { href: '/graph', label: 'Knowledge Graph', short: 'Graph' },
+  { href: '/lsat', label: 'LSAT Lab', short: 'LSAT' },
+]
 
 function StatusPill({ className }: { className?: string }) {
   const hydrated = useHydrated()
@@ -41,29 +31,18 @@ function StatusPill({ className }: { className?: string }) {
             : 'Connecting…'
       }
       className={cn(
-        'inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1 text-xs',
-        online
-          ? 'border-success/20 bg-success/10 text-success'
-          : offline
-            ? 'border-danger/20 bg-danger/10 text-danger'
-            : 'border-border bg-surface-2 text-muted',
+        'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-muted',
         className,
       )}
     >
-      <span className="relative flex h-2 w-2">
-        {online && (
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+      <span
+        className={cn(
+          'inline-block h-1.5 w-1.5 rounded-full',
+          online ? 'bg-success' : offline ? 'bg-danger' : 'bg-subtle',
         )}
-        <span
-          className={cn(
-            'relative inline-flex h-2 w-2 rounded-full',
-            online ? 'bg-success' : offline ? 'bg-danger' : 'bg-subtle',
-          )}
-        />
-      </span>
-      <span>{online ? 'Online' : offline ? 'Offline' : '…'}</span>
-      <span className="text-success/60">·</span>
-      <span>Local</span>
+      />
+      {online ? 'Online' : offline ? 'Offline' : '…'}
+      <span className="text-subtle">· Local</span>
     </span>
   )
 }
@@ -80,22 +59,23 @@ export default function NavBar() {
     href === '/' ? pathname === '/' : pathname.startsWith(href)
 
   return (
-    <nav className="sticky top-0 z-40 border-b border-border bg-canvas/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:h-16 sm:px-6">
-        <Link
-          href="/"
-          className="flex shrink-0 items-center gap-2 whitespace-nowrap"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand to-brand-strong shadow-lg shadow-brand/20">
-            <span className="text-sm font-bold text-white">LG</span>
-          </div>
-          <span className="text-lg font-semibold tracking-tight text-ink sm:text-xl">
+    <nav
+      aria-label="Primary"
+      className="sticky top-0 z-40 border-b border-border bg-surface-2/80 backdrop-blur"
+    >
+      <div className="flex h-14 items-center gap-4 px-4 sm:h-16 sm:px-6">
+        <Link href="/" className="flex shrink-0 items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand text-[11px] font-bold text-white">
+            LG
+          </span>
+          <span className="text-base font-semibold tracking-tight text-ink">
             LawGraph<span className="text-brand"> AI</span>
           </span>
         </Link>
 
-        <div className="ml-2 hidden flex-1 items-center gap-0.5 text-sm md:flex">
-          {LINKS.map(({ href, label, short, icon: Icon }) => {
+        {/* Underline tabs — EDGAR's .nav-link pattern */}
+        <div className="ml-2 hidden flex-1 items-center gap-5 md:flex">
+          {LINKS.map(({ href, label }) => {
             const active = isActive(href)
             return (
               <Link
@@ -103,15 +83,13 @@ export default function NavBar() {
                 href={href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 transition lg:px-3',
+                  'whitespace-nowrap border-b-2 py-1 text-sm font-semibold transition',
                   active
-                    ? 'bg-brand/15 text-brand ring-1 ring-inset ring-brand/30'
-                    : 'text-muted hover:bg-surface-2 hover:text-ink',
+                    ? 'border-brand text-brand'
+                    : 'border-transparent text-muted hover:text-ink',
                 )}
               >
-                <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                <span className="lg:hidden">{short}</span>
-                <span className="hidden lg:inline">{label}</span>
+                {label}
               </Link>
             )
           })}
@@ -125,7 +103,7 @@ export default function NavBar() {
           aria-expanded={open}
           aria-controls="mobile-nav"
           onClick={() => setOpen((v) => !v)}
-          className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-surface-2 text-ink transition hover:border-brand/40 md:hidden"
+          className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-surface text-ink transition hover:border-brand/40 md:hidden"
         >
           {open ? (
             <X className="h-5 w-5" aria-hidden />
@@ -138,10 +116,10 @@ export default function NavBar() {
       {open && (
         <div
           id="mobile-nav"
-          className="border-t border-border bg-canvas/95 px-4 py-3 md:hidden"
+          className="border-t border-border px-4 py-2 md:hidden"
         >
-          <ul className="flex flex-col gap-1 text-sm">
-            {LINKS.map(({ href, label, icon: Icon }) => {
+          <ul className="flex flex-col">
+            {LINKS.map(({ href, label }) => {
               const active = isActive(href)
               return (
                 <li key={href}>
@@ -149,20 +127,19 @@ export default function NavBar() {
                     href={href}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'flex items-center gap-2.5 rounded-md px-3 py-2 transition',
+                      'block border-l-2 px-3 py-2 text-sm font-semibold transition',
                       active
-                        ? 'bg-brand/15 text-brand ring-1 ring-inset ring-brand/30'
-                        : 'text-muted hover:bg-surface-2 hover:text-ink',
+                        ? 'border-brand bg-brand-soft text-brand'
+                        : 'border-transparent text-muted hover:text-ink',
                     )}
                   >
-                    <Icon className="h-4 w-4" aria-hidden />
                     {label}
                   </Link>
                 </li>
               )
             })}
           </ul>
-          <div className="mt-3">
+          <div className="mt-2 pl-3">
             <StatusPill />
           </div>
         </div>
