@@ -1,8 +1,9 @@
 import KnowledgeGraph from '@/components/KnowledgeGraph'
 import { server } from '@/mocks/server'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { renderWithClient } from '../test-utils'
 
 // Cytoscape touches the DOM with layouts that jsdom doesn't implement;
 // stub the dynamic import so we can assert structural rendering only.
@@ -75,7 +76,7 @@ beforeEach(() => {
 
 describe('KnowledgeGraph', () => {
   it('renders Cases + Neighborhood headings and stats (AC-6)', async () => {
-    render(<KnowledgeGraph />)
+    renderWithClient(<KnowledgeGraph />)
     await waitFor(() => {
       expect(
         screen.getByRole('heading', { name: 'Cases' }),
@@ -94,14 +95,14 @@ describe('KnowledgeGraph', () => {
   })
 
   it('lists cases from the API and auto-selects the first', async () => {
-    render(<KnowledgeGraph />)
+    renderWithClient(<KnowledgeGraph />)
     await waitFor(() => {
       expect(screen.getAllByText('Roe v. Wade').length).toBeGreaterThan(0)
       expect(screen.getByText('Brown v. Board')).toBeInTheDocument()
     })
-    // Selected case header shows neighborhood node count
+    // Auto-selected case loads its neighborhood (2 nodes from the mock).
     await waitFor(() => {
-      expect(screen.getByText(/2$/, { selector: 'span' })).toBeInTheDocument()
+      expect(screen.getByText('2 nodes')).toBeInTheDocument()
     })
   })
 
@@ -119,7 +120,7 @@ describe('KnowledgeGraph', () => {
         HttpResponse.json({ available: false, count: 0, cases: [] }),
       ),
     )
-    render(<KnowledgeGraph />)
+    renderWithClient(<KnowledgeGraph />)
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent(/Neo4j is not reachable/)
     })
