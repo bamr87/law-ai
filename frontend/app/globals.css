@@ -1,11 +1,134 @@
 @import "tailwindcss";
 
-:root {
-  --background: #0f172a;
-  --foreground: #e2e8f0;
+/* ===========================================================================
+   Design tokens (Tailwind v4 @theme) — the single source of truth for the
+   visual system. Semantic names (surface/border/muted/brand/...) generate
+   utilities like `bg-surface`, `border-border`, `text-muted`, `bg-brand`.
+   The legacy slate-* utilities still exist (default palette) so un-migrated
+   components keep rendering during the incremental revamp.
+   ========================================================================= */
+@theme {
+  /* Layered neutral surfaces — a refined deep blue-slate (warmer, more depth) */
+  --color-canvas: #090d17;
+  --color-canvas-soft: #0c111d;
+  --color-surface: #111827;
+  --color-surface-2: #161f31;
+  --color-surface-3: #1d273c;
+
+  /* Borders + hairlines */
+  --color-border: #232d44;
+  --color-border-strong: #313e5c;
+
+  /* Text ramp — muted bumped lighter than slate-500 for WCAG-AA on dark */
+  --color-ink: #eaf0fb;
+  --color-muted: #9fabc7;
+  --color-subtle: #6d7a99;
+
+  /* Brand + semantic accents */
+  --color-brand: #5b7cfa;
+  --color-brand-strong: #4361ee;
+  --color-brand-soft: #18213f;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+  --color-info: #60a5fa;
+  --color-accent: #a78bfa;
+  --color-cyan: #22d3ee;
+
+  /* Radii — slightly larger for a softer, more modern feel */
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+
+  /* Typography */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", "SF Mono", "Cascadia Code",
+    "Roboto Mono", Menlo, Consolas, monospace;
+
+  /* Elevation */
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.5);
+  --shadow-pop: 0 12px 40px -8px rgb(0 0 0 / 0.6);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+/* ===========================================================================
+   Base layer
+   ========================================================================= */
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-brand) 35%, transparent);
+    color: var(--color-ink);
+  }
+
+  /* Visible, consistent keyboard focus everywhere. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Subtle, themed scrollbars. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-strong) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-border-strong);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-subtle);
+  }
+}
+
+/* ===========================================================================
+   Utilities
+   ========================================================================= */
+@layer utilities {
+  /* Faint grid texture for hero / empty backdrops. */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, var(--color-border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+  }
+
+  /* One-line truncation helper kept for parity with existing markup. */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-fade-in {
+    animation: fade-in 0.18s ease-out;
+  }
 }
