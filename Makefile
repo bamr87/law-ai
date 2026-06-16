@@ -148,7 +148,10 @@ test-integration:
 	    -e NEO4J_USER=neo4j \
 	    -e NEO4J_PASSWORD=lawgraph-dev \
 	    -e REDIS_URL=redis://redis:6379/0 \
-	    backend pytest -m integration -v
+	    backend pytest -m integration -v --no-cov
+# --no-cov: the integration subset is a targeted slice, so the repo-wide
+# --cov-fail-under=75 in pyproject addopts would always fail it (~35% here)
+# even when every test passes. Coverage is measured by `make test-backend`.
 
 test-legalbench:
 	$(RUN_BACKEND_FULL) python -m lawgraph.eval.legalbench --subset core_reasoning,precedent_retrieval
