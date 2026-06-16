@@ -1,22 +1,77 @@
 'use client'
 
+import { cn } from '@/lib/cn'
+import { useAgents } from '@/lib/queries'
+import { useHydrated } from '@/lib/useHydrated'
+import {
+  Bot,
+  GraduationCap,
+  LayoutDashboard,
+  Menu,
+  Network,
+  Scale,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-const LINKS = [
-  { href: '/', label: 'Dashboard', short: 'Home' },
-  { href: '/agents', label: 'Agent Ops', short: 'Agents' },
-  { href: '/analysis', label: 'Analysis Studio', short: 'Analysis' },
-  { href: '/graph', label: 'Knowledge Graph', short: 'Graph' },
-  { href: '/lsat', label: 'LSAT Lab', short: 'LSAT' },
-] as const
+const LINKS: { href: string; label: string; short: string; icon: LucideIcon }[] =
+  [
+    { href: '/', label: 'Dashboard', short: 'Home', icon: LayoutDashboard },
+    { href: '/agents', label: 'Agent Ops', short: 'Agents', icon: Bot },
+    { href: '/analysis', label: 'Analysis Studio', short: 'Analysis', icon: Scale },
+    { href: '/graph', label: 'Knowledge Graph', short: 'Graph', icon: Network },
+    { href: '/lsat', label: 'LSAT Lab', short: 'LSAT', icon: GraduationCap },
+  ]
+
+function StatusPill({ className }: { className?: string }) {
+  const hydrated = useHydrated()
+  const { isSuccess, isError } = useAgents()
+  const online = hydrated && isSuccess
+  const offline = hydrated && isError
+  return (
+    <span
+      title={
+        online
+          ? 'Connected to local backend on :8000'
+          : offline
+            ? 'Backend unreachable on :8000'
+            : 'Connecting…'
+      }
+      className={cn(
+        'inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1 text-xs',
+        online
+          ? 'border-success/20 bg-success/10 text-success'
+          : offline
+            ? 'border-danger/20 bg-danger/10 text-danger'
+            : 'border-border bg-surface-2 text-muted',
+        className,
+      )}
+    >
+      <span className="relative flex h-2 w-2">
+        {online && (
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+        )}
+        <span
+          className={cn(
+            'relative inline-flex h-2 w-2 rounded-full',
+            online ? 'bg-success' : offline ? 'bg-danger' : 'bg-subtle',
+          )}
+        />
+      </span>
+      <span>{online ? 'Online' : offline ? 'Offline' : '…'}</span>
+      <span className="text-success/60">·</span>
+      <span>Local</span>
+    </span>
+  )
+}
 
 export default function NavBar() {
   const pathname = usePathname() || '/'
   const [open, setOpen] = useState(false)
 
-  // Close mobile menu when route changes.
   useEffect(() => {
     setOpen(false)
   }, [pathname])
@@ -25,115 +80,90 @@ export default function NavBar() {
     href === '/' ? pathname === '/' : pathname.startsWith(href)
 
   return (
-    <nav className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
+    <nav className="sticky top-0 z-40 border-b border-border bg-canvas/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:h-16 sm:px-6">
-        {/* Brand */}
         <Link
           href="/"
           className="flex shrink-0 items-center gap-2 whitespace-nowrap"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/20">
-            <span className="font-bold text-white">LG</span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand to-brand-strong shadow-lg shadow-brand/20">
+            <span className="text-sm font-bold text-white">LG</span>
           </div>
-          <span className="text-lg font-semibold tracking-tight sm:text-xl">
-            LawGraph<span className="text-blue-400"> AI</span>
+          <span className="text-lg font-semibold tracking-tight text-ink sm:text-xl">
+            LawGraph<span className="text-brand"> AI</span>
           </span>
         </Link>
 
-        {/* Desktop links — short labels at md, full labels at xl */}
         <div className="ml-2 hidden flex-1 items-center gap-0.5 text-sm md:flex">
-          {LINKS.map((link) => {
-            const active = isActive(link.href)
+          {LINKS.map(({ href, label, short, icon: Icon }) => {
+            const active = isActive(href)
             return (
               <Link
-                key={link.href}
-                href={link.href}
+                key={href}
+                href={href}
                 aria-current={active ? 'page' : undefined}
-                className={
-                  'whitespace-nowrap rounded-md px-2.5 py-1.5 transition lg:px-3 ' +
-                  (active
-                    ? 'bg-blue-600/15 text-blue-300 ring-1 ring-inset ring-blue-500/30'
-                    : 'text-slate-300 hover:bg-slate-800/60 hover:text-white')
-                }
+                className={cn(
+                  'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 transition lg:px-3',
+                  active
+                    ? 'bg-brand/15 text-brand ring-1 ring-inset ring-brand/30'
+                    : 'text-muted hover:bg-surface-2 hover:text-ink',
+                )}
               >
-                <span className="lg:hidden">{link.short}</span>
-                <span className="hidden lg:inline">{link.label}</span>
+                <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="lg:hidden">{short}</span>
+                <span className="hidden lg:inline">{label}</span>
               </Link>
             )
           })}
         </div>
 
-        {/* Right-side status pill (desktop) */}
-        <div
-          className="ml-auto hidden shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300 md:flex"
-          title="Connected to local backend on :8000"
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-          </span>
-          <span>v0.1.1</span>
-          <span className="text-emerald-500/60">·</span>
-          <span>Local</span>
-        </div>
+        <StatusPill className="ml-auto hidden md:inline-flex" />
 
-        {/* Mobile hamburger */}
         <button
           type="button"
           aria-label={open ? 'Close menu' : 'Open menu'}
           aria-expanded={open}
           aria-controls="mobile-nav"
           onClick={() => setOpen((v) => !v)}
-          className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-700 bg-slate-900/60 text-slate-200 transition hover:border-blue-500/40 hover:text-white md:hidden"
+          className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-surface-2 text-ink transition hover:border-brand/40 md:hidden"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className="h-5 w-5"
-            aria-hidden="true"
-          >
-            {open ? (
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
-            ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
-            )}
-          </svg>
+          {open ? (
+            <X className="h-5 w-5" aria-hidden />
+          ) : (
+            <Menu className="h-5 w-5" aria-hidden />
+          )}
         </button>
       </div>
 
-      {/* Mobile menu drawer */}
       {open && (
         <div
           id="mobile-nav"
-          className="border-t border-slate-800 bg-slate-950/95 px-4 py-3 md:hidden"
+          className="border-t border-border bg-canvas/95 px-4 py-3 md:hidden"
         >
           <ul className="flex flex-col gap-1 text-sm">
-            {LINKS.map((link) => {
-              const active = isActive(link.href)
+            {LINKS.map(({ href, label, icon: Icon }) => {
+              const active = isActive(href)
               return (
-                <li key={link.href}>
+                <li key={href}>
                   <Link
-                    href={link.href}
+                    href={href}
                     aria-current={active ? 'page' : undefined}
-                    className={
-                      'block rounded-md px-3 py-2 transition ' +
-                      (active
-                        ? 'bg-blue-600/15 text-blue-300 ring-1 ring-inset ring-blue-500/30'
-                        : 'text-slate-300 hover:bg-slate-800/60 hover:text-white')
-                    }
+                    className={cn(
+                      'flex items-center gap-2.5 rounded-md px-3 py-2 transition',
+                      active
+                        ? 'bg-brand/15 text-brand ring-1 ring-inset ring-brand/30'
+                        : 'text-muted hover:bg-surface-2 hover:text-ink',
+                    )}
                   >
-                    {link.label}
+                    <Icon className="h-4 w-4" aria-hidden />
+                    {label}
                   </Link>
                 </li>
               )
             })}
           </ul>
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
-            v0.1.1 · Local Mode
+          <div className="mt-3">
+            <StatusPill />
           </div>
         </div>
       )}
