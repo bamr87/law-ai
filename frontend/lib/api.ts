@@ -201,6 +201,68 @@ export function fetchRunDetail(traceId: string) {
   )
 }
 
+// --- Autonomy state (WS3) + change ledger (WS4) ---
+
+export interface AutonomyCycle {
+  cycle_id: string | null
+  cycle_type: string | null
+  status: string | null
+  duration_ms: number | null
+  completed_at: string
+}
+
+export interface AutonomyState {
+  enabled: boolean
+  allowed_sources: string[]
+  last_cycle: AutonomyCycle | null
+  recent_cycles: AutonomyCycle[]
+  recent_violations: Array<{ timestamp: string; payload: Record<string, unknown> }>
+}
+
+export function fetchAutonomy() {
+  return getJson<AutonomyState>('/api/agents/autonomy')
+}
+
+export interface SessionRun {
+  session_id: string
+  agent_source: string
+  agent_name: string
+  kind: string
+  status: string
+  started_at: string | null
+  ended_at: string | null
+  root_trace_id: string
+  spec_claimed: string
+  backlog_items_added: string[]
+  prs_created: unknown[]
+  summary: string
+  metadata: Record<string, unknown>
+}
+
+export function fetchSessions(params?: {
+  limit?: number
+  status?: string
+  source?: string
+}) {
+  const q = new URLSearchParams()
+  if (params?.limit) q.set('limit', String(params.limit))
+  if (params?.status) q.set('status', params.status)
+  if (params?.source) q.set('source', params.source)
+  const qs = q.toString()
+  return getJson<{ sessions: SessionRun[]; count: number }>(
+    `/api/agents/sessions${qs ? `?${qs}` : ''}`,
+  )
+}
+
+export function fetchSessionDetail(sessionId: string) {
+  return getJson<{
+    session_id: string
+    session: SessionRun | null
+    events: AgentRun[]
+    count: number
+  }>(`/api/agents/sessions/${encodeURIComponent(sessionId)}`)
+}
+
 // --- LSAT Lab (spec 005) ---
 
 export type LsatChoiceLabel = 'A' | 'B' | 'C' | 'D' | 'E'

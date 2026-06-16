@@ -1,12 +1,40 @@
 import AgentDashboard from '@/components/AgentDashboard'
 import { server } from '@/mocks/server'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const BASE = 'http://localhost:8000'
 
+// Deterministic WebSocket double so the live-feed hook never makes a real
+// connection attempt during component tests.
+class MockWebSocket {
+  static instances: MockWebSocket[] = []
+  onopen: (() => void) | null = null
+  onmessage: ((ev: { data: string }) => void) | null = null
+  onclose: (() => void) | null = null
+  onerror: (() => void) | null = null
+  constructor() {
+    MockWebSocket.instances.push(this)
+  }
+  close() {
+    this.onclose?.()
+  }
+  serverOpen() {
+    this.onopen?.()
+  }
+  serverSend(obj: unknown) {
+    this.onmessage?.({ data: JSON.stringify(obj) })
+  }
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
 beforeEach(() => {
+  MockWebSocket.instances = []
+  vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket)
   server.use(
     http.get(`${BASE}/api/agents`, () =>
       HttpResponse.json({
@@ -47,6 +75,51 @@ beforeEach(() => {
         specs: [{ id: '003-agent-ops-dashboard', status: 'planned' }],
       }),
     ),
+    http.get(`${BASE}/api/agents/autonomy`, () =>
+      HttpResponse.json({
+        enabled: false,
+        allowed_sources: ['courtlistener'],
+        last_cycle: {
+          cycle_id: 'c-1',
+          cycle_type: 'evolve',
+          status: 'ok',
+          duration_ms: 1234,
+          completed_at: '2026-06-15T12:00:00Z',
+        },
+        recent_cycles: [
+          {
+            cycle_id: 'c-1',
+            cycle_type: 'evolve',
+            status: 'ok',
+            duration_ms: 1234,
+            completed_at: '2026-06-15T12:00:00Z',
+          },
+        ],
+        recent_violations: [],
+      }),
+    ),
+    http.get(`${BASE}/api/agents/sessions`, () =>
+      HttpResponse.json({
+        count: 1,
+        sessions: [
+          {
+            session_id: 'sess-xyz',
+            agent_source: 'claude_code',
+            agent_name: 'Evolution Pilot',
+            kind: 'evolve',
+            status: 'completed',
+            started_at: '2026-06-15T11:55:00Z',
+            ended_at: '2026-06-15T12:00:00Z',
+            root_trace_id: 't-1',
+            spec_claimed: 'specs/099-demo',
+            backlog_items_added: ['BL-20260615-09'],
+            prs_created: ['pr#1'],
+            summary: 'shipped a thing',
+            metadata: {},
+          },
+        ],
+      }),
+    ),
   )
 })
 
@@ -77,6 +150,39 @@ describe('AgentDashboard', () => {
       expect(screen.getByText(/Done: 5/)).toBeInTheDocument()
     })
     expect(screen.getByText('003-agent-ops-dashboard')).toBeInTheDocument()
+  })
+
+  it('renders the autonomy panel and session ledger (WS3/WS4)', async () => {
+    render(<AgentDashboard />)
+    await waitFor(() => {
+      // Autonomy mission-control: kill-switch state + a session-ledger row.
+      expect(screen.getByText('kill-switch OFF')).toBeInTheDocument()
+      expect(screen.getByText('Sessions')).toBeInTheDocument()
+    })
+    expect(screen.getByText(/specs\/099-demo/)).toBeInTheDocument()
+    expect(screen.getByText('+1 BL')).toBeInTheDocument()
+  })
+
+  it('shows a Live badge and activity strip when a WS frame arrives (WS3)', async () => {
+    render(<AgentDashboard />)
+    await screen.findByText('Registry')
+
+    // Default: socket not yet open → polling fallback shown.
+    expect(screen.getByTestId('live-badge')).toHaveTextContent('Polling')
+
+    const ws = MockWebSocket.instances.at(-1)!
+    act(() => {
+      ws.serverOpen()
+      ws.serverSend({ type: 'ready', feed: 'agents-activity' })
+      ws.serverSend({ type: 'agent_call', agent: 'LegalAnalyst', latency_ms: 50 })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('live-badge')).toHaveTextContent('Live')
+      expect(screen.getByTestId('live-activity-strip')).toHaveTextContent(
+        'LegalAnalyst',
+      )
+    })
   })
 
   it('surfaces panel-level errors without crashing the page', async () => {

@@ -61,10 +61,24 @@ Deeper detail: [docs/architecture.md](docs/architecture.md), [docs/agent-roles.m
 
 Non-trivial changes follow AO-SDLC: a spec package under `specs/NNN-feature-slug/{spec,plan,tasks}.md` via the [prompts/](prompts/) chain (`specify → clarify → plan → tasks → implement`; `evolve` for autonomous runs). CI enforces consistency through [scripts/spec_validator.py](scripts/spec_validator.py).
 
+In Claude Code each step is a **skill** that loads the matching prompt and enforces its precondition: `/asdlc-specify`, `/asdlc-clarify`, `/asdlc-plan`, `/asdlc-tasks`, `/asdlc-implement`, and `/asdlc-evolve` (the autonomous orchestrator). They live in [.claude/skills/](.claude/skills/) and are thin wrappers over [prompts/](prompts/) — the prompt is the source of truth.
+
 Every `/implement` cycle MUST close the loop ([docs/constitution.md](docs/constitution.md) §11), and `make lint-specs` enforces it:
 - `tasks.md` ends with a populated `## Follow-ups Discovered` section.
-- Each follow-up is mirrored into [BACKLOG.md](BACKLOG.md) as `BL-YYYYMMDD-NN`.
+- Each follow-up is mirrored into [BACKLOG.md](BACKLOG.md) as `BL-YYYYMMDD-NN` (use `python3 scripts/next_backlog_id.py` to mint ids).
 - The PR description copies the new BACKLOG bullets.
+
+## Autonomous runs (Claude Code)
+
+`/asdlc-evolve` runs one full cycle unattended: pick the top `## Open` BACKLOG item → run the chain → ship a **draft** PR → close the loop. The runbook is [prompts/evolve.md](prompts/evolve.md); the binding rules are constitution §11 (Continuous Evolution) and §12 (Autonomy Loop Invariants). Non-negotiable for any autonomous loop:
+
+- **End in a draft PR — never auto-merge** (§12 I1). Branch, commit, `gh pr create --draft`. No workflow may be granted merge permission.
+- **Kill-switch.** Product-runtime autonomy (`make autonomy-run`) is gated by `AUTONOMY_ENABLED` (default off, §12 I3); the dev-time evolve loop must honor the same stop conditions.
+- **One audited entry + provenance on everything** (§12 I4/I6): every cycle through `lawgraph.core.autonomy.run_cycle()`, every LLM/tool/retrieval call through `core.provenance`.
+- **Stop and surface to a human** on any OPEN QUESTION touching licensing, a new data source, a model swap, a destructive migration, or a HITL gate; or any change needing a constitution amendment (§ evolve Stop Conditions).
+- **Review surfaces:** the daily digest under `AUTONOMY_DIGEST_DIR`, `GET /api/agents/autonomy`, and the Agent Ops dashboard (`/agents`).
+
+**Docker-first is enforced, not advisory.** [.claude/settings.json](.claude/settings.json) installs a `PreToolUse` Bash hook ([.claude/hooks/docker-first-guard.py](.claude/hooks/docker-first-guard.py)) that **blocks** host `pytest`/`ruff`/`black`/`mypy`/`npm`/`pip`/`python manage.py` and tells you the `make`/`docker compose` equivalent. `python3 scripts/*.py`, `git`, and `gh` stay allowed.
 
 ## Non-negotiables
 

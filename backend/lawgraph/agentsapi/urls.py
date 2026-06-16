@@ -354,11 +354,130 @@ class LocalAIHealthView(_Base):
         return Response(async_to_sync(_gather)())
 
 
+# ---------------------------------------------------------------------------
+# Autonomy state (WS3) + change ledger (WS4)
+# ---------------------------------------------------------------------------
+
+
+def _cycle_view(timestamp: Any, payload: dict[str, Any] | None) -> dict[str, Any]:
+    p = payload or {}
+    return {
+        "cycle_id": p.get("cycle_id"),
+        "cycle_type": p.get("cycle_type"),
+        "status": p.get("status"),
+        "duration_ms": p.get("duration_ms"),
+        "completed_at": timestamp.isoformat(),
+    }
+
+
+def _serialize_session(s: Any) -> dict[str, Any]:
+    return {
+        "session_id": s.session_id,
+        "agent_source": s.agent_source,
+        "agent_name": s.agent_name,
+        "kind": s.kind,
+        "status": s.status,
+        "started_at": s.started_at.isoformat() if s.started_at else None,
+        "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+        "root_trace_id": s.root_trace_id,
+        "spec_claimed": s.spec_claimed,
+        "backlog_items_added": s.backlog_items_added,
+        "prs_created": s.prs_created,
+        "summary": s.summary,
+        "metadata": s.metadata,
+    }
+
+
+class AgentAutonomyView(_Base):
+    """``GET /api/agents/autonomy`` — kill-switch state + recent cycle activity."""
+
+    def get(self, request, *args, **kwargs):
+        from django.conf import settings as dj_settings
+
+        from lawgraph.audit.models import AuditEvent
+
+        ends = list(
+            AuditEvent.objects.filter(kind="autonomy_cycle.end")
+            .order_by("-timestamp")
+            .values("timestamp", "payload")[:10]
+        )
+        recent_cycles = [_cycle_view(e["timestamp"], e["payload"]) for e in ends]
+        violations = list(
+            AuditEvent.objects.filter(kind="policy_violation")
+            .order_by("-timestamp")
+            .values("timestamp", "payload")[:5]
+        )
+        for v in violations:
+            v["timestamp"] = v["timestamp"].isoformat()
+        return Response(
+            {
+                "enabled": bool(getattr(dj_settings, "AUTONOMY_ENABLED", False)),
+                "allowed_sources": list(
+                    getattr(dj_settings, "AUTONOMY_ALLOWED_SOURCES", [])
+                ),
+                "last_cycle": recent_cycles[0] if recent_cycles else None,
+                "recent_cycles": recent_cycles,
+                "recent_violations": violations,
+            }
+        )
+
+
+class AgentSessionsView(_Base):
+    """``GET /api/agents/sessions`` — the change-ledger list (newest first)."""
+
+    def get(self, request, *args, **kwargs):
+        from lawgraph.audit.models import SessionRun
+
+        limit = _parse_int_strict(
+            request.query_params.get("limit"), default=50, lo=1, hi=200
+        )
+        qs = SessionRun.objects.all()
+        status_q = request.query_params.get("status")
+        if status_q:
+            qs = qs.filter(status=status_q)
+        source_q = request.query_params.get("source")
+        if source_q:
+            qs = qs.filter(agent_source=source_q)
+        rows = [_serialize_session(s) for s in qs[:limit]]
+        return Response({"sessions": rows, "count": len(rows)})
+
+
+class AgentSessionDetailView(_Base):
+    """``GET /api/agents/sessions/<id>`` — one session + its audit timeline."""
+
+    def get(self, request, session_id: str, *args, **kwargs):
+        from lawgraph.audit.models import AuditEvent, SessionRun
+
+        session = SessionRun.objects.filter(session_id=session_id).first()
+        events = list(
+            AuditEvent.objects.filter(session_id=session_id)
+            .order_by("timestamp")
+            .values("kind", "timestamp", "trace_id", "payload")[:1000]
+        )
+        for e in events:
+            e["timestamp"] = e["timestamp"].isoformat()
+        return Response(
+            {
+                "session_id": session_id,
+                "session": _serialize_session(session) if session else None,
+                "events": events,
+                "count": len(events),
+            }
+        )
+
+
 urlpatterns = [
     path("", AgentListView.as_view(), name="agents-list"),
     path("runs", AgentRunsView.as_view(), name="agents-runs"),
     path("runs/<str:trace_id>", AgentRunDetailView.as_view(), name="agents-run-detail"),
     path("metrics", AgentMetricsView.as_view(), name="agents-metrics"),
+    path("autonomy", AgentAutonomyView.as_view(), name="agents-autonomy"),
+    path("sessions", AgentSessionsView.as_view(), name="agents-sessions"),
+    path(
+        "sessions/<str:session_id>",
+        AgentSessionDetailView.as_view(),
+        name="agents-session-detail",
+    ),
     path("backlog", AgentBacklogView.as_view(), name="agents-backlog"),
     path("specs", AgentSpecsView.as_view(), name="agents-specs"),
     path("health/local-ai", LocalAIHealthView.as_view(), name="agents-local-ai-health"),

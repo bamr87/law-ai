@@ -120,6 +120,23 @@ jobs:
           echo "Proposed test files: $count"
 
       # ------------------------------------------------------------------
+      # Validate proposed tests BEFORE any PR opens (constitution §12 I5):
+      # they must at least compile and collect. A failure here fails the job,
+      # so the "Open draft PR" step (not `always()`) is skipped — no PR is
+      # opened carrying broken proposed tests, no cleanup needed.
+      # ------------------------------------------------------------------
+      - name: Validate proposed tests (compile + collect)
+        if: ${{ !inputs.dry_run && steps.proposed.outputs.count != '0' }}
+        run: |
+          docker compose run --rm --no-deps backend sh -c '
+            set -e
+            files=$(find tests/autonomy/proposed -name "*.proposed.py")
+            echo "compiling: $files"
+            python -m py_compile $files
+            pytest tests/autonomy/proposed --collect-only -q -o python_files="*.proposed.py"
+          '
+
+      # ------------------------------------------------------------------
       # Tear down services.
       # ------------------------------------------------------------------
       - name: Teardown Docker services

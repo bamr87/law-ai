@@ -5,6 +5,11 @@ Usage::
 
     python scripts/ingest_sample.py --source courtlistener --limit 500
     python scripts/ingest_sample.py --source courtlistener --limit 5 --dry-run
+    python scripts/ingest_sample.py --source sample        # offline landmark seed
+
+``--source sample`` writes a few landmark Supreme Court cases + citations
+directly to Neo4j with no network call or API token — it backs ``make
+ingest-sample`` and the Knowledge Graph explorer's empty-state CTA.
 
 In ``--dry-run`` mode no Neo4j writes occur — extractions are run and
 counted but the final ``run_and_commit`` step is skipped, which makes
@@ -19,6 +24,7 @@ import logging
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 # Allow ``python scripts/ingest_sample.py`` from backend/ without install.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -96,10 +102,130 @@ async def _run_colorado(args: argparse.Namespace) -> dict[str, int]:
     return summary
 
 
+# A tiny, fully-offline seed of landmark U.S. Supreme Court cases + their
+# citations and a few CITES edges. Powers ``--source sample`` (and the
+# Knowledge Graph explorer's "make ingest-sample" empty-state CTA) without any
+# network call or API token — unlike the courtlistener/colorado_statutes paths.
+# Edges are deliberately conservative: every case CITES Marbury (the canonical
+# judicial-review authority) plus the two well-known direct relationships
+# (Brown→Plessy, Miranda→Gideon), giving a connected graph to explore.
+_SAMPLE_CASES: list[dict[str, Any]] = [
+    {
+        "id": "scotus-marbury-1803",
+        "title": "Marbury v. Madison",
+        "decided_at": "1803-02-24",
+        "url": "https://supreme.justia.com/cases/federal/us/5/137/",
+        "citation": "5 U.S. 137",
+    },
+    {
+        "id": "scotus-plessy-1896",
+        "title": "Plessy v. Ferguson",
+        "decided_at": "1896-05-18",
+        "url": "https://supreme.justia.com/cases/federal/us/163/537/",
+        "citation": "163 U.S. 537",
+    },
+    {
+        "id": "scotus-brown-1954",
+        "title": "Brown v. Board of Education",
+        "decided_at": "1954-05-17",
+        "url": "https://supreme.justia.com/cases/federal/us/347/483/",
+        "citation": "347 U.S. 483",
+    },
+    {
+        "id": "scotus-gideon-1963",
+        "title": "Gideon v. Wainwright",
+        "decided_at": "1963-03-18",
+        "url": "https://supreme.justia.com/cases/federal/us/372/335/",
+        "citation": "372 U.S. 335",
+    },
+    {
+        "id": "scotus-miranda-1966",
+        "title": "Miranda v. Arizona",
+        "decided_at": "1966-06-13",
+        "url": "https://supreme.justia.com/cases/federal/us/384/436/",
+        "citation": "384 U.S. 436",
+    },
+]
+_SAMPLE_CITES: list[tuple[str, str]] = [
+    ("scotus-plessy-1896", "scotus-marbury-1803"),
+    ("scotus-brown-1954", "scotus-marbury-1803"),
+    ("scotus-gideon-1963", "scotus-marbury-1803"),
+    ("scotus-miranda-1966", "scotus-marbury-1803"),
+    ("scotus-brown-1954", "scotus-plessy-1896"),
+    ("scotus-miranda-1966", "scotus-gideon-1963"),
+]
+
+
+async def _run_sample(args: argparse.Namespace) -> dict[str, int]:
+    """Seed a few landmark cases + citations directly into Neo4j — no network.
+
+    Reuses the canonical ``MERGE_*`` write queries so the seeded nodes carry the
+    same provenance fields (``source``/``confidence``, constitution §4) and stay
+    idempotent (re-running is a no-op via ``MERGE``).
+    """
+    from datetime import UTC, datetime
+
+    from lawgraph.core.neo4j.driver import get_neo4j_driver
+    from lawgraph.core.neo4j.queries import (
+        MERGE_CASE_CYPHER,
+        MERGE_CITATION_CYPHER,
+        MERGE_CITES_CYPHER,
+    )
+
+    summary: dict[str, int] = {"committed": 0, "pending": 0, "skipped": 0}
+    if args.dry_run:
+        summary["committed"] = len(_SAMPLE_CASES)
+        return summary
+
+    now = datetime.now(UTC).isoformat()
+    driver = get_neo4j_driver()
+    async with driver.session() as session:
+        for case in _SAMPLE_CASES:
+            await session.run(
+                MERGE_CASE_CYPHER,
+                {
+                    "id": case["id"],
+                    "title": case["title"],
+                    "court": "Supreme Court of the United States",
+                    "decided_at": case["decided_at"],
+                    "source": "seed",
+                    "source_url": case["url"],
+                    "ingest_timestamp": now,
+                    "agent_version": "ingest-sample",
+                    "confidence": 1.0,
+                    "aliases": [case["citation"]],
+                },
+            )
+            await session.run(
+                MERGE_CITATION_CYPHER,
+                {
+                    "normalized": case["citation"],
+                    "text": f"{case['citation']} ({case['decided_at'][:4]})",
+                    "case_id": case["id"],
+                    "ingest_timestamp": now,
+                    "confidence": 1.0,
+                },
+            )
+            summary["committed"] += 1
+        for src_id, dst_id in _SAMPLE_CITES:
+            await session.run(
+                MERGE_CITES_CYPHER,
+                {
+                    "src_id": src_id,
+                    "dst_id": dst_id,
+                    "confidence": 1.0,
+                    "ingest_timestamp": now,
+                },
+            )
+    return summary
+
+
 async def _run(args: argparse.Namespace) -> dict[str, int]:
     start = time.time()
     if args.source == "colorado_statutes":
         summary = await _run_colorado(args)
+    elif args.source == "sample":
+        summary = await _run_sample(args)
     else:
         summary = await _run_courtlistener(args)
     summary["elapsed_s"] = int(time.time() - start)
@@ -110,7 +236,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Ingest sample legal data into Neo4j.")
     parser.add_argument(
         "--source",
-        choices=["courtlistener", "colorado_statutes"],
+        choices=["courtlistener", "colorado_statutes", "sample"],
         default="courtlistener",
     )
     parser.add_argument("--limit", type=int, default=500)
