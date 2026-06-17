@@ -1,30 +1,34 @@
 'use client'
 
+import { Page } from '@/components/ui'
 import {
-    fetchAgentMetrics,
-    fetchAgents,
-    fetchAutonomy,
-    fetchBacklog,
-    fetchLocalAIHealth,
-    fetchRunDetail,
-    fetchRuns,
-    fetchSessionDetail,
-    fetchSessions,
-    fetchSpecs,
-    runAnalysis,
-    type AgentInfo,
-    type AgentMetric,
-    type AgentRun,
-    type AutonomyState,
-    type BacklogResponse,
-    type LocalAIHealth,
-    type SessionRun,
-    type SpecInfo,
+  fetchRunDetail,
+  fetchSessionDetail,
+  runAnalysis,
+  type AgentInfo,
+  type AgentMetric,
+  type AgentRun,
+  type AutonomyState,
+  type BacklogResponse,
+  type LocalAIHealth,
+  type SessionRun,
+  type SpecInfo,
 } from '@/lib/api'
 import {
-    useAgentActivity,
-    type ActivityEvent,
+  useAgentMetrics,
+  useAgents,
+  useAutonomy,
+  useBacklog,
+  useLocalAIHealth,
+  useRuns,
+  useSessions,
+  useSpecs,
+} from '@/lib/queries'
+import {
+  useAgentActivity,
+  type ActivityEvent,
 } from '@/lib/useAgentActivity'
+import { useHydrated } from '@/lib/useHydrated'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 const POLL_MS = 5000
@@ -35,49 +39,27 @@ interface PanelState<T> {
   loading: boolean
 }
 
-const emptyState = <T,>(): PanelState<T> => ({
-  data: null,
-  error: null,
-  loading: true,
-})
-
-interface DashboardState {
-  agents: PanelState<{ agents: AgentInfo[]; count: number }>
-  runs: PanelState<{ runs: AgentRun[]; count: number }>
-  backlog: PanelState<BacklogResponse>
-  specs: PanelState<{ specs: SpecInfo[]; count: number }>
-  health: PanelState<LocalAIHealth>
-  metrics: PanelState<{ agents: AgentMetric[]; window_size: number; errors_total: number }>
-  autonomy: PanelState<AutonomyState>
-  sessions: PanelState<{ sessions: SessionRun[]; count: number }>
-}
-
-async function load<T>(
-  fn: () => Promise<T>,
-  set: (state: PanelState<T>) => void,
-) {
-  try {
-    const data = await fn()
-    set({ data, error: null, loading: false })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'request failed'
-    set({ data: null, error: message, loading: false })
+/** Project a React Query result into the PanelState shape every panel consumes,
+ *  so the data-source swap doesn't touch the 29 sub-components. */
+function toPanel<T>(q: {
+  data: T | undefined
+  isLoading: boolean
+  isError: boolean
+  error: unknown
+}): PanelState<T> {
+  return {
+    data: q.data ?? null,
+    loading: q.isLoading,
+    error: q.isError
+      ? q.error instanceof Error
+        ? q.error.message
+        : 'request failed'
+      : null,
   }
 }
 
 export default function AgentDashboard() {
-  const [state, setState] = useState<DashboardState>({
-    agents: emptyState(),
-    runs: emptyState(),
-    backlog: emptyState(),
-    specs: emptyState(),
-    health: emptyState(),
-    metrics: emptyState(),
-    autonomy: emptyState(),
-    sessions: emptyState(),
-  })
   const [paused, setPaused] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [runFilter, setRunFilter] = useState('')
   const [runTypeFilter, setRunTypeFilter] = useState<string>('all')
   const [runLimit, setRunLimit] = useState(50)
@@ -88,55 +70,46 @@ export default function AgentDashboard() {
   const [drillTraceId, setDrillTraceId] = useState<string | null>(null)
   const [drillSessionId, setDrillSessionId] = useState<string | null>(null)
 
-  // Live activity feed (WS3) — a real-time layer over the 5s poll. When the
-  // socket is down, `connected` is false and polling remains the source of truth.
+  // Live activity feed (WS3) — a real-time layer over the polling hooks.
   const activity = useAgentActivity({ max: 30 })
 
-  useEffect(() => {
-    let cancelled = false
-    const refresh = () => {
-      if (cancelled) return
-      void Promise.allSettled([
-        load(fetchAgents, (s) =>
-          setState((prev) => ({ ...prev, agents: s })),
-        ),
-        load(() => fetchRuns(runLimit), (s) =>
-          setState((prev) => ({ ...prev, runs: s })),
-        ),
-        load(fetchBacklog, (s) =>
-          setState((prev) => ({ ...prev, backlog: s })),
-        ),
-        load(fetchSpecs, (s) =>
-          setState((prev) => ({ ...prev, specs: s })),
-        ),
-        load(fetchLocalAIHealth, (s) =>
-          setState((prev) => ({ ...prev, health: s })),
-        ),
-        load(() => fetchAgentMetrics(500), (s) =>
-          setState((prev) => ({ ...prev, metrics: s })),
-        ),
-        load(fetchAutonomy, (s) =>
-          setState((prev) => ({ ...prev, autonomy: s })),
-        ),
-        load(() => fetchSessions({ limit: 25 }), (s) =>
-          setState((prev) => ({ ...prev, sessions: s })),
-        ),
-      ]).then(() => {
-        if (!cancelled) setLastUpdated(new Date())
-      })
-    }
-    refresh()
-    if (paused) {
-      return () => {
-        cancelled = true
-      }
-    }
-    const id = setInterval(refresh, POLL_MS)
-    return () => {
-      cancelled = true
-      clearInterval(id)
-    }
-  }, [paused, runLimit])
+  // Data layer: React Query hooks. `live` (= not paused) drives refetchInterval,
+  // so the Pause control simply stops background polling.
+  const live = !paused
+  const agentsQ = useAgents(live)
+  const runsQ = useRuns(runLimit, live)
+  const backlogQ = useBacklog(live)
+  const specsQ = useSpecs(live)
+  const healthQ = useLocalAIHealth(live)
+  const metricsQ = useAgentMetrics(500, live)
+  const autonomyQ = useAutonomy(live)
+  const sessionsQ = useSessions({ limit: 25 }, live)
+
+  const state = {
+    agents: toPanel(agentsQ),
+    runs: toPanel(runsQ),
+    backlog: toPanel(backlogQ),
+    specs: toPanel(specsQ),
+    health: toPanel(healthQ),
+    metrics: toPanel(metricsQ),
+    autonomy: toPanel(autonomyQ),
+    sessions: toPanel(sessionsQ),
+  }
+
+  const lastUpdated = useMemo(() => {
+    const ts = Math.max(
+      agentsQ.dataUpdatedAt,
+      runsQ.dataUpdatedAt,
+      backlogQ.dataUpdatedAt,
+      specsQ.dataUpdatedAt,
+    )
+    return ts > 0 ? new Date(ts) : null
+  }, [
+    agentsQ.dataUpdatedAt,
+    runsQ.dataUpdatedAt,
+    backlogQ.dataUpdatedAt,
+    specsQ.dataUpdatedAt,
+  ])
 
   // Tick every second so relative timestamps stay fresh.
   useEffect(() => {
@@ -144,18 +117,15 @@ export default function AgentDashboard() {
     return () => clearInterval(id)
   }, [])
 
-  // A live event means a new audit row landed — refresh the runs + metrics
-  // panels immediately rather than waiting for the next poll tick. Skipped
-  // while paused. `activity.lastEventAt` only changes on a real frame.
+  // A live event means a new audit row landed — refetch runs + metrics
+  // immediately rather than waiting for the next poll. Skipped while paused.
+  const refetchRuns = runsQ.refetch
+  const refetchMetrics = metricsQ.refetch
   useEffect(() => {
     if (paused || activity.lastEventAt == null) return
-    void load(() => fetchRuns(runLimit), (s) =>
-      setState((prev) => ({ ...prev, runs: s })),
-    )
-    void load(() => fetchAgentMetrics(500), (s) =>
-      setState((prev) => ({ ...prev, metrics: s })),
-    )
-  }, [activity.lastEventAt, paused, runLimit])
+    void refetchRuns()
+    void refetchMetrics()
+  }, [activity.lastEventAt, paused, refetchRuns, refetchMetrics])
 
   const filteredRuns = useMemo(() => {
     const runs = state.runs.data?.runs ?? []
@@ -205,7 +175,11 @@ export default function AgentDashboard() {
   }, [state.runs.data])
 
   return (
-    <div className="space-y-6">
+    <Page
+      eyebrow="Operations"
+      title="Agent Operations"
+      tagline="Live view of registered agents, recent runs, the BACKLOG, and active specs. Backed by /api/agents/*."
+    >
       <ControlBar
         paused={paused}
         onTogglePause={() => setPaused((p) => !p)}
@@ -424,7 +398,7 @@ export default function AgentDashboard() {
           }}
         />
       )}
-    </div>
+    </Page>
   )
 }
 
@@ -443,18 +417,19 @@ function ControlBar({
   lastUpdated: Date | null
   live: boolean
 }) {
+  const hydrated = useHydrated()
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-2.5">
-      <div className="flex items-center gap-2 text-xs text-slate-400">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface/70 px-4 py-2.5">
+      <div className="flex items-center gap-2 text-xs text-muted">
         <span
           className={
             'inline-block h-2 w-2 rounded-full ' +
-            (paused ? 'bg-amber-400' : 'animate-pulse bg-emerald-400')
+            (paused ? 'bg-warning' : 'animate-pulse bg-success')
           }
         />
         {paused ? 'Polling paused' : `Auto-refresh every ${POLL_MS / 1000}s`}
-        {lastUpdated && (
-          <span className="text-slate-500">
+        {hydrated && lastUpdated && (
+          <span className="text-subtle">
             · last updated {relativeTime(lastUpdated)}
           </span>
         )}
@@ -470,14 +445,14 @@ function ControlBar({
           className={
             'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ' +
             (live
-              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-              : 'border-slate-700 bg-slate-800/40 text-slate-500')
+              ? 'border-success/40 bg-success/10 text-success'
+              : 'border-border bg-surface-2 text-subtle')
           }
         >
           <span
             className={
               'inline-block h-1.5 w-1.5 rounded-full ' +
-              (live ? 'animate-pulse bg-emerald-400' : 'bg-slate-500')
+              (live ? 'animate-pulse bg-success' : 'bg-subtle')
             }
           />
           {live ? 'Live' : 'Polling'}
@@ -485,7 +460,7 @@ function ControlBar({
         <button
           type="button"
           onClick={onTogglePause}
-          className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300 transition hover:border-blue-500/50 hover:text-white"
+          className="rounded-md border border-border bg-surface-2 px-3 py-1 text-xs text-muted transition hover:border-brand/50 hover:text-ink"
         >
           {paused ? '▶ Resume' : '⏸ Pause'}
         </button>

@@ -1,8 +1,9 @@
 import AgentDashboard from '@/components/AgentDashboard'
 import { server } from '@/mocks/server'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { renderWithClient as render } from '../test-utils'
 
 const BASE = 'http://localhost:8000'
 
