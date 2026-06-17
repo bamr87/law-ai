@@ -67,6 +67,7 @@ import {
   Sparkles,
   TrendingUp,
 } from 'lucide-react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type Tab = 'overview' | 'LR' | 'RC' | 'LG' | 'concepts' | 'stats' | 'authoring'
@@ -111,7 +112,30 @@ interface SessionScore {
 
 export default function LsatLab() {
   const hydrated = useHydrated()
-  const [tab, setTab] = useState<Tab>('overview')
+
+  // The active section is deep-linkable (?tab=LR) so a learner can share or
+  // bookmark a direct link into any drill, and a reload lands back on it. We
+  // seed local state from the URL on mount and mirror changes back so the
+  // back button and shared links work without re-deriving every render.
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const urlTab = searchParams.get('tab')
+  const [tab, setTabState] = useState<Tab>(
+    TABS.some((t) => t.id === urlTab) ? (urlTab as Tab) : 'overview',
+  )
+  const setTab = useCallback(
+    (next: Tab) => {
+      setTabState(next)
+      const params = new URLSearchParams(searchParams.toString())
+      if (next === 'overview') params.delete('tab')
+      else params.set('tab', next)
+      const qs = params.toString()
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+    },
+    [router, pathname, searchParams],
+  )
+
   const [session, setSession] = useState<SessionScore>({ attempts: 0, correct: 0 })
 
   // All-time scoreboard. The grade mutation invalidates ['lsat','stats'] on

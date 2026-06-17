@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import LsatLab from '@/components/LsatLab'
 
 export const metadata = {
@@ -7,5 +8,11 @@ export const metadata = {
 }
 
 export default function LsatPage() {
-  return <LsatLab />
+  // LsatLab reads ?tab= via useSearchParams, which Next requires to sit under
+  // a Suspense boundary.
+  return (
+    <Suspense>
+      <LsatLab />
+    </Suspense>
+  )
 }
