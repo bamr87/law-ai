@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, it, expect } from 'vitest'
 
 import AnalysisStudio from '@/components/AnalysisStudio'
 import { server } from '@/mocks/server'
+import { renderWithClient as render } from '../test-utils'
 
 const fullResponse = (overrides: Record<string, unknown> = {}) => ({
   id: 'an-abc123',
@@ -88,8 +89,9 @@ describe('AnalysisStudio', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('Smith v. Acme')).toBeInTheDocument()
     expect(screen.getByText(/Agent Execution Trace/i)).toBeInTheDocument()
-    expect(screen.getByText(/LegalAnalyst/)).toBeInTheDocument()
-    expect(screen.getByText(/PrecedentHunter/)).toBeInTheDocument()
+    // Crew names appear in both the tagline and the agent trace.
+    expect(screen.getAllByText(/LegalAnalyst/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/PrecedentHunter/).length).toBeGreaterThan(0)
     expect(screen.getByText(/an-abc123/)).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })

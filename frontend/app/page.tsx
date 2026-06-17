@@ -28,11 +28,11 @@ export default function Home() {
             <ArrowRight className="h-3.5 w-3.5 text-subtle transition group-hover:translate-x-0.5 group-hover:text-brand" />
           </a>
 
-          <h1 className="mt-8 bg-gradient-to-br from-white via-slate-100 to-slate-400 bg-clip-text text-7xl font-bold leading-[1.05] tracking-tight text-transparent sm:text-8xl">
-            LawGraph AI
+          <h1 className="mt-8 text-5xl font-semibold leading-[1.05] tracking-tight text-ink sm:text-6xl">
+            LawGraph<span className="text-brand"> AI</span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted sm:text-xl">
+          <p className="mx-auto mt-5 max-w-2xl text-base text-muted sm:text-lg">
             The open-source, agent-orchestrated legal intelligence platform.
             Multi-agent reasoning, Neo4j knowledge graphs, GraphRAG retrieval —
             all on your laptop.
@@ -41,14 +41,14 @@ export default function Home() {
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/agents"
-              className="group inline-flex items-center gap-2 rounded-lg bg-gradient-to-br from-brand to-brand-strong px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/30 transition hover:shadow-brand/50"
+              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow-card)] transition hover:brightness-110"
             >
               Open Agent Ops
               <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
             </Link>
             <Link
               href="/analysis"
-              className="inline-flex items-center gap-2 rounded-lg border border-border-strong bg-surface/60 px-5 py-2.5 text-sm font-semibold text-ink backdrop-blur transition hover:border-brand/40"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-5 py-2.5 text-sm font-semibold text-ink transition hover:border-brand/50 hover:bg-brand-soft"
             >
               Try Analysis Studio
             </Link>
