@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import LsatLab from '@/components/LsatLab'
 import { server } from '@/mocks/server'
+import { renderWithClient as render } from '../test-utils'
 
 const sampleSections = {
   count: 3,
@@ -181,12 +182,14 @@ beforeEach(() => {
 describe('LsatLab', () => {
   it('renders the section overview by default', async () => {
     render(<LsatLab />)
+    // 'Analytical Reasoning' is the LG section-card name — it only appears once
+    // the sections fetch resolves (the LR/RC names also show as tab labels).
     await waitFor(() => {
-      expect(screen.getAllByText('Logical Reasoning').length).toBeGreaterThan(0)
+      expect(screen.getByText('Analytical Reasoning')).toBeInTheDocument()
     })
     expect(screen.getByText(/four-section roadmap/i)).toBeInTheDocument()
+    expect(screen.getAllByText('Logical Reasoning').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Reading Comprehension').length).toBeGreaterThan(0)
-    expect(screen.getByText('Analytical Reasoning')).toBeInTheDocument()
   })
 
   it('switches to LR practice and grades a question', async () => {
