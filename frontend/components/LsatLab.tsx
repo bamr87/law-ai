@@ -110,30 +110,48 @@ interface SessionScore {
   correct: number
 }
 
-export default function LsatLab() {
-  const hydrated = useHydrated()
-
-  // The active section is deep-linkable (?tab=LR) so a learner can share or
-  // bookmark a direct link into any drill, and a reload lands back on it. We
-  // seed local state from the URL on mount and mirror changes back so the
-  // back button and shared links work without re-deriving every render.
+/**
+ * Mirror a single URL search-param into local state: seed from the URL on
+ * mount so the value is deep-linkable (shareable, bookmarkable, reload-safe),
+ * and write changes back via router.replace (shallow, no scroll) so links and
+ * the back button stay in sync. Local state — rather than deriving from the
+ * URL every render — keeps controlled interactions (and their tests) working
+ * when the param is absent. Other params on the URL are preserved.
+ */
+function useUrlState(
+  key: string,
+): [string | null, (next: string | null) => void] {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const urlTab = searchParams.get('tab')
-  const [tab, setTabState] = useState<Tab>(
-    TABS.some((t) => t.id === urlTab) ? (urlTab as Tab) : 'overview',
-  )
-  const setTab = useCallback(
-    (next: Tab) => {
-      setTabState(next)
+  const [value, setValue] = useState<string | null>(() => searchParams.get(key))
+  const set = useCallback(
+    (next: string | null) => {
+      setValue(next)
       const params = new URLSearchParams(searchParams.toString())
-      if (next === 'overview') params.delete('tab')
-      else params.set('tab', next)
+      if (next) params.set(key, next)
+      else params.delete(key)
       const qs = params.toString()
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
     },
-    [router, pathname, searchParams],
+    [key, router, pathname, searchParams],
+  )
+  return [value, set]
+}
+
+export default function LsatLab() {
+  const hydrated = useHydrated()
+
+  // The active section is deep-linkable (?tab=LR): seed from the URL, mirror
+  // changes back, and validate against the known tabs so a junk ?tab= value
+  // falls back to Overview.
+  const [tabParam, setTabParam] = useUrlState('tab')
+  const tab: Tab = TABS.some((t) => t.id === tabParam)
+    ? (tabParam as Tab)
+    : 'overview'
+  const setTab = useCallback(
+    (next: Tab) => setTabParam(next === 'overview' ? null : next),
+    [setTabParam],
   )
 
   const [session, setSession] = useState<SessionScore>({ attempts: 0, correct: 0 })
@@ -378,15 +396,20 @@ function PassagePanel({
   section: 'RC' | 'LG'
   onAttempt: (correct: boolean) => void
 }) {
-  const [activeId, setActiveId] = useState<string | null>(null)
+  // The selected passage is deep-linkable (?passage=rc-passage-001).
+  const [activeId, setActiveId] = useUrlState('passage')
   const passagesQ = useLsatPassages(section)
   const passages = useMemo(
     () => passagesQ.data?.passages ?? [],
     [passagesQ.data],
   )
-  // Derive the active passage so we never set state in an effect: fall back to
-  // the first passage until the learner explicitly picks one.
-  const effectiveId = activeId ?? passages[0]?.id ?? null
+  // Derive the active passage so we never set state in an effect: honour the
+  // URL/selection only when it names a passage in *this* section (the ?passage=
+  // value may be stale from the other RC/LG tab), else fall back to the first.
+  const effectiveId =
+    activeId && passages.some((p) => p.id === activeId)
+      ? activeId
+      : passages[0]?.id ?? null
   const detailQ = useLsatPassage(effectiveId)
   const activePassage = detailQ.data?.passage ?? null
   const questions = detailQ.data?.questions ?? []
@@ -803,7 +826,8 @@ function TutorPane({
 
 function ConceptsPanel() {
   const [section, setSection] = useState<LsatSection | 'any'>('any')
-  const [openId, setOpenId] = useState<string | null>(null)
+  // The expanded concept is deep-linkable (?concept=modus-tollens).
+  const [openId, setOpenId] = useUrlState('concept')
   const conceptsQ = useLsatConcepts(section === 'any' ? undefined : section)
   const concepts = conceptsQ.data?.concepts ?? null
 
