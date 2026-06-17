@@ -28,7 +28,9 @@ import {
   useAgentActivity,
   type ActivityEvent,
 } from '@/lib/useAgentActivity'
+import { relativeTime } from '@/lib/format'
 import { useHydrated } from '@/lib/useHydrated'
+import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -943,15 +945,6 @@ function SpecStatusBadge({ status }: { status: string }) {
   return <Pill tone={tone}>{status}</Pill>
 }
 
-function relativeTime(d: Date): string {
-  const diff = (Date.now() - d.getTime()) / 1000
-  if (diff < 5) return 'just now'
-  if (diff < 60) return `${Math.floor(diff)}s ago`
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  return `${Math.floor(diff / 86400)}d ago`
-}
-
 // ---------------------------------------------------------------------------
 // AgentCard — enhanced registry card with launch button
 // ---------------------------------------------------------------------------
@@ -1531,22 +1524,30 @@ function AutonomyPanel({
         <div className="text-xs font-medium uppercase tracking-wider text-subtle">
           Autonomy
         </div>
-        <span
-          className={
-            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ' +
-            (enabled
-              ? 'border-success/40 bg-success/10 text-success'
-              : 'border-warning/40 bg-warning/10 text-warning')
-          }
-        >
+        <div className="flex items-center gap-3">
           <span
             className={
-              'inline-block h-1.5 w-1.5 rounded-full ' +
-              (enabled ? 'animate-pulse bg-success' : 'bg-warning')
+              'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ' +
+              (enabled
+                ? 'border-success/40 bg-success/10 text-success'
+                : 'border-warning/40 bg-warning/10 text-warning')
             }
-          />
-          {enabled ? 'ENABLED' : 'kill-switch OFF'}
-        </span>
+          >
+            <span
+              className={
+                'inline-block h-1.5 w-1.5 rounded-full ' +
+                (enabled ? 'animate-pulse bg-success' : 'bg-warning')
+              }
+            />
+            {enabled ? 'ENABLED' : 'kill-switch OFF'}
+          </span>
+          <Link
+            href="/agents/autonomy"
+            className="text-[11px] font-medium text-brand hover:underline"
+          >
+            View details →
+          </Link>
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
         {last_cycle ? (
