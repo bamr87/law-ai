@@ -1,10 +1,27 @@
 import AgentDashboard from '@/components/AgentDashboard'
 import { server } from '@/mocks/server'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { renderWithClient as render } from '../test-utils'
 
 const BASE = 'http://localhost:8000'
+
+// Drill-ins are deep-linkable via ?run=/?session=. Override the global
+// next/navigation stub with a per-file holder so a test can simulate the URL.
+const nav = vi.hoisted(() => ({ params: new URLSearchParams() }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    refresh: vi.fn(),
+  }),
+  usePathname: () => '/agents',
+  useSearchParams: () => nav.params,
+}))
 
 // Deterministic WebSocket double so the live-feed hook never makes a real
 // connection attempt during component tests.
@@ -34,6 +51,7 @@ afterEach(() => {
 
 beforeEach(() => {
   MockWebSocket.instances = []
+  nav.params = new URLSearchParams()
   vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket)
   server.use(
     http.get(`${BASE}/api/agents`, () =>
@@ -183,6 +201,31 @@ describe('AgentDashboard', () => {
         'LegalAnalyst',
       )
     })
+  })
+
+  it('opens the run-detail drill-in from a ?run= deep link (linkable routes)', async () => {
+    nav.params = new URLSearchParams('run=t-1')
+    server.use(
+      http.get(`${BASE}/api/agents/runs/t-1`, () =>
+        HttpResponse.json({
+          trace_id: 't-1',
+          count: 1,
+          events: [
+            {
+              trace_id: 't-1',
+              agent: 'LegalAnalyst',
+              type: 'agent_call',
+              timestamp: '2026-04-29T12:00:00Z',
+              latency_ms: 42,
+            },
+          ],
+        }),
+      ),
+    )
+    render(<AgentDashboard />)
+    const dialog = await screen.findByRole('dialog', { name: /Run details/i })
+    expect(dialog).toBeInTheDocument()
+    expect(screen.getByText('Provenance Trace')).toBeInTheDocument()
   })
 
   it('surfaces panel-level errors without crashing the page', async () => {

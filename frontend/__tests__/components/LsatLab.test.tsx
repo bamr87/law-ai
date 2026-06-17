@@ -1,9 +1,27 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import LsatLab from '@/components/LsatLab'
 import { server } from '@/mocks/server'
+import { renderWithClient as render } from '../test-utils'
+
+// Sections, the expanded concept, and the selected passage are deep-linkable
+// (?tab=/?concept=/?passage=). Override the global next/navigation stub with a
+// per-file holder so a test can simulate the URL.
+const nav = vi.hoisted(() => ({ params: new URLSearchParams() }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    refresh: vi.fn(),
+  }),
+  usePathname: () => '/lsat',
+  useSearchParams: () => nav.params,
+}))
 
 const sampleSections = {
   count: 3,
@@ -69,6 +87,7 @@ const sampleQuestion = {
 }
 
 beforeEach(() => {
+  nav.params = new URLSearchParams()
   server.use(
     http.get('http://localhost:8000/api/lsat/stats', () =>
       HttpResponse.json({
@@ -181,12 +200,14 @@ beforeEach(() => {
 describe('LsatLab', () => {
   it('renders the section overview by default', async () => {
     render(<LsatLab />)
+    // 'Analytical Reasoning' is the LG section-card name — it only appears once
+    // the sections fetch resolves (the LR/RC names also show as tab labels).
     await waitFor(() => {
-      expect(screen.getAllByText('Logical Reasoning').length).toBeGreaterThan(0)
+      expect(screen.getByText('Analytical Reasoning')).toBeInTheDocument()
     })
     expect(screen.getByText(/four-section roadmap/i)).toBeInTheDocument()
+    expect(screen.getAllByText('Logical Reasoning').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Reading Comprehension').length).toBeGreaterThan(0)
-    expect(screen.getByText('Analytical Reasoning')).toBeInTheDocument()
   })
 
   it('switches to LR practice and grades a question', async () => {
@@ -256,5 +277,33 @@ describe('LsatLab', () => {
     await waitFor(() =>
       expect(screen.getByText(/Long passage text/)).toBeInTheDocument(),
     )
+  })
+
+  it('deep-links into an expanded concept (?tab=concepts&concept=)', async () => {
+    nav.params = new URLSearchParams('tab=concepts&concept=modus-tollens')
+    render(<LsatLab />)
+    // Lands on the Concepts tab with the named concept already expanded — no
+    // clicks needed.
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Deeper detail about modus tollens/),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('tab', { name: /^Concepts$/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+  })
+
+  it('deep-links into an RC passage (?tab=RC&passage=)', async () => {
+    nav.params = new URLSearchParams('tab=RC&passage=rc-passage-001')
+    render(<LsatLab />)
+    // Lands directly on the RC tab with the named passage loaded.
+    await waitFor(() =>
+      expect(screen.getByText(/Long passage text/)).toBeInTheDocument(),
+    )
+    expect(
+      screen.getByRole('tab', { name: /Reading Comprehension/i }),
+    ).toHaveAttribute('aria-selected', 'true')
   })
 })
