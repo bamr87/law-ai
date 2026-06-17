@@ -2,8 +2,6 @@
 
 import { Page } from '@/components/ui'
 import {
-  fetchRunDetail,
-  fetchSessionDetail,
   runAnalysis,
   type AgentInfo,
   type AgentMetric,
@@ -20,7 +18,9 @@ import {
   useAutonomy,
   useBacklog,
   useLocalAIHealth,
+  useRunDetail,
   useRuns,
+  useSessionDetail,
   useSessions,
   useSpecs,
 } from '@/lib/queries'
@@ -29,7 +29,8 @@ import {
   type ActivityEvent,
 } from '@/lib/useAgentActivity'
 import { useHydrated } from '@/lib/useHydrated'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 const POLL_MS = 5000
 
@@ -67,8 +68,39 @@ export default function AgentDashboard() {
   const seenTraceIds = useRef<Set<string>>(new Set())
   const [recentlyAdded, setRecentlyAdded] = useState<Set<string>>(new Set())
   const [launchAgent, setLaunchAgent] = useState<AgentInfo | null>(null)
-  const [drillTraceId, setDrillTraceId] = useState<string | null>(null)
-  const [drillSessionId, setDrillSessionId] = useState<string | null>(null)
+
+  // Drill-ins are deep-linkable: the open run/session lives in the URL
+  // (?run=<traceId> / ?session=<id>) so a trace or change-ledger view can be
+  // bookmarked, shared, or survive a reload. The URL is the single source of
+  // truth — local state would desync from the back button.
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const drillTraceId = searchParams.get('run')
+  const drillSessionId = searchParams.get('session')
+
+  const setDrill = useCallback(
+    (next: { run?: string | null; session?: string | null }) => {
+      const params = new URLSearchParams(searchParams.toString())
+      for (const key of ['run', 'session'] as const) {
+        if (!(key in next)) continue
+        const value = next[key]
+        if (value) params.set(key, value)
+        else params.delete(key)
+      }
+      const qs = params.toString()
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+    },
+    [router, pathname, searchParams],
+  )
+  const setDrillTraceId = useCallback(
+    (run: string | null) => setDrill({ run }),
+    [setDrill],
+  )
+  const setDrillSessionId = useCallback(
+    (session: string | null) => setDrill({ session }),
+    [setDrill],
+  )
 
   // Live activity feed (WS3) — a real-time layer over the polling hooks.
   const activity = useAgentActivity({ max: 30 })
@@ -411,10 +443,7 @@ export default function AgentDashboard() {
         <SessionDetailModal
           sessionId={drillSessionId}
           onClose={() => setDrillSessionId(null)}
-          onTrace={(tid) => {
-            setDrillSessionId(null)
-            setDrillTraceId(tid)
-          }}
+          onTrace={(tid) => setDrill({ session: null, run: tid })}
         />
       )}
         </>
@@ -1677,33 +1706,15 @@ function SessionDetailModal({
   onClose: () => void
   onTrace?: (traceId: string) => void
 }) {
-  const [session, setSession] = useState<SessionRun | null>(null)
-  const [events, setEvents] = useState<AgentRun[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    fetchSessionDetail(sessionId)
-      .then((data) => {
-        if (!cancelled) {
-          setSession(data.session)
-          setEvents(data.events)
-          setLoading(false)
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'fetch failed')
-          setLoading(false)
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [sessionId])
+  const detail = useSessionDetail(sessionId)
+  const session = detail.data?.session ?? null
+  const events = detail.data?.events ?? null
+  const loading = detail.isLoading
+  const error = detail.isError
+    ? detail.error instanceof Error
+      ? detail.error.message
+      : 'fetch failed'
+    : null
 
   return (
     <div
@@ -1835,31 +1846,14 @@ function RunDetailModal({
   traceId: string
   onClose: () => void
 }) {
-  const [events, setEvents] = useState<AgentRun[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    fetchRunDetail(traceId)
-      .then((data) => {
-        if (!cancelled) {
-          setEvents(data.events)
-          setLoading(false)
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'fetch failed')
-          setLoading(false)
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [traceId])
+  const detail = useRunDetail(traceId)
+  const events = detail.data?.events ?? null
+  const loading = detail.isLoading
+  const error = detail.isError
+    ? detail.error instanceof Error
+      ? detail.error.message
+      : 'fetch failed'
+    : null
 
   return (
     <div

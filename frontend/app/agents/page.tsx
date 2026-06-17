@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import AgentDashboard from '@/components/AgentDashboard'
 
 export const metadata = {
@@ -5,5 +6,11 @@ export const metadata = {
 }
 
 export default function AgentsPage() {
-  return <AgentDashboard />
+  // AgentDashboard reads ?run=/?session= via useSearchParams, which Next
+  // requires to sit under a Suspense boundary.
+  return (
+    <Suspense>
+      <AgentDashboard />
+    </Suspense>
+  )
 }
