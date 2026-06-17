@@ -73,6 +73,11 @@ export default function AgentDashboard() {
   // Live activity feed (WS3) — a real-time layer over the polling hooks.
   const activity = useAgentActivity({ max: 30 })
 
+  // The dashboard is entirely client-only live data; React Query resolves the
+  // (instant) localhost fetches before hydration commits, so the SSR loading
+  // state wouldn't match the client. Gate the data content behind hydration.
+  const hydrated = useHydrated()
+
   // Data layer: React Query hooks. `live` (= not paused) drives refetchInterval,
   // so the Pause control simply stops background polling.
   const live = !paused
@@ -187,6 +192,20 @@ export default function AgentDashboard() {
         live={activity.connected}
       />
 
+      {!hydrated ? (
+        <div className="space-y-5" aria-busy="true" aria-label="Loading dashboard">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-[88px] animate-pulse rounded-xl border border-border bg-surface-2"
+              />
+            ))}
+          </div>
+          <div className="h-40 animate-pulse rounded-xl border border-border bg-surface-2" />
+        </div>
+      ) : (
+        <>
       <LiveActivityStrip
         connected={activity.connected}
         events={activity.events}
@@ -255,12 +274,12 @@ export default function AgentDashboard() {
                 placeholder="Filter…"
                 value={runFilter}
                 onChange={(e) => setRunFilter(e.target.value)}
-                className="w-28 rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-xs text-slate-300 placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+                className="w-28 rounded-md border border-border bg-canvas-soft px-2 py-1 text-xs text-muted placeholder:text-subtle focus:border-brand focus:outline-none"
               />
               <select
                 value={runLimit}
                 onChange={(e) => setRunLimit(Number(e.target.value))}
-                className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-xs text-slate-300 focus:border-blue-500 focus:outline-none"
+                className="rounded-md border border-border bg-canvas-soft px-2 py-1 text-xs text-muted focus:border-brand focus:outline-none"
                 aria-label="Run limit"
               >
                 {[25, 50, 100, 200].map((n) => (
@@ -323,16 +342,16 @@ export default function AgentDashboard() {
                 {state.backlog.data.open.map((item) => (
                   <li
                     key={item.id}
-                    className="rounded-md border border-slate-800 bg-slate-900/40 p-2 text-sm"
+                    className="rounded-md border border-border bg-surface/40 p-2 text-sm"
                   >
                     <div className="flex items-start gap-2">
                       <SeverityBadge severity={item.severity} />
                       <KindBadge kind={item.kind} />
-                      <span className="font-mono text-[10px] text-slate-500">
+                      <span className="font-mono text-[10px] text-subtle">
                         {item.id}
                       </span>
                     </div>
-                    <div className="mt-1 text-sm text-slate-300">
+                    <div className="mt-1 text-sm text-muted">
                       {item.title}
                     </div>
                   </li>
@@ -397,6 +416,8 @@ export default function AgentDashboard() {
             setDrillTraceId(tid)
           }}
         />
+      )}
+        </>
       )}
     </Page>
   )
@@ -485,16 +506,16 @@ function LiveActivityStrip({
   if (!connected && events.length === 0) return null
   return (
     <div
-      className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-2"
+      className="flex items-center gap-3 rounded-xl border border-border bg-surface/40 px-4 py-2"
       data-testid="live-activity-strip"
     >
-      <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-emerald-300">
-        <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+      <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-success">
+        <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
         Live
       </span>
       <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
         {events.length === 0 ? (
-          <span className="text-[11px] text-slate-500">
+          <span className="text-[11px] text-subtle">
             Connected — waiting for activity…
           </span>
         ) : (
@@ -514,15 +535,15 @@ function ActivityChip({ event }: { event: ActivityEvent }) {
       className={
         'inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] ' +
         (isError
-          ? 'border-red-500/40 bg-red-500/10 text-red-300'
-          : 'border-slate-700 bg-slate-800/40 text-slate-300')
+          ? 'border-danger/40 bg-danger/10 text-danger'
+          : 'border-border-strong bg-surface-2/40 text-muted')
       }
       title={time ? time.toISOString() : event.type}
     >
       <TypeIcon type={event.type} />
       <span className="max-w-[140px] truncate font-mono">{label}</span>
       {event.latency_ms != null && (
-        <span className="tabular-nums text-slate-500">
+        <span className="tabular-nums text-subtle">
           {Math.round(Number(event.latency_ms))}ms
         </span>
       )}
@@ -630,13 +651,13 @@ function KPI({
   chart?: React.ReactNode
 }) {
   const accentMap: Record<string, string> = {
-    blue: 'from-blue-500/20 to-blue-500/0',
-    indigo: 'from-indigo-500/20 to-indigo-500/0',
-    amber: 'from-amber-500/20 to-amber-500/0',
-    emerald: 'from-emerald-500/20 to-emerald-500/0',
+    blue: 'from-brand/20 to-brand/0',
+    indigo: 'from-brand/20 to-brand/0',
+    amber: 'from-warning/20 to-warning/0',
+    emerald: 'from-success/20 to-success/0',
   }
   return (
-    <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+    <div className="relative overflow-hidden rounded-xl border border-border bg-surface/40 p-4">
       <div
         className={
           'pointer-events-none absolute inset-0 bg-gradient-to-br opacity-60 ' +
@@ -645,13 +666,13 @@ function KPI({
       />
       <div className="relative flex items-start justify-between gap-2">
         <div>
-          <div className="text-xs uppercase tracking-wider text-slate-500">
+          <div className="text-xs uppercase tracking-wider text-subtle">
             {label}
           </div>
-          <div className="mt-1 text-3xl font-semibold tabular-nums text-slate-100">
+          <div className="mt-1 text-3xl font-semibold tabular-nums text-ink">
             {value ?? '—'}
           </div>
-          {sub && <div className="mt-0.5 text-xs text-slate-500">{sub}</div>}
+          {sub && <div className="mt-0.5 text-xs text-subtle">{sub}</div>}
         </div>
         {chart && <div className="shrink-0 self-end">{chart}</div>}
       </div>
@@ -675,12 +696,12 @@ function Panel({
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 shadow-sm backdrop-blur">
+    <section className="rounded-xl border border-border bg-surface/40 p-4 shadow-sm backdrop-blur">
       <header className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-slate-100">{title}</h2>
+          <h2 className="text-base font-semibold text-ink">{title}</h2>
           {subtitle && (
-            <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
+            <p className="mt-0.5 text-xs text-subtle">{subtitle}</p>
           )}
         </div>
         {actions}
@@ -688,7 +709,7 @@ function Panel({
       {loading && <SkeletonLines />}
       {error && (
         <p
-          className="rounded-md border border-red-500/30 bg-red-500/10 p-2 text-sm text-red-300"
+          className="rounded-md border border-danger/30 bg-danger/10 p-2 text-sm text-danger"
           role="alert"
         >
           Failed to load: {error}
@@ -705,7 +726,7 @@ function SkeletonLines() {
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="h-8 animate-pulse rounded-md bg-slate-800/60"
+          className="h-8 animate-pulse rounded-md bg-surface-2/60"
           style={{ animationDelay: `${i * 100}ms` }}
         />
       ))}
@@ -715,7 +736,7 @@ function SkeletonLines() {
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <li className="rounded-md border border-dashed border-slate-800 p-3 text-center text-xs text-slate-500">
+    <li className="rounded-md border border-dashed border-border p-3 text-center text-xs text-subtle">
       {message}
     </li>
   )
@@ -742,12 +763,12 @@ function RunRow({
   return (
     <li
       className={
-        'rounded-md border bg-slate-900/30 p-2 text-xs transition ' +
+        'rounded-md border bg-surface/30 p-2 text-xs transition ' +
         (isError
-          ? 'border-red-500/40 ring-1 ring-inset ring-red-500/20'
+          ? 'border-danger/40 ring-1 ring-inset ring-danger/20'
           : fresh
-          ? 'border-emerald-500/40 ring-1 ring-inset ring-emerald-500/20'
-          : 'border-slate-800 hover:border-slate-700')
+          ? 'border-success/40 ring-1 ring-inset ring-success/20'
+          : 'border-border hover:border-border-strong')
       }
     >
       <button
@@ -761,28 +782,28 @@ function RunRow({
           <span
             aria-hidden
             className={
-              'inline-block w-3 text-center text-slate-500 transition ' +
+              'inline-block w-3 text-center text-subtle transition ' +
               (expanded ? 'rotate-90' : '')
             }
           >
             ▸
           </span>
           <TypeIcon type={String(run.type ?? '')} />
-          <span className="truncate font-mono text-slate-200">{label}</span>
+          <span className="truncate font-mono text-ink">{label}</span>
           {isError && (
-            <span className="shrink-0 rounded-full bg-red-500/20 px-1.5 text-[9px] uppercase tracking-wider text-red-300">
+            <span className="shrink-0 rounded-full bg-danger/20 px-1.5 text-[9px] uppercase tracking-wider text-danger">
               error
             </span>
           )}
           {fresh && !isError && (
-            <span className="shrink-0 rounded-full bg-emerald-500/20 px-1.5 text-[9px] uppercase tracking-wider text-emerald-300">
+            <span className="shrink-0 rounded-full bg-success/20 px-1.5 text-[9px] uppercase tracking-wider text-success">
               new
             </span>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-2 text-[11px] text-slate-500">
+        <div className="flex shrink-0 items-center gap-2 text-[11px] text-subtle">
           {run.latency_ms != null && (
-            <span className="rounded bg-slate-800 px-1.5 py-0.5 tabular-nums">
+            <span className="rounded bg-surface-2 px-1.5 py-0.5 tabular-nums">
               {Math.round(Number(run.latency_ms))} ms
             </span>
           )}
@@ -790,30 +811,30 @@ function RunRow({
         </div>
       </button>
       {(run.path || run.method) && (
-        <div className="mt-1 truncate pl-5 font-mono text-[10px] text-slate-500">
+        <div className="mt-1 truncate pl-5 font-mono text-[10px] text-subtle">
           {String(run.method ?? '')} {String(run.path ?? '')}
         </div>
       )}
       {expanded && (
-        <div className="mt-2 space-y-2 border-t border-slate-800 pt-2 pl-5">
+        <div className="mt-2 space-y-2 border-t border-border pt-2 pl-5">
           {traceId && (
-            <div className="flex items-center gap-2 text-[10px] text-slate-500">
+            <div className="flex items-center gap-2 text-[10px] text-subtle">
               <span>trace_id</span>
-              <code className="rounded bg-slate-800 px-1.5 py-0.5 text-slate-300">
+              <code className="rounded bg-surface-2 px-1.5 py-0.5 text-muted">
                 {traceId}
               </code>
               {onDrill && (
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onDrill(traceId) }}
-                  className="rounded border border-blue-600/40 bg-blue-600/10 px-2 py-0.5 text-[10px] text-blue-300 transition hover:border-blue-500 hover:bg-blue-600/20"
+                  className="rounded border border-brand/40 bg-brand/10 px-2 py-0.5 text-[10px] text-brand transition hover:border-brand hover:bg-brand/20"
                 >
                   View all related events →
                 </button>
               )}
             </div>
           )}
-          <pre className="max-h-60 overflow-auto rounded bg-slate-950/80 p-2 font-mono text-[10px] leading-relaxed text-slate-300">
+          <pre className="max-h-60 overflow-auto rounded bg-canvas-soft/80 p-2 font-mono text-[10px] leading-relaxed text-muted">
             {JSON.stringify(run, null, 2)}
           </pre>
         </div>
@@ -824,12 +845,12 @@ function RunRow({
 
 function TypeIcon({ type }: { type: string }) {
   const map: Record<string, { color: string; glyph: string }> = {
-    http_request: { color: 'bg-sky-500/20 text-sky-300', glyph: '↦' },
-    agent_call: { color: 'bg-violet-500/20 text-violet-300', glyph: '⚙' },
-    graph_query: { color: 'bg-emerald-500/20 text-emerald-300', glyph: '◆' },
+    http_request: { color: 'bg-info/20 text-info', glyph: '↦' },
+    agent_call: { color: 'bg-accent/20 text-accent', glyph: '⚙' },
+    graph_query: { color: 'bg-success/20 text-success', glyph: '◆' },
   }
   const { color, glyph } = map[type] ?? {
-    color: 'bg-slate-700 text-slate-300',
+    color: 'bg-surface-2 text-muted',
     glyph: '·',
   }
   return (
@@ -853,11 +874,11 @@ function Pill({
   tone: 'blue' | 'amber' | 'emerald' | 'slate' | 'red'
 }) {
   const tones: Record<string, string> = {
-    blue: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-    amber: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-    emerald: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-    slate: 'bg-slate-700/40 text-slate-300 border-slate-600/40',
-    red: 'bg-red-500/15 text-red-300 border-red-500/30',
+    blue: 'bg-brand/15 text-brand border-brand/30',
+    amber: 'bg-warning/15 text-warning border-warning/30',
+    emerald: 'bg-success/15 text-success border-success/30',
+    slate: 'bg-surface-2/40 text-muted border-border-strong/40',
+    red: 'bg-danger/15 text-danger border-danger/30',
   }
   return (
     <span
@@ -924,31 +945,31 @@ function AgentCard({
   const desc = AGENT_DESCRIPTIONS[agent.name] ?? 'Agent ready.'
   return (
     <li
-      className="group rounded-lg border border-slate-800 bg-slate-900/40 p-3 transition hover:border-blue-500/40 hover:bg-slate-900/80"
+      className="group rounded-lg border border-border bg-surface/40 p-3 transition hover:border-brand/40 hover:bg-surface/80"
       data-testid="registry-card"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
-          <span className="font-medium text-slate-100">{agent.name}</span>
+          <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-success" />
+          <span className="font-medium text-ink">{agent.name}</span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-slate-500">
+          <span className="text-[10px] uppercase tracking-wider text-subtle">
             ready
           </span>
           {(agent.name === 'LegalAnalyst' || agent.name === 'PrecedentHunter') && (
             <button
               type="button"
               onClick={onLaunch}
-              className="rounded border border-blue-600/40 bg-blue-600/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-blue-300 transition hover:border-blue-500 hover:bg-blue-600/20"
+              className="rounded border border-brand/40 bg-brand/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-brand transition hover:border-brand hover:bg-brand/20"
             >
               Run
             </button>
           )}
         </div>
       </div>
-      <div className="mt-1 text-xs text-slate-400">{desc}</div>
-      <div className="mt-1 truncate font-mono text-[10px] text-slate-600">
+      <div className="mt-1 text-xs text-muted">{desc}</div>
+      <div className="mt-1 truncate font-mono text-[10px] text-subtle">
         {agent.module}
       </div>
     </li>
@@ -970,7 +991,7 @@ function HealthPanel({
 }) {
   if (loading) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+      <div className="rounded-xl border border-border bg-surface/40 p-4">
         <SkeletonLines />
       </div>
     )
@@ -1006,8 +1027,8 @@ function HealthPanel({
   ]
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3">
-      <div className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">
+    <div className="rounded-xl border border-border bg-surface/40 px-4 py-3">
+      <div className="mb-2 text-xs font-medium uppercase tracking-wider text-subtle">
         System Health
       </div>
       <div className="flex flex-wrap gap-3">
@@ -1017,14 +1038,14 @@ function HealthPanel({
             className={
               'flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ' +
               (reachable
-                ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300'
-                : 'border-red-500/30 bg-red-500/5 text-red-300')
+                ? 'border-success/30 bg-success/5 text-success'
+                : 'border-danger/30 bg-danger/5 text-danger')
             }
           >
             <span
               className={
                 'inline-block h-1.5 w-1.5 shrink-0 rounded-full ' +
-                (reachable ? 'bg-emerald-400' : 'bg-red-400')
+                (reachable ? 'bg-success' : 'bg-danger')
               }
             />
             <span className="font-medium">{label}</span>
@@ -1072,8 +1093,8 @@ function RunTypeTabs({
           className={
             'shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium transition ' +
             (active === t
-              ? 'bg-blue-600/20 text-blue-300 ring-1 ring-inset ring-blue-500/40'
-              : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300')
+              ? 'bg-brand/20 text-brand ring-1 ring-inset ring-brand/40'
+              : 'text-subtle hover:bg-surface-2 hover:text-muted')
           }
         >
           {t === 'all' ? 'All' : t.replace('_', ' ')}
@@ -1123,19 +1144,19 @@ function SpecsPanel({ specs, loading }: { specs: SpecInfo[]; loading: boolean })
         <div key={status} className="mb-3">
           <div className="mb-1 flex items-center gap-2">
             <SpecStatusBadge status={status} />
-            <span className="text-[10px] text-slate-500">{items.length}</span>
+            <span className="text-[10px] text-subtle">{items.length}</span>
           </div>
           <ul className="space-y-1">
             {(showAll ? items : items.slice(0, 3)).map((spec) => (
               <li
                 key={spec.id}
-                className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/40 px-3 py-2 text-xs transition hover:border-slate-700"
+                className="flex items-center justify-between rounded-md border border-border bg-surface/40 px-3 py-2 text-xs transition hover:border-border-strong"
               >
-                <span className="truncate font-mono text-slate-300">{spec.id}</span>
+                <span className="truncate font-mono text-muted">{spec.id}</span>
               </li>
             ))}
             {!showAll && items.length > 3 && (
-              <li className="text-center text-[10px] text-slate-600">
+              <li className="text-center text-[10px] text-subtle">
                 +{items.length - 3} more
               </li>
             )}
@@ -1146,7 +1167,7 @@ function SpecsPanel({ specs, loading }: { specs: SpecInfo[]; loading: boolean })
         <button
           type="button"
           onClick={() => setShowAll((v) => !v)}
-          className="mt-1 text-[11px] text-slate-500 underline hover:text-slate-300"
+          className="mt-1 text-[11px] text-subtle underline hover:text-muted"
         >
           {showAll ? 'Show less' : `Show all ${specs.length} specs`}
         </button>
@@ -1227,17 +1248,17 @@ function AgentLaunchModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="w-full max-w-xl rounded-xl border border-slate-700 bg-slate-900 shadow-2xl">
-        <header className="flex items-center justify-between border-b border-slate-800 px-5 py-3">
+      <div className="w-full max-w-xl rounded-xl border border-border-strong bg-surface shadow-2xl">
+        <header className="flex items-center justify-between border-b border-border px-5 py-3">
           <div>
-            <h2 className="font-semibold text-slate-100">Run {agent.name}</h2>
-            <p className="mt-0.5 text-xs text-slate-500">{AGENT_DESCRIPTIONS[agent.name]}</p>
+            <h2 className="font-semibold text-ink">Run {agent.name}</h2>
+            <p className="mt-0.5 text-xs text-subtle">{AGENT_DESCRIPTIONS[agent.name]}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded p-1 text-slate-500 hover:text-slate-200"
+            className="rounded p-1 text-subtle hover:text-ink"
           >
             ✕
           </button>
@@ -1245,7 +1266,7 @@ function AgentLaunchModal({
 
         <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-3 p-5">
           <div>
-            <label htmlFor="agent-input-text" className="mb-1 block text-xs font-medium text-slate-400">
+            <label htmlFor="agent-input-text" className="mb-1 block text-xs font-medium text-muted">
               Legal Issue / Case Text
             </label>
             <textarea
@@ -1254,12 +1275,12 @@ function AgentLaunchModal({
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Describe the legal issue or paste a case fact pattern…"
-              className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-md border border-border-strong bg-canvas-soft px-3 py-2 text-sm text-ink placeholder:text-subtle focus:border-brand focus:outline-none"
               required
             />
           </div>
           <div>
-            <label htmlFor="agent-jurisdiction" className="mb-1 block text-xs font-medium text-slate-400">
+            <label htmlFor="agent-jurisdiction" className="mb-1 block text-xs font-medium text-muted">
               Jurisdiction (optional)
             </label>
             <input
@@ -1268,20 +1289,20 @@ function AgentLaunchModal({
               value={jurisdiction}
               onChange={(e) => setJurisdiction(e.target.value)}
               placeholder="e.g. Colorado, 10th Circuit"
-              className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-md border border-border-strong bg-canvas-soft px-3 py-2 text-sm text-ink placeholder:text-subtle focus:border-brand focus:outline-none"
             />
           </div>
 
-          <label className="flex items-start gap-2 rounded-md border border-slate-800 bg-slate-950/50 p-3 text-xs">
+          <label className="flex items-start gap-2 rounded-md border border-border bg-canvas-soft/50 p-3 text-xs">
             <input
               type="checkbox"
               checked={useLangGraph}
               onChange={(e) => setUseLangGraph(e.target.checked)}
-              className="mt-0.5 accent-blue-500"
+              className="mt-0.5 accent-brand"
             />
-            <span className="flex-1 text-slate-300">
+            <span className="flex-1 text-muted">
               <span className="font-medium">Real mode (LangGraph + Ollama)</span>
-              <span className="block text-[11px] text-slate-500">
+              <span className="block text-[11px] text-subtle">
                 When off, returns a canned IRAC for fast UI testing (legacy stub).
                 When on, invokes the real LegalWorkflow against Ollama and Neo4j.
               </span>
@@ -1289,21 +1310,21 @@ function AgentLaunchModal({
           </label>
 
           {error && (
-            <p className="rounded-md border border-red-500/30 bg-red-500/10 p-2 text-xs text-red-300">
+            <p className="rounded-md border border-danger/30 bg-danger/10 p-2 text-xs text-danger">
               {error}
             </p>
           )}
 
           {result && (
             <>
-              <pre className="max-h-52 overflow-auto rounded-md border border-slate-800 bg-slate-950/80 p-3 text-[11px] leading-relaxed text-slate-300 whitespace-pre-wrap">
+              <pre className="max-h-52 overflow-auto rounded-md border border-border bg-canvas-soft/80 p-3 text-[11px] leading-relaxed text-muted whitespace-pre-wrap">
                 {result}
               </pre>
               {resultTrace && onTrace && (
                 <button
                   type="button"
                   onClick={() => onTrace(resultTrace)}
-                  className="w-full rounded-md border border-blue-600/40 bg-blue-600/10 px-3 py-2 text-xs text-blue-300 transition hover:border-blue-500 hover:bg-blue-600/20"
+                  className="w-full rounded-md border border-brand/40 bg-brand/10 px-3 py-2 text-xs text-brand transition hover:border-brand hover:bg-brand/20"
                 >
                   View provenance trace ({resultTrace.slice(0, 8)}…) →
                 </button>
@@ -1315,14 +1336,14 @@ function AgentLaunchModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md border border-slate-700 px-4 py-2 text-xs text-slate-400 hover:text-slate-200"
+              className="rounded-md border border-border-strong px-4 py-2 text-xs text-muted hover:text-ink"
             >
               Close
             </button>
             <button
               type="submit"
               disabled={loading || !text.trim()}
-              className="rounded-md bg-blue-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-blue-500 disabled:opacity-50"
+              className="rounded-md bg-brand px-4 py-2 text-xs font-medium text-white transition hover:bg-brand disabled:opacity-50"
             >
               {loading ? 'Running…' : 'Run Analysis'}
             </button>
@@ -1352,33 +1373,33 @@ function MetricsPanel({
   if (error || !data) return null
   if (data.agents.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3">
-        <div className="text-xs font-medium uppercase tracking-wider text-slate-500">
+      <div className="rounded-xl border border-border bg-surface/40 px-4 py-3">
+        <div className="text-xs font-medium uppercase tracking-wider text-subtle">
           Per-Agent Metrics
         </div>
-        <div className="mt-2 text-xs text-slate-500">
+        <div className="mt-2 text-xs text-subtle">
           No agent calls in the last {data.window_size} events. Run an agent to populate.
         </div>
       </div>
     )
   }
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3">
+    <div className="rounded-xl border border-border bg-surface/40 px-4 py-3">
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-xs font-medium uppercase tracking-wider text-slate-500">
+        <div className="text-xs font-medium uppercase tracking-wider text-subtle">
           Per-Agent Metrics
         </div>
-        <div className="text-[10px] text-slate-500">
+        <div className="text-[10px] text-subtle">
           Window: last {data.window_size} events
           {data.errors_total > 0 && (
-            <span className="ml-2 text-red-400">· {data.errors_total} error{data.errors_total !== 1 ? 's' : ''}</span>
+            <span className="ml-2 text-danger">· {data.errors_total} error{data.errors_total !== 1 ? 's' : ''}</span>
           )}
         </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-slate-800 text-left text-[10px] uppercase tracking-wider text-slate-500">
+            <tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-subtle">
               <th className="py-2 pr-3 font-medium">Agent</th>
               <th className="py-2 pr-3 font-medium">Calls</th>
               <th className="py-2 pr-3 font-medium">Success</th>
@@ -1391,35 +1412,35 @@ function MetricsPanel({
           </thead>
           <tbody>
             {data.agents.map((m) => (
-              <tr key={m.agent} className="border-b border-slate-800/40 last:border-0">
-                <td className="py-2 pr-3 font-mono text-slate-200">{m.agent}</td>
-                <td className="py-2 pr-3 tabular-nums text-slate-300">
+              <tr key={m.agent} className="border-b border-border/40 last:border-0">
+                <td className="py-2 pr-3 font-mono text-ink">{m.agent}</td>
+                <td className="py-2 pr-3 tabular-nums text-muted">
                   {m.count}
                   {m.error_count > 0 && (
-                    <span className="ml-1 text-red-400">({m.error_count} err)</span>
+                    <span className="ml-1 text-danger">({m.error_count} err)</span>
                   )}
                 </td>
                 <td className="py-2 pr-3 tabular-nums">
                   <span
                     className={
                       m.success_rate != null && m.success_rate < 0.9
-                        ? 'text-red-300'
-                        : 'text-emerald-300'
+                        ? 'text-danger'
+                        : 'text-success'
                     }
                   >
                     {m.success_rate != null ? `${(m.success_rate * 100).toFixed(0)}%` : '—'}
                   </span>
                 </td>
-                <td className="py-2 pr-3 tabular-nums text-slate-400">
+                <td className="py-2 pr-3 tabular-nums text-muted">
                   {m.latency_p50_ms != null ? `${m.latency_p50_ms}ms` : '—'}
                 </td>
-                <td className="py-2 pr-3 tabular-nums text-slate-400">
+                <td className="py-2 pr-3 tabular-nums text-muted">
                   {m.latency_p95_ms != null ? `${m.latency_p95_ms}ms` : '—'}
                 </td>
-                <td className="py-2 pr-3 tabular-nums text-slate-400">
+                <td className="py-2 pr-3 tabular-nums text-muted">
                   {m.avg_confidence != null ? `${(m.avg_confidence * 100).toFixed(0)}%` : '—'}
                 </td>
-                <td className="py-2 pr-3 text-slate-500">
+                <td className="py-2 pr-3 text-subtle">
                   {m.last_seen ? relativeTime(new Date(m.last_seen)) : '—'}
                 </td>
                 <td className="py-2 pr-3">
@@ -1427,7 +1448,7 @@ function MetricsPanel({
                     <button
                       type="button"
                       onClick={() => onSelectTrace(m.last_trace_id!)}
-                      className="font-mono text-[10px] text-blue-300 underline hover:text-blue-200"
+                      className="font-mono text-[10px] text-brand underline hover:text-brand"
                     >
                       {m.last_trace_id.slice(0, 8)}…
                     </button>
@@ -1467,7 +1488,7 @@ function AutonomyPanel({
 }) {
   if (loading) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+      <div className="rounded-xl border border-border bg-surface/40 p-4">
         <SkeletonLines />
       </div>
     )
@@ -1476,23 +1497,23 @@ function AutonomyPanel({
   const { enabled, last_cycle, recent_cycles, recent_violations, allowed_sources } =
     data
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3">
+    <div className="rounded-xl border border-border bg-surface/40 px-4 py-3">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="text-xs font-medium uppercase tracking-wider text-slate-500">
+        <div className="text-xs font-medium uppercase tracking-wider text-subtle">
           Autonomy
         </div>
         <span
           className={
             'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ' +
             (enabled
-              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-              : 'border-amber-500/40 bg-amber-500/10 text-amber-300')
+              ? 'border-success/40 bg-success/10 text-success'
+              : 'border-warning/40 bg-warning/10 text-warning')
           }
         >
           <span
             className={
               'inline-block h-1.5 w-1.5 rounded-full ' +
-              (enabled ? 'animate-pulse bg-emerald-400' : 'bg-amber-400')
+              (enabled ? 'animate-pulse bg-success' : 'bg-warning')
             }
           />
           {enabled ? 'ENABLED' : 'kill-switch OFF'}
@@ -1500,28 +1521,28 @@ function AutonomyPanel({
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
         {last_cycle ? (
-          <div className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2">
-            <span className="text-slate-500">Last cycle</span>
-            <span className="font-mono text-slate-200">
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-canvas-soft/40 px-3 py-2">
+            <span className="text-subtle">Last cycle</span>
+            <span className="font-mono text-ink">
               {last_cycle.cycle_type ?? 'cycle'}
             </span>
             <Pill tone={cycleTone(last_cycle.status)}>
               {last_cycle.status ?? '—'}
             </Pill>
             {last_cycle.duration_ms != null && (
-              <span className="tabular-nums text-slate-500">
+              <span className="tabular-nums text-subtle">
                 {Math.round(last_cycle.duration_ms)} ms
               </span>
             )}
-            <span className="text-slate-500">
+            <span className="text-subtle">
               {relativeTime(new Date(last_cycle.completed_at))}
             </span>
           </div>
         ) : (
-          <span className="text-slate-500">No autonomy cycles recorded yet.</span>
+          <span className="text-subtle">No autonomy cycles recorded yet.</span>
         )}
         {allowed_sources.length > 0 && (
-          <span className="text-[10px] text-slate-500">
+          <span className="text-[10px] text-subtle">
             sources: {allowed_sources.join(', ')}
           </span>
         )}
@@ -1534,7 +1555,7 @@ function AutonomyPanel({
       </div>
       {recent_cycles.length > 1 && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] text-slate-600">recent:</span>
+          <span className="text-[10px] text-subtle">recent:</span>
           {recent_cycles.slice(0, 16).map((c, i) => (
             <span
               key={c.cycle_id ?? i}
@@ -1542,10 +1563,10 @@ function AutonomyPanel({
               className={
                 'inline-block h-2 w-2 rounded-full ' +
                 (c.status === 'ok'
-                  ? 'bg-emerald-400/80'
+                  ? 'bg-success/80'
                   : c.status === 'error'
-                    ? 'bg-red-400/80'
-                    : 'bg-slate-600')
+                    ? 'bg-danger/80'
+                    : 'bg-subtle')
               }
             />
           ))}
@@ -1562,11 +1583,11 @@ function AutonomyPanel({
 function SourceBadge({ source }: { source: string }) {
   const tones: Record<string, string> = {
     claude_code: 'bg-orange-500/15 text-orange-300 border-orange-500/30',
-    copilot: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
-    celery: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
-    human: 'bg-slate-700/40 text-slate-300 border-slate-600/40',
+    copilot: 'bg-info/15 text-info border-info/30',
+    celery: 'bg-accent/15 text-accent border-accent/30',
+    human: 'bg-surface-2/40 text-muted border-border-strong/40',
   }
-  const tone = tones[source] ?? 'bg-slate-700/40 text-slate-300 border-slate-600/40'
+  const tone = tones[source] ?? 'bg-surface-2/40 text-muted border-border-strong/40'
   return (
     <span
       className={
@@ -1605,7 +1626,7 @@ function SessionsList({
       {sessions.map((s) => (
         <li
           key={s.session_id}
-          className="rounded-md border border-slate-800 bg-slate-900/30 p-2 text-xs transition hover:border-slate-700"
+          className="rounded-md border border-border bg-surface/30 p-2 text-xs transition hover:border-border-strong"
         >
           <button
             type="button"
@@ -1616,11 +1637,11 @@ function SessionsList({
             <div className="flex min-w-0 items-center gap-2">
               <Pill tone={sessionStatusTone(s.status)}>{s.status}</Pill>
               <SourceBadge source={s.agent_source} />
-              <span className="truncate font-mono text-slate-200">
+              <span className="truncate font-mono text-ink">
                 {s.kind || s.agent_name || s.session_id.slice(0, 8)}
               </span>
             </div>
-            <div className="flex shrink-0 items-center gap-2 text-[11px] text-slate-500">
+            <div className="flex shrink-0 items-center gap-2 text-[11px] text-subtle">
               {s.backlog_items_added.length > 0 && (
                 <span title="backlog items added">
                   +{s.backlog_items_added.length} BL
@@ -1633,7 +1654,7 @@ function SessionsList({
             </div>
           </button>
           {s.spec_claimed && (
-            <div className="mt-1 truncate pl-1 font-mono text-[10px] text-slate-500">
+            <div className="mt-1 truncate pl-1 font-mono text-[10px] text-subtle">
               spec: {s.spec_claimed}
             </div>
           )}
@@ -1694,11 +1715,11 @@ function SessionDetailModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="w-full max-w-3xl rounded-xl border border-slate-700 bg-slate-900 shadow-2xl">
-        <header className="flex items-center justify-between border-b border-slate-800 px-5 py-3">
+      <div className="w-full max-w-3xl rounded-xl border border-border-strong bg-surface shadow-2xl">
+        <header className="flex items-center justify-between border-b border-border px-5 py-3">
           <div className="min-w-0">
-            <h2 className="font-semibold text-slate-100">Session</h2>
-            <p className="mt-0.5 truncate font-mono text-[11px] text-slate-500">
+            <h2 className="font-semibold text-ink">Session</h2>
+            <p className="mt-0.5 truncate font-mono text-[11px] text-subtle">
               {sessionId}
             </p>
           </div>
@@ -1706,7 +1727,7 @@ function SessionDetailModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded p-1 text-slate-500 hover:text-slate-200"
+            className="rounded p-1 text-subtle hover:text-ink"
           >
             ✕
           </button>
@@ -1715,7 +1736,7 @@ function SessionDetailModal({
         <div className="max-h-[70vh] overflow-auto p-5">
           {loading && <SkeletonLines />}
           {error && (
-            <p className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+            <p className="rounded-md border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
               {error}
             </p>
           )}
@@ -1724,10 +1745,10 @@ function SessionDetailModal({
               <Pill tone={sessionStatusTone(session.status)}>{session.status}</Pill>
               <SourceBadge source={session.agent_source} />
               {session.kind && (
-                <span className="font-mono text-slate-300">{session.kind}</span>
+                <span className="font-mono text-muted">{session.kind}</span>
               )}
               {session.spec_claimed && (
-                <span className="font-mono text-[10px] text-slate-500">
+                <span className="font-mono text-[10px] text-subtle">
                   {session.spec_claimed}
                 </span>
               )}
@@ -1739,18 +1760,18 @@ function SessionDetailModal({
             </div>
           )}
           {!loading && !error && session?.summary && (
-            <pre className="mb-4 max-h-32 overflow-auto whitespace-pre-wrap rounded-md border border-slate-800 bg-slate-950/60 p-3 text-[11px] leading-relaxed text-slate-300">
+            <pre className="mb-4 max-h-32 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-canvas-soft/60 p-3 text-[11px] leading-relaxed text-muted">
               {session.summary}
             </pre>
           )}
           {events && events.length === 0 && (
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-muted">
               No audit events linked to this session yet.
             </p>
           )}
           {events && events.length > 0 && (
             <>
-              <div className="mb-2 text-xs text-slate-400">
+              <div className="mb-2 text-xs text-muted">
                 {events.length} event{events.length !== 1 ? 's' : ''} in this session
               </div>
               <ol className="space-y-2">
@@ -1759,21 +1780,21 @@ function SessionDetailModal({
                   return (
                     <li
                       key={i}
-                      className="rounded-md border border-slate-800 bg-slate-950/40 p-2 text-xs"
+                      className="rounded-md border border-border bg-canvas-soft/40 p-2 text-xs"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-2">
                           <TypeIcon type={String(ev.type ?? '')} />
-                          <span className="truncate font-mono text-slate-200">
+                          <span className="truncate font-mono text-ink">
                             {String(ev.agent ?? ev.type ?? 'event')}
                           </span>
                           {ev.model != null && (
-                            <span className="shrink-0 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
+                            <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted">
                               {String(ev.model)}
                             </span>
                           )}
                         </div>
-                        <div className="flex shrink-0 items-center gap-2 text-[10px] text-slate-500">
+                        <div className="flex shrink-0 items-center gap-2 text-[10px] text-subtle">
                           {ev.latency_ms != null && (
                             <span>{Math.round(Number(ev.latency_ms))} ms</span>
                           )}
@@ -1784,7 +1805,7 @@ function SessionDetailModal({
                             <button
                               type="button"
                               onClick={() => onTrace(traceId)}
-                              className="rounded border border-blue-600/40 bg-blue-600/10 px-1.5 text-blue-300 hover:border-blue-500"
+                              className="rounded border border-brand/40 bg-brand/10 px-1.5 text-brand hover:border-brand"
                             >
                               trace →
                             </button>
@@ -1850,17 +1871,17 @@ function RunDetailModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="w-full max-w-3xl rounded-xl border border-slate-700 bg-slate-900 shadow-2xl">
-        <header className="flex items-center justify-between border-b border-slate-800 px-5 py-3">
+      <div className="w-full max-w-3xl rounded-xl border border-border-strong bg-surface shadow-2xl">
+        <header className="flex items-center justify-between border-b border-border px-5 py-3">
           <div>
-            <h2 className="font-semibold text-slate-100">Provenance Trace</h2>
-            <p className="mt-0.5 font-mono text-[11px] text-slate-500">{traceId}</p>
+            <h2 className="font-semibold text-ink">Provenance Trace</h2>
+            <p className="mt-0.5 font-mono text-[11px] text-subtle">{traceId}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded p-1 text-slate-500 hover:text-slate-200"
+            className="rounded p-1 text-subtle hover:text-ink"
           >
             ✕
           </button>
@@ -1869,18 +1890,18 @@ function RunDetailModal({
         <div className="max-h-[70vh] overflow-auto p-5">
           {loading && <SkeletonLines />}
           {error && (
-            <p className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+            <p className="rounded-md border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
               {error}
             </p>
           )}
           {events && events.length === 0 && (
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-muted">
               No events found for this trace_id. The audit log may have rotated.
             </p>
           )}
           {events && events.length > 0 && (
             <>
-              <div className="mb-3 text-xs text-slate-400">
+              <div className="mb-3 text-xs text-muted">
                 {events.length} event{events.length !== 1 ? 's' : ''} share this trace
               </div>
               <ol className="space-y-3">
@@ -1893,28 +1914,28 @@ function RunDetailModal({
                       className={
                         'rounded-md border p-3 text-xs ' +
                         (isError
-                          ? 'border-red-500/40 bg-red-500/5'
-                          : 'border-slate-800 bg-slate-950/40')
+                          ? 'border-danger/40 bg-danger/5'
+                          : 'border-border bg-canvas-soft/40')
                       }
                     >
                       <div className="mb-2 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <TypeIcon type={String(ev.type ?? '')} />
-                          <span className="font-mono font-medium text-slate-200">
+                          <span className="font-mono font-medium text-ink">
                             {String(ev.agent ?? ev.type ?? 'event')}
                           </span>
                           {ev.model && (
-                            <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
+                            <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted">
                               {String(ev.model)}
                             </span>
                           )}
                           {isError && (
-                            <span className="rounded-full bg-red-500/20 px-2 text-[10px] uppercase text-red-300">
+                            <span className="rounded-full bg-danger/20 px-2 text-[10px] uppercase text-danger">
                               error
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                        <div className="flex items-center gap-2 text-[10px] text-subtle">
                           {ev.latency_ms != null && (
                             <span>{Math.round(Number(ev.latency_ms))} ms</span>
                           )}
@@ -1926,7 +1947,7 @@ function RunDetailModal({
                           )}
                         </div>
                       </div>
-                      <pre className="max-h-48 overflow-auto rounded bg-slate-950/80 p-2 font-mono text-[10px] leading-relaxed text-slate-300">
+                      <pre className="max-h-48 overflow-auto rounded bg-canvas-soft/80 p-2 font-mono text-[10px] leading-relaxed text-muted">
                         {JSON.stringify(ev, null, 2)}
                       </pre>
                     </li>
