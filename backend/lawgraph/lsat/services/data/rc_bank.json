@@ -187,6 +187,156 @@
             ],
             "references": [],
             "source": "original (CC0)"
+        },
+        {
+            "id": "rc-006",
+            "section": "RC",
+            "type": "RC",
+            "difficulty": "med",
+            "passage_id": "rc-passage-002",
+            "stem": "Which one of the following most accurately expresses the main point of the passage?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "Privity of contract was an indefensible doctrine that nineteenth-century courts should have abandoned far sooner than they did."
+                },
+                {
+                    "label": "B",
+                    "text": "American products-liability law moved from a privity bar through negligence to strict liability, yet strict liability retains substantial elements of negligence reasoning."
+                },
+                {
+                    "label": "C",
+                    "text": "MacPherson v. Buick eliminated the requirement that an injured consumer prove a manufacturer's negligence."
+                },
+                {
+                    "label": "D",
+                    "text": "The Restatement (Second) of Torts settled the long-running dispute over the proper basis of manufacturer liability."
+                },
+                {
+                    "label": "E",
+                    "text": "Justice Traynor's concurrence in Escola was the most influential single opinion in the history of American tort law."
+                }
+            ],
+            "correct": "B",
+            "explanation": "The passage traces an arc — privity bar, then negligence after MacPherson, then strict liability — and closes by stressing that strict liability still 'sits uneasily' with negligence reasoning. B captures both the arc and that tension. A states an evaluative claim the author never makes. C is false: the passage says MacPherson 'did not abolish the need to prove fault.' D is contradicted by the final paragraph, which says the question is still 'debatable.' E overstates a detail and is not the passage's overall point.",
+            "concepts": [
+                "main-point",
+                "rc-structure"
+            ],
+            "references": [],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "rc-007",
+            "section": "RC",
+            "type": "RC",
+            "difficulty": "easy",
+            "passage_id": "rc-passage-002",
+            "stem": "According to the passage, the doctrine of privity of contract was crystallized in which one of the following cases?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "Winterbottom v. Wright."
+                },
+                {
+                    "label": "B",
+                    "text": "MacPherson v. Buick Motor Co."
+                },
+                {
+                    "label": "C",
+                    "text": "Escola v. Coca-Cola Bottling Co."
+                },
+                {
+                    "label": "D",
+                    "text": "Greenman v. Yuba Power Products."
+                },
+                {
+                    "label": "E",
+                    "text": "Conley v. Gibson."
+                }
+            ],
+            "correct": "A",
+            "explanation": "Detail question. The first paragraph states that privity of contract was 'crystallized in the English case Winterbottom v. Wright (1842).' MacPherson (B) cracked the privity rule; Escola (C) and Greenman (D) belong to the strict-liability story; Conley v. Gibson (E) is a civil-procedure case that does not appear in this passage at all.",
+            "concepts": [
+                "detail-question"
+            ],
+            "references": [],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "rc-008",
+            "section": "RC",
+            "type": "RC",
+            "difficulty": "med",
+            "passage_id": "rc-passage-002",
+            "stem": "The author refers to Justice Traynor's concurrence in Escola primarily in order to",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "demonstrate that strict liability had already become the governing rule by 1944."
+                },
+                {
+                    "label": "B",
+                    "text": "identify an early judicial argument for strict liability that courts would adopt only later."
+                },
+                {
+                    "label": "C",
+                    "text": "criticize the Escola majority for reasoning that was internally inconsistent."
+                },
+                {
+                    "label": "D",
+                    "text": "show that Cardozo's approach in MacPherson had been formally overruled."
+                },
+                {
+                    "label": "E",
+                    "text": "establish that risk distribution is an inadequate justification for liability."
+                }
+            ],
+            "correct": "B",
+            "explanation": "The passage presents the 1944 concurrence as urging a change that 'prevailed a generation later' in Greenman (1963) and §402A (1965) — i.e., an early argument adopted only afterward, which is B. A misreads the timeline (it was a concurrence, not the governing rule). C and D describe moves the author never makes. E states a critique the author raises only as one side of a 'debatable' question, not the reason for citing Traynor.",
+            "concepts": [
+                "rc-structure"
+            ],
+            "references": [],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "rc-009",
+            "section": "RC",
+            "type": "RC",
+            "difficulty": "hard",
+            "passage_id": "rc-passage-002",
+            "stem": "The author's attitude toward describing modern products-liability law as 'strict' is best characterized as one of",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "enthusiastic agreement."
+                },
+                {
+                    "label": "B",
+                    "text": "measured skepticism."
+                },
+                {
+                    "label": "C",
+                    "text": "outright rejection of strict liability as a concept."
+                },
+                {
+                    "label": "D",
+                    "text": "indifference to how the doctrine is labeled."
+                },
+                {
+                    "label": "E",
+                    "text": "nostalgia for the privity requirement."
+                }
+            ],
+            "correct": "B",
+            "explanation": "In the final paragraph the author concedes strict liability's risk-distribution rationale but warns that the 'strict-liability label can obscure how much negligence reasoning survives within it' — a hedged, doubting stance toward the label, i.e., measured skepticism (B). A is too positive. C overstates: the author questions the label, not the doctrine's existence. D is wrong because the author plainly cares about the label's accuracy. E finds no support; the author calls privity a remedyless 'price' borne by consumers.",
+            "concepts": [
+                "author-attitude",
+                "rc-tone"
+            ],
+            "references": [],
+            "source": "original (CC0)"
         }
     ]
 }

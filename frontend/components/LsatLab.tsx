@@ -545,13 +545,44 @@ function QuestionCard({
     }
   }
 
+  // Keyboard drilling: A–E pick a choice, Enter submits. Scoped to the card
+  // (events bubble from the focused choice buttons) so stacked RC/LG cards
+  // never react to one another's keypresses. Disabled once graded, and we
+  // ignore keys typed into the tutor's text input.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (result || submitting) return
+    // Let modified shortcuts (Ctrl/⌘/Alt+key, e.g. Select All) reach the browser.
+    if (e.ctrlKey || e.metaKey || e.altKey) return
+    const tag = (e.target as HTMLElement).tagName
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return
+    const key = e.key.toUpperCase()
+    if (['A', 'B', 'C', 'D', 'E'].includes(key)) {
+      if (question.choices.some((c) => c.label === key)) {
+        setSelected(key as LsatChoiceLabel)
+        e.preventDefault()
+      }
+    } else if (e.key === 'Enter' && selected) {
+      e.preventDefault()
+      void submit()
+    }
+  }
+
   return (
     <div
+      onKeyDown={handleKeyDown}
       className={
         'rounded-2xl border border-slate-800 bg-slate-900/40 backdrop-blur ' +
         (compact ? 'p-4' : 'p-6')
       }
     >
+      {/* Persistent live region so screen readers announce the grade result. */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {result
+          ? result.correct
+            ? 'Correct.'
+            : `Incorrect. The correct answer was ${result.correct_choice}.`
+          : ''}
+      </p>
       <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-500">
         <span className="font-mono text-slate-400">{question.id}</span>
         <span className="text-slate-700">·</span>
@@ -619,6 +650,24 @@ function QuestionCard({
           )
         })}
       </ul>
+
+      {!result && (
+        <p className="mt-2 text-[11px] text-slate-500">
+          Keyboard:{' '}
+          <kbd className="rounded border border-slate-700 bg-slate-800/60 px-1 font-mono text-slate-300">
+            A
+          </kbd>
+          –
+          <kbd className="rounded border border-slate-700 bg-slate-800/60 px-1 font-mono text-slate-300">
+            E
+          </kbd>{' '}
+          to choose ·{' '}
+          <kbd className="rounded border border-slate-700 bg-slate-800/60 px-1 font-mono text-slate-300">
+            Enter
+          </kbd>{' '}
+          to submit
+        </p>
+      )}
 
       {error && (
         <p className="mt-3 text-sm text-red-300" role="alert">
