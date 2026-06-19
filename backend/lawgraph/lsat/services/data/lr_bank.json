@@ -400,6 +400,85 @@
             ],
             "references": [],
             "source": "original (CC0)"
+        },
+        {
+            "id": "lr-011",
+            "section": "LR",
+            "type": "LR",
+            "difficulty": "med",
+            "stem": "Anyone who understands the proof will pass the exam. Therefore, Dana will pass the exam.\n\nThe conclusion follows logically if which one of the following is assumed?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "Dana understands the proof."
+                },
+                {
+                    "label": "B",
+                    "text": "Dana has studied harder than anyone else in the class."
+                },
+                {
+                    "label": "C",
+                    "text": "Everyone who passes the exam understands the proof."
+                },
+                {
+                    "label": "D",
+                    "text": "Most students who understand the proof pass the exam."
+                },
+                {
+                    "label": "E",
+                    "text": "Anyone who passes the exam will later understand the proof."
+                }
+            ],
+            "correct": "A",
+            "explanation": "This is a sufficient-assumption question: find the premise that, added to 'understands the proof → passes the exam,' guarantees the conclusion that Dana passes. Only A does it — if Dana understands the proof, the rule forces the conclusion that Dana passes. B is irrelevant (studying is not the stated trigger). D is merely probabilistic ('most'), so it cannot guarantee the result. C and E reverse the conditional (pass → understand), which never licenses concluding that Dana passes.",
+            "concepts": [
+                "sufficient-assumption",
+                "conditional-reasoning"
+            ],
+            "references": [
+                {
+                    "title": "7Sage — Sufficient Assumption",
+                    "url": "https://7sage.com/lesson/lr-sufficient-assumption/"
+                }
+            ],
+            "source": "original (CC0)"
+        },
+        {
+            "id": "lr-012",
+            "section": "LR",
+            "type": "LR",
+            "difficulty": "med",
+            "stem": "If the witness is credible, then the alibi holds. If the alibi holds, then the defendant was not at the scene. The witness is credible.\n\nIf the statements above are true, which one of the following must also be true?",
+            "choices": [
+                {
+                    "label": "A",
+                    "text": "The defendant was not at the scene."
+                },
+                {
+                    "label": "B",
+                    "text": "The alibi does not hold."
+                },
+                {
+                    "label": "C",
+                    "text": "The witness is not credible."
+                },
+                {
+                    "label": "D",
+                    "text": "If the defendant was not at the scene, then the witness is credible."
+                },
+                {
+                    "label": "E",
+                    "text": "The defendant was at the scene."
+                }
+            ],
+            "correct": "A",
+            "explanation": "Chain the conditionals — credible → alibi holds → not at scene — and apply modus ponens to the given fact that the witness is credible. The conclusion that follows is that the defendant was not at the scene (A). B and C contradict the premises. D reverses a conditional (affirming the consequent) and is not guaranteed. E directly contradicts the valid conclusion.",
+            "concepts": [
+                "modus-ponens",
+                "conditional-reasoning"
+            ],
+            "references": [],
+            "source": "original (CC0)"
         }
     ]
 }
