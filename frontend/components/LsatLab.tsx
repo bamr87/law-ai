@@ -551,6 +551,8 @@ function QuestionCard({
   // ignore keys typed into the tutor's text input.
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (result || submitting) return
+    // Let modified shortcuts (Ctrl/⌘/Alt+key, e.g. Select All) reach the browser.
+    if (e.ctrlKey || e.metaKey || e.altKey) return
     const tag = (e.target as HTMLElement).tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA') return
     const key = e.key.toUpperCase()
