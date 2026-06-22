@@ -24,6 +24,8 @@
 
 ## Open
 
+- **BL-20260622-01** — *doc-gap, low* — Author missing doc docs/AO-SDLC.md. Referenced by AGENTS.md but file does not exist.
+
 - **BL-20260615-01** — *refactor, low* — Generalize the dev-time Claude Code gate setting from `LSAT_LLM_PROVIDER` to a provider-neutral `DEV_LLM_PROVIDER` now that the LSAT tutor, LSATContentAuthor, and LegalAnalyst all share `lawgraph.core.claude_code.is_active()`; keep `LSAT_LLM_PROVIDER` as a back-compat alias. _Surfaced in:_ branch claude/cranky-burnell-fd2782.
 - **BL-20260615-02** — *feature, low* — Wire the dev-time Claude Code provider into the remaining agents (PrecedentHunter and the LegalWorkflow LangGraph path) so the whole agents_runtime can run on Claude Code in dev, not just the LSAT agents and LegalAnalyst. _Surfaced in:_ branch claude/cranky-burnell-fd2782.
 - **BL-20260615-03** — *feature, med* — Ground LegalAnalyst's Claude Code IRAC authorities via GraphRAG / `citation_resolver` instead of model-generated case names (currently flagged unverified in `reasoning_trace`) so the dev path meets the constitution §1 source-grounding bar. _Surfaced in:_ branch claude/cranky-burnell-fd2782.
