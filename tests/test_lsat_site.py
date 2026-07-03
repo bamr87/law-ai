@@ -1,0 +1,199 @@
+"""Static LSAT practice site — structure + drift gate (spec 025 FR-8/AC-4).
+
+Stdlib-only, like the rest of the root suite. The committed site artifact
+(`frontend/public/lsat-practice/data/content.json`) must stay in lockstep
+with the source bank under `backend/lawgraph/lsat/services/data/`: when a
+bank file changes without `make lsat-export`, these tests fail CI so the
+published GitHub Pages app can never silently lag the approved content.
+"""
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+
+import pytest
+
+pytestmark = pytest.mark.smoke
+
+REPO = Path(__file__).resolve().parent.parent
+SITE = REPO / "frontend" / "public" / "lsat-practice"
+BANK_DIR = REPO / "backend" / "lawgraph" / "lsat" / "services" / "data"
+
+_BANK_FILES = ("lr_bank.json", "rc_bank.json", "lg_bank.json")
+
+
+def _load(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _bank_questions() -> dict[str, dict]:
+    items: dict[str, dict] = {}
+    for name in _BANK_FILES:
+        for item in _load(BANK_DIR / name).get("items", []):
+            items[item["id"]] = item
+    return items
+
+
+def _bank_question_count() -> int:
+    """Raw item count across bank files (catches duplicate-id shadowing)."""
+    return sum(len(_load(BANK_DIR / name).get("items", [])) for name in _BANK_FILES)
+
+
+def _norm_refs(refs: list | None) -> list[dict]:
+    """Drop None-valued keys: model_dump emits note=None where bank JSON omits it."""
+    return [{k: v for k, v in r.items() if v is not None} for r in (refs or [])]
+
+
+# ---------------------------------------------------------------------------
+# Structure
+# ---------------------------------------------------------------------------
+
+
+class TestSiteStructure:
+    def test_required_files_exist(self) -> None:
+        for name in ("index.html", "styles.css", "app.js", ".nojekyll", "data/content.json"):
+            assert (SITE / name).is_file(), f"missing site file: {name}"
+
+    def test_index_uses_relative_urls_only(self) -> None:
+        # GitHub Pages project sites serve under /<repo>/ — absolute-path
+        # src/href would 404 there (spec 025 AC-5).
+        html = (SITE / "index.html").read_text(encoding="utf-8")
+        for attr, value in re.findall(r'(src|href)="([^"]+)"', html):
+            if value.startswith(("http://", "https://", "data:", "#")):
+                continue
+            assert not value.startswith("/"), (
+                f'absolute {attr}="{value}" would break under a Pages base path'
+            )
+
+    def test_app_fetches_relative_data(self) -> None:
+        js = (SITE / "app.js").read_text(encoding="utf-8")
+        assert "./data/content.json" in js
+        assert "fetch('/" not in js and 'fetch("/' not in js
+
+
+# ---------------------------------------------------------------------------
+# Drift gate: committed artifact ↔ source bank
+# ---------------------------------------------------------------------------
+
+
+class TestContentDrift:
+    @pytest.fixture()
+    def artifact(self) -> dict:
+        return _load(SITE / "data" / "content.json")
+
+    def test_no_duplicate_ids_in_bank_sources(self) -> None:
+        # Both the exporter's loader and this gate key by id; a duplicate id
+        # would be silently shadowed on both sides, so ban it at the source.
+        assert _bank_question_count() == len(_bank_questions()), (
+            "duplicate question id across bank files"
+        )
+
+    def test_question_ids_match_bank(self, artifact: dict) -> None:
+        bank = _bank_questions()
+        site_ids = {q["id"] for q in artifact["questions"]}
+        assert site_ids == set(bank), (
+            "site content.json is out of sync with the bank — run `make lsat-export` "
+            f"(missing: {sorted(set(bank) - site_ids)}, stale: {sorted(site_ids - set(bank))})"
+        )
+
+    def test_every_consumed_question_field_matches_bank(self, artifact: dict) -> None:
+        # The app renders/filters on ALL of these — any drift means the
+        # published site disagrees with the approved bank (spec 025 FR-8).
+        bank = _bank_questions()
+        for q in artifact["questions"]:
+            src = bank[q["id"]]
+            for field in ("section", "difficulty", "stem", "correct", "explanation"):
+                assert q[field] == src[field], (
+                    f"{q['id']}: {field} drift — run `make lsat-export`"
+                )
+            assert q["choices"] == src["choices"], (
+                f"{q['id']}: choices drift — run `make lsat-export`"
+            )
+            assert (q.get("concepts") or []) == (src.get("concepts") or []), (
+                f"{q['id']}: concepts drift — run `make lsat-export`"
+            )
+            assert _norm_refs(q.get("references")) == _norm_refs(src.get("references")), (
+                f"{q['id']}: references drift — run `make lsat-export`"
+            )
+            assert q.get("passage_id") == src.get("passage_id"), (
+                f"{q['id']}: passage_id drift — run `make lsat-export`"
+            )
+
+    def test_counts_match(self, artifact: dict) -> None:
+        bank = _bank_questions()
+        assert artifact["counts"]["total"] == len(bank)
+        for section in ("LR", "RC", "LG"):
+            expected = sum(1 for q in bank.values() if q["section"] == section)
+            assert artifact["counts"][section] == expected
+
+    def test_passages_fully_synced(self, artifact: dict) -> None:
+        src = {p["id"]: p for p in _load(BANK_DIR / "passages.json")["items"]}
+        site = {p["id"]: p for p in artifact["passages"]}
+        assert set(site) == set(src)
+        # The app renders every one of these fields (viewPassage).
+        for pid, sp in site.items():
+            for field in ("section", "title", "summary", "passage", "setup"):
+                assert sp.get(field) == src[pid].get(field), (
+                    f"passage {pid}: {field} drift — run `make lsat-export`"
+                )
+            assert (sp.get("rules") or []) == (src[pid].get("rules") or []), (
+                f"passage {pid}: rules drift — run `make lsat-export`"
+            )
+
+    def test_concepts_fully_synced(self, artifact: dict) -> None:
+        src = {c["id"]: c for c in _load(BANK_DIR / "concepts.json")["items"]}
+        site = {c["id"]: c for c in artifact["concepts"]}
+        assert set(site) == set(src)
+        # The app renders/searches name, summary, detail, examples, see_also.
+        for cid, sc in site.items():
+            for field in ("name", "summary", "detail"):
+                assert sc.get(field) == src[cid].get(field), (
+                    f"concept {cid}: {field} drift — run `make lsat-export`"
+                )
+            for field in ("examples", "see_also", "sections"):
+                assert (sc.get(field) or []) == (src[cid].get(field) or []), (
+                    f"concept {cid}: {field} drift — run `make lsat-export`"
+                )
+
+    def test_sections_fully_synced(self, artifact: dict) -> None:
+        src = {s["code"]: s for s in _load(BANK_DIR / "sections.json")["items"]}
+        site = {s["code"]: s for s in artifact["sections"]}
+        assert set(site) == set(src)
+        # viewHome builds the landing cards from these fields.
+        for code, ss in site.items():
+            for field in ("name", "description", "format", "timing"):
+                assert ss.get(field) == src[code].get(field), (
+                    f"section {code}: {field} drift — run `make lsat-export`"
+                )
+
+
+# ---------------------------------------------------------------------------
+# Integrity of the artifact itself
+# ---------------------------------------------------------------------------
+
+
+class TestContentIntegrity:
+    @pytest.fixture()
+    def artifact(self) -> dict:
+        return _load(SITE / "data" / "content.json")
+
+    def test_every_key_is_a_choice_label(self, artifact: dict) -> None:
+        for q in artifact["questions"]:
+            labels = [c["label"] for c in q["choices"]]
+            assert labels == ["A", "B", "C", "D", "E"], q["id"]
+            assert q["correct"] in labels, q["id"]
+
+    def test_every_passage_id_resolves(self, artifact: dict) -> None:
+        passage_ids = {p["id"] for p in artifact["passages"]}
+        for q in artifact["questions"]:
+            if q.get("passage_id"):
+                assert q["passage_id"] in passage_ids, q["id"]
+
+    def test_rc_lg_questions_have_context(self, artifact: dict) -> None:
+        for q in artifact["questions"]:
+            if q["section"] in ("RC", "LG"):
+                assert q.get("passage_id"), (
+                    f"{q['id']} has no passage_id — it would render context-free "
+                    "in the static app"
+                )
