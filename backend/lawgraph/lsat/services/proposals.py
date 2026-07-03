@@ -111,8 +111,14 @@ def record_proposal(
     model: str,
     confidence: float,
     source_concept_ids: Iterable[str] | None = None,
+    meta: dict[str, Any] | None = None,
 ) -> str:
-    """Persist one draft as ``pending`` and return the proposal id."""
+    """Persist one draft as ``pending`` and return the proposal id.
+
+    ``meta`` (optional, spec 024 FR-9) carries producer lineage — e.g. the
+    content factory's manifest/job/archetype/tier — verbatim onto the create
+    event so it survives into the HITL queue and audit replay.
+    """
     proposal_id = f"prop-{uuid4().hex[:12]}"
     event = {
         "type": "lsat_proposal.create",
@@ -127,6 +133,8 @@ def record_proposal(
         "confidence": confidence,
         "source_concept_ids": list(source_concept_ids or []),
     }
+    if meta:
+        event["meta"] = meta
     with _LOCK:
         _append(event)
     return proposal_id

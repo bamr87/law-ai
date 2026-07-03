@@ -371,12 +371,13 @@
         },
         {
             "id": "must-be-true",
-            "name": "Must Be True (LG)",
+            "name": "Must Be True",
             "sections": [
+                "LR",
                 "LG"
             ],
-            "summary": "An answer that holds in every valid arrangement under the question's hypothetical.",
-            "detail": "Build the hypothetical, force every implication, then evaluate each answer. If even one valid layout makes the answer false, it doesn't 'must be true'.",
+            "summary": "An answer that holds in every case consistent with the given statements.",
+            "detail": "In LG: build the hypothetical, force every implication, then evaluate each answer — if even one valid layout makes the answer false, it doesn't 'must be true'. In LR: the credited inference must follow strictly from the stimulus; watch for quantifier downgrades ('all' → 'most' → 'some') and reversed conditionals in the traps.",
             "examples": [],
             "see_also": [
                 "could-be-true-except"
@@ -394,6 +395,107 @@
             "examples": [],
             "see_also": [
                 "must-be-true"
+            ],
+            "references": []
+        },
+        {
+            "id": "main-conclusion",
+            "name": "Main Conclusion",
+            "sections": [
+                "LR"
+            ],
+            "summary": "Identify the statement the rest of the argument exists to support.",
+            "detail": "The main conclusion is what everything else supports and what supports nothing further. Indicator words help ('therefore', 'thus') but the LSAT loves burying the conclusion first or mid-argument and decorating premises with conclusion-like language. Test a candidate by asking 'does anything in the argument support THIS?' — if yes, keep climbing.",
+            "examples": [
+                "'Since the statute is ambiguous, and ambiguous statutes are construed against the drafter, the clause should be read narrowly.' Main conclusion: read the clause narrowly."
+            ],
+            "see_also": [
+                "method-of-reasoning"
+            ],
+            "references": []
+        },
+        {
+            "id": "resolve-paradox",
+            "name": "Resolve the Paradox",
+            "sections": [
+                "LR"
+            ],
+            "summary": "Find the fact that lets two apparently conflicting findings both be true.",
+            "detail": "The stimulus reports a surprising discrepancy ('sales rose while ad spending fell'). The credited answer adds information that dissolves the tension without denying either finding. Wrong answers explain only one side, deepen the mystery, or drift out of scope.",
+            "examples": [
+                "Fewer traffic tickets were issued, yet accident rates fell. Resolver: cameras replaced officers and deter violations without issuing tickets."
+            ],
+            "see_also": [
+                "alternative-cause"
+            ],
+            "references": []
+        },
+        {
+            "id": "method-of-reasoning",
+            "name": "Method of Reasoning",
+            "sections": [
+                "LR"
+            ],
+            "summary": "Describe HOW the argument proceeds, not whether it succeeds.",
+            "detail": "Common techniques: counterexample, analogy, reductio ad absurdum, eliminating alternatives, appealing to a general principle, attacking a premise vs. attacking reasoning. The credited answer describes the move at the right abstraction level; traps describe techniques the argument never uses or misidentify the target of an objection.",
+            "examples": [
+                "'Opponents claim X; but X implies Y, and Y is absurd; so not-X' — a reductio."
+            ],
+            "see_also": [
+                "main-conclusion",
+                "parallel-reasoning"
+            ],
+            "references": []
+        },
+        {
+            "id": "principle-application",
+            "name": "Principle Application",
+            "sections": [
+                "LR"
+            ],
+            "summary": "Match a general rule to the concrete case that satisfies all of its conditions.",
+            "detail": "Treat the principle as a conditional with (possibly several) trigger conditions and an exception clause. The conforming case satisfies every trigger and no exception. Traps satisfy most-but-not-all conditions, trip the exception, or run the principle backwards (concluding the trigger from the result).",
+            "examples": [
+                "Principle: a lawyer may withdraw only if withdrawal will not prejudice the client. Case that conforms must show BOTH withdrawal AND no prejudice."
+            ],
+            "see_also": [
+                "conditional-reasoning",
+                "sufficient-assumption"
+            ],
+            "references": []
+        },
+        {
+            "id": "rc-inference",
+            "name": "RC Inference",
+            "sections": [
+                "RC"
+            ],
+            "summary": "What the passage most strongly supports beyond its explicit statements.",
+            "detail": "Unlike detail questions, the credited answer is not stated — it follows from combining two or three passage claims. It stays modest: hedged language in the passage yields hedged inferences. Traps are real-world plausible but textually unsupported, or turn 'some commentators argue' into the author's own view.",
+            "examples": [
+                "Passage: defenders cite discovery abuse; critics cite access. Supported inference: the parties disagree about which cost matters more — NOT that either side would abolish pleading standards."
+            ],
+            "see_also": [
+                "detail-question",
+                "author-attitude"
+            ],
+            "references": []
+        },
+        {
+            "id": "grouping-game",
+            "name": "Grouping Game",
+            "sections": [
+                "LG"
+            ],
+            "summary": "Select or distribute entities into groups under membership rules.",
+            "detail": "Two families: selection (in/out of one group, e.g. 'choose four of seven') and distribution (partition into teams). Diagram membership conditionals ('If J is in, K is out' → J → ¬K) and chain contrapositives. Numeric limits (group sizes) drive most hard inferences.",
+            "examples": [
+                "If J is selected then K is not; if K is not selected then L is. Selecting J forces L."
+            ],
+            "see_also": [
+                "conditional-reasoning",
+                "contrapositive",
+                "sequencing"
             ],
             "references": []
         }
