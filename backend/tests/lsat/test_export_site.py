@@ -32,9 +32,7 @@ class TestBuildContent:
         assert a == b
         # Sections grouped LR → RC → LG, ids sorted within each section.
         sections = [q["section"] for q in a["questions"]]
-        assert sections == sorted(
-            sections, key=lambda s: ("LR", "RC", "LG").index(s)
-        )
+        assert sections == sorted(sections, key=("LR", "RC", "LG").index)
         for sec in ("LR", "RC", "LG"):
             sec_ids = [q["id"] for q in a["questions"] if q["section"] == sec]
             assert sec_ids == sorted(sec_ids)
