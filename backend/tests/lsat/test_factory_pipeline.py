@@ -108,6 +108,8 @@ class TestOfflineLifecycle:
         assert len(results) == 1
         assert results[0].accepted == []
         assert results[0].model_label == "boom/failed"
+        # Operators must see WHY the job failed, not just that it did.
+        assert results[0].error is not None and "nope" in results[0].error
 
     def test_load_manifest_requires_artifacts(self, factory_env: FactoryConfig) -> None:
         with pytest.raises(FileNotFoundError):

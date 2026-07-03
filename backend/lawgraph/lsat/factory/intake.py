@@ -71,6 +71,11 @@ class IngestResult(BaseModel):
         description="Where a passage_set job's new passage JSON was parked "
         "for reviewer wiring (promotion of passages is a follow-up).",
     )
+    error: str | None = Field(
+        default=None,
+        description="Executor failure detail when the job produced no batch "
+        "(truncated); None for jobs that reached the gates.",
+    )
     trace_id: str | None = None
     model_label: str = "external"
 

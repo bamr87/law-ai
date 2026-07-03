@@ -85,6 +85,8 @@ class Command(BaseCommand):
                 f"  {r.job_id}: +{len(r.accepted)} proposal(s), "
                 f"-{len(r.rejected)} rejected [{r.model_label}]"
             )
+            if r.error:
+                line += "  ✗ " + r.error
             if r.balance_flag:
                 line += "  ⚠ " + r.balance_flag
             if r.pending_passage_path:

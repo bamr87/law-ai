@@ -79,8 +79,8 @@ async def execute_manifest(
     Jobs run sequentially — generation latency dominates and sequential runs
     keep provenance ordering trivial; parallel fan-out belongs to external
     executors working from the manifest file. A failed job is recorded as an
-    empty :class:`IngestResult` with the error in ``balance_flag``-adjacent
-    metadata rather than aborting the batch run.
+    empty :class:`IngestResult` carrying the truncated executor error in
+    ``error`` rather than aborting the batch run.
     """
     cfg = config or FactoryConfig.from_settings()
     wanted = set(job_ids) if job_ids else None
@@ -96,6 +96,7 @@ async def execute_manifest(
                 IngestResult(
                     job_id=job.job_id,
                     rejected=[],
+                    error=str(exc)[:300],
                     model_label=f"{executor.name}/failed",
                 )
             )

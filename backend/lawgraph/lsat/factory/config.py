@@ -44,7 +44,10 @@ DEFAULT_CLAUDE_TIER_MODELS: dict[ModelTier, str] = {
     "judge": "claude-fable-5",
 }
 
-_DEFAULT_OUTPUT_DIR = Path("backend/var/lsat_factory")
+# Matches the LSAT_FACTORY_DIR settings default: relative to the process cwd
+# (/app inside Docker = ./backend on host), so a directly-constructed
+# FactoryConfig() and FactoryConfig.from_settings() resolve identically.
+_DEFAULT_OUTPUT_DIR = Path("var/lsat_factory")
 
 _DIFFICULTY_TIER: dict[Difficulty, ModelTier] = {
     "easy": "bulk",

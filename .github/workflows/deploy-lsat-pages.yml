@@ -14,7 +14,12 @@ on:
   push:
     branches: [main]
     paths:
+      # The committed site artifact (content.json changes land here too via
+      # `make lsat-export`)…
       - "frontend/public/lsat-practice/**"
+      # …and the LSAT source data itself (spec 025 FR-9): belt-and-braces so a
+      # bank merge always redeploys even if the artifact copy path ever moves.
+      - "backend/lawgraph/lsat/services/data/**"
       - ".github/workflows/deploy-lsat-pages.yml"
   workflow_dispatch:
 
