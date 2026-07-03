@@ -65,12 +65,8 @@ def build_content() -> dict[str, Any]:
             for code in _SECTION_ORDER
             if code in sections
         ],
-        "concepts": [
-            concepts[cid].model_dump(mode="json") for cid in sorted(concepts)
-        ],
-        "passages": [
-            passages[pid].model_dump(mode="json") for pid in sorted(passages)
-        ],
+        "concepts": [concepts[cid].model_dump(mode="json") for cid in sorted(concepts)],
+        "passages": [passages[pid].model_dump(mode="json") for pid in sorted(passages)],
         "questions": questions,
     }
 
