@@ -39,6 +39,19 @@ env = environ.Env(
     CLAUDE_CODE_REQUEST_TIMEOUT_S=(float, 60.0),
     # Retry attempts for transient Anthropic errors (429/5xx/529 overloaded).
     CLAUDE_CODE_MAX_RETRIES=(int, 3),
+    # LSAT content factory (spec 024). Artifacts dir is relative to BASE_DIR
+    # (/app inside Docker = ./backend on host), like AUTONOMY_DIGEST_DIR.
+    LSAT_FACTORY_DIR=(str, "var/lsat_factory"),
+    LSAT_FACTORY_TARGET_PER_CELL=(int, 2),
+    LSAT_FACTORY_MAX_JOBS=(int, 12),
+    LSAT_FACTORY_DRAFTS_PER_JOB=(int, 3),
+    LSAT_FACTORY_EXEMPLARS=(int, 2),
+    LSAT_FACTORY_DEDUP_THRESHOLD=(float, 0.60),
+    LSAT_FACTORY_BALANCE_TOLERANCE=(float, 0.40),
+    LSAT_FACTORY_GAP_BOOST=(float, 2.0),
+    LSAT_FACTORY_MAX_TOKENS=(int, 8192),
+    # JSON object mapping tier→Claude model id; empty = built-in defaults.
+    LSAT_FACTORY_CLAUDE_TIERS=(str, ""),
     LANGGRAPH_CHECKPOINTER=(str, "postgres"),
     LANGGRAPH_CHECKPOINTER_SCHEMA=(str, "langgraph"),
     PHOENIX_COLLECTOR_ENDPOINT=(str, ""),
@@ -109,6 +122,18 @@ CLAUDE_CODE_MODEL: str = env("CLAUDE_CODE_MODEL")
 CLAUDE_CODE_MAX_TOKENS: int = env.int("CLAUDE_CODE_MAX_TOKENS")
 CLAUDE_CODE_REQUEST_TIMEOUT_S: float = env.float("CLAUDE_CODE_REQUEST_TIMEOUT_S")
 CLAUDE_CODE_MAX_RETRIES: int = env.int("CLAUDE_CODE_MAX_RETRIES")
+
+# LSAT content factory (spec 024) — see lawgraph.lsat.factory.config.
+LSAT_FACTORY_DIR: str = env("LSAT_FACTORY_DIR")
+LSAT_FACTORY_TARGET_PER_CELL: int = env.int("LSAT_FACTORY_TARGET_PER_CELL")
+LSAT_FACTORY_MAX_JOBS: int = env.int("LSAT_FACTORY_MAX_JOBS")
+LSAT_FACTORY_DRAFTS_PER_JOB: int = env.int("LSAT_FACTORY_DRAFTS_PER_JOB")
+LSAT_FACTORY_EXEMPLARS: int = env.int("LSAT_FACTORY_EXEMPLARS")
+LSAT_FACTORY_DEDUP_THRESHOLD: float = env.float("LSAT_FACTORY_DEDUP_THRESHOLD")
+LSAT_FACTORY_BALANCE_TOLERANCE: float = env.float("LSAT_FACTORY_BALANCE_TOLERANCE")
+LSAT_FACTORY_GAP_BOOST: float = env.float("LSAT_FACTORY_GAP_BOOST")
+LSAT_FACTORY_MAX_TOKENS: int = env.int("LSAT_FACTORY_MAX_TOKENS")
+LSAT_FACTORY_CLAUDE_TIERS: str = env("LSAT_FACTORY_CLAUDE_TIERS")
 
 LANGGRAPH_CHECKPOINTER: str = env("LANGGRAPH_CHECKPOINTER")
 LANGGRAPH_CHECKPOINTER_SCHEMA: str = env("LANGGRAPH_CHECKPOINTER_SCHEMA")

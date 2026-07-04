@@ -75,6 +75,17 @@ backend/celerybeat-schedule.db
 # Autonomy digest files (generated at runtime; keep .gitkeep only)
 backend/var/autonomy/digest-*.md
 
+# LSAT content-factory operational artifacts (spec 024 — manifests, drafts,
+# parked passages are runtime data, never source)
+backend/var/lsat_factory/
+
+# LSAT static-site exporter scratch output (spec 025 — the committed copy
+# lives at frontend/public/lsat-practice/data/)
+backend/var/lsat_site/
+
+# Playwright MCP session artifacts (screenshots, snapshots)
+.playwright-mcp/
+
 # Stray Docker bind-mount artifact (backend container writes into backend/backend/)
 backend/backend/
 

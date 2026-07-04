@@ -5,7 +5,7 @@
 	evolve-audit lint-specs \
 	autonomy-run autonomy-status autonomy-stop \
 	local-ai-up local-ai-down local-ai-pull local-ai-health validate-claude-code \
-	lsat-author-demo legal-analyst-demo host-setup host-test clean
+	lsat-author-demo lsat-export legal-analyst-demo host-setup host-test clean
 
 # =============================================================================
 # Docker is the canonical dev/test surface. Every target below shells into
@@ -207,6 +207,15 @@ local-ai-health:
 
 validate-claude-code:
 	$(RUN_BACKEND_FULL) python manage.py validate_claude_code
+
+# Regenerate the static LSAT practice-site artifact (spec 025): export the
+# bank in Docker, then copy it into the committed site directory that GitHub
+# Pages deploys. tests/test_lsat_site.py fails CI when this is stale.
+lsat-export:
+	$(RUN_BACKEND) python manage.py lsat_export --out var/lsat_site
+	mkdir -p frontend/public/lsat-practice/data
+	cp backend/var/lsat_site/content.json frontend/public/lsat-practice/data/content.json
+	@echo "site data refreshed → frontend/public/lsat-practice/data/content.json"
 
 # Live LSATContentAuthor agent run. Routes through Claude Code when opted in
 # (LSAT_LLM_PROVIDER=claude_code + token in backend/.env). Pass extra flags via
