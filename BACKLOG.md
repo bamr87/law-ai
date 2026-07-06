@@ -24,6 +24,8 @@
 
 ## Open
 
+- **BL-20260706-01** — *doc-gap, low* — Author missing doc docs/AO-SDLC.md. Referenced by AGENTS.md but file does not exist.
+
 - **BL-20260702-01** — *feature, med* — Embedding-based near-duplicate detection for factory intake (token Jaccard misses paraphrases); local sentence-transformers or Ollama embeddings, cached per bank revision. _Surfaced in:_ specs/024-lsat-content-factory.
 - **BL-20260702-02** — *feature, med* — Wire the factory `judge` tier into `lsat_factory run`: post-generation adversarial review per draft with verdicts attached to proposal meta before the HITL queue (extends BL-20260527-04's reviewer-agent idea to the factory path). _Surfaced in:_ specs/024-lsat-content-factory.
 - **BL-20260702-03** — *feature, low* — `lsat_factory export-manifest` subcommand emitting a self-contained prompts-only bundle (no repo checkout needed) for fully external generation farms. _Surfaced in:_ specs/024-lsat-content-factory.
