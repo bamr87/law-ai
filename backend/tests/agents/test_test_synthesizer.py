@@ -166,9 +166,7 @@ class TestTestSynthesizerRun:
         monkeypatch.setattr(audit_jsonl, "record", recorded.append)
 
         with patch.object(ts_module, "_call_ollama", return_value=_FAKE_LLM_RESPONSE):
-            TestSynthesizer().run(
-                ProposedTestInput(module_path="law_ai.eval.scoring")
-            )
+            TestSynthesizer().run(ProposedTestInput(module_path="law_ai.eval.scoring"))
 
         assert len(recorded) == 1
         ev = recorded[0]
@@ -197,9 +195,7 @@ class TestTestSynthesizerRun:
             ),
             pytest.raises(RuntimeError, match="connection refused"),
         ):
-            TestSynthesizer().run(
-                ProposedTestInput(module_path="law_ai.eval.scoring")
-            )
+            TestSynthesizer().run(ProposedTestInput(module_path="law_ai.eval.scoring"))
 
     def test_human_approval_required_is_true(self) -> None:
         from law_ai.agents_runtime.crews.test_synthesizer import TestSynthesizer
