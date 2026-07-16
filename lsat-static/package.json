@@ -1,0 +1,23 @@
+{
+  "name": "lsat-static",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Static, serverless LSAT practice site (Next.js static export) — LSAT exercises only, driven by the HITL-approved content.json bank. Deployed to GitHub Pages.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^16.2.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "typescript": "^5.9.0"
+  }
+}
