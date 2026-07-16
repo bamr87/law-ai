@@ -122,7 +122,7 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: black --check .
-      - run: mypy app/ --strict
+      - run: mypy lawgraph --strict
         continue-on-error: true # tighten once strict-clean
 
   backend-test:

@@ -52,7 +52,13 @@ jobs:
         if: steps.audit.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
-          branch: evolve/auto-${{ github.run_id }}
+          # Stable branch so weekly re-runs update the SAME PR instead of opening
+          # a fresh one every run (the old ${{ github.run_id }} branch piled up 6
+          # stale duplicate PRs). add-paths limits the commit to BACKLOG.md so the
+          # transient audit.out scratch file is never committed.
+          branch: evolve/weekly-backlog-audit
+          add-paths: |
+            BACKLOG.md
           title: "chore(evolve): weekly BACKLOG audit"
           commit-message: "chore(evolve): append discovered follow-ups"
           body: |
@@ -74,6 +80,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Idempotency: skip filing a new tracking issue if an 'evolve' issue is
+          # already open (the old unconditional create piled up 6 stale issues).
+          if [ "$(gh issue list --label evolve --state open --json number --jq 'length')" -gt 0 ]; then
+            echo "An open 'evolve' issue already exists — skipping issue creation."
+            exit 0
+          fi
           gh issue create \
             --title "evolve: run /evolve on top BACKLOG item" \
             --label evolve \
