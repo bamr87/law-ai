@@ -1,0 +1,164 @@
+'use client'
+
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { Question } from '@/lib/types'
+import { recordAttempt } from '@/lib/progress'
+
+interface Props {
+  question: Question
+  index: number
+  total: number
+  onAnnounce?: (msg: string) => void
+}
+
+/**
+ * A single LSAT question with an accessible answer-choice radiogroup:
+ * roving tabindex, Arrow-key selection-follows-focus, Space selects, Enter on
+ * the selected choice submits. After submitting, the key + explanation are
+ * revealed and the attempt is recorded to localStorage.
+ */
+export default function QuestionCard({ question, index, total, onAnnounce }: Props) {
+  const [selected, setSelected] = useState<string | null>(null)
+  const [submitted, setSubmitted] = useState(false)
+  const optionRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+
+  // Reset when the question changes.
+  useEffect(() => {
+    setSelected(null)
+    setSubmitted(false)
+  }, [question.id])
+
+  const labels = useMemo(() => question.choices.map((c) => c.label), [question.choices])
+
+  function focusLabel(label: string) {
+    setSelected(label)
+    optionRefs.current[label]?.focus()
+  }
+
+  function move(from: string | null, delta: number) {
+    const start = from ? labels.indexOf(from) : -1
+    const next = (start + delta + labels.length) % labels.length
+    focusLabel(labels[next])
+  }
+
+  function submit() {
+    if (submitted || !selected) return
+    const correct = selected === question.correct
+    setSubmitted(true)
+    recordAttempt({
+      qid: question.id,
+      section: question.section,
+      choice: selected,
+      correct,
+      ts: Date.now(),
+    })
+    onAnnounce?.(correct ? 'Correct.' : `Incorrect. The correct answer is ${question.correct}.`)
+  }
+
+  function onKeyDown(e: React.KeyboardEvent, label: string) {
+    if (submitted) return
+    switch (e.key) {
+      case 'ArrowDown':
+      case 'ArrowRight':
+        e.preventDefault()
+        move(selected ?? label, 1)
+        break
+      case 'ArrowUp':
+      case 'ArrowLeft':
+        e.preventDefault()
+        move(selected ?? label, -1)
+        break
+      case ' ':
+        e.preventDefault()
+        setSelected(label)
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (selected === label) submit()
+        else setSelected(label)
+        break
+    }
+  }
+
+  return (
+    <article className="qcard" aria-label={`Question ${index + 1} of ${total}`}>
+      <div className="qcard-meta">
+        <span className="pill">{question.section}</span>
+        <span className="pill pill-muted">{question.type}</span>
+        <span className="pill pill-muted">{question.difficulty}</span>
+        <span className="qcard-count">
+          {index + 1} / {total}
+        </span>
+      </div>
+
+      <p className="qcard-stem">{question.stem}</p>
+
+      <div
+        role="radiogroup"
+        aria-label="Answer choices"
+        className="choices"
+      >
+        {question.choices.map((c) => {
+          const isSelected = selected === c.label
+          const isKey = submitted && c.label === question.correct
+          const isWrongPick = submitted && isSelected && c.label !== question.correct
+          const tabIndex = (selected ? isSelected : c.label === labels[0]) ? 0 : -1
+          return (
+            <button
+              key={c.label}
+              type="button"
+              ref={(el) => {
+                optionRefs.current[c.label] = el
+              }}
+              role="radio"
+              aria-checked={isSelected}
+              tabIndex={tabIndex}
+              disabled={submitted}
+              onClick={() => !submitted && setSelected(c.label)}
+              onKeyDown={(e) => onKeyDown(e, c.label)}
+              className={
+                'choice' +
+                (isSelected ? ' choice-selected' : '') +
+                (isKey ? ' choice-correct' : '') +
+                (isWrongPick ? ' choice-wrong' : '')
+              }
+            >
+              <span className="choice-label" aria-hidden="true">
+                {c.label}
+              </span>
+              <span className="choice-text">{c.text}</span>
+              {isKey && <span className="choice-mark" aria-label="correct answer">✓</span>}
+              {isWrongPick && <span className="choice-mark" aria-label="your answer">✗</span>}
+            </button>
+          )
+        })}
+      </div>
+
+      {!submitted ? (
+        <button type="button" className="btn btn-primary" disabled={!selected} onClick={submit}>
+          Check answer
+        </button>
+      ) : (
+        <div className="explain" role="region" aria-label="Explanation">
+          <p className={selected === question.correct ? 'verdict verdict-ok' : 'verdict verdict-no'}>
+            {selected === question.correct
+              ? 'Correct'
+              : `Incorrect — the answer is ${question.correct}`}
+          </p>
+          <p className="explain-body">{question.explanation}</p>
+          {question.references && question.references.length > 0 && (
+            <ul className="refs">
+              {question.references.map((r) => (
+                <li key={r.url}>
+                  <a href={r.url} target="_blank" rel="noreferrer">
+                    {r.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </article>
+  )
+}

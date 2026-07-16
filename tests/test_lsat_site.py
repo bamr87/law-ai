@@ -1,15 +1,15 @@
 """Static LSAT practice site — structure + drift gate (spec 025 FR-8/AC-4).
 
 Stdlib-only, like the rest of the root suite. The committed site artifact
-(`frontend/public/lsat-practice/data/content.json`) must stay in lockstep
-with the source bank under `backend/lawgraph/lsat/services/data/`: when a
-bank file changes without `make lsat-export`, these tests fail CI so the
-published GitHub Pages app can never silently lag the approved content.
+(`lsat-static/content.json`, imported at build time by the Next.js static
+export) must stay in lockstep with the source bank under
+`backend/lawgraph/lsat/services/data/`: when a bank file changes without
+`make lsat-export`, these tests fail CI so the published GitHub Pages app can
+never silently lag the approved content.
 """
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 import pytest
@@ -17,7 +17,8 @@ import pytest
 pytestmark = pytest.mark.smoke
 
 REPO = Path(__file__).resolve().parent.parent
-SITE = REPO / "frontend" / "public" / "lsat-practice"
+APP = REPO / "lsat-static"
+CONTENT = APP / "content.json"
 BANK_DIR = REPO / "backend" / "lawgraph" / "lsat" / "services" / "data"
 
 _BANK_FILES = ("lr_bank.json", "rc_bank.json", "lg_bank.json")
@@ -51,25 +52,32 @@ def _norm_refs(refs: list | None) -> list[dict]:
 
 
 class TestSiteStructure:
-    def test_required_files_exist(self) -> None:
-        for name in ("index.html", "styles.css", "app.js", ".nojekyll", "data/content.json"):
-            assert (SITE / name).is_file(), f"missing site file: {name}"
+    def test_required_app_files_exist(self) -> None:
+        for name in (
+            "content.json",
+            "package.json",
+            "next.config.mjs",
+            "app/page.tsx",
+            "app/layout.tsx",
+        ):
+            assert (APP / name).is_file(), f"missing lsat-static file: {name}"
 
-    def test_index_uses_relative_urls_only(self) -> None:
-        # GitHub Pages project sites serve under /<repo>/ — absolute-path
-        # src/href would 404 there (spec 025 AC-5).
-        html = (SITE / "index.html").read_text(encoding="utf-8")
-        for attr, value in re.findall(r'(src|href)="([^"]+)"', html):
-            if value.startswith(("http://", "https://", "data:", "#")):
-                continue
-            assert not value.startswith("/"), (
-                f'absolute {attr}="{value}" would break under a Pages base path'
-            )
+    def test_static_export_configured(self) -> None:
+        # The GitHub Pages deploy relies on a static export served under a base
+        # path (spec 025 AC-5, carried over to the Next.js rebuild). Guard both
+        # so a config regression can't ship a broken Pages build.
+        cfg = (APP / "next.config.mjs").read_text(encoding="utf-8")
+        assert "output: 'export'" in cfg, "next.config must set output:'export'"
+        assert "basePath" in cfg and "PAGES_BASE_PATH" in cfg, (
+            "next.config must apply a Pages base path"
+        )
 
-    def test_app_fetches_relative_data(self) -> None:
-        js = (SITE / "app.js").read_text(encoding="utf-8")
-        assert "./data/content.json" in js
-        assert "fetch('/" not in js and 'fetch("/' not in js
+    def test_vanilla_site_retired(self) -> None:
+        # The buildless vanilla app was replaced by the Next.js export; make
+        # sure it doesn't creep back and fight over the single GitHub Pages site.
+        assert not (REPO / "frontend" / "public" / "lsat-practice").exists(), (
+            "the retired vanilla lsat-practice/ app should be gone"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +88,7 @@ class TestSiteStructure:
 class TestContentDrift:
     @pytest.fixture()
     def artifact(self) -> dict:
-        return _load(SITE / "data" / "content.json")
+        return _load(CONTENT)
 
     def test_no_duplicate_ids_in_bank_sources(self) -> None:
         # Both the exporter's loader and this gate key by id; a duplicate id
@@ -176,7 +184,7 @@ class TestContentDrift:
 class TestContentIntegrity:
     @pytest.fixture()
     def artifact(self) -> dict:
-        return _load(SITE / "data" / "content.json")
+        return _load(CONTENT)
 
     def test_every_key_is_a_choice_label(self, artifact: dict) -> None:
         for q in artifact["questions"]:

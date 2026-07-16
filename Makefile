@@ -213,9 +213,8 @@ validate-claude-code:
 # Pages deploys. tests/test_lsat_site.py fails CI when this is stale.
 lsat-export:
 	$(RUN_BACKEND) python manage.py lsat_export --out var/lsat_site
-	mkdir -p frontend/public/lsat-practice/data
-	cp backend/var/lsat_site/content.json frontend/public/lsat-practice/data/content.json
-	@echo "site data refreshed → frontend/public/lsat-practice/data/content.json"
+	cp backend/var/lsat_site/content.json lsat-static/content.json
+	@echo "site data refreshed → lsat-static/content.json"
 
 # Live LSATContentAuthor agent run. Routes through Claude Code when opted in
 # (LSAT_LLM_PROVIDER=claude_code + token in backend/.env). Pass extra flags via

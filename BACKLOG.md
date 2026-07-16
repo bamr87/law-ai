@@ -24,6 +24,8 @@
 
 ## Open
 
+- **BL-20260716-11** — *doc-gap, low* — Supersede spec 025's vanilla-site docs: `specs/025-lsat-static-site/{spec,plan,tasks}.md` still describe the retired buildless `frontend/public/lsat-practice/` app. Update them (or add a `026` spec) to document the Next.js static-export rebuild under `lsat-static/`. _Surfaced in:_ lsat-static Next.js rebuild.
+- **BL-20260716-12** — *test-gap, low* — Add component/e2e smoke tests for `lsat-static/` (QuestionCard grading + accessible radiogroup keyboard nav + Stats localStorage aggregation) so the Next.js static app has regression coverage like the main frontend. _Surfaced in:_ lsat-static Next.js rebuild.
 - **BL-20260702-01** — *feature, med* — Embedding-based near-duplicate detection for factory intake (token Jaccard misses paraphrases); local sentence-transformers or Ollama embeddings, cached per bank revision. _Surfaced in:_ specs/024-lsat-content-factory.
 - **BL-20260702-02** — *feature, med* — Wire the factory `judge` tier into `lsat_factory run`: post-generation adversarial review per draft with verdicts attached to proposal meta before the HITL queue (extends BL-20260527-04's reviewer-agent idea to the factory path). _Surfaced in:_ specs/024-lsat-content-factory.
 - **BL-20260702-03** — *feature, low* — `lsat_factory export-manifest` subcommand emitting a self-contained prompts-only bundle (no repo checkout needed) for fully external generation farms. _Surfaced in:_ specs/024-lsat-content-factory.
