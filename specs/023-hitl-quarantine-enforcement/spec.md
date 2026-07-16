@@ -103,7 +103,7 @@ No new Neo4j nodes, Postgres tables, or vector collections. The integration
 test reads from the existing `ingestionapp_pendingreview` table.
 
 Reference: [docs/data-model.md](../../docs/data-model.md) — `PendingReview` model
-(`lawgraph.ingestionapp.models`).
+(`law_ai.ingestionapp.models`).
 
 ## 8. API Surface
 
@@ -113,9 +113,9 @@ No new or changed API routes.
 
 No new agents. Touches test files only:
 
-- **TopicFrontier** (`backend/lawgraph/agents_runtime/graphs/topic_frontier.py`) —
+- **TopicFrontier** (`backend/law_ai/agents_runtime/graphs/topic_frontier.py`) —
   test-only; production code is unchanged.
-- **IngestionScout** (`backend/lawgraph/ingestionapp/services/scout.py`) —
+- **IngestionScout** (`backend/law_ai/ingestionapp/services/scout.py`) —
   test-only; confirms `force_quarantine` path is exercised.
 
 ## 10. Acceptance Criteria

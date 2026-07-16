@@ -1,4 +1,4 @@
-# `.claude/` — Claude Code configuration for LawGraph AI
+# `.claude/` — Claude Code configuration for Law AI
 
 Claude Code is a sanctioned dev-time surface for this repo (see [AGENTS.md](../AGENTS.md)
 § "Development Orchestration" and [CLAUDE.md](../CLAUDE.md)). This directory configures
@@ -15,7 +15,7 @@ Ollama (local-first) per constitution §1.
 | [`hooks/gate-check.sh`](hooks/gate-check.sh) | `PostToolUse` on `Write`/`Edit` — after any edit to `BACKLOG.md` or `specs/`, runs `spec_validator.py` + `backlog_lint.py` and feeds failures back so the §11 gates stay green. |
 | [`commands/`](commands) | The AO-SDLC chain as slash commands — `/specify`, `/clarify`, `/plan`, `/tasks`, `/implement`, `/evolve`, `/new-agent`. Each is a thin pointer to the canonical prompt under [`prompts/`](../prompts) (single source of truth, shared with GitHub Copilot). |
 | [`agents/`](agents) | Repo-specific subagents: `constitution-reviewer` (audits a diff against the constitution gates) and `backlog-triager` (verifies BL-* items against the code). Both read-only. |
-| [`skills/run-lawgraph/`](skills/run-lawgraph) | Skill to build/run/smoke-test the app via the committed `driver.sh` (daphne + SQLite, no heavy deps). |
+| [`skills/run-law-ai/`](skills/run-law-ai) | Skill to build/run/smoke-test the app via the committed `driver.sh` (daphne + SQLite, no heavy deps). |
 
 ## Notes
 

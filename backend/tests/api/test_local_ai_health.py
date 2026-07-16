@@ -11,12 +11,12 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from lawgraph.agentsapi import urls as agents_api
+from law_ai.agentsapi import urls as agents_api
 
 
 @pytest.fixture()
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    from lawgraph.asgi import application as app
+    from law_ai.asgi import application as app
 
     return TestClient(app)
 

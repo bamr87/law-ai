@@ -1,5 +1,5 @@
 #!/bin/bash
-# init-db.sh — operator/onboarding reset script for LawGraph databases.
+# init-db.sh — operator/onboarding reset script for Law AI databases.
 #
 # INVOCATION: run this script from within the backend container or a host env
 # where both `python manage.py` (backend venv) and `cypher-shell` (reachable
@@ -14,14 +14,14 @@
 #   docker compose run --rm backend bash backend/scripts/init-db.sh
 set -euo pipefail
 
-echo "🗄️  Initializing LawGraph databases..."
+echo "🗄️  Initializing Law AI databases..."
 sleep 5
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-NEO4J_MIGRATIONS="$REPO_ROOT/lawgraph/core/neo4j/migrations"
+NEO4J_MIGRATIONS="$REPO_ROOT/law_ai/core/neo4j/migrations"
 
 NEO4J_USER="${NEO4J_USER:-neo4j}"
-NEO4J_PASSWORD="${NEO4J_PASSWORD:-lawgraph-dev}"
+NEO4J_PASSWORD="${NEO4J_PASSWORD:-law_ai-dev}"
 
 echo "==> Applying Neo4j migrations"
 shopt -s nullglob
@@ -35,7 +35,7 @@ for f in "${cypher_files[@]}"; do
 done
 
 echo "==> Applying Postgres migrations (Django)"
-export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-lawgraph.settings.dev}"
+export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-law_ai.settings.dev}"
 cd "$REPO_ROOT" && python manage.py migrate --noinput
 
 echo "✅ Database initialization complete."

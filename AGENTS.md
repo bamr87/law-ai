@@ -1,4 +1,4 @@
-# LawGraph AI — Agent Coding Instructions
+# Law AI — Agent Coding Instructions
 
 **Project Mission**  
 Build the world's first fully open-source, agent-orchestrated legal intelligence platform that combines multi-agent workflows, Neo4j knowledge graphs, GraphRAG, and interactive visualizations to help lawyers and law students master complex legal content.
@@ -108,18 +108,18 @@ Project status, tooling rationale, and onboarding live in [README.md](README.md)
 
 ## Project Structure (Target — Some Subdirs Are Planned)
 
-This is the canonical layout, mirroring the actual `backend/lawgraph/` Django package and the `frontend/` Next.js app. When adding new code, place it in the matching directory; do not invent new top-level locations.
+This is the canonical layout, mirroring the actual `backend/law_ai/` Django package and the `frontend/` Next.js app. When adding new code, place it in the matching directory; do not invent new top-level locations.
 
 ```
 law-ai/                                 # workspace root (GitHub slug stays `law-ai`)
 ├── backend/
 │   ├── manage.py
 │   ├── pyproject.toml
-│   └── lawgraph/                       # Django project package (was `app/` pre-rebrand)
+│   └── law_ai/                       # Django project package (was `app/` pre-rebrand)
 │       ├── __init__.py
 │       ├── asgi.py                     # ASGI entrypoint (daphne) + Channels routing
 │       ├── wsgi.py
-│       ├── celery.py                   # Celery("lawgraph") app
+│       ├── celery.py                   # Celery("law_ai") app
 │       ├── urls.py                     # Root URLConf, mounts every Django app below
 │       ├── settings/                   # Split settings: base / dev / test / prod
 │       ├── core/                       # config, security, Neo4j driver, provenance, telemetry
@@ -163,7 +163,7 @@ law-ai/                                 # workspace root (GitHub slug stays `law
 - Use `ruff` + `black` (line length 88)
 - Strict type hints + `mypy --strict`
 - All public functions must have docstrings with examples
-- Agent prompts must be in `backend/lawgraph/agents_runtime/prompts/` as `.md` or `.txt` files (versioned)
+- Agent prompts must be in `backend/law_ai/agents_runtime/prompts/` as `.md` or `.txt` files (versioned)
 
 ### TypeScript / React
 - Strict TypeScript (`"strict": true`)
@@ -176,7 +176,7 @@ law-ai/                                 # workspace root (GitHub slug stays `law
 - Never delete nodes — use soft-delete + `archived_at` for audit
 
 ### Agent Development Rules
-1. **New Agent Role** → Create in `backend/lawgraph/agents_runtime/crews/` or `graphs/`
+1. **New Agent Role** → Create in `backend/law_ai/agents_runtime/crews/` or `graphs/`
 2. **Must implement**:
    - `run(input: dict) -> dict` with structured output (Pydantic)
    - Logging of every LLM call + tool use via `core.provenance`
@@ -203,23 +203,23 @@ See `prompts/new-agent.md` for the exact prompt template.
 
 ### 2. Extend the Knowledge Graph Schema
 - Update `docs/data-model.md` (create if it does not yet exist)
-- Add migration in `backend/lawgraph/core/neo4j/migrations/`
-- Update `backend/lawgraph/core/models.py`
-- Add corresponding Cypher helper in `backend/lawgraph/core/neo4j/queries.py`
+- Add migration in `backend/law_ai/core/neo4j/migrations/`
+- Update `backend/law_ai/core/models.py`
+- Add corresponding Cypher helper in `backend/law_ai/core/neo4j/queries.py`
 
 ### 3. Add New Public Data Source
-- Create new client in `backend/lawgraph/ingestionapp/`
+- Create new client in `backend/law_ai/ingestionapp/`
 - Add to the `Ingestion Scout` crew (see [docs/agent-roles.md](docs/agent-roles.md))
 - Document the source in `docs/data-sources.md`
 
 ### 4. Improve GraphRAG Retrieval
-- Edit `backend/lawgraph/agents_runtime/tools/graph_rag.py`
+- Edit `backend/law_ai/agents_runtime/tools/graph_rag.py`
 - Add new retriever strategy
 - Run `Run LegalBench Eval` task before and after; record the delta in the PR description
 
 ### 5. Add Feature to Frontend
 - Use [prompts/implement-feature.md](prompts/implement-feature.md)
-- Always add the corresponding API route in the matching backend module first (`backend/lawgraph/{agentsapi,analysis,graph,lsat}/`)
+- Always add the corresponding API route in the matching backend module first (`backend/law_ai/{agentsapi,analysis,graph,lsat}/`)
 - Include loading states + error boundaries
 - Co-locate a Vitest test under `frontend/__tests__/`
 
@@ -252,7 +252,7 @@ When starting work, read in this order:
 1. [docs/architecture.md](docs/architecture.md) — Full system diagram + component responsibilities
 2. [docs/agent-roles.md](docs/agent-roles.md) — Responsibilities + tool requirements for each agent
 3. [PRD.md](PRD.md) — Full product requirements
-4. [LawGraph_AI_Proposal.md](LawGraph_AI_Proposal.md) — Original technical proposal with Mermaid diagrams
+4. [Law_AI_Proposal.md](Law_AI_Proposal.md) — Original technical proposal with Mermaid diagrams
 5. [docs/related-github-repos.md](docs/related-github-repos.md) — Upstream OSS we integrate with
 
 `docs/data-model.md`, `docs/data-sources.md`, and `docs/legalbench.md` are referenced throughout this file but may not yet exist — create them when you do work that warrants them rather than skipping the documentation step.
@@ -262,7 +262,7 @@ When starting work, read in this order:
 ## Communication Style for AI Agents
 
 When responding to user requests:
-- Always start with **"Understood. Implementing [feature] following LawGraph principles..."**
+- Always start with **"Understood. Implementing [feature] following Law AI principles..."**
 - Reference the exact file paths you will modify
 - Show the key code change (diff style) before writing files
 - End with **"Ready for review. LegalBench delta: +X% on relevant tasks"** when applicable
@@ -275,5 +275,5 @@ When responding to user requests:
 
 ---
 
-**This file is the single source of truth for all coding agents working on LawGraph AI.**  
+**This file is the single source of truth for all coding agents working on Law AI.**  
 Update it when architecture or standards evolve.

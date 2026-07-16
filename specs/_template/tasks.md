@@ -16,7 +16,7 @@
 - **Owner**: @copilot
 - **Status**: `[ ]`
 - **Files**:
-  - `backend/lawgraph/{agentsapi,analysis,graph,lsat}/...py` (new — pick the matching router)
+  - `backend/law_ai/{agentsapi,analysis,graph,lsat}/...py` (new — pick the matching router)
   - `backend/tests/api/test_....py` (new)
 - **Steps**:
   1. …

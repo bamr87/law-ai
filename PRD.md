@@ -1,17 +1,17 @@
-# LawGraph AI
+# Law AI
 ## Product Requirements Document (PRD)
 
 **Version:** 1.0  
 **Date:** April 29, 2026  
 **Status:** Draft for Review  
 **Owner:** Product Team (AI Legal Systems Initiative)  
-**Related:** [Technical Proposal](LawGraph_AI_Proposal.docx) | [Architecture Diagram](imagine_images/nYGs6.jpg)
+**Related:** [Technical Proposal](Law_AI_Proposal.docx) | [Architecture Diagram](imagine_images/nYGs6.jpg)
 
 ---
 
 ## 1. Executive Summary
 
-**LawGraph AI** is an open-source, AI-agent-orchestrated legal intelligence platform that empowers lawyers, law students, and legal researchers to understand, analyze, organize, and master complex legal content through intelligent multi-agent workflows, persistent knowledge graphs, and interactive visualizations.
+**Law AI** is an open-source, AI-agent-orchestrated legal intelligence platform that empowers lawyers, law students, and legal researchers to understand, analyze, organize, and master complex legal content through intelligent multi-agent workflows, persistent knowledge graphs, and interactive visualizations.
 
 The platform integrates:
 - **Specialized AI Agent Crews** (built with CrewAI + LangGraph) for legal research, case analysis, precedent mapping, logic validation, and adaptive education.
@@ -300,7 +300,7 @@ GitHub Copilot and Claude Code are the **sanctioned AI development orchestrators
 
 1. **Spec-driven workflow execution** — Copilot Chat Agent mode runs the AO-SDLC chain ([/specify](prompts/specify.md) → [/clarify](prompts/clarify.md) → [/plan](prompts/plan.md) → [/tasks](prompts/tasks.md) → [/implement](prompts/implement.md)) end-to-end, halting at HITL gates.
 2. **Autonomous BACKLOG advancement** — [/evolve](prompts/evolve.md) picks the highest-priority `BL-*` item and ships it; the GitHub Copilot coding agent runs the same chain in the cloud when an issue is assigned to `@copilot`.
-3. **Workspace-aware refactoring** — Copilot Edits performs multi-file changes against `backend/lawgraph/` and `frontend/` while honoring [.github/copilot-instructions.md](.github/copilot-instructions.md).
+3. **Workspace-aware refactoring** — Copilot Edits performs multi-file changes against `backend/law_ai/` and `frontend/` while honoring [.github/copilot-instructions.md](.github/copilot-instructions.md).
 4. **Custom instructions enforcement** — Repo-level [.github/copilot-instructions.md](.github/copilot-instructions.md) plus path-scoped `*.instructions.md` files keep every Copilot turn aligned with [AGENTS.md](AGENTS.md).
 5. **Subagent fan-out** — Copilot's `runSubagent` (and the `Explore` agent) parallelizes audits and read-only research without polluting the main chat.
 6. **Pull-request review** — Copilot Code Review and `@copilot` PR comments handle first-pass review; humans approve at the spec gate and the merge gate.

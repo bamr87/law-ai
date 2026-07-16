@@ -9,7 +9,7 @@ tools: ["search", "edit", "runCommands", "github-pull-request_create_pull_reques
 
 # Ship Open Changes
 
-You are shipping the current working-tree changes on the LawGraph AI repo as a reviewable pull request. Required reading: [AGENTS.md](../../AGENTS.md) (Quality Gates), [docs/constitution.md](../../docs/constitution.md) §11 (follow-ups + BACKLOG), [BACKLOG.md](../../BACKLOG.md).
+You are shipping the current working-tree changes on the Law AI repo as a reviewable pull request. Required reading: [AGENTS.md](../../AGENTS.md) (Quality Gates), [docs/constitution.md](../../docs/constitution.md) §11 (follow-ups + BACKLOG), [BACKLOG.md](../../BACKLOG.md).
 
 ## Inputs
 
@@ -28,9 +28,9 @@ User argument (optional) may contain a branch name, a PR title, or both. If abse
    - Risk level (low / medium / high) and which constitution principles are touched (privacy, auditability, HITL, open-source).
 
 3. **Documentation pass (mandatory).** For every non-trivial change, ensure docs reflect reality. Update or create as appropriate:
-   - Code changes under `backend/lawgraph/<app>/` → check the matching section of [docs/architecture.md](../../docs/architecture.md), [docs/data-model.md](../../docs/data-model.md), [docs/agent-roles.md](../../docs/agent-roles.md), or app-level `README.md`.
-   - New/changed agent, crew, tool, or prompt under `backend/lawgraph/agents_runtime/` → update [docs/agent-roles.md](../../docs/agent-roles.md) and bump prompt version filenames (`*.v<N>.md`) if prompt text changed.
-   - Public API surface change (`backend/lawgraph/{agentsapi,analysis,graph,lsat}/`) → update `docs/api-examples.md` (create if missing).
+   - Code changes under `backend/law_ai/<app>/` → check the matching section of [docs/architecture.md](../../docs/architecture.md), [docs/data-model.md](../../docs/data-model.md), [docs/agent-roles.md](../../docs/agent-roles.md), or app-level `README.md`.
+   - New/changed agent, crew, tool, or prompt under `backend/law_ai/agents_runtime/` → update [docs/agent-roles.md](../../docs/agent-roles.md) and bump prompt version filenames (`*.v<N>.md`) if prompt text changed.
+   - Public API surface change (`backend/law_ai/{agentsapi,analysis,graph,lsat}/`) → update `docs/api-examples.md` (create if missing).
    - New env vars or services → update [.env.example](../../.env.example), [docker-compose.yml](../../docker-compose.yml) notes, and [README.md](../../README.md) quickstart.
    - New dependency → note rationale in the PR body and confirm OSS license compatibility (MIT/Apache/BSD/AGPL only).
    - Frontend component or route change → update [frontend/README.md](../../frontend/README.md) if user-facing flow changed.

@@ -13,14 +13,14 @@ services:
              python manage.py migrate --noinput &&
              python manage.py ensure_checkpointer &&
              python -m debugpy --listen 0.0.0.0:5678
-             -m daphne -b 0.0.0.0 -p 8000 lawgraph.asgi:application"
+             -m daphne -b 0.0.0.0 -p 8000 law_ai.asgi:application"
     ports:
       - "8000:8000"
       - "5678:5678"
 
   worker:
     command: >
-      python -m debugpy --listen 0.0.0.0:5679 -m celery -A lawgraph worker -l info
+      python -m debugpy --listen 0.0.0.0:5679 -m celery -A law_ai worker -l info
     ports:
       - "5679:5679"
 

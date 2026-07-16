@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from lawgraph.lsat.factory.config import FactoryConfig
-from lawgraph.lsat.factory.coverage import GenerationTarget
-from lawgraph.lsat.factory.intake import ingest_batch
-from lawgraph.lsat.factory.manifest import GenerationJob
-from lawgraph.lsat.services import proposals
-from lawgraph.lsat.services.bank import load_bank
+from law_ai.lsat.factory.config import FactoryConfig
+from law_ai.lsat.factory.coverage import GenerationTarget
+from law_ai.lsat.factory.intake import ingest_batch
+from law_ai.lsat.factory.manifest import GenerationJob
+from law_ai.lsat.services import proposals
+from law_ai.lsat.services.bank import load_bank
 
 
 def _job(

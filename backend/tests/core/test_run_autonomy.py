@@ -85,7 +85,7 @@ class TestRunAutonomyBasic:
         }
 
         with patch(
-            "lawgraph.core.autonomy.run_cycle", return_value=fake_result
+            "law_ai.core.autonomy.run_cycle", return_value=fake_result
         ) as mock_run:
             call_command("run_autonomy", "--kind", "test_pillar", stdout=out)
 
@@ -106,7 +106,7 @@ class TestRunAutonomyBasic:
         }
 
         with patch(
-            "lawgraph.core.autonomy.run_cycle", return_value=fake_result
+            "law_ai.core.autonomy.run_cycle", return_value=fake_result
         ) as mock_run:
             call_command(
                 "run_autonomy",
@@ -134,7 +134,7 @@ class TestRunAutonomyBasic:
         }
 
         with (
-            patch("lawgraph.core.autonomy.run_cycle", return_value=fake_result),
+            patch("law_ai.core.autonomy.run_cycle", return_value=fake_result),
             pytest.raises(SystemExit) as exc_info,
         ):
             call_command("run_autonomy", "--kind", "digest", stderr=err)
@@ -146,20 +146,20 @@ class TestCeleryAutonomyTask:
     """Smoke-tests for the ``autonomy_cycle`` Celery task (T-009 beat integration)."""
 
     def test_task_registered(self) -> None:
-        from lawgraph.celery import app
-        import lawgraph.core.tasks  # trigger autodiscovery for this module  # noqa: F401
+        from law_ai.celery import app
+        import law_ai.core.tasks  # trigger autodiscovery for this module  # noqa: F401
 
-        assert "lawgraph.core.tasks.autonomy_cycle" in app.tasks
+        assert "law_ai.core.tasks.autonomy_cycle" in app.tasks
 
     def test_task_delegates_to_run_cycle_disabled(self) -> None:
         """When AUTONOMY_ENABLED=False the task returns status=disabled."""
-        from lawgraph.core.tasks import autonomy_cycle
+        from law_ai.core.tasks import autonomy_cycle
 
         result = autonomy_cycle(kind="test_pillar")
         assert result["status"] == "disabled"
 
     def test_beat_schedule_keys_present(self) -> None:
-        from lawgraph.celery import app
+        from law_ai.celery import app
 
         schedule = app.conf.beat_schedule
         assert "autonomy-content-sweep" in schedule
@@ -167,9 +167,9 @@ class TestCeleryAutonomyTask:
         assert "autonomy-daily-digest" in schedule
 
     def test_beat_tasks_point_at_autonomy_cycle(self) -> None:
-        from lawgraph.celery import app
+        from law_ai.celery import app
 
         for key, entry in app.conf.beat_schedule.items():
             assert (
-                entry["task"] == "lawgraph.core.tasks.autonomy_cycle"
+                entry["task"] == "law_ai.core.tasks.autonomy_cycle"
             ), f"Beat entry {key!r} points at wrong task"

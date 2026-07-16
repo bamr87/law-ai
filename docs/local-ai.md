@@ -1,6 +1,6 @@
 # Local AI Stack (Spec 010)
 
-> Companion to [specs/010-local-ai-stack/](../specs/010-local-ai-stack/). This page is the operator-facing manual for running LawGraph's LangGraph + Ollama + Phoenix substrate locally.
+> Companion to [specs/010-local-ai-stack/](../specs/010-local-ai-stack/). This page is the operator-facing manual for running Law AI's LangGraph + Ollama + Phoenix substrate locally.
 
 ## At a glance
 
@@ -12,7 +12,7 @@
 | Redis | `redis:7-alpine` | Optional checkpointer + cache | `localhost:6379` |
 | Neo4j | `neo4j:5-community` | Knowledge graph | `localhost:7687` / UI `7474` |
 | Phoenix | `arizephoenix/phoenix:latest` | OTEL collector + trace UI | `localhost:6006` |
-| Backend | `backend/lawgraph/asgi.py` (Django ASGI via daphne) | API + agent host | `localhost:8000` |
+| Backend | `backend/law_ai/asgi.py` (Django ASGI via daphne) | API + agent host | `localhost:8000` |
 
 ## Architecture
 
@@ -26,7 +26,7 @@ flowchart LR
   Backend -->|OTLP/HTTP| Phoenix
 ```
 
-Every node in `LegalWorkflow` is wrapped by [`@logged_node`](../backend/lawgraph/core/provenance.py#L142). That decorator records to two places:
+Every node in `LegalWorkflow` is wrapped by [`@logged_node`](../backend/law_ai/core/provenance.py#L142). That decorator records to two places:
 
 1. The append-only JSONL audit store at `.audit/provenance.jsonl` (powers `/api/agents/runs`).
 2. An OpenTelemetry span exported to Phoenix (when `PHOENIX_COLLECTOR_ENDPOINT` is set).
@@ -64,7 +64,7 @@ The response includes `phoenix_trace_url` and `langgraph_thread_id` — paste ei
 | `LANGGRAPH_CHECKPOINTER` | `postgres` | `postgres` \| `redis` \| `memory`. |
 | `PHOENIX_COLLECTOR_ENDPOINT` | `http://phoenix:6006/v1/traces` | **Unset disables tracing entirely.** Required no-op for tests. |
 | `PHOENIX_UI_URL` | `http://localhost:6006` | Used to build deep-links in API responses. |
-| `PHOENIX_PROJECT_NAME` | `lawgraph` | Phoenix tab label. |
+| `PHOENIX_PROJECT_NAME` | `law_ai` | Phoenix tab label. |
 | `AUTONOMY_ENABLED` | `false` | **Kill-switch** for all scheduled autonomy loops (spec 018 §12 invariant I3). Set to `true` to activate. |
 | `AUTONOMY_ALLOWED_SOURCES` | `[]` | Comma-separated list of source adapter names permitted for autonomous ingestion (e.g. `courtlistener,cap`). |
 | `AUTONOMY_MAX_INGEST_PER_CYCLE` | `25` | Hard cap on documents ingested per corpus-growth cycle. |
@@ -112,7 +112,7 @@ The Postgres checkpointer survives `docker compose restart backend`. Run `Reset 
 
 Spec 018 adds a scheduled autonomy loop that runs inside the same Docker stack. It is **disabled by default** (`AUTONOMY_ENABLED=false`). Operators activate it by setting `AUTONOMY_ENABLED=true` in their environment.
 
-Three beat entries are registered in `lawgraph/celery.py`:
+Three beat entries are registered in `law_ai/celery.py`:
 
 | Beat entry | Schedule | Kind | Notes |
 |---|---|---|---|
@@ -120,7 +120,7 @@ Three beat entries are registered in `lawgraph/celery.py`:
 | `autonomy-nightly-tests` | 06:00 UTC daily | `test_pillar` | Synthesises proposed tests via `TestSynthesizer`; writes `*.proposed.py` files pending human review. |
 | `autonomy-daily-digest` | 07:00 UTC daily | `digest` | Aggregates last 24 h of `autonomy_*` audit events into `var/autonomy/digest-YYYY-MM-DD.md`. |
 
-Every cycle passes through `lawgraph.core.autonomy.run_cycle`, which emits paired `autonomy_cycle.start` / `autonomy_cycle.end` provenance events and enforces the kill-switch. See [ADR 0003](../docs/adr/0003-autonomy-orchestrator.md) and [docs/constitution.md](constitution.md) §12 for the full set of invariants (I1–I6).
+Every cycle passes through `law_ai.core.autonomy.run_cycle`, which emits paired `autonomy_cycle.start` / `autonomy_cycle.end` provenance events and enforces the kill-switch. See [ADR 0003](../docs/adr/0003-autonomy-orchestrator.md) and [docs/constitution.md](constitution.md) §12 for the full set of invariants (I1–I6).
 
 ```bash
 # Trigger a cycle manually (dry-run to preview without side-effects)

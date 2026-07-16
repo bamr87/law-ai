@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import collections
 
-from lawgraph.lsat.services.bank import load_bank
+from law_ai.lsat.services.bank import load_bank
 
 ALL_LABELS = {"A", "B", "C", "D", "E"}
 
@@ -64,7 +64,7 @@ def test_per_section_uses_more_than_two_labels() -> None:
 
 def test_fallback_draft_rotates_answer_key() -> None:
     """Offline fallback drafts must not all collapse onto label 'A'."""
-    from lawgraph.agents_runtime.crews.lsat_content_author import (
+    from law_ai.agents_runtime.crews.lsat_content_author import (
         GenerateQuestionsInput,
         _fallback_draft,
     )

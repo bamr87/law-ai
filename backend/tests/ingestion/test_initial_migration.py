@@ -23,7 +23,7 @@ from django.db import migrations
 
 
 def _load_migration():
-    return importlib.import_module("lawgraph.ingestionapp.migrations.0001_initial")
+    return importlib.import_module("law_ai.ingestionapp.migrations.0001_initial")
 
 
 def test_initial_migration_uses_separate_database_and_state() -> None:

@@ -18,8 +18,8 @@
 - **Files**:
   - `docker-compose.yml` (edit — add healthcheck stanzas for neo4j, postgres, redis)
 - **Steps**:
-  1. Add `healthcheck:` block to `neo4j` service: `test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "lawgraph-dev", "RETURN 1"]`, `interval: 10s`, `timeout: 5s`, `retries: 5`, `start_period: 30s`.
-  2. Add `healthcheck:` block to `postgres` service: `test: ["CMD-SHELL", "pg_isready -U lawgraph"]`, `interval: 10s`, `timeout: 5s`, `retries: 5`.
+  1. Add `healthcheck:` block to `neo4j` service: `test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "law_ai-dev", "RETURN 1"]`, `interval: 10s`, `timeout: 5s`, `retries: 5`, `start_period: 30s`.
+  2. Add `healthcheck:` block to `postgres` service: `test: ["CMD-SHELL", "pg_isready -U law_ai"]`, `interval: 10s`, `timeout: 5s`, `retries: 5`.
   3. Add `healthcheck:` block to `redis` service: `test: ["CMD", "redis-cli", "ping"]`, `interval: 5s`, `timeout: 3s`, `retries: 5`.
 - **Verify**:
   - `docker compose up -d neo4j postgres redis --wait` completes successfully within 60s.
@@ -34,8 +34,8 @@
   - `backend/tests/conftest.py` (edit — add `docker_services`, `neo4j_integration_driver`, `postgres_integration_pool`, `clean_neo4j_db` fixtures)
 - **Steps**:
   1. Add `@pytest.fixture(scope="session") def docker_services()` that shells out to `subprocess.run(["docker", "compose", "up", "-d", "neo4j", "postgres", "redis", "--wait"], check=True)` before yielding, and `subprocess.run(["docker", "compose", "down"], check=False)` in cleanup.
-  2. Add `@pytest_asyncio.fixture(scope="session") async def neo4j_integration_driver(docker_services)` that creates `neo4j.AsyncGraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "lawgraph-dev"))`, yields it, and `await driver.close()` in cleanup.
-  3. Add `@pytest_asyncio.fixture(scope="session") async def postgres_integration_pool(docker_services)` that creates `await asyncpg.create_pool("postgresql://lawgraph:lawgraph-dev@localhost:5432/lawgraph")`, yields it, and `await pool.close()` in cleanup.
+  2. Add `@pytest_asyncio.fixture(scope="session") async def neo4j_integration_driver(docker_services)` that creates `neo4j.AsyncGraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "law_ai-dev"))`, yields it, and `await driver.close()` in cleanup.
+  3. Add `@pytest_asyncio.fixture(scope="session") async def postgres_integration_pool(docker_services)` that creates `await asyncpg.create_pool("postgresql://law_ai:law_ai-dev@localhost:5432/law_ai")`, yields it, and `await pool.close()` in cleanup.
   4. Add `@pytest_asyncio.fixture(scope="function") async def clean_neo4j_db(neo4j_integration_driver)` that runs `MATCH (n) DETACH DELETE n` via the driver before yielding (function-scoped for per-test isolation per NFR-ISOLATION-1).
 - **Verify**:
   - `pytest -m integration --collect-only` lists the new fixtures without errors.
@@ -55,7 +55,7 @@
   4. Implement `@pytest.mark.integration @pytest.mark.asyncio async def test_low_confidence_routes_to_postgres_pending_review(neo4j_integration_driver, postgres_integration_pool, clean_neo4j_db)`: run `IngestionScout().run_and_commit(LOW_CONF_FIXTURE)`; query Postgres `ingestionapp_pendingreview` table and assert exactly one row with matching `id` and `confidence < 0.7`; query Neo4j and assert zero `Case` nodes with that `id` (AC-5).
 - **Verify**:
   - `pytest -m integration -v` passes all three tests with zero failures (AC-1).
-  - `cd backend && pytest --cov=lawgraph --cov-report=term-missing` shows coverage ≥ 86% (AC-6, NFR-COVERAGE-1).
+  - `cd backend && pytest --cov=law_ai --cov-report=term-missing` shows coverage ≥ 86% (AC-6, NFR-COVERAGE-1).
 
 ## T-004 — Makefile target
 

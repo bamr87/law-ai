@@ -3,20 +3,20 @@
   Local schedule for the headless half of /evolve.
 
   Install:
-    cp scripts/launchd/com.lawgraph.evolve.plist ~/Library/LaunchAgents/
+    cp scripts/launchd/com.law_ai.evolve.plist ~/Library/LaunchAgents/
     # Edit the WorkingDirectory + ProgramArguments paths below to match your checkout.
-    launchctl load -w ~/Library/LaunchAgents/com.lawgraph.evolve.plist
+    launchctl load -w ~/Library/LaunchAgents/com.law_ai.evolve.plist
 
   Uninstall:
-    launchctl unload -w ~/Library/LaunchAgents/com.lawgraph.evolve.plist
+    launchctl unload -w ~/Library/LaunchAgents/com.law_ai.evolve.plist
 
-  Runs every Monday at 09:00 local time. Logs to /tmp/lawgraph-evolve.log.
+  Runs every Monday at 09:00 local time. Logs to /tmp/law_ai-evolve.log.
 -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.lawgraph.evolve</string>
+    <string>com.law_ai.evolve</string>
 
     <key>ProgramArguments</key>
     <array>
@@ -39,9 +39,9 @@
     </dict>
 
     <key>StandardOutPath</key>
-    <string>/tmp/lawgraph-evolve.log</string>
+    <string>/tmp/law_ai-evolve.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/lawgraph-evolve.log</string>
+    <string>/tmp/law_ai-evolve.log</string>
 
     <key>RunAtLoad</key>
     <false/>

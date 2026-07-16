@@ -16,8 +16,8 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/core/schemas/statute_extraction.py` (new)
-  - `backend/lawgraph/core/schemas/__init__.py` (re-export)
+  - `backend/law_ai/core/schemas/statute_extraction.py` (new)
+  - `backend/law_ai/core/schemas/__init__.py` (re-export)
 - **Steps**:
   1. Add `StatuteSectionPayload` (id, citation, heading, text, optional `effective_from`, per-section `confidence`) and `StatuteExtraction` (jurisdiction code/name/level, code id+title, statute id+title, sections list, top-level provenance).
   2. Re-export both from `core/schemas/__init__.py`.
@@ -29,7 +29,7 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/ingestionapp/services/colorado_statutes.py` (new — client + parser)
+  - `backend/law_ai/ingestionapp/services/colorado_statutes.py` (new — client + parser)
   - `backend/tests/ingestion/fixtures/co/title_18_article_3.html` (new — checked-in fixture)
 - **Steps**:
   1. Implement `ColoradoStatutesClient` with the same async/`tenacity`/provenance shape as `CourtListenerClient`. Base URL constant overridable via `COLORADO_STATUTES_BASE_URL`.
@@ -43,7 +43,7 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/ingestionapp/services/statute_scout.py` (new)
+  - `backend/law_ai/ingestionapp/services/statute_scout.py` (new)
 - **Steps**:
   1. `StatuteScout(name="StatuteScout", agent_version="0.1.0", requires_human_approval=False, CONFIDENCE_THRESHOLD=0.7)`.
   2. `extract({"title_id": "...", "html": "..."}) -> StatuteExtraction` calls the parser and stamps provenance.
@@ -56,7 +56,7 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/core/neo4j/statute_queries.py` (new)
+  - `backend/law_ai/core/neo4j/statute_queries.py` (new)
 - **Steps**:
   1. Constants: `MERGE_JURISDICTION_CYPHER`, `MERGE_CODE_CYPHER`, `MERGE_STATUTE_CYPHER`, `MERGE_STATUTE_SECTION_CYPHER`, `MERGE_PART_OF_*`, `MERGE_IN_JURISDICTION_*`.
   2. `async commit_statute_extraction(session, extraction) -> int` returns edge count; uses parameter binding only.
@@ -68,7 +68,7 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/ingestionapp/tasks.py` (extend)
+  - `backend/law_ai/ingestionapp/tasks.py` (extend)
 - **Steps**:
   1. `quarantine_extraction(payload)` reads `payload.get("kind", "case")` and writes it to `PendingReview.kind`.
   2. Audit event payload includes the kind.

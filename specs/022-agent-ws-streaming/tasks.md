@@ -18,7 +18,7 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/analysis/urls.py` (read; determine async vs sync path)
+  - `backend/law_ai/analysis/urls.py` (read; determine async vs sync path)
 - **Steps**:
   1. Inspect the actual dispatch path of `_run_analysis`:
      `AnalysisView.post` → `async_to_sync(_run_analysis)` or direct ASGI async call?
@@ -34,7 +34,7 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/analysis/urls.py` (edit)
+  - `backend/law_ai/analysis/urls.py` (edit)
 - **Steps**:
   1. Add `async def _emit_ws_event(analysis_id: str, payload: dict[str, object]) -> None:`
      that calls `await layer.group_send(f"agent-run-{analysis_id}", {"type": "agent_event", "payload": payload})`

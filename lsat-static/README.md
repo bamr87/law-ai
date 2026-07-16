@@ -33,7 +33,7 @@ make lsat-export     # runs `python manage.py lsat_export` and writes lsat-stati
 ```
 
 `tests/test_lsat_site.py` (part of the root structural CI suite) gates this file
-against the source bank under `backend/lawgraph/lsat/services/data/` — the site
+against the source bank under `backend/law_ai/lsat/services/data/` — the site
 can never silently lag the approved content.
 
 ## Local development

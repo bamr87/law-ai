@@ -9,17 +9,17 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from lawgraph.core import claude_code
-from lawgraph.lsat.factory.config import FactoryConfig
-from lawgraph.lsat.factory.coverage import GenerationTarget
-from lawgraph.lsat.factory.executors import (
+from law_ai.core import claude_code
+from law_ai.lsat.factory.config import FactoryConfig
+from law_ai.lsat.factory.coverage import GenerationTarget
+from law_ai.lsat.factory.executors import (
     ClaudeCodeExecutor,
     DraftFileExecutor,
     ExecutionError,
     ExecutorUnavailable,
     _parse_payload,
 )
-from lawgraph.lsat.factory.manifest import GenerationJob
+from law_ai.lsat.factory.manifest import GenerationJob
 
 
 def _job(job_id: str = "mfst-x-job01", mode: str = "items") -> GenerationJob:

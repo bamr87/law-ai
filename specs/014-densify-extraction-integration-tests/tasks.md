@@ -20,7 +20,7 @@
   - `backend/tests/db/test_citation_resolver_integration.py` (new)
 - **Steps**:
   1. Import `resolve_citations` and `densify_extraction` from
-     `lawgraph.core.neo4j.citation_resolver`.
+     `law_ai.core.neo4j.citation_resolver`.
   2. Add three `@pytest.mark.integration @pytest.mark.asyncio` tests using the
      spec-013 fixtures `neo4j_integration_driver` + `clean_neo4j_db`:
      - `test_resolve_citations_hits_real_neo4j_alias_match` — seed
@@ -39,7 +39,7 @@
     exits 0 with three green tests (AC-4).
   - `cd backend && pytest -q` (no `-m integration`) does **not** collect or
     run any of the new tests (AC-5).
-  - `mypy lawgraph --strict` clean (no production-code changes; tests are
+  - `mypy law_ai --strict` clean (no production-code changes; tests are
     not strict-typed).
 
 ## T-002 — Wire into `make test-integration` and CI

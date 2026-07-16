@@ -28,8 +28,8 @@ if not os.getenv("LANGGRAPH_INTEGRATION"):
         allow_module_level=True,
     )
 
-from lawgraph.agents_runtime.graphs.legal_workflow import LegalWorkflow
-from lawgraph.agents_runtime.checkpointer import ensure_schema
+from law_ai.agents_runtime.graphs.legal_workflow import LegalWorkflow
+from law_ai.agents_runtime.checkpointer import ensure_schema
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 

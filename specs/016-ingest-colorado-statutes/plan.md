@@ -21,12 +21,12 @@ The `StatuteScout` mirrors the existing `IngestionScout` (same `extract` / `run_
 
 | Layer    | File / Module                                                                      | Change                                                                          |
 | -------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Schema   | `backend/lawgraph/core/schemas/statute_extraction.py`                              | new — `StatuteSectionPayload` + `StatuteExtraction` Pydantic v2 models          |
-| Schema   | `backend/lawgraph/core/schemas/__init__.py`                                        | re-export the two new models                                                    |
-| Client   | `backend/lawgraph/ingestionapp/services/colorado_statutes.py`                      | new — `ColoradoStatutesClient` (httpx + tenacity) + `parse_title_html`          |
-| Crew     | `backend/lawgraph/ingestionapp/services/statute_scout.py`                          | new — `StatuteScout.extract` + `run_and_commit`, mirrors `IngestionScout`       |
-| Neo4j    | `backend/lawgraph/core/neo4j/statute_queries.py`                                   | new — Cypher constants + `commit_statute_extraction`                            |
-| Tasks    | `backend/lawgraph/ingestionapp/tasks.py`                                           | extend `quarantine_extraction` to honor `payload["kind"]`                       |
+| Schema   | `backend/law_ai/core/schemas/statute_extraction.py`                              | new — `StatuteSectionPayload` + `StatuteExtraction` Pydantic v2 models          |
+| Schema   | `backend/law_ai/core/schemas/__init__.py`                                        | re-export the two new models                                                    |
+| Client   | `backend/law_ai/ingestionapp/services/colorado_statutes.py`                      | new — `ColoradoStatutesClient` (httpx + tenacity) + `parse_title_html`          |
+| Crew     | `backend/law_ai/ingestionapp/services/statute_scout.py`                          | new — `StatuteScout.extract` + `run_and_commit`, mirrors `IngestionScout`       |
+| Neo4j    | `backend/law_ai/core/neo4j/statute_queries.py`                                   | new — Cypher constants + `commit_statute_extraction`                            |
+| Tasks    | `backend/law_ai/ingestionapp/tasks.py`                                           | extend `quarantine_extraction` to honor `payload["kind"]`                       |
 | CLI      | `backend/scripts/ingest_sample.py`                                                 | extend `--source` choices + `--titles` + dispatch                               |
 | Docs     | `docs/data-sources.md`                                                             | new CRS row + detail block                                                      |
 | Tests    | `backend/tests/ingestion/fixtures/co/title_18_article_3.html`                      | new — checked-in fixture (Article 3, ~25 sections)                              |

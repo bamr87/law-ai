@@ -38,7 +38,7 @@ Today the Neo4j data model is opinion-centric: only `Case` and `Citation` nodes 
 - **FR-2**: A new Cypher migration creates Neo4j fulltext indexes covering `(:StatuteSection)` on `text`/`heading` and `(:Case)` on `title`/`holding_summary`.
 - **FR-3**: A new Cypher migration creates a range index on `effective_from` for `:Statute`, `:StatuteSection`, `:Ordinance`, `:OrdinanceSection`, `:Regulation`.
 - **FR-4**: A new Cypher migration declares the `DerivedDocument` label with a uniqueness constraint on `id` and a property-existence constraint on `agent_version`.
-- **FR-5**: New Pydantic models in `backend/lawgraph/core/schemas/legal_documents.py` for: `Jurisdiction`, `Court`, `Code`, `Statute`, `StatuteSection`, `Ordinance`, `OrdinanceSection`, `Regulation`, `DerivedDocument`. Every model carries the constitution §4 provenance fields (`source`, `source_url`, `confidence`, `ingest_timestamp`, `agent_version`).
+- **FR-5**: New Pydantic models in `backend/law_ai/core/schemas/legal_documents.py` for: `Jurisdiction`, `Court`, `Code`, `Statute`, `StatuteSection`, `Ordinance`, `OrdinanceSection`, `Regulation`, `DerivedDocument`. Every model carries the constitution §4 provenance fields (`source`, `source_url`, `confidence`, `ingest_timestamp`, `agent_version`).
 - **FR-6**: `ingestionapp.PendingReview` gains a `kind` field (CharField, default `"case"`, db-indexed) plus a Django + database migration that adds the column with a back-fill `UPDATE pending_review SET kind = 'case' WHERE kind IS NULL` for any pre-existing rows. The migration follows the same `SeparateDatabaseAndState` + portable-DDL pattern as `0001_initial` so it works on Postgres and the SQLite test fixture.
 - **FR-7**: [docs/data-model.md](../../docs/data-model.md) is extended with property tables for every new node type, an updated edge list, and a "Quarantine kinds" subsection that documents the new `kind` field.
 
@@ -91,8 +91,8 @@ None directly. Downstream specs (016 for `IngestionScout`, 018 for `LegalAnalyst
 
 ## 10. Acceptance Criteria
 
-- **AC-1**: Running the full Neo4j migration set (`001`–`007`) on a fresh database is idempotent and produces all uniqueness, range, and fulltext indexes listed in FR-1 / FR-2 / FR-3 / FR-4. Verified by `SHOW INDEXES` parity assertion in a unit test that walks `backend/lawgraph/core/neo4j/migrations/*.cypher` and validates each statement is `IF NOT EXISTS`-guarded.
-- **AC-2**: `from lawgraph.core.schemas.legal_documents import StatuteSection, DerivedDocument, …` succeeds and instantiating each new model with mandatory fields validates; instantiating with `confidence=1.5` raises `ValidationError`.
+- **AC-1**: Running the full Neo4j migration set (`001`–`007`) on a fresh database is idempotent and produces all uniqueness, range, and fulltext indexes listed in FR-1 / FR-2 / FR-3 / FR-4. Verified by `SHOW INDEXES` parity assertion in a unit test that walks `backend/law_ai/core/neo4j/migrations/*.cypher` and validates each statement is `IF NOT EXISTS`-guarded.
+- **AC-2**: `from law_ai.core.schemas.legal_documents import StatuteSection, DerivedDocument, …` succeeds and instantiating each new model with mandatory fields validates; instantiating with `confidence=1.5` raises `ValidationError`.
 - **AC-3**: After `pytest backend/tests/ingestion/test_pending_review_kind.py`, a fresh test DB shows `PendingReview` rows can be created with `kind="statute"` and `kind="case"` (default), the `kind` column is db-indexed, and a row inserted via raw SQL without a `kind` value back-fills to `'case'`.
 - **AC-4**: `python scripts/spec_validator.py` passes for `specs/015-legal-corpus-schema/` (every FR/NFR/AC referenced by at least one task).
 - **AC-5**: [docs/data-model.md](../../docs/data-model.md) renders the new node tables and `tests/test_docs.py` (existing) still passes (no broken links).

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from lawgraph.agents_runtime.graphs import runtime
-from lawgraph.agents_runtime.graphs.runtime import (
+from law_ai.agents_runtime.graphs import runtime
+from law_ai.agents_runtime.graphs.runtime import (
     CheckpointerUnavailableError,
     build_checkpointer,
 )

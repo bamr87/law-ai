@@ -8,10 +8,10 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from lawgraph.agentsapi import urls as agents_api
-from lawgraph.core import audit_jsonl as audit_store
+from law_ai.agentsapi import urls as agents_api
+from law_ai.core import audit_jsonl as audit_store
 from django.conf import settings
-from lawgraph.asgi import application as app
+from law_ai.asgi import application as app
 
 
 @pytest.fixture(autouse=True)
@@ -120,7 +120,7 @@ async def test_specs_endpoint_lists_known_specs(client: AsyncClient) -> None:
 
 def test_provenance_failure_is_swallowed(monkeypatch: pytest.MonkeyPatch) -> None:
     # AC-5 — log_agent_call must not raise even if persistence blows up.
-    from lawgraph.core import provenance as prov_mod
+    from law_ai.core import provenance as prov_mod
 
     def boom(_event: dict[str, object]) -> None:
         raise RuntimeError("disk on fire")
@@ -194,12 +194,12 @@ def test_startup_warns_when_key_unset_outside_dev(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     """AC-7 — emit a single WARNING when AGENT_API_KEY is unset and ENVIRONMENT != development."""
-    from lawgraph.core import apps as core_apps
+    from law_ai.core import apps as core_apps
 
     monkeypatch.setattr(settings, "AGENT_API_KEY", None)
     monkeypatch.setattr(settings, "ENVIRONMENT", "staging")
 
-    with caplog.at_level("WARNING", logger="lawgraph"):
+    with caplog.at_level("WARNING", logger="law_ai"):
         core_apps.warn_if_unprotected()
 
     matching = [r for r in caplog.records if "AGENT_API_KEY not set" in r.getMessage()]

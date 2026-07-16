@@ -9,7 +9,7 @@ The new tests live alongside the existing unit tests and reuse the
 session-scoped Docker fixtures introduced by spec 013 (`neo4j_integration_driver`,
 `clean_neo4j_db`). No new infrastructure, no new fixtures, no production-code
 changes — this is a pure test addition that exercises the Cypher in
-`backend/lawgraph/core/neo4j/citation_resolver.py` against a real Neo4j.
+`backend/law_ai/core/neo4j/citation_resolver.py` against a real Neo4j.
 
 ```mermaid
 flowchart LR
@@ -29,7 +29,7 @@ flowchart LR
 |-------|---------------|--------|
 | Tests | `backend/tests/db/test_citation_resolver_integration.py` | **new** — three `@pytest.mark.integration @pytest.mark.asyncio` tests (FR-1) |
 | Fixtures | `backend/tests/conftest.py` | **none** — reuses spec-013 fixtures (FR-2) |
-| Production | `backend/lawgraph/core/neo4j/citation_resolver.py` | **none** (NG3) |
+| Production | `backend/law_ai/core/neo4j/citation_resolver.py` | **none** (NG3) |
 | Markers | `backend/pyproject.toml` `[tool.pytest.ini_options].markers` | **none** — `integration` marker already declared |
 
 ## 3. Data & Schema Migrations
@@ -50,7 +50,7 @@ No deviation from [docs/constitution.md](../../docs/constitution.md) §2.
 ## 5. Provenance & Audit Hook-up
 
 `densify_extraction` already calls `provenance.log_graph_query` for each
-Cypher round-trip (verified in `backend/lawgraph/core/neo4j/citation_resolver.py`).
+Cypher round-trip (verified in `backend/law_ai/core/neo4j/citation_resolver.py`).
 Tests assert that `target_case_id` is populated correctly; provenance is
 emitted as a side-effect and is not the system-under-test.
 

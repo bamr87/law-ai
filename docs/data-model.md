@@ -1,8 +1,8 @@
 # Data Model
 
-LawGraph AI's Neo4j knowledge graph + Postgres quarantine. Spec of record for the original opinion-only model: [001-ingest-courtlistener-opinions](../specs/001-ingest-courtlistener-opinions/spec.md). Schema-expansion spec: [015-legal-corpus-schema](../specs/015-legal-corpus-schema/spec.md).
+Law AI's Neo4j knowledge graph + Postgres quarantine. Spec of record for the original opinion-only model: [001-ingest-courtlistener-opinions](../specs/001-ingest-courtlistener-opinions/spec.md). Schema-expansion spec: [015-legal-corpus-schema](../specs/015-legal-corpus-schema/spec.md).
 
-> **Provenance is mandatory.** Every node persisted to Neo4j carries `source`, `source_url`, `confidence`, `ingest_timestamp`, and `agent_version` per [docs/constitution.md](constitution.md) §4. The Pydantic mixin enforcing this lives in [`lawgraph.core.schemas.legal_documents.LegalProvenance`](../backend/lawgraph/core/schemas/legal_documents.py).
+> **Provenance is mandatory.** Every node persisted to Neo4j carries `source`, `source_url`, `confidence`, `ingest_timestamp`, and `agent_version` per [docs/constitution.md](constitution.md) §4. The Pydantic mixin enforcing this lives in [`law_ai.core.schemas.legal_documents.LegalProvenance`](../backend/law_ai/core/schemas/legal_documents.py).
 
 ## Nodes
 
@@ -125,7 +125,7 @@ Same shape as `Statute` / `StatuteSection` but keyed on `jurisdiction_code` (e.g
 
 ## Constraints + Indexes
 
-Defined under [backend/lawgraph/core/neo4j/migrations/](../backend/lawgraph/core/neo4j/migrations/). All migrations are `IF NOT EXISTS`-guarded and forward-only (spec 015 NFR-MIGRATION-SAFETY-1).
+Defined under [backend/law_ai/core/neo4j/migrations/](../backend/law_ai/core/neo4j/migrations/). All migrations are `IF NOT EXISTS`-guarded and forward-only (spec 015 NFR-MIGRATION-SAFETY-1).
 
 | File                                      | What it adds                                                              |
 | ----------------------------------------- | ------------------------------------------------------------------------- |
@@ -147,7 +147,7 @@ Items below `confidence = 0.7` never enter the graph; they land in `pending_revi
 
 ### Quarantine kinds _(spec 015)_
 
-`pending_review.kind` (CharField, default `'case'`, db-indexed) discriminates what lives in the queue so a single Django admin pane can triage every kind of HITL item. Constants live in [`lawgraph.ingestionapp.quarantine_kinds`](../backend/lawgraph/ingestionapp/quarantine_kinds.py):
+`pending_review.kind` (CharField, default `'case'`, db-indexed) discriminates what lives in the queue so a single Django admin pane can triage every kind of HITL item. Constants live in [`law_ai.ingestionapp.quarantine_kinds`](../backend/law_ai/ingestionapp/quarantine_kinds.py):
 
 | Constant                 | Value               | Producer (planned)                                    |
 | ------------------------ | ------------------- | ----------------------------------------------------- |

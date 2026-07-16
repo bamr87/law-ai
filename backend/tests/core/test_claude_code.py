@@ -1,4 +1,4 @@
-"""Tests for the dev-time Claude Code OAuth provider (lawgraph.core.claude_code).
+"""Tests for the dev-time Claude Code OAuth provider (law_ai.core.claude_code).
 
 Covers the constitution gate (dev-only, opt-in, token-present), the OAuth
 Messages API request shape, and the health probe. No real network — the
@@ -14,7 +14,7 @@ import httpx
 import pytest
 import respx
 
-from lawgraph.core import claude_code
+from law_ai.core import claude_code
 
 _MESSAGES_URL = "https://api.anthropic.com/v1/messages"
 

@@ -24,7 +24,7 @@ def _irac_payload(confidence: float = 0.85) -> str:
 class TestDefaultPath:
     @pytest.mark.asyncio
     async def test_returns_mock_without_calling_claude(self) -> None:
-        from lawgraph.agents_runtime.crews import legal_analyst as mod
+        from law_ai.agents_runtime.crews import legal_analyst as mod
 
         agent = mod.LegalAnalyst()
         with (
@@ -40,7 +40,7 @@ class TestDefaultPath:
 class TestViaClaudeCode:
     @pytest.mark.asyncio
     async def test_routes_to_claude_code_when_active(self) -> None:
-        from lawgraph.agents_runtime.crews import legal_analyst as mod
+        from law_ai.agents_runtime.crews import legal_analyst as mod
 
         agent = mod.LegalAnalyst()
         with (
@@ -65,7 +65,7 @@ class TestViaClaudeCode:
 
     @pytest.mark.asyncio
     async def test_clamps_out_of_range_confidence(self) -> None:
-        from lawgraph.agents_runtime.crews import legal_analyst as mod
+        from law_ai.agents_runtime.crews import legal_analyst as mod
 
         agent = mod.LegalAnalyst()
         with (
@@ -85,7 +85,7 @@ class TestViaClaudeCode:
     async def test_degrades_to_offline_on_provider_error(self) -> None:
         import httpx
 
-        from lawgraph.agents_runtime.crews import legal_analyst as mod
+        from law_ai.agents_runtime.crews import legal_analyst as mod
 
         agent = mod.LegalAnalyst()
         boom = AsyncMock(side_effect=httpx.ConnectError("overloaded"))

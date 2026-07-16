@@ -9,7 +9,7 @@
 
 ## 1. Problem & Motivation
 
-`densify_extraction` (in `backend/lawgraph/core/neo4j/citation_resolver.py`) is
+`densify_extraction` (in `backend/law_ai/core/neo4j/citation_resolver.py`) is
 the function that maps extracted citation strings to real `Case` node IDs via
 `Case.aliases` in Neo4j. Every ingested opinion's `CITES` edges ultimately depend
 on it. Its unit tests (in `backend/tests/db/test_citation_resolver.py`) use a

@@ -13,8 +13,8 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 
-import lawgraph.agents_runtime.graphs.topic_frontier as tf_module
-from lawgraph.agents_runtime.graphs.topic_frontier import (
+import law_ai.agents_runtime.graphs.topic_frontier as tf_module
+from law_ai.agents_runtime.graphs.topic_frontier import (
     TopicFrontier,
     TopicFrontierOutput,
     _node_prioritize,
@@ -108,7 +108,7 @@ class TestNodeScanGraph:
         orphans = ["123 U.S. 456"]
         under = ["us-co"]
 
-        from lawgraph.core.neo4j import queries as q
+        from law_ai.core.neo4j import queries as q
 
         q.list_orphan_citations = AsyncMock(return_value=orphans)
         q.list_under_cited_jurisdictions = AsyncMock(return_value=under)
@@ -345,7 +345,7 @@ class TestTopicFrontierRun:
             return_value={"committed": True, "confidence": 0.95}
         )
 
-        from lawgraph.core.neo4j import queries as neo4j_q
+        from law_ai.core.neo4j import queries as neo4j_q
 
         with (
             patch.object(
@@ -384,7 +384,7 @@ class TestTopicFrontierRun:
     @pytest.mark.asyncio
     async def test_empty_graph_no_crash(self) -> None:
         """Zero orphans + zero under-cited jurisdictions → empty output, no error."""
-        from lawgraph.core.neo4j import queries as neo4j_q
+        from law_ai.core.neo4j import queries as neo4j_q
 
         with (
             patch.object(neo4j_q, "list_orphan_citations", AsyncMock(return_value=[])),
@@ -445,7 +445,7 @@ def test_requires_human_approval_produces_pending_review_row(
 ) -> None:
     from asgiref.sync import async_to_sync
 
-    from lawgraph.ingestionapp.models import PendingReview
+    from law_ai.ingestionapp.models import PendingReview
 
     settings.CELERY_TASK_ALWAYS_EAGER = True
     settings.CELERY_TASK_EAGER_PROPAGATES = True

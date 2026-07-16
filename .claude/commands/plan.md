@@ -3,7 +3,7 @@ description: "AO-SDLC /plan — produce plan.md from a clarified spec"
 argument-hint: "<spec slug>"
 ---
 
-Execute the canonical LawGraph AO-SDLC **plan** step.
+Execute the canonical Law AI AO-SDLC **plan** step.
 
 Read [prompts/plan.md](../../prompts/plan.md) now and follow it exactly.
 

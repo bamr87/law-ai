@@ -7,7 +7,7 @@
 
 ## Context
 
-The repo's only autonomous loop today is the weekly `/evolve` audit ([scripts/evolve_audit.py](../../scripts/evolve_audit.py) + [.github/workflows/evolve.yml](../../.github/workflows/evolve.yml)) that appends BACKLOG candidates from grep + coverage parsing. It does not measure reasoning quality (the [backend/lawgraph/eval/](../../backend/lawgraph/eval/) LegalBench harness referenced from [docs/legalbench.md](../legalbench.md) is empty), and it does not grow the corpus — every ingestion run is hand-driven via `make ingest`.
+The repo's only autonomous loop today is the weekly `/evolve` audit ([scripts/evolve_audit.py](../../scripts/evolve_audit.py) + [.github/workflows/evolve.yml](../../.github/workflows/evolve.yml)) that appends BACKLOG candidates from grep + coverage parsing. It does not measure reasoning quality (the [backend/law_ai/eval/](../../backend/law_ai/eval/) LegalBench harness referenced from [docs/legalbench.md](../legalbench.md) is empty), and it does not grow the corpus — every ingestion run is hand-driven via `make ingest`.
 
 Legal content is effectively unbounded: statutes, regulations, opinions, and citations expand daily across jurisdictions. We need a sustained, auditable loop that (a) measures reasoning quality continuously and proposes test coverage for low-coverage modules, and (b) walks the existing knowledge graph for orphan citations / under-cited jurisdictions and dispatches *known* sources to fill the gaps.
 
@@ -18,7 +18,7 @@ Add an **AutonomyOrchestrator** that coordinates two cooperating loops on top of
 1. **TestPilot** (Pillar A, kind=`test`): runs LegalBench, parses coverage, and a `TestSynthesizer` crew proposes pytest cases for the lowest-coverage modules. Proposals are written to `*.proposed.py` files decorated with `@pytest.mark.skip("autonomy-proposed")` and surfaced via a draft PR (label `autonomy`) — never executed by default, never merged automatically.
 2. **CorpusGrowth** (Pillar B, kind=`content`): a `TopicFrontier` LangGraph workflow walks Neo4j (`scan_graph` → `prioritize` → `dispatch` → `summarize`) and dispatches queries against `SOURCE_REGISTRY` adapters. Every dispatched document still flows through `IngestionScout.run_and_commit`, so the existing confidence gate + `PendingReview` HITL queue are preserved. New `:Case` / `:Statute` nodes can be created only by `IngestionScout` — the orchestrator never writes to Neo4j directly.
 
-Both pillars are invoked through one entry point — `python manage.py run_autonomy --kind {test,content,evolve}` and `lawgraph.core.autonomy.run_cycle()` — wrapped in a single `audit.AuditEvent` (`event_type='autonomy_cycle'`) per run. A daily `compose_digest` task writes `backend/var/autonomy/digest-<date>.md` enumerating PRs opened, BACKLOG items appended, docs quarantined, and the LegalBench delta. **The digest file is the canonical human-review surface.**
+Both pillars are invoked through one entry point — `python manage.py run_autonomy --kind {test,content,evolve}` and `law_ai.core.autonomy.run_cycle()` — wrapped in a single `audit.AuditEvent` (`event_type='autonomy_cycle'`) per run. A daily `compose_digest` task writes `backend/var/autonomy/digest-<date>.md` enumerating PRs opened, BACKLOG items appended, docs quarantined, and the LegalBench delta. **The digest file is the canonical human-review surface.**
 
 Three settings flags govern the loop:
 
@@ -70,7 +70,7 @@ No GitHub Actions workflow in this design is granted permissions sufficient to m
 |---------------------|------------|
 | §1 mission alignment, local-first | All LLM calls go through the existing local Ollama client. No closed-source fallback. |
 | §2 tech stack | Uses Django + Celery + LangGraph + Pydantic + httpx + tenacity already in §2. No new top-level frameworks. |
-| §4 provenance & audit | Every cycle, every adapter dispatch, every LLM call logged via `lawgraph.core.provenance`. |
+| §4 provenance & audit | Every cycle, every adapter dispatch, every LLM call logged via `law_ai.core.provenance`. |
 | §5 HITL | New data sources still gated by `/specify`; low-confidence ingest still goes to `PendingReview`. |
 | §10 autonomy level | Level 2 explicitly retained; this ADR is the recorded reaffirmation. |
 | §11 continuous evolution | Loop appends BACKLOG items; never deletes; spec-driven additions of new adapters preserved. |

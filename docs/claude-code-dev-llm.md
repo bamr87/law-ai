@@ -19,7 +19,7 @@ back to Ollama / the deterministic offline path:
    `ENVIRONMENT=development`), **and**
 3. a `CLAUDE_CODE_OAUTH_TOKEN` is present.
 
-The gate lives in [`lawgraph.core.claude_code`](../backend/lawgraph/core/claude_code.py)
+The gate lives in [`law_ai.core.claude_code`](../backend/law_ai/core/claude_code.py)
 (`is_active()`); production and test environments can never activate it.
 
 ## How it connects (OAuth, not an API key)
@@ -59,7 +59,7 @@ anthropic-version: 2023-06-01
 make validate-claude-code
 ```
 
-The command (`backend/lawgraph/lsat/management/commands/validate_claude_code.py`)
+The command (`backend/law_ai/lsat/management/commands/validate_claude_code.py`)
 prints the gate status, performs a near-free OAuth round-trip, and — when fully
 opted in — runs the LSAT tutor end-to-end through Claude Code to prove the app
 path works.
@@ -102,7 +102,7 @@ make legal-analyst-demo ARGS='--question "Is a browsewrap arbitration clause enf
 > they still require GraphRAG grounding / human review before any real use.
 
 All four call sites — LSAT tutor, LSAT content author, and LegalAnalyst — share
-the one `lawgraph.core.claude_code.is_active()` gate, so they all honor
+the one `law_ai.core.claude_code.is_active()` gate, so they all honor
 `LSAT_LLM_PROVIDER` and the dev-only rule together.
 
 ## Configuration reference

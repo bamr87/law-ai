@@ -1,4 +1,4 @@
-"""Tests for ``lawgraph.core.autonomy`` (spec 018, constitution §12)."""
+"""Tests for ``law_ai.core.autonomy`` (spec 018, constitution §12)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from django.conf import settings
 
-from lawgraph.core import autonomy
+from law_ai.core import autonomy
 
 
 @pytest.fixture()

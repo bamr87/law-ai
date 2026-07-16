@@ -9,7 +9,7 @@
 
 ## 1. Problem & Motivation
 
-LawGraph's reasoning agents (`LegalAnalyst`, `PrecedentHunter`) need a populated Neo4j graph of real US case law to be useful. Today the graph is empty: there is no ingestion pipeline, only a stub `Ingestion Scout` row in [docs/agent-roles.md](../../docs/agent-roles.md). [CourtListener](https://www.courtlistener.com/help/api/rest/) provides a free, well-documented REST API over US federal and state opinions and is the obvious first source. Without it we cannot establish a LegalBench baseline (per [docs/constitution.md](../../docs/constitution.md) §10) or demo the Analysis Studio against real data.
+Law AI's reasoning agents (`LegalAnalyst`, `PrecedentHunter`) need a populated Neo4j graph of real US case law to be useful. Today the graph is empty: there is no ingestion pipeline, only a stub `Ingestion Scout` row in [docs/agent-roles.md](../../docs/agent-roles.md). [CourtListener](https://www.courtlistener.com/help/api/rest/) provides a free, well-documented REST API over US federal and state opinions and is the obvious first source. Without it we cannot establish a LegalBench baseline (per [docs/constitution.md](../../docs/constitution.md) §10) or demo the Analysis Studio against real data.
 
 ## 2. Goals
 
@@ -27,7 +27,7 @@ LawGraph's reasoning agents (`LegalAnalyst`, `PrecedentHunter`) need a populated
 
 ## 4. User Stories
 
-- As a **LawGraph developer**, I want to run one command and have a populated Neo4j graph, so that I can demo and test the reasoning agents locally.
+- As a **Law AI developer**, I want to run one command and have a populated Neo4j graph, so that I can demo and test the reasoning agents locally.
 - As a **legal researcher**, I want every ingested case to carry its CourtListener URL, ingest timestamp, and confidence score, so that I can audit any downstream analysis.
 - As a **maintainer**, I want low-confidence extractions to be flagged for human review, so that we never silently ingest garbage into the graph.
 

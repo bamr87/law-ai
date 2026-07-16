@@ -46,14 +46,14 @@ flowchart LR
 
 | File | Module | Change |
 |------|--------|--------|
-| `backend/lawgraph/agents_runtime/crews/lsat_content_author.py` | new | `LSATContentAuthor` crew + `GenerateQuestionsInput` / `GenerateQuestionsOutput` / `DraftQuestion` Pydantic models + Ollama integration + offline fallback. |
-| `backend/lawgraph/agents_runtime/prompts/lsat_content_author.v1.md` | new | Versioned prompt template. |
-| `backend/lawgraph/agents_runtime/registry.py` | edit | Register `LSATContentAuthor`. |
-| `backend/lawgraph/lsat/services/proposals.py` | new | `record_proposal`, `list_proposals`, `set_status`, `gap_analysis`, `promote_to_bank` helpers. |
-| `backend/lawgraph/lsat/urls.py` | edit | Add 5 new `APIView`s + url patterns under existing router. |
-| `backend/lawgraph/core/tasks.py` | edit | Dispatch `kind="lsat_content"` to new `_run_lsat_content` sub-runner. |
-| `backend/lawgraph/core/management/commands/run_autonomy.py` | edit | Add `--kind lsat_content` choice + `_run_lsat_content(context, *, budget)` sub-runner. |
-| `backend/lawgraph/celery.py` | edit | New beat entry `autonomy-lsat-content` (daily 04:00 UTC, budget 5). |
+| `backend/law_ai/agents_runtime/crews/lsat_content_author.py` | new | `LSATContentAuthor` crew + `GenerateQuestionsInput` / `GenerateQuestionsOutput` / `DraftQuestion` Pydantic models + Ollama integration + offline fallback. |
+| `backend/law_ai/agents_runtime/prompts/lsat_content_author.v1.md` | new | Versioned prompt template. |
+| `backend/law_ai/agents_runtime/registry.py` | edit | Register `LSATContentAuthor`. |
+| `backend/law_ai/lsat/services/proposals.py` | new | `record_proposal`, `list_proposals`, `set_status`, `gap_analysis`, `promote_to_bank` helpers. |
+| `backend/law_ai/lsat/urls.py` | edit | Add 5 new `APIView`s + url patterns under existing router. |
+| `backend/law_ai/core/tasks.py` | edit | Dispatch `kind="lsat_content"` to new `_run_lsat_content` sub-runner. |
+| `backend/law_ai/core/management/commands/run_autonomy.py` | edit | Add `--kind lsat_content` choice + `_run_lsat_content(context, *, budget)` sub-runner. |
+| `backend/law_ai/celery.py` | edit | New beat entry `autonomy-lsat-content` (daily 04:00 UTC, budget 5). |
 | `backend/var/lsat_proposals/.gitkeep` | new | Reserve directory in git. |
 | `backend/tests/agents/test_lsat_content_author.py` | new | Unit tests: schema validation, Ollama mocking, offline fallback, provenance call. |
 | `backend/tests/lsat/test_proposals.py` | new | Unit tests: record/list/set_status round-trip, gap_analysis, promote_to_bank. |

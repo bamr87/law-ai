@@ -8,7 +8,7 @@ model: ["Claude Sonnet 4.6 (copilot)", "GPT-5 (copilot)"]
 
 # Advance Open Work
 
-You are operating on the LawGraph AI repo. Required reading: [AGENTS.md](../../AGENTS.md), [docs/constitution.md](../../docs/constitution.md) (esp. §11), [BACKLOG.md](../../BACKLOG.md).
+You are operating on the Law AI repo. Required reading: [AGENTS.md](../../AGENTS.md), [docs/constitution.md](../../docs/constitution.md) (esp. §11), [BACKLOG.md](../../BACKLOG.md).
 
 The project's spec-driven workflow lives in [prompts/](../../prompts/): [/specify](../../prompts/specify.md), [/clarify](../../prompts/clarify.md), [/plan](../../prompts/plan.md), [/tasks](../../prompts/tasks.md), [/implement](../../prompts/implement.md). For full autopilot use [/evolve](../../prompts/evolve.md) instead — this prompt advances **one step on one item**, no further.
 

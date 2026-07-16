@@ -19,8 +19,8 @@ from collections.abc import AsyncGenerator
 import pytest
 import pytest_asyncio
 
-import lawgraph.core.neo4j.driver as _neo4j_drv_mod
-from lawgraph.ingestionapp.services.scout import IngestionScout
+import law_ai.core.neo4j.driver as _neo4j_drv_mod
+from law_ai.ingestionapp.services.scout import IngestionScout
 
 # All tests in this module need the same event loop as the session-scoped
 # async fixtures (``neo4j_integration_driver``, ``postgres_integration_pool``)

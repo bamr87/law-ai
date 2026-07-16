@@ -38,12 +38,12 @@ The LSAT Lab (spec 005) ships a hand-curated bank of ~dozens of questions across
 
 ## 5. Functional Requirements
 
-- **FR-1**: `LSATContentAuthor` crew at `backend/lawgraph/agents_runtime/crews/lsat_content_author.py` exposes `async run(input_data: dict) -> GenerateQuestionsOutput` with strict Pydantic input/output models (`GenerateQuestionsInput`, `GenerateQuestionsOutput`, `DraftQuestion`).
-- **FR-2**: A versioned prompt lives at `backend/lawgraph/agents_runtime/prompts/lsat_content_author.v1.md` and is loaded at runtime — never inlined in the Python module.
+- **FR-1**: `LSATContentAuthor` crew at `backend/law_ai/agents_runtime/crews/lsat_content_author.py` exposes `async run(input_data: dict) -> GenerateQuestionsOutput` with strict Pydantic input/output models (`GenerateQuestionsInput`, `GenerateQuestionsOutput`, `DraftQuestion`).
+- **FR-2**: A versioned prompt lives at `backend/law_ai/agents_runtime/prompts/lsat_content_author.v1.md` and is loaded at runtime — never inlined in the Python module.
 - **FR-3**: Every `run()` invocation logs one `provenance.log_agent_call` event with agent="LSATContentAuthor", model, latency_ms, confidence, sources, and `child_trace_ids=[…]` covering each draft persisted, matching the dashboard correlation contract.
-- **FR-4**: Drafts are persisted to an append-only JSONL store at `backend/var/lsat_proposals/proposals.jsonl` via `lawgraph.lsat.services.proposals.record_proposal()`. Schema: `{id, created_at, status, section, difficulty, draft, agent_trace_id, model, confidence, source_concept_ids}`.
-- **FR-5**: `lawgraph.lsat.services.proposals.list_proposals(status: str | None = "pending")` returns rows filtered by status, newest-first. `lawgraph.lsat.services.proposals.set_status(id, status, *, reviewer, note)` updates the row by appending a new revision (append-only — no in-place mutation).
-- **FR-6**: `lawgraph.lsat.services.proposals.gap_analysis(window: int = 5000)` returns `{(section, concept): {attempts, correct, accuracy}}` from the existing `lsat_grade` events, sorted by lowest accuracy with `attempts ≥ 3`.
+- **FR-4**: Drafts are persisted to an append-only JSONL store at `backend/var/lsat_proposals/proposals.jsonl` via `law_ai.lsat.services.proposals.record_proposal()`. Schema: `{id, created_at, status, section, difficulty, draft, agent_trace_id, model, confidence, source_concept_ids}`.
+- **FR-5**: `law_ai.lsat.services.proposals.list_proposals(status: str | None = "pending")` returns rows filtered by status, newest-first. `law_ai.lsat.services.proposals.set_status(id, status, *, reviewer, note)` updates the row by appending a new revision (append-only — no in-place mutation).
+- **FR-6**: `law_ai.lsat.services.proposals.gap_analysis(window: int = 5000)` returns `{(section, concept): {attempts, correct, accuracy}}` from the existing `lsat_grade` events, sorted by lowest accuracy with `attempts ≥ 3`.
 - **FR-7**: New endpoints under `/api/lsat/`:
   - `GET /lsat/proposals?status=pending|approved|rejected|all&limit=N` → `{proposals: [...], count}`
   - `POST /lsat/proposals/generate` body `{section, difficulty, concepts?, count?, passage_id?}` → triggers `LSATContentAuthor.run()` and returns `{proposals: [...], trace_id}`
@@ -51,8 +51,8 @@ The LSAT Lab (spec 005) ships a hand-curated bank of ~dozens of questions across
   - `POST /lsat/proposals/<id>/reject` body `{note?}` → marks status `rejected`; returns `{id, status: "rejected"}`
   - `GET /lsat/gaps?limit=N` → `{gaps: [{section, concept, attempts, accuracy}, …], window}`
 - **FR-8**: Promotion to the live bank writes the new question into the matching section file via a single atomic `Path.write_text` of the parsed-and-re-serialised JSON; the cached `load_bank()` is cleared on success.
-- **FR-9**: Register `LSATContentAuthor` in `backend/lawgraph/agents_runtime/registry.py::register_all_agents` so it appears in `/api/agents` with `human_approval_required=True`.
-- **FR-10**: Add `"lsat_content"` to the autonomy dispatcher in `backend/lawgraph/core/tasks.py::autonomy_cycle` and a matching sub-runner `_run_lsat_content(context, *, budget)` in `backend/lawgraph/core/management/commands/run_autonomy.py` that:
+- **FR-9**: Register `LSATContentAuthor` in `backend/law_ai/agents_runtime/registry.py::register_all_agents` so it appears in `/api/agents` with `human_approval_required=True`.
+- **FR-10**: Add `"lsat_content"` to the autonomy dispatcher in `backend/law_ai/core/tasks.py::autonomy_cycle` and a matching sub-runner `_run_lsat_content(context, *, budget)` in `backend/law_ai/core/management/commands/run_autonomy.py` that:
   1. Calls `gap_analysis()` to pick the weakest `(section, concept)` pair with `attempts ≥ 3` (falls back to a low-coverage section when no learner data yet).
   2. Invokes `LSATContentAuthor` with `count=budget`.
   3. Persists every draft via `record_proposal()` with status `pending`.

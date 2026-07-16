@@ -33,7 +33,7 @@ The `IngestionScout` landed in spec 001 with unit tests (91% coverage), but **no
 
 ## 4. User Stories
 
-- As a **LawGraph maintainer**, I want every PR to run integration tests against Neo4j and Postgres, so that regressions in ingestion or citation linking are caught before merging.
+- As a **Law AI maintainer**, I want every PR to run integration tests against Neo4j and Postgres, so that regressions in ingestion or citation linking are caught before merging.
 - As a **developer**, I want to run `pytest -m integration` locally and have it spin up containers automatically (via pytest-docker or a fixture script), so that I can verify my changes without manually managing services.
 - As a **CI engineer**, I want the integration-test job to run only when backend files change (not on docs-only PRs), so that CI minutes are not wasted.
 

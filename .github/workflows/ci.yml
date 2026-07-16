@@ -63,7 +63,7 @@ jobs:
         run: pip install -e .
       - name: Import-check public modules
         env:
-          DJANGO_SETTINGS_MODULE: lawgraph.settings.test
+          DJANGO_SETTINGS_MODULE: law_ai.settings.test
           DATABASE_URL: sqlite:///./_smoke.sqlite3
           NEO4J_URI: bolt://localhost:7687
           NEO4J_USER: neo4j
@@ -75,22 +75,22 @@ jobs:
           django.setup()  # required for Django ORM models
           modules = [
               # Pure Pydantic / utility modules — no Django
-              "lawgraph.core.schemas",
-              "lawgraph.core.schemas.legal_documents",
-              "lawgraph.core.schemas.statute_extraction",
-              "lawgraph.core.neo4j.statute_queries",
-              "lawgraph.ingestionapp.quarantine_kinds",
+              "law_ai.core.schemas",
+              "law_ai.core.schemas.legal_documents",
+              "law_ai.core.schemas.statute_extraction",
+              "law_ai.core.neo4j.statute_queries",
+              "law_ai.ingestionapp.quarantine_kinds",
               # Ingestion services — these are the modules that broke in PR #1
               # because of an undeclared lxml dependency.
-              "lawgraph.ingestionapp.services.scout",
-              "lawgraph.ingestionapp.services.statute_scout",
-              "lawgraph.ingestionapp.services.colorado_statutes",
-              "lawgraph.ingestionapp.services.courtlistener",
+              "law_ai.ingestionapp.services.scout",
+              "law_ai.ingestionapp.services.statute_scout",
+              "law_ai.ingestionapp.services.colorado_statutes",
+              "law_ai.ingestionapp.services.courtlistener",
               # Django-dependent surfaces
-              "lawgraph.ingestionapp.models",
-              "lawgraph.ingestionapp.tasks",
-              "lawgraph.audit.models",
-              "lawgraph.asgi",  # boots the whole ASGI app + URLConf
+              "law_ai.ingestionapp.models",
+              "law_ai.ingestionapp.tasks",
+              "law_ai.audit.models",
+              "law_ai.asgi",  # boots the whole ASGI app + URLConf
           ]
           failed = []
           for m in modules:
@@ -122,7 +122,7 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: black --check .
-      - run: mypy lawgraph --strict
+      - run: mypy law_ai --strict
         continue-on-error: true # tighten once strict-clean
 
   backend-test:
@@ -164,7 +164,7 @@ jobs:
       - name: Run pytest with coverage
         # Integration tests require Docker fixtures that aren't available here;
         # they run in the dedicated 'Docker-backed Integration Tests' workflow.
-        run: pytest -q -m "not integration" --cov=lawgraph --cov-report=xml --cov-report=term
+        run: pytest -q -m "not integration" --cov=law_ai --cov-report=xml --cov-report=term
       - uses: actions/upload-artifact@v4
         if: always()
         with:

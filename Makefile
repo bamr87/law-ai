@@ -23,7 +23,7 @@ RUN_FRONTEND     := $(DC) run --rm --no-deps frontend
 RUN_BACKEND_FULL := $(DC) run --rm backend
 
 help:
-	@echo "LawGraph AI — Docker-first development"
+	@echo "Law AI — Docker-first development"
 	@echo ""
 	@echo "Stack:"
 	@echo "  make dev               - Start full stack (foreground, builds images)"
@@ -129,7 +129,7 @@ test-frontend:
 	$(RUN_FRONTEND) npm test -- --run
 
 test-coverage:
-	$(RUN_BACKEND) pytest --cov=lawgraph --cov-report=xml --cov-report=html --cov-report=term
+	$(RUN_BACKEND) pytest --cov=law_ai --cov-report=xml --cov-report=html --cov-report=term
 	$(RUN_FRONTEND) npm run test:coverage
 
 test-smoke:
@@ -143,10 +143,10 @@ test-integration:
 	$(DC) up -d neo4j postgres redis --wait
 	@trap '$(DC) down' EXIT INT TERM; \
 	  $(DC) run --rm \
-	    -e DATABASE_URL=postgresql://lawgraph:lawgraph-dev@postgres:5432/lawgraph \
+	    -e DATABASE_URL=postgresql://law_ai:law_ai-dev@postgres:5432/law_ai \
 	    -e NEO4J_URI=bolt://neo4j:7687 \
 	    -e NEO4J_USER=neo4j \
-	    -e NEO4J_PASSWORD=lawgraph-dev \
+	    -e NEO4J_PASSWORD=law_ai-dev \
 	    -e REDIS_URL=redis://redis:6379/0 \
 	    backend pytest -m integration -v --no-cov
 # --no-cov: the integration subset is a targeted slice, so the repo-wide
@@ -154,7 +154,7 @@ test-integration:
 # even when every test passes. Coverage is measured by `make test-backend`.
 
 test-legalbench:
-	$(RUN_BACKEND_FULL) python -m lawgraph.eval.legalbench --subset core_reasoning,precedent_retrieval
+	$(RUN_BACKEND_FULL) python -m law_ai.eval.legalbench --subset core_reasoning,precedent_retrieval
 
 # ---------------------------------------------------------------------------
 # Quality (Docker-only)
@@ -169,7 +169,7 @@ format:
 	$(RUN_FRONTEND) npx prettier --write .
 
 typecheck:
-	$(RUN_BACKEND) mypy lawgraph --strict
+	$(RUN_BACKEND) mypy law_ai --strict
 	$(RUN_FRONTEND) npx tsc --noEmit
 
 # ---------------------------------------------------------------------------
@@ -273,12 +273,12 @@ autonomy-run:
 	$(RUN_BACKEND_FULL) python manage.py run_autonomy $(_AUTONOMY_ARGS)
 
 autonomy-status:
-	$(RUN_WORKER) celery -A lawgraph inspect scheduled
+	$(RUN_WORKER) celery -A law_ai inspect scheduled
 
 autonomy-stop:
 	# Stops the worker from consuming new tasks from the autonomy queue.
 	# This does NOT purge tasks already queued — use 'celery purge' for that.
-	$(RUN_WORKER) celery -A lawgraph control cancel_consumer autonomy
+	$(RUN_WORKER) celery -A law_ai control cancel_consumer autonomy
 
 # ---------------------------------------------------------------------------
 # Legacy host-based targets (avoid; emergency fallback only)
@@ -289,7 +289,7 @@ host-setup:
 	cd frontend && npm install
 
 host-test:
-	cd backend && pytest -q --cov=lawgraph
+	cd backend && pytest -q --cov=law_ai
 	cd frontend && npm test -- --run
 
 clean:

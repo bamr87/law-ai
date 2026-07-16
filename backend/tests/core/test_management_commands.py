@@ -11,7 +11,7 @@ from io import StringIO
 import pytest
 from django.core.management import call_command
 
-from lawgraph.core.models import ApiToken
+from law_ai.core.models import ApiToken
 
 
 @pytest.mark.django_db

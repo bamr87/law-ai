@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import pytest
 
-from lawgraph.core.neo4j.graph_queries import neighborhood
+from law_ai.core.neo4j.graph_queries import neighborhood
 
 pytestmark = [
     pytest.mark.integration,

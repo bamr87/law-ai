@@ -7,8 +7,8 @@ from datetime import datetime, UTC
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from lawgraph.core import urls_health as health_module
-from lawgraph.asgi import application as app
+from law_ai.core import urls_health as health_module
+from law_ai.asgi import application as app
 
 
 @pytest.mark.asyncio

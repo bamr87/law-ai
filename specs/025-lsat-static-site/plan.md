@@ -27,7 +27,7 @@ Key decisions:
 
 | File | Purpose |
 |------|---------|
-| `backend/lawgraph/lsat/management/commands/lsat_export.py` | FR-1/FR-2 exporter |
+| `backend/law_ai/lsat/management/commands/lsat_export.py` | FR-1/FR-2 exporter |
 | `backend/tests/lsat/test_export_site.py` | exporter unit tests (Docker) |
 | `frontend/public/lsat-practice/index.html` | shell: header, nav tabs, view container, footer |
 | `frontend/public/lsat-practice/styles.css` | dark-theme styles, focus states |

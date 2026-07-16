@@ -9,7 +9,7 @@
 
 ## 1. Problem & Motivation
 
-Spec 015 declared the `Statute` / `StatuteSection` / `Code` / `Jurisdiction` schema, but nothing writes to it. Every reasoning path in LawGraph still operates on opinions only. Without a real statutory corpus we cannot exercise the spec-015 schema, validate the spec-018 hybrid retriever against statutory queries, or measure spec-019 derived-document feedback against primary law. This spec lands the first non-opinion ingestion source: a **MVP slice of Colorado Revised Statutes (CRS) Title 18 (Criminal Code)** parsed from clean public HTML, written through the same `IngestionScout`-shaped scout/quarantine/commit pipeline that already serves CourtListener.
+Spec 015 declared the `Statute` / `StatuteSection` / `Code` / `Jurisdiction` schema, but nothing writes to it. Every reasoning path in Law AI still operates on opinions only. Without a real statutory corpus we cannot exercise the spec-015 schema, validate the spec-018 hybrid retriever against statutory queries, or measure spec-019 derived-document feedback against primary law. This spec lands the first non-opinion ingestion source: a **MVP slice of Colorado Revised Statutes (CRS) Title 18 (Criminal Code)** parsed from clean public HTML, written through the same `IngestionScout`-shaped scout/quarantine/commit pipeline that already serves CourtListener.
 
 ## 2. Goals
 
@@ -36,12 +36,12 @@ Spec 015 declared the `Statute` / `StatuteSection` / `Code` / `Jurisdiction` sch
 
 ## 5. Functional Requirements
 
-- **FR-1**: `backend/lawgraph/ingestionapp/services/colorado_statutes.py` provides `ColoradoStatutesClient` (async, `httpx`-backed, `tenacity`-retried on 429/5xx/transport, provenance-logged via `core.provenance`) with `async fetch_title(title: str) -> str` returning raw HTML and `async iter_titles(titles: Iterable[str]) -> AsyncIterator[tuple[str, str]]` yielding `(title_id, html)` pairs.
+- **FR-1**: `backend/law_ai/ingestionapp/services/colorado_statutes.py` provides `ColoradoStatutesClient` (async, `httpx`-backed, `tenacity`-retried on 429/5xx/transport, provenance-logged via `core.provenance`) with `async fetch_title(title: str) -> str` returning raw HTML and `async iter_titles(titles: Iterable[str]) -> AsyncIterator[tuple[str, str]]` yielding `(title_id, html)` pairs.
 - **FR-2**: A pure parser `parse_title_html(title_id: str, html: str) -> StatuteExtraction` (stdlib + bs4) extracts: code metadata (`us-co/crs`, "Colorado Revised Statutes"), statute metadata (`us-co/crs/title-18`, title text), and a list of `StatuteSectionPayload` rows with `id`, `citation` (e.g. `C.R.S. § 18-3-102`), `heading`, `text`, optional `effective_from`. Parser is deterministic and unit-testable on canned fixtures.
-- **FR-3**: `backend/lawgraph/ingestionapp/services/statute_scout.py` provides `StatuteScout` with `extract(payload: dict) -> StatuteExtraction` and `async run_and_commit(payload: dict) -> dict`. `agent_version = "0.1.0"`, `requires_human_approval = False`, `CONFIDENCE_THRESHOLD = 0.7`. The summary dict has shape `{"title_id", "committed", "pending", "sections_total", "edges"}`.
+- **FR-3**: `backend/law_ai/ingestionapp/services/statute_scout.py` provides `StatuteScout` with `extract(payload: dict) -> StatuteExtraction` and `async run_and_commit(payload: dict) -> dict`. `agent_version = "0.1.0"`, `requires_human_approval = False`, `CONFIDENCE_THRESHOLD = 0.7`. The summary dict has shape `{"title_id", "committed", "pending", "sections_total", "edges"}`.
 - **FR-4**: A new pure scoring helper `_score_section(text: str, citation: str | None) -> float` returns 0..1; sections below 0.7 quarantine, ≥ 0.7 commit. Statute-tree nodes (Jurisdiction / Code / Statute) always commit when their parent title commits at all (they are administrative metadata, not extracted content).
-- **FR-5**: `backend/lawgraph/core/neo4j/statute_queries.py` provides `async commit_statute_extraction(session, extraction) -> int` returning the number of `:PART_OF` + `:IN_JURISDICTION` edges created. All writes use `MERGE` keyed on the spec-015 unique-constraint properties so re-running is a no-op.
-- **FR-6**: `quarantine_extraction` Celery task ([backend/lawgraph/ingestionapp/tasks.py](../../backend/lawgraph/ingestionapp/tasks.py)) honors `payload["kind"]` (defaulting to `"case"` when absent) and persists it to the spec-015 `PendingReview.kind` column. Backwards-compatible with existing CourtListener call sites.
+- **FR-5**: `backend/law_ai/core/neo4j/statute_queries.py` provides `async commit_statute_extraction(session, extraction) -> int` returning the number of `:PART_OF` + `:IN_JURISDICTION` edges created. All writes use `MERGE` keyed on the spec-015 unique-constraint properties so re-running is a no-op.
+- **FR-6**: `quarantine_extraction` Celery task ([backend/law_ai/ingestionapp/tasks.py](../../backend/law_ai/ingestionapp/tasks.py)) honors `payload["kind"]` (defaulting to `"case"` when absent) and persists it to the spec-015 `PendingReview.kind` column. Backwards-compatible with existing CourtListener call sites.
 - **FR-7**: `backend/scripts/ingest_sample.py` accepts `--source colorado_statutes` and `--titles 18,42` (comma-separated). When `--source colorado_statutes` is selected, `--limit` becomes the per-title section cap. Default still routes to CourtListener.
 - **FR-8**: [docs/data-sources.md](../../docs/data-sources.md) gains a "Colorado Revised Statutes" row in the table and a detail block with: source URL pattern, license posture, env var (`COLORADO_STATUTES_BASE_URL` for override), retry policy, and sample CLI command. License note states underlying CRS text is uncopyrightable government work; cached HTML provenance is recorded per node.
 
@@ -75,7 +75,7 @@ None. CLI only (FR-7). DRF routes to expose statute sections to the frontend are
 
 ## 9. Agent / Crew Impact
 
-- New crew member: `StatuteScout` (parallel to `IngestionScout`). Lives in `backend/lawgraph/ingestionapp/services/statute_scout.py` (consistent with existing `services/scout.py`), but it satisfies the agent-runtime contract from [.github/instructions/agents.instructions.md](../../.github/instructions/agents.instructions.md): typed `extract` / `run_and_commit`, provenance logging, optional HITL via confidence threshold, and `agent_version` string.
+- New crew member: `StatuteScout` (parallel to `IngestionScout`). Lives in `backend/law_ai/ingestionapp/services/statute_scout.py` (consistent with existing `services/scout.py`), but it satisfies the agent-runtime contract from [.github/instructions/agents.instructions.md](../../.github/instructions/agents.instructions.md): typed `extract` / `run_and_commit`, provenance logging, optional HITL via confidence threshold, and `agent_version` string.
 - No prompt files (rule-based parser, not LLM-driven). When the LegalAnalyst eventually grounds answers in CRS sections (spec 018), a versioned prompt will land then.
 
 ## 10. Acceptance Criteria

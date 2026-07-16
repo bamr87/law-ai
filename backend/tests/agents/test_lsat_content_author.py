@@ -39,7 +39,7 @@ def _valid_drafts_payload(count: int = 1, section: str = "LR") -> str:
 
 class TestPydanticContracts:
     def test_input_caps_count_at_10(self) -> None:
-        from lawgraph.agents_runtime.crews.lsat_content_author import (
+        from law_ai.agents_runtime.crews.lsat_content_author import (
             GenerateQuestionsInput,
         )
 
@@ -47,7 +47,7 @@ class TestPydanticContracts:
             GenerateQuestionsInput(section="LR", difficulty="med", count=11)
 
     def test_draft_requires_5_choices_in_order(self) -> None:
-        from lawgraph.agents_runtime.crews.lsat_content_author import (
+        from law_ai.agents_runtime.crews.lsat_content_author import (
             DraftChoice,
             DraftQuestion,
         )
@@ -65,7 +65,7 @@ class TestPydanticContracts:
 
     def test_draft_correct_must_be_one_of_labels(self) -> None:
         # `correct: ChoiceLabel` is already a Literal — Pydantic rejects "F".
-        from lawgraph.agents_runtime.crews.lsat_content_author import (
+        from law_ai.agents_runtime.crews.lsat_content_author import (
             DraftChoice,
             DraftQuestion,
         )
@@ -87,7 +87,7 @@ class TestPydanticContracts:
 class TestRunSuccess:
     @pytest.mark.asyncio
     async def test_returns_drafts_and_logs_provenance(self) -> None:
-        from lawgraph.agents_runtime.crews import lsat_content_author as mod
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
 
         agent = mod.LSATContentAuthor()
         with (
@@ -116,7 +116,7 @@ class TestRunSuccess:
 
     @pytest.mark.asyncio
     async def test_pads_to_count_when_llm_returns_fewer(self) -> None:
-        from lawgraph.agents_runtime.crews import lsat_content_author as mod
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
 
         agent = mod.LSATContentAuthor()
         with (
@@ -136,7 +136,7 @@ class TestRunFallback:
     async def test_degrades_to_offline_on_ollama_error(self) -> None:
         import httpx
 
-        from lawgraph.agents_runtime.crews import lsat_content_author as mod
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
 
         agent = mod.LSATContentAuthor()
         boom = AsyncMock(side_effect=httpx.ConnectError("nope"))
@@ -158,7 +158,7 @@ class TestRunFallback:
 
     @pytest.mark.asyncio
     async def test_degrades_when_llm_returns_invalid_json(self) -> None:
-        from lawgraph.agents_runtime.crews import lsat_content_author as mod
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
 
         agent = mod.LSATContentAuthor()
         with (
@@ -177,7 +177,7 @@ class TestRunViaClaudeCode:
 
     @pytest.mark.asyncio
     async def test_routes_to_claude_code_when_active(self) -> None:
-        from lawgraph.agents_runtime.crews import lsat_content_author as mod
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
 
         agent = mod.LSATContentAuthor()
         gen = AsyncMock(return_value=_valid_drafts_payload(1))
@@ -197,7 +197,7 @@ class TestRunViaClaudeCode:
 
     @pytest.mark.asyncio
     async def test_strips_markdown_fence_from_claude_output(self) -> None:
-        from lawgraph.agents_runtime.crews import lsat_content_author as mod
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
 
         agent = mod.LSATContentAuthor()
         fenced = "```json\n" + _valid_drafts_payload(1) + "\n```"
@@ -215,7 +215,7 @@ class TestRunViaClaudeCode:
 
     @pytest.mark.asyncio
     async def test_degrades_when_claude_code_unavailable(self) -> None:
-        from lawgraph.agents_runtime.crews import lsat_content_author as mod
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
 
         agent = mod.LSATContentAuthor()
         boom = AsyncMock(
@@ -233,7 +233,7 @@ class TestRunViaClaudeCode:
     @pytest.mark.asyncio
     async def test_normalizes_extra_choice_from_claude(self) -> None:
         """A stray empty 6th choice (a real Opus quirk) is trimmed to A-E, not dropped."""
-        from lawgraph.agents_runtime.crews import lsat_content_author as mod
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
 
         payload = json.dumps(
             {
@@ -276,7 +276,7 @@ class TestRunViaClaudeCode:
 
 class TestNormalizeChoices:
     def test_trims_extra_empty_duplicate(self) -> None:
-        from lawgraph.agents_runtime.crews import lsat_content_author as mod
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
 
         item = {
             "choices": [
@@ -293,7 +293,7 @@ class TestNormalizeChoices:
         assert item["choices"][0]["text"] == "a"
 
     def test_leaves_incomplete_set_for_validation(self) -> None:
-        from lawgraph.agents_runtime.crews import lsat_content_author as mod
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
 
         item = {"choices": [{"label": "A", "text": "a"}, {"label": "B", "text": "b"}]}
         mod._normalize_choices(item)

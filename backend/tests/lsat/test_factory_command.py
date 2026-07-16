@@ -12,8 +12,8 @@ import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
-from lawgraph.lsat.factory.config import FactoryConfig
-from lawgraph.lsat.factory.pipeline import compile_plan
+from law_ai.lsat.factory.config import FactoryConfig
+from law_ai.lsat.factory.pipeline import compile_plan
 
 
 def _run(*args: str) -> str:

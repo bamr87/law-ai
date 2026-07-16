@@ -1,4 +1,4 @@
-"""Tests for ``lawgraph.core.autonomy.compose_digest`` (spec 018 T-010)."""
+"""Tests for ``law_ai.core.autonomy.compose_digest`` (spec 018 T-010)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from django.conf import settings
 
-from lawgraph.core import autonomy
+from law_ai.core import autonomy
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -48,8 +48,8 @@ class TestComposeDigestEmpty:
         monkeypatch.setattr(settings, "AUTONOMY_DIGEST_DIR", str(tmp_path))
 
         with (
-            patch("lawgraph.audit.models.AuditEvent") as mock_model,
-            patch("lawgraph.core.autonomy._persist"),
+            patch("law_ai.audit.models.AuditEvent") as mock_model,
+            patch("law_ai.core.autonomy._persist"),
         ):
             mock_model.objects = _mock_queryset([])
             path = autonomy.compose_digest(date=_ANCHOR)
@@ -67,8 +67,8 @@ class TestComposeDigestEmpty:
         monkeypatch.setattr(settings, "AUTONOMY_DIGEST_DIR", str(tmp_path))
 
         with (
-            patch("lawgraph.audit.models.AuditEvent") as mock_model,
-            patch("lawgraph.core.autonomy._persist"),
+            patch("law_ai.audit.models.AuditEvent") as mock_model,
+            patch("law_ai.core.autonomy._persist"),
         ):
             mock_model.objects = _mock_queryset([])
             path = autonomy.compose_digest(date=_ANCHOR)
@@ -105,8 +105,8 @@ class TestComposeDigestWithRows:
         ]
 
         with (
-            patch("lawgraph.audit.models.AuditEvent") as mock_model,
-            patch("lawgraph.core.autonomy._persist"),
+            patch("law_ai.audit.models.AuditEvent") as mock_model,
+            patch("law_ai.core.autonomy._persist"),
         ):
             mock_model.objects = _mock_queryset(rows)
             path = autonomy.compose_digest(date=_ANCHOR)
@@ -124,8 +124,8 @@ class TestComposeDigestWithRows:
         captured: list[dict[str, Any]] = []
 
         with (
-            patch("lawgraph.audit.models.AuditEvent") as mock_model,
-            patch("lawgraph.core.autonomy._persist", side_effect=captured.append),
+            patch("law_ai.audit.models.AuditEvent") as mock_model,
+            patch("law_ai.core.autonomy._persist", side_effect=captured.append),
         ):
             mock_model.objects = _mock_queryset([])
             autonomy.compose_digest(date=_ANCHOR)
@@ -145,9 +145,9 @@ class TestComposeDigestDbFailure:
         monkeypatch.setattr(settings, "AUTONOMY_DIGEST_DIR", str(tmp_path))
 
         with (
-            patch("lawgraph.core.autonomy._persist"),
+            patch("law_ai.core.autonomy._persist"),
             patch(
-                "lawgraph.audit.models.AuditEvent",
+                "law_ai.audit.models.AuditEvent",
                 side_effect=Exception("db down"),
             ),
         ):
@@ -172,12 +172,12 @@ class TestRunDigestIntegration:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(settings, "AUTONOMY_DIGEST_DIR", str(tmp_path))
-        from lawgraph.core.management.commands.run_autonomy import _run_digest
+        from law_ai.core.management.commands.run_autonomy import _run_digest
 
         context: dict[str, Any] = {}
         with (
-            patch("lawgraph.audit.models.AuditEvent") as mock_model,
-            patch("lawgraph.core.autonomy._persist"),
+            patch("law_ai.audit.models.AuditEvent") as mock_model,
+            patch("law_ai.core.autonomy._persist"),
         ):
             mock_model.objects = _mock_queryset([])
             result = _run_digest(context)

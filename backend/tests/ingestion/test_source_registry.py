@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from lawgraph.ingestionapp.sources import SOURCE_REGISTRY, RawDoc
-from lawgraph.ingestionapp.sources.base import SourceAdapter as BaseAdapter
+from law_ai.ingestionapp.sources import SOURCE_REGISTRY, RawDoc
+from law_ai.ingestionapp.sources.base import SourceAdapter as BaseAdapter
 
 # ---------------------------------------------------------------------------
 # Registry structure
@@ -37,7 +37,7 @@ def test_all_adapters_have_required_metadata() -> None:
 
 
 def test_source_adapter_repr_is_informative() -> None:
-    from lawgraph.ingestionapp.sources.courtlistener import CourtListenerAdapter
+    from law_ai.ingestionapp.sources.courtlistener import CourtListenerAdapter
 
     r = repr(CourtListenerAdapter())
     assert "courtlistener" in r
@@ -71,7 +71,7 @@ def test_rawdoc_default_metadata_is_empty_dict() -> None:
 
 
 def test_courtlistener_adapter_fetch_returns_raw_docs() -> None:
-    from lawgraph.ingestionapp.sources.courtlistener import CourtListenerAdapter
+    from law_ai.ingestionapp.sources.courtlistener import CourtListenerAdapter
 
     mock_opinion = {
         "id": 42,
@@ -86,7 +86,7 @@ def test_courtlistener_adapter_fetch_returns_raw_docs() -> None:
 
     adapter = CourtListenerAdapter()
     with patch(
-        "lawgraph.ingestionapp.services.courtlistener.CourtListenerClient"
+        "law_ai.ingestionapp.services.courtlistener.CourtListenerClient"
     ) as MockClient:
         mock_client = MagicMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -110,8 +110,8 @@ def test_courtlistener_adapter_fetch_returns_raw_docs() -> None:
 
 
 def test_colorado_statutes_adapter_fetch_returns_raw_docs() -> None:
-    from lawgraph.ingestionapp.sources.colorado_statutes import ColoradoStatutesAdapter
-    from lawgraph.core.schemas.statute_extraction import (
+    from law_ai.ingestionapp.sources.colorado_statutes import ColoradoStatutesAdapter
+    from law_ai.core.schemas.statute_extraction import (
         StatuteExtraction,
         StatuteSectionPayload,
     )
@@ -140,10 +140,10 @@ def test_colorado_statutes_adapter_fetch_returns_raw_docs() -> None:
     adapter = ColoradoStatutesAdapter()
     with (
         patch(
-            "lawgraph.ingestionapp.services.colorado_statutes.ColoradoStatutesClient"
+            "law_ai.ingestionapp.services.colorado_statutes.ColoradoStatutesClient"
         ) as MockClient,
         patch(
-            "lawgraph.ingestionapp.services.colorado_statutes.parse_title_html",
+            "law_ai.ingestionapp.services.colorado_statutes.parse_title_html",
             return_value=mock_extraction,
         ),
     ):

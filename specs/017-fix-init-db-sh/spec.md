@@ -14,7 +14,7 @@ paths that no longer exist:
 
 | Variable | Current (broken) value | Correct path |
 |---|---|---|
-| `NEO4J_MIGRATIONS` | `$REPO_ROOT/app/db/neo4j_migrations` | `$REPO_ROOT/lawgraph/core/neo4j/migrations` |
+| `NEO4J_MIGRATIONS` | `$REPO_ROOT/app/db/neo4j_migrations` | `$REPO_ROOT/law_ai/core/neo4j/migrations` |
 | `PG_MIGRATIONS` | `$REPO_ROOT/app/db/postgres_migrations` | _(delegated to Django — no raw SQL loop needed)_ |
 
 Because the glob `"$NEO4J_MIGRATIONS"/*.cypher` matches nothing, no Cypher migrations
@@ -55,13 +55,13 @@ causes silent data-model gaps on fresh installs (CI, onboarding, `make reset-db`
 ## 6. Functional Requirements
 
 - **FR-1**: `init-db.sh` resolves `NEO4J_MIGRATIONS` to
-  `<repo_root>/lawgraph/core/neo4j/migrations` (relative to the `backend/` directory, which
+  `<repo_root>/law_ai/core/neo4j/migrations` (relative to the `backend/` directory, which
   is one level above `backend/scripts/`).
 - **FR-2**: `init-db.sh` applies every `*.cypher` file found in that directory via
   `cypher-shell`, in lexicographic order.
 - **FR-3**: `init-db.sh` removes the Postgres `psql` loop and instead runs
   `python manage.py migrate --noinput` (with `DJANGO_SETTINGS_MODULE` defaulting to
-  `lawgraph.settings.dev`).
+  `law_ai.settings.dev`).
 - **FR-4**: The script remains idempotent — running it twice against a running stack must
   not error (Cypher migrations already use `IF NOT EXISTS`; Django migrate is idempotent).
 - **FR-5**: If no `.cypher` files are found (e.g. the directory is empty), the script logs a

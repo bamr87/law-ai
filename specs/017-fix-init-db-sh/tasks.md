@@ -19,10 +19,10 @@
   - `backend/scripts/init-db.sh` (modify)
 - **Steps**:
   1. Change `NEO4J_MIGRATIONS="$REPO_ROOT/app/db/neo4j_migrations"` to
-     `NEO4J_MIGRATIONS="$REPO_ROOT/lawgraph/core/neo4j/migrations"`.
+     `NEO4J_MIGRATIONS="$REPO_ROOT/law_ai/core/neo4j/migrations"`.
   2. Remove the `PG_MIGRATIONS` variable and the `for f in "$PG_MIGRATIONS"/*.sql` loop
      entirely.
-  3. Add `DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-lawgraph.settings.dev}"` export
+  3. Add `DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-law_ai.settings.dev}"` export
      before the `manage.py` call.
   4. Replace the removed Postgres block with:
      ```bash

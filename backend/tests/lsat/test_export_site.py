@@ -8,8 +8,8 @@ from pathlib import Path
 
 from django.core.management import call_command
 
-from lawgraph.lsat.management.commands.lsat_export import build_content
-from lawgraph.lsat.services.bank import Question, load_bank
+from law_ai.lsat.management.commands.lsat_export import build_content
+from law_ai.lsat.services.bank import Question, load_bank
 
 
 class TestBuildContent:

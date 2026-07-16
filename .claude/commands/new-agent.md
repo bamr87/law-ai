@@ -1,9 +1,9 @@
 ---
-description: "Scaffold a new LawGraph agent crew member with run() + Pydantic output + test"
+description: "Scaffold a new Law AI agent crew member with run() + Pydantic output + test"
 argument-hint: "<agent name and one-line responsibility>"
 ---
 
-Scaffold a new LawGraph agent following repo conventions.
+Scaffold a new Law AI agent following repo conventions.
 
 Read [prompts/new-agent.md](../../prompts/new-agent.md) now and follow it exactly.
 
