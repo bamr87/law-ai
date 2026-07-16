@@ -28,7 +28,7 @@ REPO = Path(__file__).resolve().parent.parent
 BACKLOG = REPO / "BACKLOG.md"
 TODO_RE = re.compile(r"\b(TODO|FIXME|XXX|HACK)\b[:\s-]*(.{0,100})", re.IGNORECASE)
 EXISTING_BL_RE = re.compile(r"\bBL-\d{8}-\d{2}\b")
-SCAN_GLOBS = ("backend/app/**/*.py", "frontend/app/**/*.ts", "frontend/components/**/*.tsx")
+SCAN_GLOBS = ("backend/lawgraph/**/*.py", "frontend/app/**/*.ts", "frontend/components/**/*.tsx")
 SKIP_DIRS = {".venv", "node_modules", ".next", "__pycache__", ".git"}
 
 
@@ -80,7 +80,20 @@ def _scan_todos() -> list[Candidate]:
 
 
 def _scan_missing_docs() -> list[Candidate]:
-    referenced = {"docs/data-model.md", "docs/data-sources.md", "docs/legalbench.md", "docs/AO-SDLC.md"}
+    """Flag ``docs/*.md`` files referenced from AGENTS.md that do not exist.
+
+    The reference list is parsed from AGENTS.md so it self-maintains, and the
+    existence check is **case-insensitive** so a case-mismatched path (e.g.
+    ``docs/AO-SDLC.md`` vs. the real ``docs/ao-sdlc.md``) is never mis-flagged as
+    missing on case-sensitive filesystems — the recurring false positive that
+    kept re-appearing in the weekly audit.
+    """
+    agents = REPO / "AGENTS.md"
+    if not agents.exists():
+        return []
+    referenced = sorted(set(re.findall(r"docs/[A-Za-z0-9_-]+\.md", agents.read_text(encoding="utf-8"))))
+    docs_dir = REPO / "docs"
+    existing_lower = {p.name.lower() for p in docs_dir.glob("*.md")} if docs_dir.is_dir() else set()
     return [
         Candidate(
             kind="doc-gap",
@@ -88,8 +101,8 @@ def _scan_missing_docs() -> list[Candidate]:
             title=f"Author missing doc {doc}",
             rationale="Referenced by AGENTS.md but file does not exist.",
         )
-        for doc in sorted(referenced)
-        if not (REPO / doc).exists()
+        for doc in referenced
+        if doc.split("/", 1)[1].lower() not in existing_lower
     ]
 
 

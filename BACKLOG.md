@@ -24,6 +24,7 @@
 
 ## Open
 
+- **BL-20260716-01** — *refactor, med* — Rebase and merge PR #19 (branch `claude/framework-ai-integration-plan-coys8t`, unified `core.llm.LLMClient`): reconcile it with main's newer dev-time `claude_code` provider routing in `lsat/services/tutor.py` and `agents_runtime/crews/lsat_content_author.py` (keep `LLMClient` as the transport, layer the `claude_code` selection on top), keep both `settings/base.py` additions, renumber `specs/024-unified-llm-client` → `026` (024 is taken by lsat-content-factory), and merge once CI is green. _Surfaced in:_ repo-maintenance PR review.
 - **BL-20260702-01** — *feature, med* — Embedding-based near-duplicate detection for factory intake (token Jaccard misses paraphrases); local sentence-transformers or Ollama embeddings, cached per bank revision. _Surfaced in:_ specs/024-lsat-content-factory.
 - **BL-20260702-02** — *feature, med* — Wire the factory `judge` tier into `lsat_factory run`: post-generation adversarial review per draft with verdicts attached to proposal meta before the HITL queue (extends BL-20260527-04's reviewer-agent idea to the factory path). _Surfaced in:_ specs/024-lsat-content-factory.
 - **BL-20260702-03** — *feature, low* — `lsat_factory export-manifest` subcommand emitting a self-contained prompts-only bundle (no repo checkout needed) for fully external generation farms. _Surfaced in:_ specs/024-lsat-content-factory.
@@ -70,7 +71,6 @@
 - **BL-20260502-01** — *feature, med* — Self-host LangGraph API + Studio container (`langchain/langgraph-api`) so designers can step through `LegalWorkflow` runs visually. _Surfaced in:_ specs/010-local-ai-stack.
 - **BL-20260502-02** — *infra, med* — Linux + NVIDIA workstation tier: GPU runtime in compose, optional vLLM service, default model upgraded to `llama3.1:70b-q4_K_M`. _Surfaced in:_ specs/010-local-ai-stack.
 - **BL-20260502-03** — *infra, low* — Server / multi-GPU tier with Prometheus + Grafana for token/sec, GPU utilization, queue depth. _Surfaced in:_ specs/010-local-ai-stack.
-- **BL-20260502-05** — *feature, low* — `AgentTrace.tsx` surfaces `phoenix_trace_url` + `langgraph_thread_id` returned by `/api/analysis` so users can deep-link from the UI. _Surfaced in:_ specs/010-local-ai-stack.
 - **BL-20260502-06** — *infra, low* — Air-gapped deployment hardening: bundle pre-pulled Ollama models into a tarball + offline install script. _Surfaced in:_ specs/010-local-ai-stack.
 - **BL-20260502-07** — *feature, low* — Langfuse fallback path if Phoenix license terms change; abstract the OTEL exporter behind `settings.OBSERVABILITY_BACKEND`. _Surfaced in:_ specs/010-local-ai-stack.
 - **BL-20260502-08** — *test-gap, low* — CI matrix entry that runs the spec-010 Postgres+Ollama integration test (currently only locally executable). _Surfaced in:_ specs/010-local-ai-stack.
@@ -89,19 +89,13 @@
 - **BL-20260429-04** — *infra, med* — `mypy app/ --strict` is `continue-on-error: true` in CI; tighten once new modules are annotated end-to-end. _Surfaced in:_ .github/workflows/ci.yml.
 - **BL-20260429-06** — *test-gap, low* — Add a smoke test that runs `scripts/ingest_sample.py --dry-run --limit 3` against `respx`-mocked CourtListener to lock in CLI contract. _Surfaced in:_ specs/001-ingest-courtlistener-opinions T-004.
 - **BL-20260429-07** — *doc-gap, low* — Document the `/health` JSON contract in `docs/api.md` (file does not yet exist). _Surfaced in:_ specs/001-ingest-courtlistener-opinions T-005.
-- **BL-20260429-08** — *infra, low* — `backend/pyproject.toml` pulls `blackstone @ git+...` — slows CI installs. Move to `[project.optional-dependencies].nlp` and gate behind a feature flag. _Surfaced in:_ .github/workflows/ci.yml.
 - **BL-20260429-11** — *feature, med* — Backfill script `scripts/densify_existing.py` that re-runs `densify_extraction` over historical `:Case` nodes once aliases are populated. _Surfaced in:_ specs/002-resolve-citations-to-cases.
 - **BL-20260429-12** — *refactor, low* — Make `head(collect(c.id))` deterministic by adding a secondary `ORDER BY c.id` clause inside `RESOLVE_CITATIONS_CYPHER`; matters when two cases share an alias. _Surfaced in:_ specs/002-resolve-citations-to-cases.
-- **BL-20260429-15** — *feature, med* — Add HITL action endpoints (`approve` / `reject`) so reviewers can resolve quarantined items from the dashboard. _Surfaced in:_ specs/003-agent-ops-dashboard.
 - **BL-20260429-16** — *infra, low* — Replace polling with WebSocket push when concurrent reviewers > 5 (current 5 s polling is wasteful at scale). _Surfaced in:_ specs/003-agent-ops-dashboard.
-- **BL-20260429-17** — *infra, low* — Introduce a shared `asyncpg.Pool` in `app.db.postgres` so HITL writes (and future routes) reuse connections instead of doing per-call `connect`/`close`. _Surfaced in:_ specs/004-async-quarantine-postgres.
 
 - **BL-20260430-07** — *feature, med* — Move `NEXT_PUBLIC_AGENT_API_KEY` out of the browser bundle by routing all browser→backend calls through a Next.js API proxy that injects the header server-side. _Surfaced in:_ specs/008-agent-api-auth.
-- **BL-20260430-09** — *feature, med* — Add per-key rate limiting on the API-key-gated routers (today an attacker can brute-force at line speed once a key is configured). _Surfaced in:_ specs/008-agent-api-auth.
-- **BL-20260430-10** — *doc-gap, low* — Author `docs/security.md` documenting the API-key model, rotation procedure, and the per-router fallback chain shipped in spec 009. _Surfaced in:_ specs/008-agent-api-auth.
 - **BL-20260430-11** — *test-gap, low* — Add a Playwright smoke test that toggles `AGENT_API_KEY`/`NEXT_PUBLIC_AGENT_API_KEY` and verifies all four pages (`/agents`, `/analysis`, `/graph`, `/lsat`) load end-to-end against a Docker stack. _Surfaced in:_ specs/009-extend-api-auth.
 - **BL-20260430-12** — *infra, low* — Have `app/main.py` lifespan refuse to start when `ENVIRONMENT="production"` and `AGENT_API_KEY` is unset (today it only warns). _Surfaced in:_ specs/009-extend-api-auth.
-- **BL-20260430-13** — *doc-gap, low* — Document the per-router fallback chain (`<ROUTER>_API_KEY` → `AGENT_API_KEY`) in [docs/architecture.md](docs/architecture.md), including a short table mapping routes → settings. _Surfaced in:_ specs/009-extend-api-auth.
 
 
 - **BL-20260509-02** — *infra, med* — Add a real Cypher migration runner that records applied migrations in a `(:_Migration {id})` Neo4j node so non-idempotent migrations (e.g. data back-fills) become safe later. Today the only safety is `IF NOT EXISTS`. _Surfaced in:_ specs/015-legal-corpus-schema.
@@ -149,6 +143,14 @@
 - **BL-20260429-09** — *feature, med* — claimed-by:specs/018-autonomous-framework — Wire a periodic CI job ("agent-self-review") that runs `scripts/backlog_lint.py` plus a small LLM prompt to flag stale items (>60 days) for triage. _Partially addressed by nightly-tests.yml (spec 018 T-005); full stale-triage LLM pass remains open._ _Surfaced in:_ this file.
 
 ## Done
+
+- **BL-20260429-08** — *infra, low* — **(resolved 2026-07-16)**: Core-dependency move done — `blackstone` now lives in `[project.optional-dependencies].nlp` in `backend/pyproject.toml`, so default CI installs no longer pull it. Feature-flag gating is moot until NER is reintroduced (tracked by BL-20260429-03). _Verified in:_ repo-maintenance triage.
+- **BL-20260430-10** — *doc-gap, low* — **(resolved 2026-07-16)**: `docs/security.md` documents the API-key model, per-router fallback table, rotation procedure, and the `seed_api_keys` runbook. _Shipped in:_ specs/009 / docs/security.md.
+- **BL-20260430-13** — *doc-gap, low* — **(resolved 2026-07-16)**: Per-router fallback chain (`<ROUTER>_API_KEY` → `AGENT_API_KEY`) documented with a route→settings table in `docs/security.md`, which states "Closes BL-20260430-13". _Shipped in:_ docs/security.md.
+- **BL-20260502-05** — *feature, low* — **(resolved 2026-07-16)**: `phoenix_trace_url` + `langgraph_thread_id` are surfaced as UI deep-links in `AnalysisStudio.tsx` (176-197), typed in `frontend/lib/api.ts`. Delivered in AnalysisStudio rather than the originally-named AgentTrace.tsx. _Shipped in:_ specs/007-analysis-studio.
+- **BL-20260429-15** — *feature, med* — **(resolved 2026-07-16 · consolidated)**: Duplicate of BL-20260503-10 (Django admin approve/reject/re-extract actions + `core.tasks`), whose text records "Resolves overlap with BL-20260429-15". Tracking consolidated there; both remain unbuilt. _Deduped in:_ repo-maintenance triage.
+- **BL-20260430-09** — *feature, med* — **(resolved 2026-07-16 · consolidated)**: Duplicate of BL-20260503-12 (`django-ratelimit` keyed on `key_hash`), whose text records "Resolves overlap with BL-20260430-09". Tracking consolidated there; both remain unbuilt. _Deduped in:_ repo-maintenance triage.
+- **BL-20260429-17** — *infra, low* — **(resolved 2026-07-16 · obsolete)**: The target module `app.db.postgres` was removed in the FastAPI→Django migration; HITL writes now go through the Django ORM, so a raw `asyncpg.Pool` there no longer applies (the remaining `+asyncpg` references are only SQLAlchemy URL dialect strings). _Wontfix (obsolete) in:_ repo-maintenance triage.
 
 - **BL-20260503-09** — *feature, med* — **(resolved 2026-06-02)**: Wired `_emit_ws_event` helper into `_run_analysis`; emits `agent_step:LegalAnalyst`, `agent_step:PrecedentHunter`, and `complete` events to the `agent-run-{analysis_id}` channel group after `asyncio.gather` returns. Fire-and-forget: Redis failure is non-fatal. Two new unit tests: `test_agent_ws_events_emitted` (AC-1) and `test_agent_ws_events_resilient_to_channel_layer_failure` (AC-2). Coverage 81.73%, lint clean. _Shipped in:_ specs/022-agent-ws-streaming.
 - **BL-20260429-24** — *feature, med* — **(resolved 2026-06-02)**: WS-streaming half resolved by BL-20260503-09 / specs/022-agent-ws-streaming. SSE variant remains as a follow-up (see spec 022 §13). _Surfaced in:_ specs/007-analysis-studio.

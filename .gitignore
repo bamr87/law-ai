@@ -91,6 +91,7 @@ backend/backend/
 
 # Data & Logs
 *.log
+audit.out
 htmlcov/
 .coverage
 coverage/
