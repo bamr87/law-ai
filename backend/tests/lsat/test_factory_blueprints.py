@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from lawgraph.lsat.factory.blueprints import (
+from law_ai.lsat.factory.blueprints import (
     ITEM_TEMPLATE_VERSION,
     PASSAGE_TEMPLATE_VERSION,
     compile_prompt,
     select_exemplars,
 )
-from lawgraph.lsat.factory.config import FactoryConfig
-from lawgraph.lsat.factory.coverage import GenerationTarget
-from lawgraph.lsat.factory.taxonomy import get_archetype
+from law_ai.lsat.factory.config import FactoryConfig
+from law_ai.lsat.factory.coverage import GenerationTarget
+from law_ai.lsat.factory.taxonomy import get_archetype
 
 
 def _target(**overrides: object) -> GenerationTarget:

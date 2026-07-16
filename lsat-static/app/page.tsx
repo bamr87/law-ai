@@ -29,7 +29,7 @@ export default function Page() {
         <div className="wrap">
           <div className="brand">
             <span aria-hidden="true">⚖️</span> LSAT Practice
-            <span className="brand-sub">LawGraph · static edition</span>
+            <span className="brand-sub">Law AI · static edition</span>
           </div>
           <nav aria-label="Sections" className="nav">
             {NAV.map((n) => (

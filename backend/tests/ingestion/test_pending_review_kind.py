@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 from django.db import connection
 
-from lawgraph.ingestionapp.models import PendingReview
-from lawgraph.ingestionapp.quarantine_kinds import (
+from law_ai.ingestionapp.models import PendingReview
+from law_ai.ingestionapp.quarantine_kinds import (
     KIND_CASE,
     KIND_DERIVED,
     KIND_STATUTE,

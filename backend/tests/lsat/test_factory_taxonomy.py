@@ -9,14 +9,14 @@ import pytest
 
 from django.conf import settings
 
-from lawgraph.lsat.factory import config as config_mod
-from lawgraph.lsat.factory import taxonomy
-from lawgraph.lsat.factory.config import (
+from law_ai.lsat.factory import config as config_mod
+from law_ai.lsat.factory import taxonomy
+from law_ai.lsat.factory.config import (
     DEFAULT_CLAUDE_TIER_MODELS,
     FactoryConfig,
     route_tier,
 )
-from lawgraph.lsat.services import bank as bank_mod
+from law_ai.lsat.services import bank as bank_mod
 
 
 @pytest.fixture(autouse=True)

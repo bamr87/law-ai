@@ -4,7 +4,7 @@
 
 ## 1. Architecture Overview
 
-The analysis pipeline (`_run_analysis` in `lawgraph/analysis/urls.py`) already
+The analysis pipeline (`_run_analysis` in `law_ai/analysis/urls.py`) already
 calls `LegalAnalyst.run()` then `PrecedentHunter.run()` in sequence. After each
 agent call completes we emit a fire-and-forget channel group message. Clients
 that connected to `/ws/agents/{analysis_id}` before the POST arrives receive
@@ -40,7 +40,7 @@ sequenceDiagram
 
 ## 2. Component Changes
 
-### 2.1 `backend/lawgraph/analysis/urls.py`
+### 2.1 `backend/law_ai/analysis/urls.py`
 
 `_run_analysis` is already `async def`. Add a helper `_emit_ws_event` that
 wraps `channel_layer.group_send` and catches/logs any exception without
@@ -73,5 +73,5 @@ No new integration test fixtures needed — channel layer mock is sufficient.
 ## 4. Deployment Notes
 
 No new services, environment variables, or migrations. Requires Redis running
-(`CHANNEL_LAYERS` already configured in `lawgraph/settings/base.py` to use
+(`CHANNEL_LAYERS` already configured in `law_ai/settings/base.py` to use
 `channels_redis`). The `make dev` stack includes Redis.

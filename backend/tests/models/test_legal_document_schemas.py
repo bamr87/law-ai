@@ -7,7 +7,7 @@ from datetime import date, datetime
 import pytest
 from pydantic import ValidationError
 
-from lawgraph.core.schemas.legal_documents import (
+from law_ai.core.schemas.legal_documents import (
     Code,
     Court,
     DerivedDocument,

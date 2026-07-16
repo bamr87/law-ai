@@ -20,7 +20,7 @@
 - **Files**:
   - `docs/adr/0001-adopt-django-backend.md` (new — first ADR; create `docs/adr/` directory and a brief `docs/adr/README.md` index)
   - [docs/constitution.md](../../docs/constitution.md) §2 backend stack and §11 mission-drift guard
-  - [AGENTS.md](../../AGENTS.md) "Tech Stack (Non-Negotiable)" + Quick Reference rows (uvicorn → daphne) + "Project Structure" (`backend/app/` → `backend/lawgraph/`)
+  - [AGENTS.md](../../AGENTS.md) "Tech Stack (Non-Negotiable)" + Quick Reference rows (uvicorn → daphne) + "Project Structure" (`backend/app/` → `backend/law_ai/`)
   - [PRD.md](../../PRD.md) backend stack mention
   - [.github/copilot-instructions.md](../../.github/copilot-instructions.md) FastAPI references
   - [docs/architecture.md](../../docs/architecture.md), [docs/local-ai.md](../../docs/local-ai.md), [docs/agent-roles.md](../../docs/agent-roles.md) — surgical edits to file paths only
@@ -60,22 +60,22 @@
 - **Status**: `[x]`
 - **Files**:
   - `backend/manage.py` (new)
-  - `backend/lawgraph/__init__.py`, `asgi.py`, `wsgi.py`, `urls.py`, `celery.py` (new — `celery.py` skeleton only here; full wiring in T-011)
-  - `backend/lawgraph/settings/__init__.py`, `base.py`, `dev.py`, `test.py`, `prod.py` (new)
-  - `backend/lawgraph/{core,audit,analysis,graph,lsat,ingestionapp,agentsapi,agents_runtime}/{__init__.py,apps.py}` (new)
-  - `backend/lawgraph/core/settings_proxy.py` (new — re-exports `from django.conf import settings`)
+  - `backend/law_ai/__init__.py`, `asgi.py`, `wsgi.py`, `urls.py`, `celery.py` (new — `celery.py` skeleton only here; full wiring in T-011)
+  - `backend/law_ai/settings/__init__.py`, `base.py`, `dev.py`, `test.py`, `prod.py` (new)
+  - `backend/law_ai/{core,audit,analysis,graph,lsat,ingestionapp,agentsapi,agents_runtime}/{__init__.py,apps.py}` (new)
+  - `backend/law_ai/core/settings_proxy.py` (new — re-exports `from django.conf import settings`)
   - `backend/tests/test_settings.py` (new)
 - **Steps**:
-  1. `cd backend && django-admin startproject lawgraph .`; move `lawgraph/settings.py` into `lawgraph/settings/base.py` and create dev/test/prod variants.
+  1. `cd backend && django-admin startproject law_ai .`; move `law_ai/settings.py` into `law_ai/settings/base.py` and create dev/test/prod variants.
   2. `python manage.py startapp` for each of the eight apps; ensure each `apps.py` declares `default_auto_field = "django.db.models.BigAutoField"`.
-  3. `base.py`: read `DATABASE_URL`, `REDIS_URL`, `NEO4J_*`, `OLLAMA_*`, `PHOENIX_*`, all four `*_API_KEY` envs, `LANGGRAPH_CHECKPOINTER`, `LANGGRAPH_CHECKPOINTER_SCHEMA` via `django-environ`. Configure `INSTALLED_APPS`, `MIDDLEWARE` (CORS allow `http://localhost:3000`), `ASGI_APPLICATION="lawgraph.asgi.application"`, `CHANNEL_LAYERS` Redis backend, `REST_FRAMEWORK` defaults (DRF + custom auth + permissions).
+  3. `base.py`: read `DATABASE_URL`, `REDIS_URL`, `NEO4J_*`, `OLLAMA_*`, `PHOENIX_*`, all four `*_API_KEY` envs, `LANGGRAPH_CHECKPOINTER`, `LANGGRAPH_CHECKPOINTER_SCHEMA` via `django-environ`. Configure `INSTALLED_APPS`, `MIDDLEWARE` (CORS allow `http://localhost:3000`), `ASGI_APPLICATION="law_ai.asgi.application"`, `CHANNEL_LAYERS` Redis backend, `REST_FRAMEWORK` defaults (DRF + custom auth + permissions).
   4. `test.py`: in-memory channel layer, `CELERY_TASK_ALWAYS_EAGER=True`, SQLite or Postgres test DB based on env.
   5. `prod.py`: `DEBUG=False`, `ALLOWED_HOSTS` from env, security cookie/SSL flags.
   6. Write `backend/tests/test_settings.py` importing each variant and asserting key fields.
 - **Verify**:
-  - `cd backend && DJANGO_SETTINGS_MODULE=lawgraph.settings.dev python manage.py check` exits 0.
+  - `cd backend && DJANGO_SETTINGS_MODULE=law_ai.settings.dev python manage.py check` exits 0.
   - `pytest backend/tests/test_settings.py -q` passes.
-  - `python -c "from lawgraph.core.settings_proxy import settings_proxy; print(settings_proxy.NEO4J_URI)"` works.
+  - `python -c "from law_ai.core.settings_proxy import settings_proxy; print(settings_proxy.NEO4J_URI)"` works.
 
 ## T-004 — Relocate framework-agnostic modules (no logic change)
 
@@ -83,28 +83,28 @@
 - **Owner**: @copilot (HUMAN-PAIRED — large `git mv` set)
 - **Status**: `[x]`
 - **Files** (every file under each src moves to corresponding dst):
-  - [backend/app/agents/](../../backend/app/agents/) → `backend/lawgraph/agents_runtime/`
-  - [backend/app/db/neo4j.py](../../backend/app/db/neo4j.py) → `backend/lawgraph/core/neo4j/driver.py`
-  - [backend/app/db/graph_queries.py](../../backend/app/db/graph_queries.py) → `backend/lawgraph/core/neo4j/graph_queries.py`
-  - [backend/app/db/queries.py](../../backend/app/db/queries.py) → `backend/lawgraph/core/neo4j/queries.py`
-  - [backend/app/db/citation_resolver.py](../../backend/app/db/citation_resolver.py) → `backend/lawgraph/core/neo4j/citation_resolver.py`
-  - [backend/app/db/checkpointer.py](../../backend/app/db/checkpointer.py) → `backend/lawgraph/agents_runtime/checkpointer.py`
-  - [backend/app/lsat/](../../backend/app/lsat/) → `backend/lawgraph/lsat/services/`
-  - [backend/app/ingestion/](../../backend/app/ingestion/) → `backend/lawgraph/ingestionapp/services/`
-  - [backend/app/models/extraction.py](../../backend/app/models/extraction.py) → `backend/lawgraph/core/schemas/extraction.py`
-  - [backend/app/eval/](../../backend/app/eval/) → `backend/lawgraph/eval/`
-  - [backend/app/core/telemetry.py](../../backend/app/core/telemetry.py) → `backend/lawgraph/core/telemetry.py`
-  - [backend/app/db/neo4j_migrations/](../../backend/app/db/neo4j_migrations/) → `backend/lawgraph/core/neo4j/migrations/`
+  - [backend/app/agents/](../../backend/app/agents/) → `backend/law_ai/agents_runtime/`
+  - [backend/app/db/neo4j.py](../../backend/app/db/neo4j.py) → `backend/law_ai/core/neo4j/driver.py`
+  - [backend/app/db/graph_queries.py](../../backend/app/db/graph_queries.py) → `backend/law_ai/core/neo4j/graph_queries.py`
+  - [backend/app/db/queries.py](../../backend/app/db/queries.py) → `backend/law_ai/core/neo4j/queries.py`
+  - [backend/app/db/citation_resolver.py](../../backend/app/db/citation_resolver.py) → `backend/law_ai/core/neo4j/citation_resolver.py`
+  - [backend/app/db/checkpointer.py](../../backend/app/db/checkpointer.py) → `backend/law_ai/agents_runtime/checkpointer.py`
+  - [backend/app/lsat/](../../backend/app/lsat/) → `backend/law_ai/lsat/services/`
+  - [backend/app/ingestion/](../../backend/app/ingestion/) → `backend/law_ai/ingestionapp/services/`
+  - [backend/app/models/extraction.py](../../backend/app/models/extraction.py) → `backend/law_ai/core/schemas/extraction.py`
+  - [backend/app/eval/](../../backend/app/eval/) → `backend/law_ai/eval/`
+  - [backend/app/core/telemetry.py](../../backend/app/core/telemetry.py) → `backend/law_ai/core/telemetry.py`
+  - [backend/app/db/neo4j_migrations/](../../backend/app/db/neo4j_migrations/) → `backend/law_ai/core/neo4j/migrations/`
 - **Steps**:
   1. `git mv` each path; preserve git history (use `--follow` in reviews).
-  2. `grep -RIln "from app\." backend/lawgraph` and rewrite each import to `from lawgraph.<dst>.` per the move table.
-  3. Replace `from app.core.config import settings` with `from lawgraph.core.settings_proxy import settings_proxy as settings` in every relocated module.
-  4. Run `ruff check --fix backend/lawgraph` and `black backend/lawgraph`.
+  2. `grep -RIln "from app\." backend/law_ai` and rewrite each import to `from law_ai.<dst>.` per the move table.
+  3. Replace `from app.core.config import settings` with `from law_ai.core.settings_proxy import settings_proxy as settings` in every relocated module.
+  4. Run `ruff check --fix backend/law_ai` and `black backend/law_ai`.
 - **Verify**:
-  - `grep -RIn "from app\." backend/lawgraph` returns empty.
-  - `python -c "from lawgraph.agents_runtime.crews.legal_analyst import LegalAnalyst"` succeeds.
-  - `python -c "from lawgraph.core.neo4j.driver import get_neo4j_driver"` succeeds.
-  - `mypy backend/lawgraph --strict` passes for relocated modules (ignore-list extended for crewai/langgraph/neo4j/eyecite).
+  - `grep -RIn "from app\." backend/law_ai` returns empty.
+  - `python -c "from law_ai.agents_runtime.crews.legal_analyst import LegalAnalyst"` succeeds.
+  - `python -c "from law_ai.core.neo4j.driver import get_neo4j_driver"` succeeds.
+  - `mypy backend/law_ai --strict` passes for relocated modules (ignore-list extended for crewai/langgraph/neo4j/eyecite).
 
 ## T-005 — Audit, ApiToken, PendingReview ORM models + migrations
 
@@ -112,10 +112,10 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/audit/models.py` + `migrations/0001_initial.py` (new)
-  - `backend/lawgraph/ingestionapp/models.py` + `migrations/0001_initial.py` (new — uses `RunSQL` to encode existing schema; uses `state_operations`/`database_operations` to adopt an existing legacy table)
-  - `backend/lawgraph/core/models.py` + `migrations/0001_initial.py` (new — `ApiToken`)
-  - `backend/lawgraph/audit/admin.py`, `backend/lawgraph/ingestionapp/admin.py`, `backend/lawgraph/core/admin.py` (new — register models with sensible list_display/filters)
+  - `backend/law_ai/audit/models.py` + `migrations/0001_initial.py` (new)
+  - `backend/law_ai/ingestionapp/models.py` + `migrations/0001_initial.py` (new — uses `RunSQL` to encode existing schema; uses `state_operations`/`database_operations` to adopt an existing legacy table)
+  - `backend/law_ai/core/models.py` + `migrations/0001_initial.py` (new — `ApiToken`)
+  - `backend/law_ai/audit/admin.py`, `backend/law_ai/ingestionapp/admin.py`, `backend/law_ai/core/admin.py` (new — register models with sensible list_display/filters)
   - `backend/tests/integration/test_migrate_parity.py` (new)
 - **Steps**:
   1. Define `AuditEvent`, `PendingReview`, `ApiToken` per FR-6.
@@ -134,9 +134,9 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/core/provenance.py` (new — supersedes [backend/app/core/provenance.py](../../backend/app/core/provenance.py))
-  - `backend/lawgraph/core/audit_jsonl.py` (new — JSONL Celery sink fallback, lifted from [backend/app/core/audit_store.py](../../backend/app/core/audit_store.py))
-  - `backend/lawgraph/core/middleware.py` (new — ASGI ProvenanceMiddleware)
+  - `backend/law_ai/core/provenance.py` (new — supersedes [backend/app/core/provenance.py](../../backend/app/core/provenance.py))
+  - `backend/law_ai/core/audit_jsonl.py` (new — JSONL Celery sink fallback, lifted from [backend/app/core/audit_store.py](../../backend/app/core/audit_store.py))
+  - `backend/law_ai/core/middleware.py` (new — ASGI ProvenanceMiddleware)
   - `backend/tests/core/test_provenance.py` (port + extend)
 - **Steps**:
   1. Implement `ProvenanceLogger.log_request`, `.log_agent_call`, `.log_graph_query`, `@logged_node(name)` with the same signatures as today.
@@ -153,8 +153,8 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/core/auth.py` (new)
-  - `backend/lawgraph/core/management/__init__.py`, `commands/__init__.py`, `commands/seed_api_keys.py` (new)
+  - `backend/law_ai/core/auth.py` (new)
+  - `backend/law_ai/core/management/__init__.py`, `commands/__init__.py`, `commands/seed_api_keys.py` (new)
   - `backend/tests/core/test_auth.py` (new — covers constant-time compare, scope allow/deny, "all envs unset → open" parity)
 - **Steps**:
   1. Implement `ApiKeyAuthentication(BaseAuthentication)`: read `X-API-Key`, hash, look up `ApiToken.key_hash` via `aget`, attach a synthetic user (or `AnonymousUser`) plus `request.auth = token`.
@@ -171,13 +171,13 @@
 - **Owner**: @copilot (one PR per router on the feature branch; this task tracks all five)
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/core/views.py` + `urls.py` — `HealthView` (port of [backend/app/api/health.py](../../backend/app/api/health.py))
-  - `backend/lawgraph/agentsapi/views.py` + `urls.py` — port of [backend/app/api/agents.py](../../backend/app/api/agents.py)
-  - `backend/lawgraph/analysis/views.py` + `urls.py` + `serializers.py` — port of [backend/app/api/analysis.py](../../backend/app/api/analysis.py); preserves `await asyncio.gather(LegalAnalyst.run, PrecedentHunter.run)`
-  - `backend/lawgraph/graph/views.py` + `urls.py` — port of [backend/app/api/graph.py](../../backend/app/api/graph.py)
-  - `backend/lawgraph/lsat/views.py` + `urls.py` + `serializers.py` — port of [backend/app/api/lsat.py](../../backend/app/api/lsat.py); tutor stays async httpx → Ollama
-  - `backend/lawgraph/urls.py` — root URLconf wiring `/health`, `/api/agents/`, `/api/analysis/`, `/api/graph/`, `/api/lsat/`, `/admin/`
-  - Use `drf-pydantic` to wrap existing Pydantic models from `lawgraph.core.schemas` (relocated `AnalysisRequest/Response`, `AgentTraceEntry`, `GradeRequest/Response`, `TutorRequest/Response`, etc.)
+  - `backend/law_ai/core/views.py` + `urls.py` — `HealthView` (port of [backend/app/api/health.py](../../backend/app/api/health.py))
+  - `backend/law_ai/agentsapi/views.py` + `urls.py` — port of [backend/app/api/agents.py](../../backend/app/api/agents.py)
+  - `backend/law_ai/analysis/views.py` + `urls.py` + `serializers.py` — port of [backend/app/api/analysis.py](../../backend/app/api/analysis.py); preserves `await asyncio.gather(LegalAnalyst.run, PrecedentHunter.run)`
+  - `backend/law_ai/graph/views.py` + `urls.py` — port of [backend/app/api/graph.py](../../backend/app/api/graph.py)
+  - `backend/law_ai/lsat/views.py` + `urls.py` + `serializers.py` — port of [backend/app/api/lsat.py](../../backend/app/api/lsat.py); tutor stays async httpx → Ollama
+  - `backend/law_ai/urls.py` — root URLconf wiring `/health`, `/api/agents/`, `/api/analysis/`, `/api/graph/`, `/api/lsat/`, `/admin/`
+  - Use `drf-pydantic` to wrap existing Pydantic models from `law_ai.core.schemas` (relocated `AnalysisRequest/Response`, `AgentTraceEntry`, `GradeRequest/Response`, `TutorRequest/Response`, etc.)
 - **Steps**:
   1. For each router, create a DRF `APIView` (or `async`-capable view) class with `authentication_classes = [ApiKeyAuthentication]`, `permission_classes = [HasScope("<scope>")]`.
   2. Reuse Pydantic models via `drf-pydantic.DrfPydanticSerializer` so request/response validation matches `main`.
@@ -193,11 +193,11 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/core/apps.py` (extend with `ready()` calling `register_all_agents()` + `init_tracing()`)
-  - `backend/lawgraph/core/management/commands/ensure_checkpointer.py` (new)
+  - `backend/law_ai/core/apps.py` (extend with `ready()` calling `register_all_agents()` + `init_tracing()`)
+  - `backend/law_ai/core/management/commands/ensure_checkpointer.py` (new)
   - `backend/tests/integration/test_checkpointer_isolation.py` (new)
 - **Steps**:
-  1. In `CoreConfig.ready()`, lazily import `lawgraph.agents_runtime.registry.register_all_agents` and call it; same for `lawgraph.core.telemetry.init_tracing`. Guard against double-init under `runserver --noreload`.
+  1. In `CoreConfig.ready()`, lazily import `law_ai.agents_runtime.registry.register_all_agents` and call it; same for `law_ai.core.telemetry.init_tracing`. Guard against double-init under `runserver --noreload`.
   2. `ensure_checkpointer` command: connect to Postgres, `CREATE SCHEMA IF NOT EXISTS langgraph`, set `search_path=langgraph`, call `PostgresSaver.setup()`, restore search_path.
   3. Integration test spins fresh Postgres, runs `manage.py migrate` then `manage.py ensure_checkpointer`, asserts `langgraph.checkpoints` exists and `public.checkpoints` does not.
 - **Verify**:
@@ -210,9 +210,9 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/agentsapi/consumers.py` (new — `AgentRunConsumer(AsyncJsonWebsocketConsumer)`)
-  - `backend/lawgraph/agentsapi/routing.py` (new — websocket urlpatterns)
-  - `backend/lawgraph/asgi.py` — wire `ProtocolTypeRouter({"http": ..., "websocket": AuthMiddlewareStack(URLRouter(websocket_urlpatterns))})`
+  - `backend/law_ai/agentsapi/consumers.py` (new — `AgentRunConsumer(AsyncJsonWebsocketConsumer)`)
+  - `backend/law_ai/agentsapi/routing.py` (new — websocket urlpatterns)
+  - `backend/law_ai/asgi.py` — wire `ProtocolTypeRouter({"http": ..., "websocket": AuthMiddlewareStack(URLRouter(websocket_urlpatterns))})`
   - `backend/tests/integration/test_channels_ws.py` (new)
 - **Steps**:
   1. Consumer accepts the WS, joins group `agent-run-<run_id>`, sends `{"type":"ready","run_id":"<id>"}`.
@@ -228,19 +228,19 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/celery.py` (full implementation)
-  - `backend/lawgraph/__init__.py` (load celery app)
-  - `backend/lawgraph/ingestionapp/tasks.py` (new — `quarantine_extraction(payload)`)
-  - `backend/lawgraph/core/tasks.py` (new — `persist_audit_jsonl(payload)` for T-006 fallback)
-  - `backend/lawgraph/ingestionapp/services/scout.py` — replace inline `_quarantine_postgres`/`_quarantine` calls with `quarantine_extraction.delay(payload)`
+  - `backend/law_ai/celery.py` (full implementation)
+  - `backend/law_ai/__init__.py` (load celery app)
+  - `backend/law_ai/ingestionapp/tasks.py` (new — `quarantine_extraction(payload)`)
+  - `backend/law_ai/core/tasks.py` (new — `persist_audit_jsonl(payload)` for T-006 fallback)
+  - `backend/law_ai/ingestionapp/services/scout.py` — replace inline `_quarantine_postgres`/`_quarantine` calls with `quarantine_extraction.delay(payload)`
   - `backend/tests/ingestionapp/test_tasks.py` (port + extend)
 - **Steps**:
-  1. `celery.py`: `app = Celery("lawgraph")`; `app.config_from_object("django.conf:settings", namespace="CELERY")`; `app.autodiscover_tasks()`.
+  1. `celery.py`: `app = Celery("law_ai")`; `app.config_from_object("django.conf:settings", namespace="CELERY")`; `app.autodiscover_tasks()`.
   2. `quarantine_extraction` writes a `PendingReview` row + a corresponding `AuditEvent` row.
   3. In `test` settings, `CELERY_TASK_ALWAYS_EAGER=True` so unit tests assert behavior synchronously; integration test uses a real worker.
 - **Verify**:
   - `pytest backend/tests/ingestionapp/test_tasks.py -q` passes.
-  - `celery -A lawgraph worker -l info` starts cleanly in `make dev`.
+  - `celery -A law_ai worker -l info` starts cleanly in `make dev`.
 
 ## T-012 — Container, compose, and tooling updates
 
@@ -248,11 +248,11 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - [backend/Dockerfile](../../backend/Dockerfile) — `CMD ["sh","-c","python manage.py migrate --noinput && python manage.py ensure_checkpointer && python manage.py seed_api_keys && daphne -b 0.0.0.0 -p 8000 lawgraph.asgi:application"]`
-  - [docker-compose.yml](../../docker-compose.yml) — backend `command:` aligned; new `worker` service: `command: celery -A lawgraph worker -l info`, same env + depends_on
+  - [backend/Dockerfile](../../backend/Dockerfile) — `CMD ["sh","-c","python manage.py migrate --noinput && python manage.py ensure_checkpointer && python manage.py seed_api_keys && daphne -b 0.0.0.0 -p 8000 law_ai.asgi:application"]`
+  - [docker-compose.yml](../../docker-compose.yml) — backend `command:` aligned; new `worker` service: `command: celery -A law_ai worker -l info`, same env + depends_on
   - [.vscode/tasks.json](../../.vscode/tasks.json) — "Start Backend (Dev)" → `cd backend && python manage.py runserver 0.0.0.0:8000`
-  - [Makefile](../../Makefile) — add `migrate: cd backend && python manage.py migrate`; update `lint`/`test` to point at `lawgraph` not `app`
-  - [pytest.ini](../../pytest.ini) — `addopts = ... --ds=lawgraph.settings.test --cov=lawgraph ...`
+  - [Makefile](../../Makefile) — add `migrate: cd backend && python manage.py migrate`; update `lint`/`test` to point at `law_ai` not `app`
+  - [pytest.ini](../../pytest.ini) — `addopts = ... --ds=law_ai.settings.test --cov=law_ai ...`
   - [.github/workflows/](../../.github/workflows/) — sweep for `app.main`, `uvicorn`, `pytest --cov=app`; replace appropriately
 - **Steps**:
   1. Edit each file; rerun `docker compose build backend worker` locally.
@@ -268,15 +268,15 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - [backend/tests/conftest.py](../../backend/tests/conftest.py) — replace `client` fixture; add `api_client` (DRF) + `async_client` (httpx against `lawgraph.asgi.application`); replace `_reset_api_keys` with `_reset_api_tokens`
+  - [backend/tests/conftest.py](../../backend/tests/conftest.py) — replace `client` fixture; add `api_client` (DRF) + `async_client` (httpx against `law_ai.asgi.application`); replace `_reset_api_keys` with `_reset_api_tokens`
   - [backend/tests/api/test_agents.py](../../backend/tests/api/test_agents.py), [test_analysis.py](../../backend/tests/api/test_analysis.py), [test_graph.py](../../backend/tests/api/test_graph.py), [test_health.py](../../backend/tests/api/test_health.py), [test_local_ai_health.py](../../backend/tests/api/test_local_ai_health.py), [test_lsat.py](../../backend/tests/api/test_lsat.py) — rewrite imports + fixture names; assertions unchanged
-  - All other tests under [backend/tests/](../../backend/tests/) — import-path sweep `from app.` → `from lawgraph.`
+  - All other tests under [backend/tests/](../../backend/tests/) — import-path sweep `from app.` → `from law_ai.`
 - **Steps**:
   1. Rewrite `conftest.py`; ensure `pytest_plugins = ["pytest_django"]`-style discovery via `pytest.ini`.
   2. For each `tests/api/test_*.py`: change `from httpx ...` → use new `api_client` / `async_client` fixtures; preserve every `assert response.json() == ...` line verbatim.
   3. Run pytest-cov and confirm ≥ 75% coverage.
 - **Verify**:
-  - `cd backend && pytest --ds=lawgraph.settings.test --cov=lawgraph` passes with all original assertions.
+  - `cd backend && pytest --ds=law_ai.settings.test --cov=law_ai` passes with all original assertions.
   - Coverage HTML in `backend/htmlcov/` shows no module under 70%.
   - Test count matches `main` (no test deleted without justification in PR).
 
@@ -302,13 +302,13 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/settings/prod.py` — `SECURE_PROXY_SSL_HEADER`, `SESSION_COOKIE_SECURE=True`, `CSRF_COOKIE_SECURE=True`, `SECURE_HSTS_SECONDS`, `SECURE_CONTENT_TYPE_NOSNIFF`, `X_FRAME_OPTIONS="DENY"`
+  - `backend/law_ai/settings/prod.py` — `SECURE_PROXY_SSL_HEADER`, `SESSION_COOKIE_SECURE=True`, `CSRF_COOKIE_SECURE=True`, `SECURE_HSTS_SECONDS`, `SECURE_CONTENT_TYPE_NOSNIFF`, `X_FRAME_OPTIONS="DENY"`
   - `backend/tests/test_deploy_check.py` (new — runs `call_command("check", "--deploy")` under prod settings)
 - **Steps**:
   1. Set the security flags; ensure `SECRET_KEY` loads from env.
   2. Confirm DRF API views are exempt from CSRF (header-token model); `/admin/` keeps CSRF.
 - **Verify**:
-  - `DJANGO_SETTINGS_MODULE=lawgraph.settings.prod python manage.py check --deploy` exits 0.
+  - `DJANGO_SETTINGS_MODULE=law_ai.settings.prod python manage.py check --deploy` exits 0.
   - `pytest backend/tests/test_deploy_check.py -q` passes.
 
 ## T-016 — Cutover: delete `backend/app/`
@@ -318,16 +318,16 @@
 - **Status**: `[x]`
 - **Files**:
   - Delete entire [backend/app/](../../backend/app/) directory.
-  - Remove `backend/app/LawGraph_ai.egg-info/` (artifact).
-  - `backend/pyproject.toml` `[tool.setuptools]` `packages = ["lawgraph"]` (was `["app"]`).
+  - Remove `backend/app/law_ai.egg-info/` (artifact).
+  - `backend/pyproject.toml` `[tool.setuptools]` `packages = ["law_ai"]` (was `["app"]`).
   - Final sweep: `grep -RIn "from app\." backend/ tests/` returns empty; `grep -RIln "uvicorn\|FastAPI" backend/` only returns ADR/changelog.
 - **Steps**:
   1. Confirm T-002 → T-015 fully green on feature branch CI.
-  2. `git rm -r backend/app/ backend/app/LawGraph_ai.egg-info/`.
+  2. `git rm -r backend/app/ backend/app/law_ai.egg-info/`.
   3. Update `pyproject.toml` package include.
   4. Re-run full test suite.
 - **Verify**:
-  - `cd backend && pytest --ds=lawgraph.settings.test --cov=lawgraph` passes; coverage ≥ 75%.
+  - `cd backend && pytest --ds=law_ai.settings.test --cov=law_ai` passes; coverage ≥ 75%.
   - `make lint` and `make test` clean.
   - `grep -RIn "from app\." backend/ tests/` empty.
   - Manual maintainer sign-off (HITL Constitution §10 Level-2 gate).
@@ -360,10 +360,10 @@
 - BL-20260503-16 — doc-gap, med — Flesh out `docs/security.md` (started under NFR-DOC-1) with the API-token rotation procedure, scope matrix, and the `seed_api_keys` runbook. Resolves [BL-20260430-10](../../BACKLOG.md).
 - BL-20260503-17 — test-gap, med — Add a Playwright end-to-end test that exercises the Django admin HITL flow against a docker stack (login → list quarantine → approve → assert Neo4j commit).
 - BL-20260503-18 — doc-gap, low — Add `docs/django-conventions.md` capturing the patterns settled in this refactor (settings split, settings_proxy usage, `acreate` discipline, Channels routing, Celery task naming) so future PRs do not relitigate them.
-- BL-20260503-19 — infra, high — Hand-edit `lawgraph/ingestionapp/migrations/0001_initial.py` to use `RunSQL` with verbatim DDL from `backend/app/db/postgres_migrations/{001_pending_review,002_pg_trgm}.sql` and a `state_operations`/`database_operations` split, so live Postgres rows survive cutover instead of relying on Django to drop+recreate the table.
-- BL-20260503-20 — refactor, med — Refactor `lawgraph/ingestionapp/services/scout.py` to delegate quarantine writes to the `quarantine_extraction` Celery task (currently still uses inline asyncpg + JSONL). Closes the loop on T-011.
+- BL-20260503-19 — infra, high — Hand-edit `law_ai/ingestionapp/migrations/0001_initial.py` to use `RunSQL` with verbatim DDL from `backend/app/db/postgres_migrations/{001_pending_review,002_pg_trgm}.sql` and a `state_operations`/`database_operations` split, so live Postgres rows survive cutover instead of relying on Django to drop+recreate the table.
+- BL-20260503-20 — refactor, med — Refactor `law_ai/ingestionapp/services/scout.py` to delegate quarantine writes to the `quarantine_extraction` Celery task (currently still uses inline asyncpg + JSONL). Closes the loop on T-011.
 - BL-20260503-21 — test-gap, high — ~~Re-establish ≥75% backend coverage on the Django app~~ **(resolved 2026-05-03)**: backend at **84.08%** (126 tests). Added consumer / task / management-command unit tests in `backend/tests/agentsapi/test_consumer.py`, `backend/tests/ingestion/test_quarantine_task.py`, `backend/tests/core/test_management_commands.py`.
 - BL-20260503-22 — test-gap, med — Pre-existing frontend failure (`__tests__/components/LsatLab.test.tsx`: long-passage assertion) was carried through this refactor without fix. Triage and resolve so `npm test -- --run` is green again.
-- BL-20260503-23 — refactor, low — Strip the dead-code FastAPI path from `lawgraph/core/telemetry.py` (TYPE_CHECKING import + `FastAPIInstrumentor.instrument_app` branch) and replace with `DjangoInstrumentor` so OTEL spans cover the new ASGI app once Phoenix is wired in. Sweep remaining historical FastAPI/uvicorn references in core docstrings to point to the Django entrypoints.
+- BL-20260503-23 — refactor, low — Strip the dead-code FastAPI path from `law_ai/core/telemetry.py` (TYPE_CHECKING import + `FastAPIInstrumentor.instrument_app` branch) and replace with `DjangoInstrumentor` so OTEL spans cover the new ASGI app once Phoenix is wired in. Sweep remaining historical FastAPI/uvicorn references in core docstrings to point to the Django entrypoints.
 - BL-20260503-24 — infra, med — ~~Wire Django static files for the dockerized stack~~ **(resolved 2026-05-03)**: added `whitenoise` dep + `WhiteNoiseMiddleware` + `CompressedManifestStaticFilesStorage`; `collectstatic --noinput` now runs in the backend container start command.
 - BL-20260503-25 — infra, low — Document the Postgres major-version pin in [docker-compose.yml](../../docker-compose.yml) (currently 16-alpine because the existing dev volume was initialized on pg16) and add a `make reset-db` runbook so operators can wipe `pgdata` when they need to bump.

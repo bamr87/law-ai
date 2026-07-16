@@ -19,16 +19,16 @@ flowchart LR
 
 | Layer    | File / Module                                                              | Change                                        |
 | -------- | -------------------------------------------------------------------------- | --------------------------------------------- |
-| Neo4j    | `backend/lawgraph/core/neo4j/migrations/003_statute_constraints.cypher`    | new — constraints on Statute / Section / Code / Jurisdiction / Court |
-| Neo4j    | `backend/lawgraph/core/neo4j/migrations/004_ordinance_regulation.cypher`   | new — constraints on Ordinance / OrdinanceSection / Regulation       |
-| Neo4j    | `backend/lawgraph/core/neo4j/migrations/005_temporal_indexes.cypher`       | new — range indexes on `effective_from`                              |
-| Neo4j    | `backend/lawgraph/core/neo4j/migrations/006_derived_document.cypher`       | new — DerivedDocument constraint + property existence                |
-| Neo4j    | `backend/lawgraph/core/neo4j/migrations/007_fulltext_indexes.cypher`       | new — fulltext on opinions + statute sections                        |
-| Schema   | `backend/lawgraph/core/schemas/legal_documents.py`                         | new — Pydantic v2 models for every label                             |
-| Schema   | `backend/lawgraph/core/schemas/__init__.py`                                | re-export the new models                                             |
-| Postgres | `backend/lawgraph/ingestionapp/models.py`                                  | add `kind` field (CharField, default `"case"`, db_index=True)        |
-| Postgres | `backend/lawgraph/ingestionapp/migrations/0002_pending_review_kind.py`     | new — `SeparateDatabaseAndState`-wrapped column add (Postgres + SQLite portable) |
-| Postgres | `backend/lawgraph/ingestionapp/quarantine_kinds.py`                        | new — `KIND_CASE = "case"` etc. constants                            |
+| Neo4j    | `backend/law_ai/core/neo4j/migrations/003_statute_constraints.cypher`    | new — constraints on Statute / Section / Code / Jurisdiction / Court |
+| Neo4j    | `backend/law_ai/core/neo4j/migrations/004_ordinance_regulation.cypher`   | new — constraints on Ordinance / OrdinanceSection / Regulation       |
+| Neo4j    | `backend/law_ai/core/neo4j/migrations/005_temporal_indexes.cypher`       | new — range indexes on `effective_from`                              |
+| Neo4j    | `backend/law_ai/core/neo4j/migrations/006_derived_document.cypher`       | new — DerivedDocument constraint + property existence                |
+| Neo4j    | `backend/law_ai/core/neo4j/migrations/007_fulltext_indexes.cypher`       | new — fulltext on opinions + statute sections                        |
+| Schema   | `backend/law_ai/core/schemas/legal_documents.py`                         | new — Pydantic v2 models for every label                             |
+| Schema   | `backend/law_ai/core/schemas/__init__.py`                                | re-export the new models                                             |
+| Postgres | `backend/law_ai/ingestionapp/models.py`                                  | add `kind` field (CharField, default `"case"`, db_index=True)        |
+| Postgres | `backend/law_ai/ingestionapp/migrations/0002_pending_review_kind.py`     | new — `SeparateDatabaseAndState`-wrapped column add (Postgres + SQLite portable) |
+| Postgres | `backend/law_ai/ingestionapp/quarantine_kinds.py`                        | new — `KIND_CASE = "case"` etc. constants                            |
 | Docs     | `docs/data-model.md`                                                       | extend with new node tables + edges + quarantine-kinds subsection    |
 | Tests    | `backend/tests/core/test_neo4j_migrations.py`                              | new — walks `*.cypher` files, asserts idempotency + key constraints  |
 | Tests    | `backend/tests/models/test_legal_document_schemas.py`                      | new — Pydantic instantiation + validator boundary tests              |
@@ -36,7 +36,7 @@ flowchart LR
 
 ## 3. Data & Schema Migrations
 
-**Neo4j** — five new files under `backend/lawgraph/core/neo4j/migrations/`. All use `CREATE CONSTRAINT … IF NOT EXISTS` / `CREATE INDEX … IF NOT EXISTS` / `CREATE FULLTEXT INDEX … IF NOT EXISTS`. No `MATCH … SET` mutations (additive only).
+**Neo4j** — five new files under `backend/law_ai/core/neo4j/migrations/`. All use `CREATE CONSTRAINT … IF NOT EXISTS` / `CREATE INDEX … IF NOT EXISTS` / `CREATE FULLTEXT INDEX … IF NOT EXISTS`. No `MATCH … SET` mutations (additive only).
 
 **Postgres** — `0002_pending_review_kind.py` follows the spec 011 pattern (`/memories/repo/django-migrations.md`):
 - Postgres branch: `ALTER TABLE pending_review ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'case';` then `CREATE INDEX IF NOT EXISTS pending_review_kind_created_at_idx ON pending_review (kind, created_at DESC);`

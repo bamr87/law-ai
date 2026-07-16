@@ -43,8 +43,8 @@ Constitution §5 mandates that any ingestion from a source flagged `requires_hum
 ## 8. Verification
 
 Implementation confirmed in:
-- `backend/lawgraph/agents_runtime/graphs/topic_frontier.py` line 345
-- `backend/lawgraph/ingestionapp/services/scout.py` line 134
+- `backend/law_ai/agents_runtime/graphs/topic_frontier.py` line 345
+- `backend/law_ai/ingestionapp/services/scout.py` line 134
 
 Tests added:
 - `backend/tests/agents/graphs/test_topic_frontier.py::TestNodeDispatch::test_force_quarantine_passed_when_adapter_requires_approval`

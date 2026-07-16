@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from lawgraph.ingestionapp.services import scout as scout_module
-from lawgraph.ingestionapp.services.scout import IngestionScout
+from law_ai.ingestionapp.services import scout as scout_module
+from law_ai.ingestionapp.services.scout import IngestionScout
 
 HIGH_CONF_OPINION = {
     "id": 12345,
@@ -150,7 +150,7 @@ async def test_quarantine_via_celery_dispatches_with_expected_payload(
     (id/source/confidence/reason) plus the original opinion under ``payload``
     so the ORM task can persist them to ``PendingReview``.
     """
-    from lawgraph.ingestionapp import tasks as tasks_module
+    from law_ai.ingestionapp import tasks as tasks_module
 
     delay_mock = MagicMock(return_value=None)
     monkeypatch.setattr(tasks_module.quarantine_extraction, "delay", delay_mock)

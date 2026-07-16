@@ -14,7 +14,7 @@
 - **Refs**: FR-1, FR-2, AC-1
 - **Owner**: @bamr87 (+Claude Code)
 - **Status**: `[x]`
-- **Files**: `backend/lawgraph/lsat/management/commands/lsat_export.py`, `backend/tests/lsat/test_export_site.py`
+- **Files**: `backend/law_ai/lsat/management/commands/lsat_export.py`, `backend/tests/lsat/test_export_site.py`
 - **Steps**: dump sections/concepts/passages/questions via the loaders with stable ordering; `schema_version`, `generated_at`, per-section `counts`; `--out`/`--pretty` options.
 - **Verify**: `docker compose run --rm backend pytest tests/lsat/test_export_site.py -q --no-cov`
 

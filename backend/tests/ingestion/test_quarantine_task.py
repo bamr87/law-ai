@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from lawgraph.audit.models import AuditEvent
-from lawgraph.ingestionapp.models import PendingReview
-from lawgraph.ingestionapp.tasks import quarantine_extraction
+from law_ai.audit.models import AuditEvent
+from law_ai.ingestionapp.models import PendingReview
+from law_ai.ingestionapp.tasks import quarantine_extraction
 
 
 @pytest.mark.django_db

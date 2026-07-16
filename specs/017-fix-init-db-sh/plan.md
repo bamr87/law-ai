@@ -13,7 +13,7 @@ flowchart LR
 ```
 
 `init-db.sh` is an **operator script** (not auto-run by docker-compose). It is invoked manually (e.g. by `make reset-db` or during onboarding) from a context where both `cypher-shell` and `python manage.py` are reachable — i.e. with the stack running so the neo4j and postgres services are up. The `backend` service's own startup command already runs `python manage.py migrate --noinput` on every boot; `init-db.sh` is the explicit reset/onboarding path. After this fix the script will:
-1. Discover `*.cypher` files under `backend/lawgraph/core/neo4j/migrations/` (correct path).
+1. Discover `*.cypher` files under `backend/law_ai/core/neo4j/migrations/` (correct path).
 2. Apply them in lexicographic order via `cypher-shell` (called from a container or host with neo4j reachable on `$NEO4J_URI`).
 3. Call `python manage.py migrate --noinput` (replaces the dead `psql` loop; requires the backend container or a host venv with deps installed).
 

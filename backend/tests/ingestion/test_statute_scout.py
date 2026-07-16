@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from lawgraph.core.schemas.statute_extraction import StatuteExtraction
-from lawgraph.ingestionapp.quarantine_kinds import KIND_STATUTE_SECTION
-from lawgraph.ingestionapp.services.statute_scout import StatuteScout
+from law_ai.core.schemas.statute_extraction import StatuteExtraction
+from law_ai.ingestionapp.quarantine_kinds import KIND_STATUTE_SECTION
+from law_ai.ingestionapp.services.statute_scout import StatuteScout
 
 FIXTURE = (
     Path(__file__).parent / "fixtures" / "co" / "title_18_article_3.html"
@@ -51,13 +51,13 @@ async def test_run_and_commit_writes_high_confidence_and_quarantines_low(
     fake_driver.session.return_value.__aenter__.return_value = fake_session
     fake_driver.session.return_value.__aexit__.return_value = None
     monkeypatch.setattr(
-        "lawgraph.ingestionapp.services.statute_scout.get_neo4j_driver",
+        "law_ai.ingestionapp.services.statute_scout.get_neo4j_driver",
         lambda: fake_driver,
     )
 
     delay = MagicMock()
     monkeypatch.setattr(
-        "lawgraph.ingestionapp.tasks.quarantine_extraction.delay",
+        "law_ai.ingestionapp.tasks.quarantine_extraction.delay",
         delay,
     )
 
@@ -88,11 +88,11 @@ async def test_run_and_commit_is_idempotent(
     fake_driver.session.return_value.__aenter__.return_value = fake_session
     fake_driver.session.return_value.__aexit__.return_value = None
     monkeypatch.setattr(
-        "lawgraph.ingestionapp.services.statute_scout.get_neo4j_driver",
+        "law_ai.ingestionapp.services.statute_scout.get_neo4j_driver",
         lambda: fake_driver,
     )
     monkeypatch.setattr(
-        "lawgraph.ingestionapp.tasks.quarantine_extraction.delay",
+        "law_ai.ingestionapp.tasks.quarantine_extraction.delay",
         MagicMock(),
     )
 
@@ -121,11 +121,11 @@ async def test_run_and_commit_falls_back_to_jsonl_on_celery_failure(
     fake_driver.session.return_value.__aenter__.return_value = fake_session
     fake_driver.session.return_value.__aexit__.return_value = None
     monkeypatch.setattr(
-        "lawgraph.ingestionapp.services.statute_scout.get_neo4j_driver",
+        "law_ai.ingestionapp.services.statute_scout.get_neo4j_driver",
         lambda: fake_driver,
     )
     monkeypatch.setattr(
-        "lawgraph.ingestionapp.services.statute_scout.PENDING_REVIEW_DIR",
+        "law_ai.ingestionapp.services.statute_scout.PENDING_REVIEW_DIR",
         tmp_path,
     )
 
@@ -133,7 +133,7 @@ async def test_run_and_commit_falls_back_to_jsonl_on_celery_failure(
         raise RuntimeError("broker unreachable")
 
     monkeypatch.setattr(
-        "lawgraph.ingestionapp.tasks.quarantine_extraction.delay",
+        "law_ai.ingestionapp.tasks.quarantine_extraction.delay",
         boom,
     )
 

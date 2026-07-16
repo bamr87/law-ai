@@ -23,12 +23,12 @@ from pathlib import Path
 # Allow ``python scripts/ingest_sample.py`` from backend/ without install.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from lawgraph.ingestionapp.services.colorado_statutes import ColoradoStatutesClient
-from lawgraph.ingestionapp.services.courtlistener import CourtListenerClient
-from lawgraph.ingestionapp.services.scout import IngestionScout
-from lawgraph.ingestionapp.services.statute_scout import StatuteScout
+from law_ai.ingestionapp.services.colorado_statutes import ColoradoStatutesClient
+from law_ai.ingestionapp.services.courtlistener import CourtListenerClient
+from law_ai.ingestionapp.services.scout import IngestionScout
+from law_ai.ingestionapp.services.statute_scout import StatuteScout
 
-logger = logging.getLogger("lawgraph.cli.ingest")
+logger = logging.getLogger("law_ai.cli.ingest")
 
 
 async def _run_courtlistener(args: argparse.Namespace) -> dict[str, int]:

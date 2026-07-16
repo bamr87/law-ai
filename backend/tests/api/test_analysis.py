@@ -10,9 +10,9 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from lawgraph.core import audit_jsonl as audit_store
+from law_ai.core import audit_jsonl as audit_store
 from django.conf import settings
-from lawgraph.asgi import application as app
+from law_ai.asgi import application as app
 
 
 @pytest.fixture(autouse=True)
@@ -81,7 +81,7 @@ async def test_low_confidence_triggers_hitl_flag(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """AC-4 / NFR-HITL-1: mean confidence < 0.7 → requires_human_review=True."""
-    from lawgraph.agents_runtime.crews.legal_analyst import LegalAnalyst
+    from law_ai.agents_runtime.crews.legal_analyst import LegalAnalyst
 
     original = LegalAnalyst.run
 
@@ -103,8 +103,8 @@ async def test_run_analysis_executes_agents_in_parallel(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """AC-5: gather() ⇒ wall-clock ≈ max(latency), not sum."""
-    from lawgraph.agents_runtime.crews.legal_analyst import LegalAnalyst
-    from lawgraph.agents_runtime.crews.precedent_hunter import PrecedentHunter
+    from law_ai.agents_runtime.crews.legal_analyst import LegalAnalyst
+    from law_ai.agents_runtime.crews.precedent_hunter import PrecedentHunter
 
     orig_a = LegalAnalyst.run
     orig_h = PrecedentHunter.run
@@ -189,7 +189,7 @@ async def test_agent_ws_events_emitted(
     """FR-6 / AC-1: three group_send calls emitted (LA step + PH step + complete)."""
     from unittest.mock import AsyncMock, MagicMock
 
-    import lawgraph.analysis.urls as analysis_urls
+    import law_ai.analysis.urls as analysis_urls
 
     mock_layer: MagicMock = MagicMock()
     mock_layer.group_send = AsyncMock()
@@ -216,7 +216,7 @@ async def test_agent_ws_events_resilient_to_channel_layer_failure(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """FR-1 / AC-2: channel layer exception does not abort the analysis."""
-    import lawgraph.analysis.urls as analysis_urls
+    import law_ai.analysis.urls as analysis_urls
 
     def boom() -> None:
         raise RuntimeError("Redis unavailable")

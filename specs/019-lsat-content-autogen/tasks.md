@@ -15,8 +15,8 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/agents_runtime/crews/lsat_content_author.py` (new)
-  - `backend/lawgraph/agents_runtime/prompts/lsat_content_author.v1.md` (new)
+  - `backend/law_ai/agents_runtime/crews/lsat_content_author.py` (new)
+  - `backend/law_ai/agents_runtime/prompts/lsat_content_author.v1.md` (new)
 - **Steps**:
   1. Define `GenerateQuestionsInput` (section, difficulty, count<=10, concepts?, passage_id?), `DraftQuestion` (mirrors `Question` schema), `GenerateQuestionsOutput` (drafts list + trace_id + confidence + model + degraded flag).
   2. Implement `async run(input_data)` that loads the prompt file, calls Ollama (`format="json"`), validates response into `DraftQuestion` list, and falls back to a deterministic placeholder draft when Ollama fails.
@@ -29,7 +29,7 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/lsat/services/proposals.py` (new)
+  - `backend/law_ai/lsat/services/proposals.py` (new)
   - `backend/var/lsat_proposals/.gitkeep` (new)
 - **Steps**:
   1. `record_proposal(draft, *, agent_trace_id, model, confidence) -> str` returns proposal id; appends JSONL row with status="pending".
@@ -45,7 +45,7 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/lsat/urls.py` (edit — add 5 `APIView` classes + url patterns)
+  - `backend/law_ai/lsat/urls.py` (edit — add 5 `APIView` classes + url patterns)
   - `backend/tests/lsat/test_proposals_api.py` (new)
 - **Steps**:
   1. `ProposalsView (GET)` — list with status filter.
@@ -62,10 +62,10 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/agents_runtime/registry.py` (edit)
-  - `backend/lawgraph/core/tasks.py` (edit — add `"lsat_content"` branch)
-  - `backend/lawgraph/core/management/commands/run_autonomy.py` (edit — add choice + `_run_lsat_content`)
-  - `backend/lawgraph/celery.py` (edit — `autonomy-lsat-content` beat entry)
+  - `backend/law_ai/agents_runtime/registry.py` (edit)
+  - `backend/law_ai/core/tasks.py` (edit — add `"lsat_content"` branch)
+  - `backend/law_ai/core/management/commands/run_autonomy.py` (edit — add choice + `_run_lsat_content`)
+  - `backend/law_ai/celery.py` (edit — `autonomy-lsat-content` beat entry)
 - **Steps**:
   1. `register_all_agents()` adds `LSATContentAuthor` with `human_approval_required=True` class attribute already set.
   2. `autonomy_cycle` dispatches `kind="lsat_content"` to `_run_lsat_content`.

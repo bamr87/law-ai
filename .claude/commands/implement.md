@@ -3,7 +3,7 @@ description: "AO-SDLC /implement — implement one task from tasks.md, with gate
 argument-hint: "<task id, e.g. T-003, inside specs/NNN-*/tasks.md>"
 ---
 
-Execute the canonical LawGraph AO-SDLC **implement** step for a single task.
+Execute the canonical Law AI AO-SDLC **implement** step for a single task.
 
 Read [prompts/implement.md](../../prompts/implement.md) now and follow it exactly. Stop after one task — do not chain into the next.
 

@@ -14,7 +14,7 @@
 - **Refs**: FR-1, FR-2, FR-10
 - **Owner**: @bamr87 (+Claude Code)
 - **Status**: `[x]`
-- **Files**: `backend/lawgraph/lsat/factory/{__init__,taxonomy,config}.py`, `backend/lawgraph/lsat/services/data/concepts.json`
+- **Files**: `backend/law_ai/lsat/factory/{__init__,taxonomy,config}.py`, `backend/law_ai/lsat/services/data/concepts.json`
 - **Steps**: define `Archetype` + registry (≥14 LR / ≥6 RC / ≥5 LG) with concept mappings + tier hints; `validate_taxonomy()` against `load_concepts()`; `ModelTier` + `FactoryConfig.from_settings()` with `LSAT_FACTORY_*` overrides and Claude tier defaults (haiku/sonnet/opus/fable); add the 6 new concept entries and widen `must-be-true` to LR+LG.
 - **Verify**: `docker compose run --rm backend pytest tests/lsat/test_factory_taxonomy.py -q --no-cov`
 
@@ -23,7 +23,7 @@
 - **Refs**: FR-3
 - **Owner**: @bamr87 (+Claude Code)
 - **Status**: `[x]`
-- **Files**: `backend/lawgraph/lsat/factory/coverage.py`
+- **Files**: `backend/law_ai/lsat/factory/coverage.py`
 - **Steps**: census over `load_bank()` per (section, archetype, difficulty); `plan_targets()` ranks under-target cells, boosts cells matching `gap_analysis()` weak concepts, deterministic ordering.
 - **Verify**: `docker compose run --rm backend pytest tests/lsat/test_factory_coverage.py -q --no-cov`
 
@@ -32,7 +32,7 @@
 - **Refs**: FR-4
 - **Owner**: @bamr87 (+Claude Code)
 - **Status**: `[x]`
-- **Files**: `backend/lawgraph/lsat/factory/blueprints.py`, `backend/lawgraph/agents_runtime/prompts/lsat_factory_item.v1.md`, `backend/lawgraph/agents_runtime/prompts/lsat_factory_passage.v1.md`
+- **Files**: `backend/law_ai/lsat/factory/blueprints.py`, `backend/law_ai/agents_runtime/prompts/lsat_factory_item.v1.md`, `backend/law_ai/agents_runtime/prompts/lsat_factory_passage.v1.md`
 - **Steps**: exemplar picker (same archetype/section, cap K, serialized with answer keys); prompt renderer merging template + archetype guidance + concept slice + JSON contract; passage-mode template for new RC passages / LG games.
 - **Verify**: `docker compose run --rm backend pytest tests/lsat/test_factory_blueprints.py -q --no-cov`
 
@@ -41,7 +41,7 @@
 - **Refs**: FR-5
 - **Owner**: @bamr87 (+Claude Code)
 - **Status**: `[x]`
-- **Files**: `backend/lawgraph/lsat/factory/manifest.py`
+- **Files**: `backend/law_ai/lsat/factory/manifest.py`
 - **Steps**: `GenerationJob` / `GenerationManifest` Pydantic models (schema_version=1), write/read under `LSAT_FACTORY_DIR`, unique job ids, config snapshot embedded.
 - **Verify**: `docker compose run --rm backend pytest tests/lsat/test_factory_manifest.py -q --no-cov`
 
@@ -50,7 +50,7 @@
 - **Refs**: FR-6, NFR-SEC-1, AC-5
 - **Owner**: @bamr87 (+Claude Code)
 - **Status**: `[x]`
-- **Files**: `backend/lawgraph/lsat/factory/executors.py`
+- **Files**: `backend/law_ai/lsat/factory/executors.py`
 - **Steps**: `Executor` protocol; `ClaudeCodeExecutor` mapping job tier → model id, structured-output schema reuse, hard `is_active()` gate raising `ExecutorUnavailable`; `OllamaExecutor`; `DraftFileExecutor` keyed by job_id.
 - **Verify**: `docker compose run --rm backend pytest tests/lsat/test_factory_executors.py -q --no-cov`
 
@@ -59,7 +59,7 @@
 - **Refs**: FR-7, FR-9, NFR-AUDIT-1, NFR-HITL-1, AC-3, AC-4
 - **Owner**: @bamr87 (+Claude Code)
 - **Status**: `[x]`
-- **Files**: `backend/lawgraph/lsat/factory/intake.py`, `backend/lawgraph/lsat/services/proposals.py` (additive `meta` kwarg)
+- **Files**: `backend/law_ai/lsat/factory/intake.py`, `backend/law_ai/lsat/services/proposals.py` (additive `meta` kwarg)
 - **Steps**: gates schema → concept lint → Jaccard dedup (bank + pending + intra-batch) → answer-balance flagging; survivors to `record_proposal(meta=…)`; one `log_agent_call` per batch; typed reject reasons.
 - **Verify**: `docker compose run --rm backend pytest tests/lsat/test_factory_intake.py tests/lsat/test_proposals.py -q --no-cov`
 
@@ -68,7 +68,7 @@
 - **Refs**: FR-8, AC-1, AC-2
 - **Owner**: @bamr87 (+Claude Code)
 - **Status**: `[x]`
-- **Files**: `backend/lawgraph/lsat/factory/pipeline.py`, `backend/lawgraph/lsat/management/commands/lsat_factory.py`
+- **Files**: `backend/law_ai/lsat/factory/pipeline.py`, `backend/law_ai/lsat/management/commands/lsat_factory.py`
 - **Steps**: `plan/compile/execute/ingest/status` functions; command wiring all five subcommands with JSON output options; offline-safe defaults.
 - **Verify**: `docker compose run --rm backend pytest tests/lsat/test_factory_pipeline.py tests/lsat/test_factory_command.py -q --no-cov`
 
@@ -79,7 +79,7 @@
 - **Status**: `[x]`
 - **Files**: `backend/tests/lsat/test_factory_*.py`
 - **Steps**: run the whole factory suite plus existing LSAT tests; ruff + mypy --strict on the new package.
-- **Verify**: `docker compose run --rm backend pytest tests/lsat tests/api/test_lsat.py -q --no-cov` · `docker compose run --rm backend ruff check lawgraph/lsat/factory` · `docker compose run --rm backend mypy lawgraph/lsat/factory --strict`
+- **Verify**: `docker compose run --rm backend pytest tests/lsat tests/api/test_lsat.py -q --no-cov` · `docker compose run --rm backend ruff check law_ai/lsat/factory` · `docker compose run --rm backend mypy law_ai/lsat/factory --strict`
 
 ## T-009 — Live multi-model demonstration (dev-time)
 

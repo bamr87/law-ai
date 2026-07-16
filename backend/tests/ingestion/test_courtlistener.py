@@ -9,7 +9,7 @@ import httpx
 import pytest
 import respx
 
-from lawgraph.ingestionapp.services.courtlistener import (
+from law_ai.ingestionapp.services.courtlistener import (
     BASE_URL,
     CourtListenerClient,
     CourtListenerError,

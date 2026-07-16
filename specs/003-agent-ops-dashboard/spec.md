@@ -37,7 +37,7 @@ Also closes **BL-20260430-02** (TODO in [backend/app/main.py](../../backend/app/
 
 ## 5. Functional Requirements
 
-- **FR-1**: New module `app.core.audit_store` exposes `record(event: dict) -> None` (append-only) and `tail(limit: int) -> list[dict]`. Backed by a single JSONL file at `LawGraph_AUDIT_PATH` (defaults to `backend/.audit/provenance.jsonl`). File location is settings-driven so tests use a tmp path.
+- **FR-1**: New module `app.core.audit_store` exposes `record(event: dict) -> None` (append-only) and `tail(limit: int) -> list[dict]`. Backed by a single JSONL file at `LAW_AI_AUDIT_PATH` (defaults to `backend/.audit/provenance.jsonl`). File location is settings-driven so tests use a tmp path.
 - **FR-2**: `ProvenanceLogger.log_agent_call`, `log_request`, and `log_graph_query` additionally call `audit_store.record(...)`. Existing stdout logging is preserved.
 - **FR-3**: `GET /api/agents` returns `{"agents": [{"name": str, "module": str}]}` from `AGENT_REGISTRY`.
 - **FR-4**: `GET /api/agents/runs?limit=N` (1 ≤ N ≤ 200, default 50) returns the most recent N events from the audit store, newest first.

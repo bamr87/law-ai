@@ -16,9 +16,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import lawgraph.agents_runtime.graphs.topic_frontier as tf_module
-from lawgraph.agents_runtime.graphs.topic_frontier import TopicFrontier
-from lawgraph.ingestionapp.services.scout import IngestionScout
+import law_ai.agents_runtime.graphs.topic_frontier as tf_module
+from law_ai.agents_runtime.graphs.topic_frontier import TopicFrontier
+from law_ai.ingestionapp.services.scout import IngestionScout
 
 _NEO4J_URI = os.getenv("NEO4J_URI", "")
 
@@ -32,7 +32,7 @@ pytestmark = pytest.mark.integration
 @pytest.mark.asyncio
 async def test_dispatched_cases_carry_agent_version() -> None:
     """End-to-end: workflow dispatches a doc; Neo4j Case node has agent_version."""
-    from lawgraph.core.neo4j.driver import get_neo4j_driver
+    from law_ai.core.neo4j.driver import get_neo4j_driver
 
     # Seed a minimal orphan citation so the prioritize node has something.
     driver = get_neo4j_driver()

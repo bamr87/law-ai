@@ -3,7 +3,7 @@ description: "AO-SDLC /evolve — autonomously advance the repo by one full AO-S
 argument-hint: "(optional) BL-id to target; blank = auto-pick highest priority"
 ---
 
-Execute the canonical LawGraph **evolve** autopilot.
+Execute the canonical Law AI **evolve** autopilot.
 
 Read [prompts/evolve.md](../../prompts/evolve.md) now and follow it exactly, including its Stop Conditions and the `/specify → /clarify → /plan → /tasks → /implement` chain.
 

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from lawgraph.core import audit_jsonl as audit_store
+from law_ai.core import audit_jsonl as audit_store
 from django.conf import settings
 
 

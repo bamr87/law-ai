@@ -1,4 +1,4 @@
-# LawGraph AI — Constitution
+# Law AI — Constitution
 
 > Org-wide, non-negotiable standards for every spec, plan, and implementation produced by humans or AI agents in this repo. This is the **first** document any agent reads when running [/specify](../prompts/specify.md), [/plan](../prompts/plan.md), or [/implement](../prompts/implement.md).
 >
@@ -66,7 +66,7 @@ Every change larger than a typo follows the spec workflow:
 6. Open PR with all four files. CI runs [scripts/spec_validator.py](../scripts/spec_validator.py) drift gate.
 7. Run [/implement](../prompts/implement.md) per task; PRs reference `specs/NNN-...` in description.
 
-See [docs/ao-sdlc.md](ao-sdlc.md) for how phases map onto LawGraph and [docs/ao-sdlc-guide.md](ao-sdlc-guide.md) for the full framework reference.
+See [docs/ao-sdlc.md](ao-sdlc.md) for how phases map onto Law AI and [docs/ao-sdlc-guide.md](ao-sdlc-guide.md) for the full framework reference.
 
 ## 8. Security Baselines
 
@@ -108,11 +108,11 @@ The repo must always grow forward. Every implementation cycle MUST end with expl
 Recorded by [docs/adr/0003-autonomy-orchestrator.md](adr/0003-autonomy-orchestrator.md). The `AutonomyOrchestrator` and any future autonomous loop in this repo MUST satisfy all of the following — CI and code-review reject violations:
 
 - **I1 — No auto-merge.** Every loop ends in either a draft PR (code) or a `PendingReview` row (data). No GitHub Actions workflow may be granted permissions sufficient to merge a PR; no Celery task may write to a `:Case`/`:Statute` node outside `IngestionScout.run_and_commit`.
-- **I2 — Closed source registry.** Recursion expands within `lawgraph.ingestionapp.sources.SOURCE_REGISTRY` whose member name appears in `AUTONOMY_ALLOWED_SOURCES`. Adding a new adapter is its own `/specify` cycle (preserves §5).
+- **I2 — Closed source registry.** Recursion expands within `law_ai.ingestionapp.sources.SOURCE_REGISTRY` whose member name appears in `AUTONOMY_ALLOWED_SOURCES`. Adding a new adapter is its own `/specify` cycle (preserves §5).
 - **I3 — Kill-switch.** A single settings flag (`AUTONOMY_ENABLED`, default `False`) short-circuits every loop with one provenance event (`event_type='autonomy_disabled'`). Operators must explicitly opt-in per environment.
-- **I4 — One audited entry point.** Every cycle is invoked through `lawgraph.core.autonomy.run_cycle()` and emits paired `autonomy_cycle.start` + `autonomy_cycle.end` provenance events. The daily digest under `AUTONOMY_DIGEST_DIR` is the canonical human-review surface.
+- **I4 — One audited entry point.** Every cycle is invoked through `law_ai.core.autonomy.run_cycle()` and emits paired `autonomy_cycle.start` + `autonomy_cycle.end` provenance events. The daily digest under `AUTONOMY_DIGEST_DIR` is the canonical human-review surface.
 - **I5 — Propose-only test synthesis.** Autonomy-generated tests land as `*.proposed.py` decorated with `@pytest.mark.skip("autonomy-proposed")`. Reviewers must explicitly un-skip.
-- **I6 — Provenance preserved.** Every adapter dispatch records `{adapter_name, query, items_returned, items_quarantined}`; every LLM call goes through `lawgraph.core.provenance` (preserves §4).
+- **I6 — Provenance preserved.** Every adapter dispatch records `{adapter_name, query, items_returned, items_quarantined}`; every LLM call goes through `law_ai.core.provenance` (preserves §4).
 
 Promotion to Level 3 — even for narrow change classes — requires a separate ADR amending §10 and these invariants.
 

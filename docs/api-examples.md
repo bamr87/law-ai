@@ -1,4 +1,4 @@
-# LawGraph AI — API Examples
+# Law AI — API Examples
 
 Quick-reference `curl` examples for every public REST endpoint. All endpoints are prefixed with the base URL (`http://localhost:8000` for local dev). The optional `X-API-Key` header is required when `LSAT_API_KEY` / `AGENT_API_KEY` is set in your environment (spec 009).
 

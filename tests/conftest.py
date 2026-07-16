@@ -1,7 +1,7 @@
 """Shared fixtures for the repo-wide test suite.
 
 The root `tests/` package is the single entry point for validating the
-LawGraph AI monorepo end-to-end: structure, specs/backlog, docs, configs,
+Law AI monorepo end-to-end: structure, specs/backlog, docs, configs,
 and (opt-in) backend + frontend test suites.
 
 Per AGENTS.md, these tests must remain dependency-light so they can run in

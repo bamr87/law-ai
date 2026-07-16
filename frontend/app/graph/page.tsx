@@ -1,9 +1,9 @@
 import KnowledgeGraph from '@/components/KnowledgeGraph'
 
 export const metadata = {
-  title: 'Knowledge Graph · LawGraph AI',
+  title: 'Knowledge Graph · Law AI',
   description:
-    'Interactive Cytoscape view of cases, citations, and CITES edges in the LawGraph AI knowledge graph.',
+    'Interactive Cytoscape view of cases, citations, and CITES edges in the Law AI knowledge graph.',
 }
 
 export default function GraphPage() {

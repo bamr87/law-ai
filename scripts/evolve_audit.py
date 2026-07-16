@@ -28,7 +28,7 @@ REPO = Path(__file__).resolve().parent.parent
 BACKLOG = REPO / "BACKLOG.md"
 TODO_RE = re.compile(r"\b(TODO|FIXME|XXX|HACK)\b[:\s-]*(.{0,100})", re.IGNORECASE)
 EXISTING_BL_RE = re.compile(r"\bBL-\d{8}-\d{2}\b")
-SCAN_GLOBS = ("backend/lawgraph/**/*.py", "frontend/app/**/*.ts", "frontend/components/**/*.tsx")
+SCAN_GLOBS = ("backend/law_ai/**/*.py", "frontend/app/**/*.ts", "frontend/components/**/*.tsx")
 SKIP_DIRS = {".venv", "node_modules", ".next", "__pycache__", ".git"}
 
 
@@ -107,12 +107,12 @@ def _scan_missing_docs() -> list[Candidate]:
 
 
 def _scan_coverage() -> list[Candidate]:
-    """Delegate to lawgraph.eval.coverage_audit (spec 018 T-003).
+    """Delegate to law_ai.eval.coverage_audit (spec 018 T-003).
 
     Imports the Django-free ``coverage_audit`` module directly from the backend
     package directory so this script can still run stdlib-only on the host.
 
-    When ``lawgraph.eval.coverage_audit`` is already in ``sys.modules`` (e.g.
+    When ``law_ai.eval.coverage_audit`` is already in ``sys.modules`` (e.g.
     during pytest runs that monkeypatch ``_DEFAULT_XML``), that existing module
     is reused rather than loading a fresh copy, so test patches take effect.
     """
@@ -120,10 +120,10 @@ def _scan_coverage() -> list[Candidate]:
     import sys
 
     # Prefer the already-imported version so test monkeypatches on
-    # ``lawgraph.eval.coverage_audit._DEFAULT_XML`` are respected.
-    ca = sys.modules.get("lawgraph.eval.coverage_audit")
+    # ``law_ai.eval.coverage_audit._DEFAULT_XML`` are respected.
+    ca = sys.modules.get("law_ai.eval.coverage_audit")
     if ca is None:
-        ca_path = REPO / "backend" / "lawgraph" / "eval" / "coverage_audit.py"
+        ca_path = REPO / "backend" / "law_ai" / "eval" / "coverage_audit.py"
         if not ca_path.exists():
             return []
 

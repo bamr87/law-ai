@@ -8,10 +8,10 @@ from typing import Any
 
 import pytest
 
-from lawgraph.lsat.factory.config import FactoryConfig
-from lawgraph.lsat.factory.executors import ExecutionError, RawBatch
-from lawgraph.lsat.factory.manifest import GenerationJob
-from lawgraph.lsat.factory.pipeline import (
+from law_ai.lsat.factory.config import FactoryConfig
+from law_ai.lsat.factory.executors import ExecutionError, RawBatch
+from law_ai.lsat.factory.manifest import GenerationJob
+from law_ai.lsat.factory.pipeline import (
     compile_plan,
     execute_manifest,
     ingest_drafts_file,
@@ -19,7 +19,7 @@ from lawgraph.lsat.factory.pipeline import (
     plan,
     status,
 )
-from lawgraph.lsat.services import proposals
+from law_ai.lsat.services import proposals
 
 _STEM_BANK = (
     "Museum attendance doubled after free-admission Fridays began; the "

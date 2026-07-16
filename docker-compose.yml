@@ -6,15 +6,15 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://lawgraph:lawgraph-dev@postgres:5432/lawgraph
+      - DATABASE_URL=postgresql://law_ai:law_ai-dev@postgres:5432/law_ai
       - NEO4J_URI=bolt://neo4j:7687
       - NEO4J_USER=neo4j
-      - NEO4J_PASSWORD=lawgraph-dev
+      - NEO4J_PASSWORD=law_ai-dev
       - OLLAMA_BASE_URL=http://ollama:11434
       - REDIS_URL=redis://redis:6379
       - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006/v1/traces
       - PHOENIX_UI_URL=http://localhost:6006
-      - PHOENIX_PROJECT_NAME=lawgraph
+      - PHOENIX_PROJECT_NAME=law_ai
       - LANGGRAPH_CHECKPOINTER=postgres
       # Autonomy loop (spec 018) — default off; set AUTONOMY_ENABLED=True in .env to activate.
       - AUTONOMY_ENABLED=${AUTONOMY_ENABLED:-False}
@@ -33,7 +33,7 @@ services:
     volumes:
       - ./backend:/app
       - ./:/repo
-    command: sh -c "python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py ensure_checkpointer && daphne -b 0.0.0.0 -p 8000 lawgraph.asgi:application"
+    command: sh -c "python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py ensure_checkpointer && daphne -b 0.0.0.0 -p 8000 law_ai.asgi:application"
 
   worker:
     # Spec 011 FR-11: Celery worker for ingestion quarantine + audit fallback.
@@ -41,12 +41,12 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=postgresql://lawgraph:lawgraph-dev@postgres:5432/lawgraph
+      - DATABASE_URL=postgresql://law_ai:law_ai-dev@postgres:5432/law_ai
       - REDIS_URL=redis://redis:6379
       - NEO4J_URI=bolt://neo4j:7687
       - NEO4J_USER=neo4j
-      - NEO4J_PASSWORD=lawgraph-dev
-      - DJANGO_SETTINGS_MODULE=lawgraph.settings.dev
+      - NEO4J_PASSWORD=law_ai-dev
+      - DJANGO_SETTINGS_MODULE=law_ai.settings.dev
       # Autonomy loop (spec 018) — default off; set AUTONOMY_ENABLED=True in .env to activate.
       - AUTONOMY_ENABLED=${AUTONOMY_ENABLED:-False}
       - AUTONOMY_ALLOWED_SOURCES=${AUTONOMY_ALLOWED_SOURCES:-}
@@ -63,10 +63,10 @@ services:
       - ./:/repo
     # --beat embeds the beat scheduler so crontab entries fire in local dev.
     # In production, run a dedicated beat container instead.
-    command: celery -A lawgraph worker --beat -l info -Q autonomy,celery
+    command: celery -A law_ai worker --beat -l info -Q autonomy,celery
     healthcheck:
       # Celery workers have no HTTP port — use inspect ping instead.
-      test: [ "CMD-SHELL", "celery -A lawgraph inspect ping --destination celery@$$HOSTNAME || exit 1" ]
+      test: [ "CMD-SHELL", "celery -A law_ai inspect ping --destination celery@$$HOSTNAME || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -91,15 +91,15 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: lawgraph
-      POSTGRES_PASSWORD: lawgraph-dev
-      POSTGRES_DB: lawgraph
+      POSTGRES_USER: law_ai
+      POSTGRES_PASSWORD: law_ai-dev
+      POSTGRES_DB: law_ai
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U lawgraph" ]
+      test: [ "CMD-SHELL", "pg_isready -U law_ai" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -110,7 +110,7 @@ services:
       - "7474:7474"
       - "7687:7687"
     environment:
-      NEO4J_AUTH: neo4j/lawgraph-dev
+      NEO4J_AUTH: neo4j/law_ai-dev
       NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
     volumes:
       - neo4jdata:/data

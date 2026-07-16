@@ -16,11 +16,11 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/core/neo4j/migrations/003_statute_constraints.cypher` (new)
-  - `backend/lawgraph/core/neo4j/migrations/004_ordinance_regulation.cypher` (new)
-  - `backend/lawgraph/core/neo4j/migrations/005_temporal_indexes.cypher` (new)
-  - `backend/lawgraph/core/neo4j/migrations/006_derived_document.cypher` (new)
-  - `backend/lawgraph/core/neo4j/migrations/007_fulltext_indexes.cypher` (new)
+  - `backend/law_ai/core/neo4j/migrations/003_statute_constraints.cypher` (new)
+  - `backend/law_ai/core/neo4j/migrations/004_ordinance_regulation.cypher` (new)
+  - `backend/law_ai/core/neo4j/migrations/005_temporal_indexes.cypher` (new)
+  - `backend/law_ai/core/neo4j/migrations/006_derived_document.cypher` (new)
+  - `backend/law_ai/core/neo4j/migrations/007_fulltext_indexes.cypher` (new)
 - **Steps**:
   1. Author the five `.cypher` files with `CREATE CONSTRAINT … IF NOT EXISTS` / `CREATE INDEX … IF NOT EXISTS` / `CREATE FULLTEXT INDEX … IF NOT EXISTS` statements covering every label in spec §7.
   2. Each file ends with a comment block explaining what it adds and why it is forward-only.
@@ -33,15 +33,15 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/core/schemas/legal_documents.py` (new)
-  - `backend/lawgraph/core/schemas/__init__.py` (re-export)
+  - `backend/law_ai/core/schemas/legal_documents.py` (new)
+  - `backend/law_ai/core/schemas/__init__.py` (re-export)
 - **Steps**:
   1. Define a `LegalProvenance` mixin Pydantic model carrying `source` / `source_url` / `confidence` / `ingest_timestamp` / `agent_version`.
   2. Define `Jurisdiction`, `Court`, `Code`, `Statute`, `StatuteSection`, `Ordinance`, `OrdinanceSection`, `Regulation`, `DerivedDocument` models inheriting the mixin.
   3. Re-export from `core/schemas/__init__.py`.
 - **Verify**:
   - `backend/tests/models/test_legal_document_schemas.py` (T-005) passes.
-  - `cd backend && mypy lawgraph/core/schemas --strict` clean.
+  - `cd backend && mypy law_ai/core/schemas --strict` clean.
 
 ## T-003 — Generalize `PendingReview` with `kind`
 
@@ -49,9 +49,9 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/ingestionapp/models.py` (extend)
-  - `backend/lawgraph/ingestionapp/migrations/0002_pending_review_kind.py` (new)
-  - `backend/lawgraph/ingestionapp/quarantine_kinds.py` (new — constants)
+  - `backend/law_ai/ingestionapp/models.py` (extend)
+  - `backend/law_ai/ingestionapp/migrations/0002_pending_review_kind.py` (new)
+  - `backend/law_ai/ingestionapp/quarantine_kinds.py` (new — constants)
 - **Steps**:
   1. Add `kind = models.CharField(max_length=32, default="case", db_index=True)` to `PendingReview`.
   2. Author migration `0002_pending_review_kind.py` using `SeparateDatabaseAndState` with vendor-aware `RunPython` (Postgres `ADD COLUMN IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS`, SQLite portable `ALTER TABLE`).
@@ -68,7 +68,7 @@
 - **Files**:
   - `backend/tests/core/test_neo4j_migrations.py` (new)
 - **Steps**:
-  1. Discover all `.cypher` files under `backend/lawgraph/core/neo4j/migrations/`.
+  1. Discover all `.cypher` files under `backend/law_ai/core/neo4j/migrations/`.
   2. Assert every `CREATE CONSTRAINT|INDEX|FULLTEXT INDEX` statement contains `IF NOT EXISTS`.
   3. Assert the union of declared constraint names covers the labels listed in spec FR-1.
 - **Verify**: `cd backend && pytest tests/core/test_neo4j_migrations.py -q`.
@@ -139,6 +139,6 @@
 
 > Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id.
 
-- BL-20260509-01 — *infra, high* — `backend/scripts/init-db.sh` references the pre-rebrand `app/db/neo4j_migrations` and `app/db/postgres_migrations` paths; never picks up `backend/lawgraph/core/neo4j/migrations/*.cypher`. Fix path + add Postgres-side runner that complements Django migrations (only for Neo4j Cypher files now that all Postgres DDL lives in Django migrations).
+- BL-20260509-01 — *infra, high* — `backend/scripts/init-db.sh` references the pre-rebrand `app/db/neo4j_migrations` and `app/db/postgres_migrations` paths; never picks up `backend/law_ai/core/neo4j/migrations/*.cypher`. Fix path + add Postgres-side runner that complements Django migrations (only for Neo4j Cypher files now that all Postgres DDL lives in Django migrations).
 - BL-20260509-02 — *infra, med* — Add a real Cypher migration runner that records applied migrations in a `(:_Migration {id})` Neo4j node so non-idempotent migrations become possible later (e.g. data back-fills).
 - BL-20260509-03 — *test-gap, med* — Docker-backed integration test that actually applies `001`–`007` against a live Neo4j and runs `SHOW CONSTRAINTS` / `SHOW INDEXES` to confirm shape; the unit test added in T-004 only validates the file contents.

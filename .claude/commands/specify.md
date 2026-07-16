@@ -3,7 +3,7 @@ description: "AO-SDLC /specify — turn a BACKLOG item into a spec package under
 argument-hint: "<BL-id> <one-line intent>"
 ---
 
-Execute the canonical LawGraph AO-SDLC **specify** step.
+Execute the canonical Law AI AO-SDLC **specify** step.
 
 Read [prompts/specify.md](../../prompts/specify.md) now and follow it exactly. That file is the single source of truth for this step — do not improvise around it.
 

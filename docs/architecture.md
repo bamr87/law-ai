@@ -1,4 +1,4 @@
-# LawGraph AI Architecture
+# Law AI Architecture
 
 ## High-Level Overview
 
@@ -49,14 +49,14 @@ flowchart TB
 
 | Component              | Responsibility                                                                 | Key Files |
 |------------------------|----------------------------------------------------------------------------------|-----------|
-| **Ingestion Scout**    | Fetch → Parse (Eyecite) → Extract (Blackstone + LLM) → Commit to Neo4j          | `backend/lawgraph/ingestionapp/`, `agents/crews/ingestion_scout/` |
-| **Agent Crews**        | Specialized legal reasoning (Analyst, Precedent Hunter, Logic Weaver, Educator) | `backend/lawgraph/agents_runtime/crews/` |
-| **Orchestrator**       | LangGraph state machine, routing, HITL gates, provenance logging                | `backend/lawgraph/agents_runtime/graphs/orchestrator.py` |
-| **GraphRAG Engine**    | Hybrid retrieval (vector + Cypher) + community summaries                        | `backend/lawgraph/agents_runtime/tools/graph_rag.py` |
-| **API Layer**          | Django REST Framework views for analysis, graph queries, ingestion, LSAT (+ Channels consumers for agent streaming) | `backend/lawgraph/{analysis,graph,lsat,agentsapi,ingestionapp}/` |
+| **Ingestion Scout**    | Fetch → Parse (Eyecite) → Extract (Blackstone + LLM) → Commit to Neo4j          | `backend/law_ai/ingestionapp/`, `agents/crews/ingestion_scout/` |
+| **Agent Crews**        | Specialized legal reasoning (Analyst, Precedent Hunter, Logic Weaver, Educator) | `backend/law_ai/agents_runtime/crews/` |
+| **Orchestrator**       | LangGraph state machine, routing, HITL gates, provenance logging                | `backend/law_ai/agents_runtime/graphs/orchestrator.py` |
+| **GraphRAG Engine**    | Hybrid retrieval (vector + Cypher) + community summaries                        | `backend/law_ai/agents_runtime/tools/graph_rag.py` |
+| **API Layer**          | Django REST Framework views for analysis, graph queries, ingestion, LSAT (+ Channels consumers for agent streaming) | `backend/law_ai/{analysis,graph,lsat,agentsapi,ingestionapp}/` |
 | **Frontend**           | Interactive graph, real-time agent streaming, LSAT practice, library            | `frontend/app/` + `components/GraphViewer.tsx` |
-| **Evaluation**         | LegalBench harness + custom legal reasoning tests                               | `backend/lawgraph/eval/` |
-| **Autonomy Loop**      | Scheduled cycles (corpus growth, test synthesis, digest) controlled by `AUTONOMY_ENABLED` kill-switch; single audited entry point via `lawgraph.core.autonomy.run_cycle`; every cycle emits paired provenance events | `backend/lawgraph/core/autonomy.py`, `celery.py`, `agents_runtime/crews/test_synthesizer/`, `agents_runtime/graphs/topic_frontier.py` |
+| **Evaluation**         | LegalBench harness + custom legal reasoning tests                               | `backend/law_ai/eval/` |
+| **Autonomy Loop**      | Scheduled cycles (corpus growth, test synthesis, digest) controlled by `AUTONOMY_ENABLED` kill-switch; single audited entry point via `law_ai.core.autonomy.run_cycle`; every cycle emits paired provenance events | `backend/law_ai/core/autonomy.py`, `celery.py`, `agents_runtime/crews/test_synthesizer/`, `agents_runtime/graphs/topic_frontier.py` |
 
 ---
 

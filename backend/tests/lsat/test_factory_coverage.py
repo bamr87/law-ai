@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from lawgraph.core import audit_jsonl as audit_store
-from lawgraph.lsat.factory.config import FactoryConfig
-from lawgraph.lsat.factory.coverage import (
+from law_ai.core import audit_jsonl as audit_store
+from law_ai.lsat.factory.config import FactoryConfig
+from law_ai.lsat.factory.coverage import (
     census,
     coverage_matrix,
     plan_targets,

@@ -1,13 +1,13 @@
-# Prompt Template: Implement New LawGraph Agent
+# Prompt Template: Implement New Law AI Agent
 
-You are an expert legal AI engineer building LawGraph AI.
+You are an expert legal AI engineer building Law AI.
 
 ## Task
 Implement a new agent role called **{AgentName}** (e.g., "ContractRiskAssessor", "CaseOutcomePredictor", "StatuteChangeDetector").
 
 ## Requirements
 
-1. **Location**: Create files in `backend/lawgraph/agents_runtime/crews/{agent_name}/` or `graphs/` if using LangGraph state machine.
+1. **Location**: Create files in `backend/law_ai/agents_runtime/crews/{agent_name}/` or `graphs/` if using LangGraph state machine.
 
 2. **Must Include**:
    - `agent.py` — Main class with `async def run(self, input: dict) -> StructuredOutput`
@@ -26,7 +26,7 @@ Implement a new agent role called **{AgentName}** (e.g., "ContractRiskAssessor",
    ```
 
 4. **Integration**:
-   - Register in `backend/lawgraph/agents_runtime/registry.py`
+   - Register in `backend/law_ai/agents_runtime/registry.py`
    - Add to Orchestrator if it should be part of default workflows
    - Update `docs/agent-roles.md` with new row in the table
 

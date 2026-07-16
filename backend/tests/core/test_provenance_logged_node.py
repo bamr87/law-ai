@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from django.conf import settings
-from lawgraph.core.provenance import _stable_hash, logged_node
+from law_ai.core.provenance import _stable_hash, logged_node
 
 
 @pytest.fixture()

@@ -24,7 +24,7 @@ def _isolate_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Each test gets its own copy of the bank so promote_to_bank does not
     # mutate the checked-in fixture data.
-    from lawgraph.lsat.services import bank as bank_mod
+    from law_ai.lsat.services import bank as bank_mod
 
     real_data_dir = bank_mod.DATA_DIR
     sandbox = tmp_path / "lsat_data"
@@ -75,7 +75,7 @@ def _draft(section: str = "LR") -> dict[str, Any]:
 
 class TestStoreRoundTrip:
     def test_record_and_list_pending(self) -> None:
-        from lawgraph.lsat.services import proposals
+        from law_ai.lsat.services import proposals
 
         pid = proposals.record_proposal(
             _draft(), agent_trace_id="t1", model="m", confidence=0.8
@@ -86,7 +86,7 @@ class TestStoreRoundTrip:
         assert rows[0]["status"] == "pending"
 
     def test_reject_sets_status(self) -> None:
-        from lawgraph.lsat.services import proposals
+        from law_ai.lsat.services import proposals
 
         pid = proposals.record_proposal(
             _draft(), agent_trace_id="t1", model="m", confidence=0.8
@@ -99,8 +99,8 @@ class TestStoreRoundTrip:
         assert rejected[0]["reviewer"] == "alice"
 
     def test_promote_to_bank_appends_and_invalidates_cache(self) -> None:
-        from lawgraph.lsat.services import bank as bank_mod
-        from lawgraph.lsat.services import proposals
+        from law_ai.lsat.services import bank as bank_mod
+        from law_ai.lsat.services import proposals
 
         pid = proposals.record_proposal(
             _draft("LR"), agent_trace_id="t1", model="m", confidence=0.9
@@ -113,7 +113,7 @@ class TestStoreRoundTrip:
         assert row["question_id"] in after
 
     def test_double_promote_raises(self) -> None:
-        from lawgraph.lsat.services import proposals
+        from law_ai.lsat.services import proposals
 
         pid = proposals.record_proposal(
             _draft(), agent_trace_id="t1", model="m", confidence=0.9
@@ -125,13 +125,13 @@ class TestStoreRoundTrip:
 
 class TestGapAnalysis:
     def test_empty_audit_yields_no_gaps(self) -> None:
-        from lawgraph.lsat.services import proposals
+        from law_ai.lsat.services import proposals
 
         assert proposals.gap_analysis() == []
 
     def test_ranks_lowest_accuracy_first(self) -> None:
-        from lawgraph.core import audit_jsonl as audit_store
-        from lawgraph.lsat.services import proposals
+        from law_ai.core import audit_jsonl as audit_store
+        from law_ai.lsat.services import proposals
 
         # weak concept: 3 attempts, 0 correct (accuracy 0.0)
         for _ in range(3):
@@ -167,7 +167,7 @@ class TestGapAnalysis:
 
 @pytest_asyncio.fixture
 async def client():
-    from lawgraph.asgi import application as app
+    from law_ai.asgi import application as app
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
@@ -177,7 +177,7 @@ async def client():
 
 @pytest.mark.asyncio
 async def test_generate_persists_and_lists(client: AsyncClient) -> None:
-    from lawgraph.agents_runtime.crews import lsat_content_author as mod
+    from law_ai.agents_runtime.crews import lsat_content_author as mod
 
     payload = json.dumps(
         {
@@ -215,7 +215,7 @@ async def test_generate_persists_and_lists(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_approve_then_question_visible(client: AsyncClient) -> None:
-    from lawgraph.lsat.services import proposals
+    from law_ai.lsat.services import proposals
 
     pid = proposals.record_proposal(
         _draft("LR"), agent_trace_id="t1", model="m", confidence=0.9
@@ -231,7 +231,7 @@ async def test_approve_then_question_visible(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_reject_marks_status(client: AsyncClient) -> None:
-    from lawgraph.lsat.services import proposals
+    from law_ai.lsat.services import proposals
 
     pid = proposals.record_proposal(
         _draft("LR"), agent_trace_id="t1", model="m", confidence=0.5

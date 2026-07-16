@@ -143,14 +143,14 @@ def docker_services():
 @pytest_asyncio.fixture(scope="session")
 async def neo4j_integration_driver(docker_services):
     """AsyncDriver connected to the Docker-compose Neo4j."""
-    # neo4j.AsyncGraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "lawgraph-dev"))
+    # neo4j.AsyncGraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "law_ai-dev"))
     # Yield driver
     # await driver.close()
 
 @pytest_asyncio.fixture(scope="session")
 async def postgres_integration_pool(docker_services):
     """asyncpg.Pool connected to the Docker-compose Postgres."""
-    # asyncpg.create_pool("postgresql://lawgraph:lawgraph-dev@localhost:5432/lawgraph")
+    # asyncpg.create_pool("postgresql://law_ai:law_ai-dev@localhost:5432/law_ai")
     # Yield pool
     # await pool.close()
 
@@ -229,7 +229,7 @@ Add to `docker-compose.yml`:
 neo4j:
   # ... existing config ...
   healthcheck:
-    test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "lawgraph-dev", "RETURN 1"]
+    test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "law_ai-dev", "RETURN 1"]
     interval: 10s
     timeout: 5s
     retries: 5
@@ -238,7 +238,7 @@ neo4j:
 postgres:
   # ... existing config ...
   healthcheck:
-    test: ["CMD-SHELL", "pg_isready -U lawgraph"]
+    test: ["CMD-SHELL", "pg_isready -U law_ai"]
     interval: 10s
     timeout: 5s
     retries: 5
@@ -266,8 +266,8 @@ The pre-seeded target case for HIGH_CONF_FIXTURE will be inserted in the test se
 
 - **Current backend coverage:** 84.08% (126 tests, per spec 011).
 - **Target:** ≥86% (+2 pp) after this spec.
-- **Expected contribution:** The 3 new integration tests exercise `IngestionScout.run_and_commit` → `commit_extraction` → `densify_extraction` end-to-end, covering Cypher execution paths that unit tests mock. This should lift coverage on `backend/lawgraph/core/neo4j/{queries.py, citation_resolver.py}` and `backend/lawgraph/ingestionapp/services/scout.py` by ~2–3 pp collectively.
-- **Gate:** `cd backend && pytest --cov=lawgraph --cov-fail-under=86` must pass before merging.
+- **Expected contribution:** The 3 new integration tests exercise `IngestionScout.run_and_commit` → `commit_extraction` → `densify_extraction` end-to-end, covering Cypher execution paths that unit tests mock. This should lift coverage on `backend/law_ai/core/neo4j/{queries.py, citation_resolver.py}` and `backend/law_ai/ingestionapp/services/scout.py` by ~2–3 pp collectively.
+- **Gate:** `cd backend && pytest --cov=law_ai --cov-fail-under=86` must pass before merging.
 
 ## 10. Rollout
 

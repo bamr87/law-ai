@@ -9,13 +9,13 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from django.conf import settings
-from lawgraph.lsat.services.bank import (
+from law_ai.lsat.services.bank import (
     load_bank,
     load_concepts,
     load_passages,
     load_sections,
 )
-from lawgraph.asgi import application as app
+from law_ai.asgi import application as app
 
 
 @pytest.fixture(autouse=True)
@@ -219,7 +219,7 @@ async def test_tutor_falls_back_when_ollama_unreachable(
     """Tutor never hard-fails when Ollama is offline (constitution §1)."""
     import httpx
 
-    from lawgraph.lsat.services import tutor as tutor_mod
+    from law_ai.lsat.services import tutor as tutor_mod
 
     async def boom(prompt: str, *, model: str) -> str:
         raise httpx.ConnectError("offline")
@@ -246,7 +246,7 @@ async def test_tutor_uses_llm_when_available(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """When Ollama returns a parseable payload, it surfaces in the response."""
-    from lawgraph.lsat.services import tutor as tutor_mod
+    from law_ai.lsat.services import tutor as tutor_mod
 
     async def fake_generate(prompt: str, *, model: str) -> str:
         return (
@@ -275,7 +275,7 @@ async def test_tutor_routes_to_claude_code_when_active(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Dev-time opt-in: when Claude Code is active the tutor uses it, not Ollama."""
-    from lawgraph.core import claude_code as cc_mod
+    from law_ai.core import claude_code as cc_mod
 
     async def fake_generate(prompt: str, *, system: str | None = None) -> str:
         return (
@@ -306,7 +306,7 @@ async def test_tutor_claude_code_strips_markdown_fence(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A fenced ```json block from Claude still parses into structured coaching."""
-    from lawgraph.core import claude_code as cc_mod
+    from law_ai.core import claude_code as cc_mod
 
     async def fenced(prompt: str, *, system: str | None = None) -> str:
         return (
@@ -335,7 +335,7 @@ async def test_tutor_falls_back_when_claude_code_errors(
     """Claude Code transport failure degrades to the offline path, never 500s."""
     import httpx
 
-    from lawgraph.core import claude_code as cc_mod
+    from law_ai.core import claude_code as cc_mod
 
     async def boom(prompt: str, *, system: str | None = None) -> str:
         raise httpx.ConnectError("oauth endpoint unreachable")

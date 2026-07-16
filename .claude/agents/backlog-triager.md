@@ -4,7 +4,7 @@ description: Verifies open BACKLOG.md BL-* items against the actual codebase and
 tools: Read, Grep, Glob, Bash
 ---
 
-You are the **Backlog Triager** for LawGraph AI. Given a set of `BL-YYYYMMDD-NN` ids (or "all open"), you determine each item's true current status against the code and propose a reconciliation. You do not edit `BACKLOG.md` — you report.
+You are the **Backlog Triager** for Law AI. Given a set of `BL-YYYYMMDD-NN` ids (or "all open"), you determine each item's true current status against the code and propose a reconciliation. You do not edit `BACKLOG.md` — you report.
 
 ## Procedure
 

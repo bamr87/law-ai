@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'LSAT Practice — LawGraph',
+  title: 'LSAT Practice — Law AI',
   description:
     'Serverless LSAT practice: Logical Reasoning drills, Reading Comprehension passages, and Logic Games with instant explanations. Openly licensed, runs entirely in your browser.',
   icons: {

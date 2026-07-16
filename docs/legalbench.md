@@ -1,16 +1,16 @@
 # LegalBench Evaluation Harness
 
-> Living evaluation manual for LawGraph AI. Closes [BL-20260430-06](../BACKLOG.md). The harness lives in [backend/lawgraph/eval/](../backend/lawgraph/eval/) and is invoked through the `Run LegalBench Eval` VS Code task.
+> Living evaluation manual for Law AI. Closes [BL-20260430-06](../BACKLOG.md). The harness lives in [backend/law_ai/eval/](../backend/law_ai/eval/) and is invoked through the `Run LegalBench Eval` VS Code task.
 
 ## Purpose
 
-[LegalBench](https://github.com/HazyResearch/legalbench) is the 162-task collaborative benchmark for legal reasoning in LLMs (Stanford / HazyResearch / contributors). LawGraph uses it as the **mandatory regression suite** for any change that touches reasoning — agent prompts, retrieval strategy, model defaults, or workflow graphs. Per [docs/constitution.md](constitution.md) §3 and §6, a regression of more than **1 pp** on a listed task blocks the PR.
+[LegalBench](https://github.com/HazyResearch/legalbench) is the 162-task collaborative benchmark for legal reasoning in LLMs (Stanford / HazyResearch / contributors). Law AI uses it as the **mandatory regression suite** for any change that touches reasoning — agent prompts, retrieval strategy, model defaults, or workflow graphs. Per [docs/constitution.md](constitution.md) §3 and §6, a regression of more than **1 pp** on a listed task blocks the PR.
 
 ## Task subsets we track
 
 The harness defaults to two named subsets:
 
-| Subset                | What it covers                                                                 | Why it matters for LawGraph |
+| Subset                | What it covers                                                                 | Why it matters for Law AI |
 |-----------------------|--------------------------------------------------------------------------------|-----------------------------|
 | `core_reasoning`      | Rule-application, issue spotting, conclusion derivation across mixed domains   | Baseline for the `LegalAnalyst` crew (IRAC quality) |
 | `precedent_retrieval` | Identification + ranking of relevant prior cases given a fact pattern          | Baseline for the `PrecedentHunter` crew + GraphRAG  |
@@ -25,7 +25,7 @@ Additional subsets (e.g. `contract_nli`, `definitions`, `causation`) can be enab
 
 ```bash
 cd backend
-python -m lawgraph.eval.legalbench --subset core_reasoning,precedent_retrieval
+python -m law_ai.eval.legalbench --subset core_reasoning,precedent_retrieval
 ```
 
 Common options:
@@ -35,7 +35,7 @@ Common options:
 - `--limit <N>` — cap items per task during local development; CI runs unlimited.
 - `--report <path>` — write a JSON report (default `backend/var/legalbench/<UTC>.json`).
 
-Every run emits an OpenTelemetry trace per item via `lawgraph.core.provenance`, so individual prompt + response pairs are inspectable in Phoenix (see [docs/local-ai.md](local-ai.md)).
+Every run emits an OpenTelemetry trace per item via `law_ai.core.provenance`, so individual prompt + response pairs are inspectable in Phoenix (see [docs/local-ai.md](local-ai.md)).
 
 ## Baseline scores
 
@@ -61,7 +61,7 @@ The LegalBench **dataset** is released under [CC BY 4.0](https://creativecommons
 
 ## Adding a new subset
 
-1. Add it to the `--subset` allow-list in [backend/lawgraph/eval/legalbench.py](../backend/lawgraph/eval/legalbench.py).
+1. Add it to the `--subset` allow-list in [backend/law_ai/eval/legalbench.py](../backend/law_ai/eval/legalbench.py).
 2. Document it in the table above with a one-sentence rationale.
 3. Run a baseline pass and record the score.
 4. Reference the new subset in the touching spec's `## Evaluation` section.

@@ -21,7 +21,7 @@ client. Currently no producers emit events to those groups — the consumer
 is a skeleton waiting for traffic.
 
 This spec wires the producers: `_run_analysis` in
-`lawgraph/analysis/urls.py` publishes `agent_step` events to the channel
+`law_ai/analysis/urls.py` publishes `agent_step` events to the channel
 group after each agent completes, so a client connected to
 `/ws/agents/{analysis_id}` sees real-time step progress and a final
 `complete` event, while the HTTP response stays unchanged (backward
@@ -125,7 +125,7 @@ following new events during an active analysis:
 
 ## 9. Agent / Crew Impact
 
-No new agents. Changes to `lawgraph/analysis/urls.py` (`_run_analysis`
+No new agents. Changes to `law_ai/analysis/urls.py` (`_run_analysis`
 function) to call the channel layer. See [docs/agent-roles.md](../../docs/agent-roles.md)
 for `LegalAnalyst` and `PrecedentHunter` — their `run()` signatures are
 unchanged.
@@ -158,7 +158,7 @@ unchanged.
 `asgiref.sync.async_to_sync` into Daphne's existing ASGI event loop. Calling
 `await layer.group_send(...)` directly inside `_run_analysis` is correct and
 non-blocking. No deadlock risk. Implemented in
-`backend/lawgraph/analysis/urls.py` (`_emit_ws_event` helper).
+`backend/law_ai/analysis/urls.py` (`_emit_ws_event` helper).
 
 ## 13. Out of Scope / Follow-ups
 

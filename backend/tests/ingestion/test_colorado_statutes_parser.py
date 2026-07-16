@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from lawgraph.core.schemas.statute_extraction import StatuteExtraction
-from lawgraph.ingestionapp.services.colorado_statutes import (
+from law_ai.core.schemas.statute_extraction import StatuteExtraction
+from law_ai.ingestionapp.services.colorado_statutes import (
     JURISDICTION_CODE,
     parse_title_html,
 )

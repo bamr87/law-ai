@@ -32,17 +32,17 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/eval/__init__.py` (new)
-  - `backend/lawgraph/eval/legalbench.py` (new — argparse CLI)
-  - `backend/lawgraph/eval/loaders.py` (new — dataset cache loader)
-  - `backend/lawgraph/eval/scoring.py` (new — per-task scoring helpers)
-  - `backend/lawgraph/eval/report.py` (new — JSON report writer + delta calc)
+  - `backend/law_ai/eval/__init__.py` (new)
+  - `backend/law_ai/eval/legalbench.py` (new — argparse CLI)
+  - `backend/law_ai/eval/loaders.py` (new — dataset cache loader)
+  - `backend/law_ai/eval/scoring.py` (new — per-task scoring helpers)
+  - `backend/law_ai/eval/report.py` (new — JSON report writer + delta calc)
   - `backend/var/legalbench/.gitkeep`, `backend/var/legalbench/LICENSES.md` (new)
   - `backend/tests/eval/__init__.py`, `backend/tests/eval/test_legalbench_cli.py` (new)
 - **Steps**:
   1. Implement CLI matching the contract in [docs/legalbench.md](../../docs/legalbench.md).
   2. Wire to the existing Ollama client used by `agents_runtime/graphs/legal_workflow.py`.
-  3. Emit OTEL spans per item via `lawgraph.core.provenance`.
+  3. Emit OTEL spans per item via `law_ai.core.provenance`.
   4. Author `LICENSES.md` enumerating per-task source + license. **Do not commit `baseline.json` until LICENSES.md lands.**
 - **Verify**:
   - `make test-backend` includes `tests/eval/test_legalbench_cli.py` and is green.
@@ -54,7 +54,7 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/eval/coverage_audit.py` (new)
+  - `backend/law_ai/eval/coverage_audit.py` (new)
   - `backend/tests/eval/test_coverage_audit.py` (new)
   - `scripts/evolve_audit.py` (edit — replace `_scan_coverage` body with a thin call into `coverage_audit`; add `_scan_legalbench`)
 - **Steps**:
@@ -70,8 +70,8 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/agents_runtime/crews/test_synthesizer.py` (new)
-  - `backend/lawgraph/agents_runtime/prompts/test_synthesizer.v1.md` (new)
+  - `backend/law_ai/agents_runtime/crews/test_synthesizer.py` (new)
+  - `backend/law_ai/agents_runtime/prompts/test_synthesizer.v1.md` (new)
   - `backend/tests/agents/test_test_synthesizer.py` (new)
   - `backend/tests/autonomy/proposed/.gitkeep` (new)
 - **Steps**:
@@ -100,12 +100,12 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/ingestionapp/sources/__init__.py` (new — exposes `SOURCE_REGISTRY`)
-  - `backend/lawgraph/ingestionapp/sources/base.py` (new — `SourceAdapter` Pydantic + `RawDoc`)
-  - `backend/lawgraph/ingestionapp/sources/courtlistener.py` (new — wraps existing `services/courtlistener.py`)
-  - `backend/lawgraph/ingestionapp/sources/colorado_statutes.py` (new — wraps `services/colorado_statutes.py`)
-  - `backend/lawgraph/ingestionapp/sources/statute_scout.py` (new — wraps `services/statute_scout.py`)
-  - `backend/lawgraph/core/management/commands/list_sources.py` (new)
+  - `backend/law_ai/ingestionapp/sources/__init__.py` (new — exposes `SOURCE_REGISTRY`)
+  - `backend/law_ai/ingestionapp/sources/base.py` (new — `SourceAdapter` Pydantic + `RawDoc`)
+  - `backend/law_ai/ingestionapp/sources/courtlistener.py` (new — wraps existing `services/courtlistener.py`)
+  - `backend/law_ai/ingestionapp/sources/colorado_statutes.py` (new — wraps `services/colorado_statutes.py`)
+  - `backend/law_ai/ingestionapp/sources/statute_scout.py` (new — wraps `services/statute_scout.py`)
+  - `backend/law_ai/core/management/commands/list_sources.py` (new)
   - `backend/tests/ingestion/test_source_registry.py` (new)
   - `backend/tests/core/management/test_list_sources.py` (new)
 - **Steps**:
@@ -122,9 +122,9 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/agents_runtime/graphs/topic_frontier.py` (new)
-  - `backend/lawgraph/agents_runtime/prompts/topic_frontier_prioritize.v1.md` (new)
-  - `backend/lawgraph/core/neo4j/queries.py` (edit — add `list_orphan_citations` + `list_under_cited_jurisdictions` Cypher helpers)
+  - `backend/law_ai/agents_runtime/graphs/topic_frontier.py` (new)
+  - `backend/law_ai/agents_runtime/prompts/topic_frontier_prioritize.v1.md` (new)
+  - `backend/law_ai/core/neo4j/queries.py` (edit — add `list_orphan_citations` + `list_under_cited_jurisdictions` Cypher helpers)
   - `backend/tests/agents/graphs/test_topic_frontier.py` (new — mocked Neo4j + adapter)
   - `backend/tests/agents/graphs/test_topic_frontier_integration.py` (new — `@pytest.mark.integration`)
 - **Steps**:
@@ -140,9 +140,9 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/core/autonomy.py` (new)
-  - `backend/lawgraph/core/provenance.py` (edit — add `log_autonomy_cycle`, `log_policy_violation`)
-  - `backend/lawgraph/settings/base.py` (edit — add `AUTONOMY_ENABLED`, `AUTONOMY_ALLOWED_SOURCES`, `AUTONOMY_DIGEST_DIR`)
+  - `backend/law_ai/core/autonomy.py` (new)
+  - `backend/law_ai/core/provenance.py` (edit — add `log_autonomy_cycle`, `log_policy_violation`)
+  - `backend/law_ai/settings/base.py` (edit — add `AUTONOMY_ENABLED`, `AUTONOMY_ALLOWED_SOURCES`, `AUTONOMY_DIGEST_DIR`)
   - `backend/tests/core/test_autonomy.py` (new)
 - **Steps**:
   1. `AutonomyRun` dataclass + `run_cycle(kind, cycle_id=None, **kwargs) -> AutonomyRun`.
@@ -158,8 +158,8 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/core/management/commands/run_autonomy.py` (new)
-  - `backend/lawgraph/celery.py` (edit — `beat_schedule` entries)
+  - `backend/law_ai/core/management/commands/run_autonomy.py` (new)
+  - `backend/law_ai/celery.py` (edit — `beat_schedule` entries)
   - `backend/tests/core/management/test_run_autonomy.py` (new)
   - `Makefile` (edit — add `autonomy-up`, `autonomy-status`, `autonomy-stop`)
 - **Steps**:
@@ -176,8 +176,8 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/lawgraph/core/autonomy.py` (edit — add `compose_digest`)
-  - `backend/lawgraph/celery.py` (edit — register `compose_digest` Celery task + beat entry daily 07:00 UTC)
+  - `backend/law_ai/core/autonomy.py` (edit — add `compose_digest`)
+  - `backend/law_ai/celery.py` (edit — register `compose_digest` Celery task + beat entry daily 07:00 UTC)
   - `backend/var/autonomy/.gitkeep` (new)
   - `backend/tests/core/test_autonomy_digest.py` (new)
 - **Steps**:

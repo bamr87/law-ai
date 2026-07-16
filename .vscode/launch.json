@@ -1,5 +1,5 @@
 {
-    // VS Code debug configurations for LawGraph AI — DOCKER-ONLY.
+    // VS Code debug configurations for Law AI — DOCKER-ONLY.
     //
     // All configs attach to processes running inside `docker compose` services.
     // They do NOT spawn local Python/Node processes.
@@ -17,14 +17,14 @@
     //            command: >
     //              sh -c "python manage.py migrate --noinput &&
     //                     python -m debugpy --listen 0.0.0.0:5678 --wait-for-client
-    //                     -m daphne -b 0.0.0.0 -p 8000 lawgraph.asgi:application"
+    //                     -m daphne -b 0.0.0.0 -p 8000 law_ai.asgi:application"
     //            ports:
     //              - "8000:8000"
     //              - "5678:5678"
     //          worker:
     //            command: >
     //              python -m debugpy --listen 0.0.0.0:5679
-    //              -m celery -A lawgraph worker -l info
+    //              -m celery -A law_ai worker -l info
     //            ports:
     //              - "5679:5679"
     //          frontend:

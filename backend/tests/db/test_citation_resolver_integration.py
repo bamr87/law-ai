@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import pytest
 
-from lawgraph.core.neo4j.citation_resolver import densify_extraction, resolve_citations
-from lawgraph.core.schemas.extraction import Citation, ExtractionResult
+from law_ai.core.neo4j.citation_resolver import densify_extraction, resolve_citations
+from law_ai.core.schemas.extraction import Citation, ExtractionResult
 
 pytestmark = [
     pytest.mark.integration,

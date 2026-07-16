@@ -6,9 +6,9 @@ import json
 
 import pytest
 
-from lawgraph.lsat.factory.config import FactoryConfig
-from lawgraph.lsat.factory.coverage import plan_targets
-from lawgraph.lsat.factory.manifest import (
+from law_ai.lsat.factory.config import FactoryConfig
+from law_ai.lsat.factory.coverage import plan_targets
+from law_ai.lsat.factory.manifest import (
     build_manifest,
     latest_manifest_path,
     read_manifest,

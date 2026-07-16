@@ -2,7 +2,7 @@
 
 ## Architecture
 
-A new self-contained package `backend/lawgraph/lsat/factory/` — the batch content-growth plugin. Data flows one way:
+A new self-contained package `backend/law_ai/lsat/factory/` — the batch content-growth plugin. Data flows one way:
 
 ```
                     ┌─ concepts.json / *_bank.json / passages.json (read-only)

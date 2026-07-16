@@ -19,8 +19,8 @@ def factory_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[obj
     a per-test copy so nothing mutates checked-in fixtures. Yields a
     FactoryConfig rooted in the tmp dir.
     """
-    from lawgraph.lsat.factory.config import FactoryConfig
-    from lawgraph.lsat.services import bank as bank_mod
+    from law_ai.lsat.factory.config import FactoryConfig
+    from law_ai.lsat.services import bank as bank_mod
 
     monkeypatch.setattr(settings, "AUDIT_PATH", str(tmp_path / "audit.jsonl"))
     monkeypatch.setattr(

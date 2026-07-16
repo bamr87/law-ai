@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from lawgraph.core import telemetry
+from law_ai.core import telemetry
 from django.conf import settings
 
 
@@ -30,9 +30,9 @@ def test_phoenix_trace_url_enabled_builds_link(
         settings, "PHOENIX_COLLECTOR_ENDPOINT", "http://phoenix:6006/v1/traces"
     )
     monkeypatch.setattr(settings, "PHOENIX_UI_URL", "http://localhost:6006")
-    monkeypatch.setattr(settings, "PHOENIX_PROJECT_NAME", "lawgraph")
+    monkeypatch.setattr(settings, "PHOENIX_PROJECT_NAME", "law_ai")
     url = telemetry.phoenix_trace_url("abc123")
-    assert url == "http://localhost:6006/projects/lawgraph/traces/abc123"
+    assert url == "http://localhost:6006/projects/law_ai/traces/abc123"
 
 
 def test_init_tracing_is_noop_without_endpoint(

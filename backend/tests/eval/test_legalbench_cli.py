@@ -17,13 +17,13 @@ import pytest
 
 class TestLegalBenchConfig:
     def test_valid_subsets_accepted(self) -> None:
-        from lawgraph.eval.legalbench import LegalBenchConfig
+        from law_ai.eval.legalbench import LegalBenchConfig
 
         cfg = LegalBenchConfig(subsets=["core_reasoning"])
         assert cfg.subsets == ["core_reasoning"]
 
     def test_unknown_subset_raises(self) -> None:
-        from lawgraph.eval.legalbench import LegalBenchConfig
+        from law_ai.eval.legalbench import LegalBenchConfig
 
         with pytest.raises(ValueError, match="Unknown LegalBench subset"):
             LegalBenchConfig(subsets=["totally_fake_task"])
@@ -32,13 +32,13 @@ class TestLegalBenchConfig:
         from django.conf import settings as dj
 
         dj.OLLAMA_DEFAULT_MODEL = "llama3.1:8b-instruct-q4_K_M"
-        from lawgraph.eval.legalbench import LegalBenchConfig
+        from law_ai.eval.legalbench import LegalBenchConfig
 
         cfg = LegalBenchConfig(subsets=["definitions"])
         assert cfg.model == "llama3.1:8b-instruct-q4_K_M"
 
     def test_explicit_model_overrides_settings(self) -> None:
-        from lawgraph.eval.legalbench import LegalBenchConfig
+        from law_ai.eval.legalbench import LegalBenchConfig
 
         cfg = LegalBenchConfig(subsets=["core_reasoning"], model="phi3:mini")
         assert cfg.model == "phi3:mini"
@@ -47,7 +47,7 @@ class TestLegalBenchConfig:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.chdir(tmp_path)
-        from lawgraph.eval.legalbench import LegalBenchConfig
+        from law_ai.eval.legalbench import LegalBenchConfig
 
         cfg = LegalBenchConfig(subsets=["causation"])
         assert cfg.report_path is not None
@@ -61,7 +61,7 @@ class TestLegalBenchConfig:
 
 class TestLoaders:
     def test_load_synthetic_stub_when_no_cache(self) -> None:
-        from lawgraph.eval.loaders import load_task
+        from law_ai.eval.loaders import load_task
 
         items = load_task("core_reasoning")
         assert len(items) >= 1
@@ -70,13 +70,13 @@ class TestLoaders:
             assert "answer" in item
 
     def test_limit_is_respected(self) -> None:
-        from lawgraph.eval.loaders import load_task
+        from law_ai.eval.loaders import load_task
 
         items = load_task("core_reasoning", limit=1)
         assert len(items) == 1
 
     def test_unknown_subset_raises(self) -> None:
-        from lawgraph.eval.loaders import load_task
+        from law_ai.eval.loaders import load_task
 
         with pytest.raises(ValueError, match="Unknown subset"):
             load_task("bad_subset")
@@ -97,9 +97,9 @@ class TestLoaders:
             """),
             encoding="utf-8",
         )
-        monkeypatch.setattr("lawgraph.eval.loaders._CACHE_ROOT", tmp_path)
+        monkeypatch.setattr("law_ai.eval.loaders._CACHE_ROOT", tmp_path)
 
-        import lawgraph.eval.loaders as loaders_module
+        import law_ai.eval.loaders as loaders_module
 
         monkeypatch.setattr(loaders_module, "_CACHE_ROOT", tmp_path)
 
@@ -115,19 +115,19 @@ class TestLoaders:
 
 class TestScoring:
     def test_exact_match(self) -> None:
-        from lawgraph.eval.scoring import score_response
+        from law_ai.eval.scoring import score_response
 
         ok, _ = score_response("True", "True", "core_reasoning")
         assert ok is True
 
     def test_case_insensitive_match(self) -> None:
-        from lawgraph.eval.scoring import score_response
+        from law_ai.eval.scoring import score_response
 
         ok, _ = score_response("TRUE", "true", "core_reasoning")
         assert ok is True
 
     def test_prefix_match(self) -> None:
-        from lawgraph.eval.scoring import score_response
+        from law_ai.eval.scoring import score_response
 
         ok, _ = score_response(
             "True, because the mailbox rule applies.", "True", "core_reasoning"
@@ -135,19 +135,19 @@ class TestScoring:
         assert ok is True
 
     def test_first_word_match_with_punctuation(self) -> None:
-        from lawgraph.eval.scoring import score_response
+        from law_ai.eval.scoring import score_response
 
         ok, _ = score_response("Yes.", "Yes", "definitions")
         assert ok is True
 
     def test_no_match(self) -> None:
-        from lawgraph.eval.scoring import score_response
+        from law_ai.eval.scoring import score_response
 
         ok, _ = score_response("False", "True", "core_reasoning")
         assert ok is False
 
     def test_empty_response_does_not_match(self) -> None:
-        from lawgraph.eval.scoring import score_response
+        from law_ai.eval.scoring import score_response
 
         ok, _ = score_response("", "True", "core_reasoning")
         assert ok is False
@@ -160,8 +160,8 @@ class TestScoring:
 
 class TestReport:
     def test_write_report_creates_file(self, tmp_path: Path) -> None:
-        from lawgraph.eval.legalbench import LegalBenchConfig
-        from lawgraph.eval.report import write_report
+        from law_ai.eval.legalbench import LegalBenchConfig
+        from law_ai.eval.report import write_report
 
         report_path = tmp_path / "report.json"
         cfg = LegalBenchConfig(subsets=["core_reasoning"], report_path=report_path)
@@ -184,13 +184,13 @@ class TestReport:
     def test_delta_computed_from_baseline(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        import lawgraph.eval.report as report_module
+        import law_ai.eval.report as report_module
 
         monkeypatch.setattr(report_module, "_CACHE_ROOT", tmp_path)
         baseline = tmp_path / "baseline.json"
         baseline.write_text(json.dumps({"core_reasoning": 0.70}), encoding="utf-8")
 
-        from lawgraph.eval.legalbench import LegalBenchConfig
+        from law_ai.eval.legalbench import LegalBenchConfig
 
         cfg = LegalBenchConfig(
             subsets=["core_reasoning"], report_path=tmp_path / "rep.json"
@@ -214,11 +214,11 @@ class TestReport:
     def test_no_delta_when_baseline_missing(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        import lawgraph.eval.report as report_module
+        import law_ai.eval.report as report_module
 
         monkeypatch.setattr(report_module, "_CACHE_ROOT", tmp_path)
 
-        from lawgraph.eval.legalbench import LegalBenchConfig
+        from law_ai.eval.legalbench import LegalBenchConfig
 
         cfg = LegalBenchConfig(
             subsets=["core_reasoning"], report_path=tmp_path / "rep.json"
@@ -248,7 +248,7 @@ class TestRunEval:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """run_eval executes end-to-end with Ollama stubbed out."""
-        from lawgraph.eval.legalbench import LegalBenchConfig, run_eval
+        from law_ai.eval.legalbench import LegalBenchConfig, run_eval
 
         report_path = tmp_path / "run.json"
         cfg = LegalBenchConfig(
@@ -259,7 +259,7 @@ class TestRunEval:
         )
 
         # Stub Ollama to return the expected answer
-        with patch("lawgraph.eval.legalbench._call_ollama", return_value="Guilty mind"):
+        with patch("law_ai.eval.legalbench._call_ollama", return_value="Guilty mind"):
             report = run_eval(cfg)
 
         assert report["run_id"] == cfg.run_id
@@ -269,7 +269,7 @@ class TestRunEval:
         assert report["subsets"][0]["correct"] == 1
 
     def test_run_eval_handles_ollama_error_gracefully(self, tmp_path: Path) -> None:
-        from lawgraph.eval.legalbench import LegalBenchConfig, run_eval
+        from law_ai.eval.legalbench import LegalBenchConfig, run_eval
 
         cfg = LegalBenchConfig(
             subsets=["causation"],
@@ -279,7 +279,7 @@ class TestRunEval:
         )
 
         with patch(
-            "lawgraph.eval.legalbench._call_ollama",
+            "law_ai.eval.legalbench._call_ollama",
             side_effect=RuntimeError("Ollama offline"),
         ):
             report = run_eval(cfg)
@@ -296,7 +296,7 @@ class TestRunEval:
 
 class TestCLI:
     def test_parser_accepts_valid_args(self) -> None:
-        from lawgraph.eval.legalbench import _build_parser
+        from law_ai.eval.legalbench import _build_parser
 
         parser = _build_parser()
         args = parser.parse_args(

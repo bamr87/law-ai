@@ -16,7 +16,7 @@ on:
       - "lsat-static/**"
       # Redeploy when the LSAT source bank changes (belt-and-braces: a bank
       # merge should refresh content.json via `make lsat-export` and land here).
-      - "backend/lawgraph/lsat/services/data/**"
+      - "backend/law_ai/lsat/services/data/**"
       - ".github/workflows/deploy-lsat-pages.yml"
   workflow_dispatch:
 

@@ -4,7 +4,7 @@
 
 ## Threat model summary
 
-LawGraph is local-first by default ([docs/constitution.md](constitution.md) §1). The threat model assumes:
+Law AI is local-first by default ([docs/constitution.md](constitution.md) §1). The threat model assumes:
 
 1. **Trusted LAN, untrusted internet.** A self-hosted instance may be exposed beyond `localhost`; therefore every gated route must require an API token and reject anonymous traffic when `ENVIRONMENT != "development"`.
 2. **No multi-tenant isolation yet.** Tokens are scope-gated, not user-gated. Per-user roles and JWT/OAuth are tracked in [BL-20260503-13](../BACKLOG.md).
@@ -14,7 +14,7 @@ LawGraph is local-first by default ([docs/constitution.md](constitution.md) §1)
 ## Authentication
 
 - **Header**: `X-API-Key: <token>` on every gated request.
-- **Comparison**: `secrets.compare_digest` (constant-time) — see [backend/lawgraph/core/auth.py](../backend/lawgraph/core/auth.py).
+- **Comparison**: `secrets.compare_digest` (constant-time) — see [backend/law_ai/core/auth.py](../backend/law_ai/core/auth.py).
 - **Storage**: Tokens are persisted in the `core.ApiToken` Django model. Plain-text tokens are returned **only** at creation time; the database stores a SHA-256 `key_hash` for lookup.
 - **Frontend**: A single `NEXT_PUBLIC_AGENT_API_KEY` is injected by `frontend/lib/api.ts::apiFetch`. [BL-20260430-07](../BACKLOG.md) tracks moving this to a server-side proxy so it never reaches the browser bundle.
 
@@ -30,7 +30,7 @@ LawGraph is local-first by default ([docs/constitution.md](constitution.md) §1)
 | `/api/lsat/*`        | `lsat:invoke`      | `LSAT_API_KEY`               | `AGENT_API_KEY`  | Spec 009. Includes the tutor SSE endpoint when shipped ([BL-20260503-03](../BACKLOG.md)). |
 | `/health`            | _(unauth)_         | —                            | —                | Always public, no token required. |
 
-The fallback chain (`<ROUTER>_API_KEY` → `AGENT_API_KEY`) is implemented by `make_api_key_dep(*setting_names)` in `lawgraph.core.auth` and exists so single-key deployments stay simple while multi-tenant operators can rotate per-router. Closes [BL-20260430-13](../BACKLOG.md).
+The fallback chain (`<ROUTER>_API_KEY` → `AGENT_API_KEY`) is implemented by `make_api_key_dep(*setting_names)` in `law_ai.core.auth` and exists so single-key deployments stay simple while multi-tenant operators can rotate per-router. Closes [BL-20260430-13](../BACKLOG.md).
 
 ## Token lifecycle
 
@@ -88,7 +88,7 @@ ORDER BY last_seen DESC;
 
 ## Hardening checklist (production)
 
-- [ ] `ENVIRONMENT=production` set; `DJANGO_SETTINGS_MODULE=lawgraph.settings.prod`.
+- [ ] `ENVIRONMENT=production` set; `DJANGO_SETTINGS_MODULE=law_ai.settings.prod`.
 - [ ] `AGENT_API_KEY` (and any per-router keys) set via secrets manager, not committed `.env`.
 - [ ] `seed_api_keys --from-env` run once at boot.
 - [ ] HTTPS terminator in front of daphne (Caddy / Traefik / nginx).

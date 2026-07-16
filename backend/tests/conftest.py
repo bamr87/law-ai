@@ -1,10 +1,10 @@
-"""Pytest configuration and shared fixtures for LawGraph AI (Django edition).
+"""Pytest configuration and shared fixtures for Law AI (Django edition).
 
 Run with::
 
     cd backend && pytest -q                          # default fast suite
     pytest -m integration                            # docker-backed
-    pytest --cov=lawgraph --cov-report=html
+    pytest --cov=law_ai --cov-report=html
 
 Spec 011 ports the suite from the FastAPI/httpx layout to Django + DRF.
 We expose:
@@ -29,7 +29,7 @@ import django
 import pytest
 import pytest_asyncio
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lawgraph.settings.test")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "law_ai.settings.test")
 os.environ.setdefault("DATABASE_URL", "sqlite:///./test.sqlite3")
 django.setup()
 
@@ -44,7 +44,7 @@ try:
 except ImportError:
     asyncpg = None  # type: ignore
 
-from lawgraph.asgi import application as asgi_app  # noqa: E402
+from law_ai.asgi import application as asgi_app  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -87,7 +87,7 @@ def _reset_api_tokens(monkeypatch: pytest.MonkeyPatch, transactional_db) -> None
     rows the test's main thread just wrote — SQLite's strict locking otherwise
     deadlocks on the first ApiToken read.
     """
-    from lawgraph.core.models import ApiToken
+    from law_ai.core.models import ApiToken
 
     ApiToken.objects.all().delete()
     for name in (
@@ -184,7 +184,7 @@ async def neo4j_integration_driver(docker_services):
     """
     uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     user = os.getenv("NEO4J_USER", "neo4j")
-    password = os.getenv("NEO4J_PASSWORD", "lawgraph-dev")
+    password = os.getenv("NEO4J_PASSWORD", "law_ai-dev")
     driver = AsyncGraphDatabase.driver(uri, auth=(user, password))
     await driver.verify_connectivity()
     yield driver
@@ -206,7 +206,7 @@ async def postgres_integration_pool(docker_services):
     # a real postgres:// URL — and fall back to the host-published port.
     dsn = os.getenv("DATABASE_URL", "")
     if not dsn.startswith(("postgresql://", "postgres://")):
-        dsn = "postgresql://lawgraph:lawgraph-dev@localhost:5432/lawgraph"
+        dsn = "postgresql://law_ai:law_ai-dev@localhost:5432/law_ai"
     pool = await asyncpg.create_pool(dsn, min_size=1, max_size=5)
     yield pool
     await pool.close()

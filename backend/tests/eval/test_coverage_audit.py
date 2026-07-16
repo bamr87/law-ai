@@ -1,4 +1,4 @@
-"""Tests for lawgraph.eval.coverage_audit (spec 018 T-003)."""
+"""Tests for law_ai.eval.coverage_audit (spec 018 T-003)."""
 
 from __future__ import annotations
 
@@ -20,9 +20,9 @@ _MINIMAL_XML = """\
 <?xml version="1.0" ?>
 <coverage line-rate="0.82" branch-rate="0" version="7.0" timestamp="1234567890">
     <packages>
-        <package name="lawgraph">
+        <package name="law_ai">
             <classes>
-                <class name="lawgraph/core/autonomy.py" filename="lawgraph/core/autonomy.py"
+                <class name="law_ai/core/autonomy.py" filename="law_ai/core/autonomy.py"
                        line-rate="0.90" branch-rate="0" complexity="0">
                     <lines>
                         <line number="10" hits="1"/>
@@ -37,7 +37,7 @@ _MINIMAL_XML = """\
                         <line number="19" hits="1"/>
                     </lines>
                 </class>
-                <class name="lawgraph/eval/loaders.py" filename="lawgraph/eval/loaders.py"
+                <class name="law_ai/eval/loaders.py" filename="law_ai/eval/loaders.py"
                        line-rate="0.55" branch-rate="0" complexity="0">
                     <lines>
                         <line number="1" hits="1"/>
@@ -52,7 +52,7 @@ _MINIMAL_XML = """\
                         <line number="10" hits="1"/>
                     </lines>
                 </class>
-                <class name="lawgraph/eval/__init__.py" filename="lawgraph/eval/__init__.py"
+                <class name="law_ai/eval/__init__.py" filename="law_ai/eval/__init__.py"
                        line-rate="1.0" branch-rate="0" complexity="0">
                     <lines>
                         <line number="1" hits="1"/>
@@ -72,25 +72,25 @@ _MINIMAL_XML = """\
 
 class TestCoverageRecord:
     def test_severity_high(self) -> None:
-        from lawgraph.eval.coverage_audit import CoverageRecord
+        from law_ai.eval.coverage_audit import CoverageRecord
 
         r = CoverageRecord(pct=40.0, module="x")
         assert r.severity == "high"
 
     def test_severity_med(self) -> None:
-        from lawgraph.eval.coverage_audit import CoverageRecord
+        from law_ai.eval.coverage_audit import CoverageRecord
 
         r = CoverageRecord(pct=68.0, module="x")
         assert r.severity == "med"
 
     def test_severity_ok(self) -> None:
-        from lawgraph.eval.coverage_audit import CoverageRecord
+        from law_ai.eval.coverage_audit import CoverageRecord
 
         r = CoverageRecord(pct=80.0, module="x")
         assert r.severity == "ok"
 
     def test_sortable_by_pct(self) -> None:
-        from lawgraph.eval.coverage_audit import CoverageRecord
+        from law_ai.eval.coverage_audit import CoverageRecord
 
         records = [
             CoverageRecord(pct=80.0, module="a"),
@@ -106,13 +106,13 @@ class TestCoverageRecord:
 
 class TestLoadCoverageReport:
     def test_returns_empty_when_file_missing(self, tmp_path: Path) -> None:
-        from lawgraph.eval.coverage_audit import load_coverage_report
+        from law_ai.eval.coverage_audit import load_coverage_report
 
         result = load_coverage_report(tmp_path / "nonexistent.xml")
         assert result == []
 
     def test_parses_xml_and_returns_sorted_records(self, tmp_path: Path) -> None:
-        from lawgraph.eval.coverage_audit import load_coverage_report
+        from law_ai.eval.coverage_audit import load_coverage_report
 
         xml_path = tmp_path / "coverage.xml"
         _write_coverage_xml(xml_path, _MINIMAL_XML)
@@ -126,7 +126,7 @@ class TestLoadCoverageReport:
         assert records[1].pct == pytest.approx(90.0)
 
     def test_missing_lines_captured(self, tmp_path: Path) -> None:
-        from lawgraph.eval.coverage_audit import load_coverage_report
+        from law_ai.eval.coverage_audit import load_coverage_report
 
         xml_path = tmp_path / "coverage.xml"
         _write_coverage_xml(xml_path, _MINIMAL_XML)
@@ -139,7 +139,7 @@ class TestLoadCoverageReport:
         assert 4 in loaders_rec.missing_lines
 
     def test_min_statements_filter(self, tmp_path: Path) -> None:
-        from lawgraph.eval.coverage_audit import load_coverage_report
+        from law_ai.eval.coverage_audit import load_coverage_report
 
         xml_path = tmp_path / "coverage.xml"
         _write_coverage_xml(xml_path, _MINIMAL_XML)
@@ -149,7 +149,7 @@ class TestLoadCoverageReport:
         assert records == []
 
     def test_returns_empty_on_malformed_xml(self, tmp_path: Path) -> None:
-        from lawgraph.eval.coverage_audit import load_coverage_report
+        from law_ai.eval.coverage_audit import load_coverage_report
 
         xml_path = tmp_path / "coverage.xml"
         xml_path.write_text("<<invalid xml>>", encoding="utf-8")
@@ -165,12 +165,12 @@ class TestLoadCoverageReport:
 
 class TestOverallCoverage:
     def test_returns_none_when_missing(self, tmp_path: Path) -> None:
-        from lawgraph.eval.coverage_audit import overall_coverage
+        from law_ai.eval.coverage_audit import overall_coverage
 
         assert overall_coverage(tmp_path / "no.xml") is None
 
     def test_parses_root_line_rate(self, tmp_path: Path) -> None:
-        from lawgraph.eval.coverage_audit import overall_coverage
+        from law_ai.eval.coverage_audit import overall_coverage
 
         xml_path = tmp_path / "coverage.xml"
         _write_coverage_xml(xml_path, _MINIMAL_XML)
@@ -216,7 +216,7 @@ class TestEvolveAuditScanCoverage:
     def test_no_xml_returns_empty(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        import lawgraph.eval.coverage_audit as ca
+        import law_ai.eval.coverage_audit as ca
 
         monkeypatch.setattr(ca, "_DEFAULT_XML", tmp_path / "missing.xml")
         ea = self._load_ea()
@@ -226,15 +226,15 @@ class TestEvolveAuditScanCoverage:
     def test_below_threshold_yields_candidate(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        import lawgraph.eval.coverage_audit as ca
+        import law_ai.eval.coverage_audit as ca
 
         low_cov_xml = """\
 <?xml version="1.0" ?>
 <coverage line-rate="0.50" branch-rate="0" version="7.0" timestamp="1234567890">
     <packages>
-        <package name="lawgraph">
+        <package name="law_ai">
             <classes>
-                <class name="lawgraph/core/x.py" filename="lawgraph/core/x.py"
+                <class name="law_ai/core/x.py" filename="law_ai/core/x.py"
                        line-rate="0.50" branch-rate="0" complexity="0">
                     <lines>
                         <line number="1" hits="1"/>

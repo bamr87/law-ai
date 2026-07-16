@@ -10,8 +10,8 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from lawgraph.graph import urls as graph_api
-from lawgraph.asgi import application as app
+from law_ai.graph import urls as graph_api
+from law_ai.asgi import application as app
 from tests.db.test_graph_queries import FakeAsyncSession
 
 

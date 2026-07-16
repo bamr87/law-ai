@@ -1,4 +1,4 @@
-# Prompt Template: Implement Feature in LawGraph AI
+# Prompt Template: Implement Feature in Law AI
 
 **Feature Request**: {Brief description of feature, e.g. "Add support for UK legislation via legislation.gov.uk API"}
 
@@ -6,7 +6,7 @@
 
 1. **Understand Impact**
    - Read `AGENTS.md` (especially Coding Standards and Agent Development Rules)
-   - Read relevant sections of `LawGraph_AI_PRD.md` and `docs/architecture.md`
+   - Read relevant sections of `Law_AI_PRD.md` and `docs/architecture.md`
    - Identify which layers are affected (Backend API, Agent, Graph Schema, Frontend UI, Eval)
 
 2. **Design First (Think, then code)**
@@ -45,6 +45,6 @@
 - Include at least one end-to-end test
 - Surface follow-ups in BACKLOG.md (see step 5)
 
-**Start by saying**: "Understood. Implementing [Feature Name] following LawGraph AI standards..."
+**Start by saying**: "Understood. Implementing [Feature Name] following Law AI standards..."
 
 End with: "✅ Feature complete. All quality gates passed. Follow-ups added: <BL-...>. Ready for review."

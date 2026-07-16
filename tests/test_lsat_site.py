@@ -3,7 +3,7 @@
 Stdlib-only, like the rest of the root suite. The committed site artifact
 (`lsat-static/content.json`, imported at build time by the Next.js static
 export) must stay in lockstep with the source bank under
-`backend/lawgraph/lsat/services/data/`: when a bank file changes without
+`backend/law_ai/lsat/services/data/`: when a bank file changes without
 `make lsat-export`, these tests fail CI so the published GitHub Pages app can
 never silently lag the approved content.
 """
@@ -19,7 +19,7 @@ pytestmark = pytest.mark.smoke
 REPO = Path(__file__).resolve().parent.parent
 APP = REPO / "lsat-static"
 CONTENT = APP / "content.json"
-BANK_DIR = REPO / "backend" / "lawgraph" / "lsat" / "services" / "data"
+BANK_DIR = REPO / "backend" / "law_ai" / "lsat" / "services" / "data"
 
 _BANK_FILES = ("lr_bank.json", "rc_bank.json", "lg_bank.json")
 

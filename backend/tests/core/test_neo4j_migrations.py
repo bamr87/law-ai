@@ -1,7 +1,7 @@
 """Validate the Cypher migration set (spec 015 T-004, AC-1).
 
 This is a unit test (no live Neo4j). It walks every ``.cypher`` file under
-``backend/lawgraph/core/neo4j/migrations/`` and asserts:
+``backend/law_ai/core/neo4j/migrations/`` and asserts:
 
 1. Every ``CREATE CONSTRAINT|INDEX|FULLTEXT INDEX`` is ``IF NOT EXISTS``-guarded
    so reruns are safe (NFR-MIGRATION-SAFETY-1).
@@ -18,7 +18,7 @@ import re
 from pathlib import Path
 
 MIGRATIONS_DIR = (
-    Path(__file__).resolve().parents[2] / "lawgraph" / "core" / "neo4j" / "migrations"
+    Path(__file__).resolve().parents[2] / "law_ai" / "core" / "neo4j" / "migrations"
 )
 
 # Labels that must each have a unique-id (or unique-code) constraint.

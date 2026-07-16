@@ -8,7 +8,7 @@ The canonical, repo-wide coding guide for AI agents lives in [AGENTS.md](../AGEN
 
 - Mission, core principles (open-source, privacy, auditability, HITL)
 - Required tech stack (Django 5 + DRF + Channels + Celery + CrewAI + LangGraph + Neo4j + Ollama; Next.js 15 + Tailwind + Cytoscape)
-- Project structure (`backend/lawgraph/{agents_runtime,agentsapi,analysis,audit,core,eval,graph,ingestionapp,lsat,settings}`, `frontend/{app,components,lib}`)
+- Project structure (`backend/law_ai/{agents_runtime,agentsapi,analysis,audit,core,eval,graph,ingestionapp,lsat,settings}`, `frontend/{app,components,lib}`)
 - Coding standards (`ruff` + `black` + `mypy --strict` for Python; strict TS for frontend)
 - Testing standards (pytest + Vitest, ≥75% coverage, LegalBench regression)
 - Quick-reference commands ([Makefile](../Makefile)) and VS Code tasks ([.vscode/tasks.json](../.vscode/tasks.json))

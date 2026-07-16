@@ -17,8 +17,8 @@ flowchart LR
   Orchestrator -->|kind=content| CorpusGrowth[CorpusGrowth loop]
   Orchestrator -->|kind=evolve| Evolve[scripts/evolve_audit.py]
 
-  TestPilot --> LegalBench[lawgraph.eval.legalbench]
-  TestPilot --> Coverage[lawgraph.eval.coverage_audit]
+  TestPilot --> LegalBench[law_ai.eval.legalbench]
+  TestPilot --> Coverage[law_ai.eval.coverage_audit]
   TestPilot --> Synth[TestSynthesizer crew]
   Synth --> Proposed[*.proposed.py + draft PR]
 
@@ -40,16 +40,16 @@ Reuses the same `peter-evans/create-pull-request` action and the `gh issue creat
 
 | Layer | File / Module | Change |
 |-------|---------------|--------|
-| Eval | `backend/lawgraph/eval/__init__.py`, `legalbench.py`, `loaders.py`, `scoring.py`, `report.py`, `coverage_audit.py` | new package — fills the empty directory referenced by `make test-legalbench` and [docs/legalbench.md](../../docs/legalbench.md) |
-| Crew | `backend/lawgraph/agents_runtime/crews/test_synthesizer.py` | new `TestSynthesizer` crew member |
-| Prompt | `backend/lawgraph/agents_runtime/prompts/test_synthesizer.v1.md` | versioned prompt |
-| Graph | `backend/lawgraph/agents_runtime/graphs/topic_frontier.py` | new LangGraph workflow |
-| Ingestion | `backend/lawgraph/ingestionapp/sources/__init__.py`, `base.py`, `courtlistener.py`, `colorado_statutes.py`, `statute_scout.py` | new `SOURCE_REGISTRY` package; existing `services/*` files become thin delegates |
-| Orchestrator | `backend/lawgraph/core/autonomy.py` | new `run_cycle` + `AutonomyRun` dataclass |
-| Mgmt cmd | `backend/lawgraph/core/management/commands/run_autonomy.py`, `list_sources.py` | new |
-| Settings | `backend/lawgraph/settings/base.py` | add `AUTONOMY_ENABLED`, `AUTONOMY_ALLOWED_SOURCES`, `AUTONOMY_DIGEST_DIR` |
-| Celery | `backend/lawgraph/celery.py` | beat schedule entries `autonomy-content-sweep` (kind=`corpus_growth`), `autonomy-nightly-tests` (kind=`test_pillar`), `autonomy-daily-digest` (kind=`digest`) |
-| Provenance | `backend/lawgraph/core/provenance.py` | add `log_autonomy_cycle` + `log_policy_violation` helpers |
+| Eval | `backend/law_ai/eval/__init__.py`, `legalbench.py`, `loaders.py`, `scoring.py`, `report.py`, `coverage_audit.py` | new package — fills the empty directory referenced by `make test-legalbench` and [docs/legalbench.md](../../docs/legalbench.md) |
+| Crew | `backend/law_ai/agents_runtime/crews/test_synthesizer.py` | new `TestSynthesizer` crew member |
+| Prompt | `backend/law_ai/agents_runtime/prompts/test_synthesizer.v1.md` | versioned prompt |
+| Graph | `backend/law_ai/agents_runtime/graphs/topic_frontier.py` | new LangGraph workflow |
+| Ingestion | `backend/law_ai/ingestionapp/sources/__init__.py`, `base.py`, `courtlistener.py`, `colorado_statutes.py`, `statute_scout.py` | new `SOURCE_REGISTRY` package; existing `services/*` files become thin delegates |
+| Orchestrator | `backend/law_ai/core/autonomy.py` | new `run_cycle` + `AutonomyRun` dataclass |
+| Mgmt cmd | `backend/law_ai/core/management/commands/run_autonomy.py`, `list_sources.py` | new |
+| Settings | `backend/law_ai/settings/base.py` | add `AUTONOMY_ENABLED`, `AUTONOMY_ALLOWED_SOURCES`, `AUTONOMY_DIGEST_DIR` |
+| Celery | `backend/law_ai/celery.py` | beat schedule entries `autonomy-content-sweep` (kind=`corpus_growth`), `autonomy-nightly-tests` (kind=`test_pillar`), `autonomy-daily-digest` (kind=`digest`) |
+| Provenance | `backend/law_ai/core/provenance.py` | add `log_autonomy_cycle` + `log_policy_violation` helpers |
 | CI | `.github/workflows/nightly-tests.yml` | new (clone of `evolve.yml` with cron `0 6 * * *`) |
 | Audit | `scripts/evolve_audit.py` | extend `_scan_coverage` to use new `coverage_audit.py`; add `_scan_legalbench` |
 | Make | `Makefile` | new targets `autonomy-up`, `autonomy-status`, `autonomy-stop` |

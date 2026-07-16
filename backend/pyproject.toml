@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lawgraph-ai"
+name = "law-ai"
 version = "0.1.0"
 description = "Open-source agent-orchestrated legal intelligence platform"
 readme = "README.md"
@@ -37,7 +37,7 @@ dependencies = [
     "httpx>=0.28.0",
     "tenacity>=9.1.0",
     # Spec 016: Justia CRS HTML parsing in
-    # lawgraph/ingestionapp/services/colorado_statutes.py.
+    # law_ai/ingestionapp/services/colorado_statutes.py.
     "lxml>=5.3.0",
 ]
 
@@ -97,7 +97,7 @@ nlp = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["lawgraph*"]
+include = ["law_ai*"]
 
 [tool.ruff]
 line-length = 88
@@ -134,8 +134,8 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "9.0"
-DJANGO_SETTINGS_MODULE = "lawgraph.settings.test"
-addopts = "-ra -q --strict-markers --cov=lawgraph --cov-report=term-missing:skip-covered --cov-fail-under=75"
+DJANGO_SETTINGS_MODULE = "law_ai.settings.test"
+addopts = "-ra -q --strict-markers --cov=law_ai --cov-report=term-missing:skip-covered --cov-fail-under=75"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
@@ -150,7 +150,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["lawgraph"]
+source = ["law_ai"]
 branch = true
 omit = ["*/tests/*", "*/__pycache__/*", "*/migrations/*"]
 

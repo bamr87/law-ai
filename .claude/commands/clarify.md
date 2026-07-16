@@ -3,7 +3,7 @@ description: "AO-SDLC /clarify — resolve every OPEN QUESTION in a spec before 
 argument-hint: "<spec slug, e.g. 026-unified-llm-client>"
 ---
 
-Execute the canonical LawGraph AO-SDLC **clarify** step.
+Execute the canonical Law AI AO-SDLC **clarify** step.
 
 Read [prompts/clarify.md](../../prompts/clarify.md) now and follow it exactly.
 
