@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from contextlib import asynccontextmanager
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -21,6 +21,7 @@ from lawgraph.agents_runtime.graphs.topic_frontier import (
     _node_scan_graph,
     _node_dispatch,
     _node_summarize,
+    _dispatch_target,
     _parse_targets,
     _call_ollama,
 )
@@ -216,11 +217,13 @@ class TestNodeDispatch:
 
     @pytest.mark.asyncio
     async def test_sets_human_approval_when_adapter_requires_it(self, settings) -> None:
+        # FR-3 / AC-1: a quarantined doc is not committed, and the dispatch
+        # chain must hand force_quarantine=True down to run_and_commit.
         adapter = self._make_adapter("courtlistener")
         adapter.requires_human_approval = True
         scout = AsyncMock()
         scout.run_and_commit = AsyncMock(
-            return_value={"committed": True, "confidence": 0.9}
+            return_value={"committed": False, "pending": True, "confidence": 0.9}
         )
         with patch.object(
             tf_module.settings,
@@ -237,6 +240,7 @@ class TestNodeDispatch:
                 scout_factory=MagicMock(return_value=scout),
             )
         assert state["human_approval_required"] is True
+        scout.run_and_commit.assert_called_once_with(ANY, force_quarantine=True)
 
     @pytest.mark.asyncio
     async def test_force_quarantine_passed_when_adapter_requires_approval(
@@ -265,6 +269,33 @@ class TestNodeDispatch:
             )
         # Verify force_quarantine=True was passed to run_and_commit
         scout.run_and_commit.assert_called_once()
+        _, kwargs = scout.run_and_commit.call_args
+        assert kwargs["force_quarantine"] is True
+
+    @pytest.mark.asyncio
+    async def test_dispatch_summary_shows_not_committed_when_force_quarantine(
+        self,
+    ) -> None:
+        """FR-2 / AC-2: a force-quarantined doc surfaces committed=False in the
+        dispatch summary, even though run_and_commit succeeded."""
+        adapter = self._make_adapter("courtlistener")
+        scout = AsyncMock()
+        scout.run_and_commit = AsyncMock(
+            return_value={"committed": False, "pending": True, "confidence": 0.5}
+        )
+
+        dispatched = await _dispatch_target(
+            scout,
+            adapter,
+            "q",
+            [],
+            force_quarantine=True,
+        )
+
+        assert len(dispatched) == 1
+        entry = dispatched[0]
+        assert entry["committed"] is False
+        assert entry["confidence"] == 0.5
         _, kwargs = scout.run_and_commit.call_args
         assert kwargs["force_quarantine"] is True
 
@@ -390,3 +421,68 @@ class TestHumanApprovalDefault:
     def test_default_false(self) -> None:
         tf = TopicFrontier()
         assert tf.human_approval_required is False
+
+
+# ---------------------------------------------------------------------------
+# FR-4 / AC-3 — integration: a requires_human_approval adapter produces a
+# PendingReview row (not a Neo4j Case) through the full dispatch chain.
+#
+# Requires the Docker stack (postgres) + CELERY_TASK_ALWAYS_EAGER. Excluded
+# from `make test-backend` (which drops the `integration` marker). Mirrors the
+# sync-test-body pattern from tests/ingestion/test_scout_integration.py and
+# BL-20260510-01 to avoid SynchronousOnlyOperation in an async context.
+#
+# NOTE: spec FR-4 step 3 says to assert on PendingReview.source == source_url,
+# but scout's OpinionExtractor hardcodes source="courtlistener" and stores the
+# doc URL as the row's primary key (id). We therefore look the row up by pk.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+@pytest.mark.django_db(transaction=True)
+def test_requires_human_approval_produces_pending_review_row(
+    settings, monkeypatch
+) -> None:
+    from asgiref.sync import async_to_sync
+
+    from lawgraph.ingestionapp.models import PendingReview
+
+    settings.CELERY_TASK_ALWAYS_EAGER = True
+    settings.CELERY_TASK_EAGER_PROPAGATES = True
+    # Eager Celery executes the quarantine task's synchronous Django ORM writes
+    # inline — here, inside the async_to_sync event loop below — which Django
+    # rejects with SynchronousOnlyOperation, so the scout silently falls back to
+    # JSONL and no PendingReview row is written (BL-20260510-01). In production
+    # the task runs in a separate worker process (no running loop), so this
+    # guard only bites in eager tests; allow sync ORM for this controlled run.
+    monkeypatch.setenv("DJANGO_ALLOW_ASYNC_UNSAFE", "1")
+
+    source_url = "https://example.com/hitl/quarantine-me"
+    adapter = MagicMock()
+    adapter.name = "courtlistener"
+    adapter.jurisdiction = "*"
+    adapter.requires_human_approval = True
+    doc = MagicMock()
+    doc.source_name = "courtlistener"
+    doc.source_url = source_url
+    doc.title = "Forced HITL Case"
+    doc.text = "full opinion text"
+    adapter.fetch.return_value = [doc]
+
+    with patch.object(
+        tf_module.settings,
+        "AUTONOMY_ALLOWED_SOURCES",
+        ["courtlistener"],
+        create=True,
+    ):
+        state = async_to_sync(_node_dispatch)(
+            {
+                "trace_id": "t-hitl",
+                "targets": [{"query": "q", "jurisdiction": "*", "priority": 1}],
+            },
+            registry={"courtlistener": adapter},
+        )
+
+    assert state["human_approval_required"] is True
+    assert state["dispatched"][0]["committed"] is False
+    assert PendingReview.objects.filter(pk=source_url).exists()

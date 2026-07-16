@@ -142,6 +142,7 @@
 - **BL-20260602-02** — *doc-gap, low* — Document the `requires_human_approval` adapter contract and its quarantine enforcement in `docs/architecture.md`. _Surfaced in:_ specs/020-enforce-hitl-quarantine.
 - **BL-20260602-03** — *doc-gap, low* — Fix non-case broken relative links in current governing docs: `docs/constitution.md` links to `AGENTS.md` (3×) but it lives at the repo root, so the href should be `../AGENTS.md` (404s on every platform). _Surfaced in:_ specs/021-fix-ao-sdlc-doc-links.
 - **BL-20260602-04** — *test-gap, med* — Update or historically-annotate the ~120 `backend/app/*` references in shipped specs 011 + `docs/adr/0001-adopt-django-backend.md` (pre-Django-rebrand layout), then promote `test_no_case_mismatched_doc_links` to a full relative-link existence check. _Surfaced in:_ specs/021-fix-ao-sdlc-doc-links.
+- **BL-20260602-07** — *refactor, low* — Dispatch routes every adapter's `RawDoc` through scout's hardcoded `OpinionExtractor` (`source="courtlistener"`), so `PendingReview.source` never reflects the true originating adapter and HITL rows are only addressable by PK. Introduce per-adapter extractor selection so `PendingReview.source` is meaningful. _Surfaced in:_ specs/023-hitl-quarantine-enforcement.
 
 ## Claimed
 
