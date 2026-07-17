@@ -9,15 +9,7 @@
 
 ## 1. Problem & Motivation
 
-The home page advertises an interactive Knowledge Graph at `/graph`, but the
-route 404s. Backend has Cypher helpers and migrations (`Case`, `Citation`,
-`CITES`, `HAS_CITATION`) plus an ingestion pipeline that already populates
-those nodes (specs 001 + 002), but no read API surfaces them. The
-[GraphViewer.tsx](../../frontend/components/GraphViewer.tsx) component is a
-stub that just prints "Cytoscape.js integration pending" — closing
-BL-20260430-05 also requires that this is wired up. Without a UI on top of
-Neo4j, the "Graph-Native Thinking" pillar of [AGENTS.md](../../AGENTS.md) is
-invisible to users and reviewers.
+The home page advertises an interactive Knowledge Graph at `/graph`, but the route 404s. Backend has Cypher helpers and migrations (`Case`, `Citation`, `CITES`, `HAS_CITATION`) plus an ingestion pipeline that already populates those nodes (specs 001 + 002), but no read API surfaces them. The [GraphViewer.tsx](../../frontend/components/GraphViewer.tsx) component is a stub that just prints "Cytoscape.js integration pending" — closing BL-20260430-05 also requires that this is wired up. Without a UI on top of Neo4j, the "Graph-Native Thinking" pillar of [AGENTS.md](../../AGENTS.md) is invisible to users and reviewers.
 
 ## 2. Goals
 
@@ -26,8 +18,7 @@ invisible to users and reviewers.
 - G2: Frontend `/graph` route that renders a Cytoscape canvas wired to a
   case picker and a stats strip.
 - G3: Graceful degradation when Neo4j is unavailable (returns
-  `{"available": false}` payloads instead of 500s) so the dashboard is
-  resilient on a fresh laptop.
+`{"available": false}` payloads instead of 500s) so the dashboard is resilient on a fresh laptop.
 - G4: Close BL-20260430-05 by replacing the GraphViewer stub with a real
   Cytoscape integration.
 
@@ -44,8 +35,7 @@ invisible to users and reviewers.
 - As a **researcher**, I want to search a case by title or id and see its
   citation neighborhood so I can audit precedent links visually.
 - As a **maintainer**, I want a stats strip showing total `Case`,
-  `Citation`, and `CITES` counts so I can confirm ingestion is producing
-  edges, not just orphan nodes.
+`Citation`, and `CITES` counts so I can confirm ingestion is producing edges, not just orphan nodes.
 - As a **reviewer**, I want the `/graph` page to load even when Neo4j is
   down so I can still triage other dashboards.
 
@@ -64,9 +54,7 @@ invisible to users and reviewers.
     default 50)
 - **FR-3**: Each endpoint logs via `provenance.log_graph_query` (NFR-AUDIT-1).
 - **FR-4**: When the underlying Neo4j call raises `ServiceUnavailable`,
-  `AuthError`, `ConfigurationError`, or any `Exception` from the driver,
-  endpoints return HTTP 200 with `{"available": false, ...}` and an empty
-  payload (NFR-DEGRADE-1). Errors are logged at WARNING.
+`AuthError`, `ConfigurationError`, or any `Exception` from the driver, endpoints return HTTP 200 with `{"available": false, ...}` and an empty payload (NFR-DEGRADE-1). Errors are logged at WARNING.
 - **FR-5**: Frontend `app/graph/page.tsx` server shell + new client
   component `components/KnowledgeGraph.tsx` that:
   - Fetches `/api/graph/stats` and `/api/graph/cases`.
@@ -77,8 +65,7 @@ invisible to users and reviewers.
 - **FR-6**: `lib/api.ts` gains `fetchGraphStats`, `fetchGraphCases`,
   `fetchGraphNeighborhood` typed clients.
 - **FR-7**: Replace [GraphViewer.tsx](../../frontend/components/GraphViewer.tsx)
-  stub: it now accepts `{ elements }` and renders Cytoscape (closes
-  BL-20260430-05). KnowledgeGraph composes it.
+stub: it now accepts `{ elements }` and renders Cytoscape (closes BL-20260430-05). KnowledgeGraph composes it.
 
 ## 6. Non-Functional Requirements
 
@@ -126,14 +113,11 @@ GET /api/graph/neighborhood/{case_id}?limit=50
 - **AC-3**: `GET /api/graph/neighborhood/case-a` returns Cytoscape-shaped
   payload with `nodes` and `edges` arrays (verifies FR-2).
 - **AC-4**: When the session factory raises `ServiceUnavailable`, every
-  endpoint returns HTTP 200 with `available=false` and empty data
-  (verifies FR-4, NFR-DEGRADE-1).
+endpoint returns HTTP 200 with `available=false` and empty data (verifies FR-4, NFR-DEGRADE-1).
 - **AC-5**: A provenance `graph_query` event is recorded per endpoint hit
   (verifies FR-3, NFR-AUDIT-1).
 - **AC-6**: Frontend `/graph` page renders the headings "Knowledge Graph",
-  "Cases", and "Neighborhood" with MSW-mocked API; selecting a case fetches
-  the neighborhood and the Cytoscape container is mounted (verifies FR-5,
-  FR-7).
+"Cases", and "Neighborhood" with MSW-mocked API; selecting a case fetches the neighborhood and the Cytoscape container is mounted (verifies FR-5, FR-7).
 
 ## 11. LegalBench Impact
 
@@ -145,8 +129,7 @@ GET /api/graph/neighborhood/{case_id}?limit=50
 - **R-1**: Cytoscape ships ~150 KB of JS. Mitigation: dynamic `import()`
   inside the client component so the rest of the app stays unaffected.
 - **R-2**: A very wide neighborhood query could return thousands of
-  citations for a single landmark case. Mitigation: hard `LIMIT` bound
-  in Cypher + API param cap of 200.
+citations for a single landmark case. Mitigation: hard `LIMIT` bound in Cypher + API param cap of 200.
 
 ## 13. Out of Scope / Follow-ups
 

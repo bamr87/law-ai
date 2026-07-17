@@ -16,9 +16,7 @@
 - **Citation**: Guha et al. (2023) "LegalBench: A Collaboratively Built Benchmark for
   Measuring Legal Reasoning in Large Language Models."
 - **Notes**: Tasks in this subset are drawn from publicly available legal
-  reasoning exercises. Individual tasks may have their own sub-licenses documented
-  in the LegalBench task registry at `legalbench/tasks/`. Verify per task before
-  distributing cached data.
+reasoning exercises. Individual tasks may have their own sub-licenses documented in the LegalBench task registry at `legalbench/tasks/`. Verify per task before distributing cached data.
 
 ### precedent_retrieval
 

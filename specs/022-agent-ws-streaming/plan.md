@@ -4,11 +4,7 @@
 
 ## 1. Architecture Overview
 
-The analysis pipeline (`_run_analysis` in `law_ai/analysis/urls.py`) already
-calls `LegalAnalyst.run()` then `PrecedentHunter.run()` in sequence. After each
-agent call completes we emit a fire-and-forget channel group message. Clients
-that connected to `/ws/agents/{analysis_id}` before the POST arrives receive
-these as JSON frames via `AgentRunConsumer.agent_event`.
+The analysis pipeline (`_run_analysis` in `law_ai/analysis/urls.py`) already calls `LegalAnalyst.run()` then `PrecedentHunter.run()` in sequence. After each agent call completes we emit a fire-and-forget channel group message. Clients that connected to `/ws/agents/{analysis_id}` before the POST arrives receive these as JSON frames via `AgentRunConsumer.agent_event`.
 
 ```mermaid
 sequenceDiagram
@@ -42,17 +38,13 @@ sequenceDiagram
 
 ### 2.1 `backend/law_ai/analysis/urls.py`
 
-`_run_analysis` is already `async def`. Add a helper `_emit_ws_event` that
-wraps `channel_layer.group_send` and catches/logs any exception without
-raising. Call it at two injection points:
+`_run_analysis` is already `async def`. Add a helper `_emit_ws_event` that wraps `channel_layer.group_send` and catches/logs any exception without raising. Call it at two injection points:
 
 1. After `await irac_coro` returns → emit `agent_step:LegalAnalyst`.
 2. After `await prec_coro` returns → emit `agent_step:PrecedentHunter`.
 3. After both complete → emit `complete`.
 
-The channel layer instance is obtained via
-`channels.layers.get_channel_layer()`. If it returns `None` (Redis not
-configured), `_emit_ws_event` short-circuits without error.
+The channel layer instance is obtained via `channels.layers.get_channel_layer()`. If it returns `None` (Redis not configured), `_emit_ws_event` short-circuits without error.
 
 ### 2.2 `backend/tests/api/test_analysis.py`
 
@@ -72,6 +64,4 @@ No new integration test fixtures needed — channel layer mock is sufficient.
 
 ## 4. Deployment Notes
 
-No new services, environment variables, or migrations. Requires Redis running
-(`CHANNEL_LAYERS` already configured in `law_ai/settings/base.py` to use
-`channels_redis`). The `make dev` stack includes Redis.
+No new services, environment variables, or migrations. Requires Redis running (`CHANNEL_LAYERS` already configured in `law_ai/settings/base.py` to use `channels_redis`). The `make dev` stack includes Redis.

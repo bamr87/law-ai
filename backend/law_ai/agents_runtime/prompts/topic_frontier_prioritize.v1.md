@@ -19,8 +19,7 @@ You will receive a JSON object with two keys:
 
 ## Task
 
-Select **at most 3** fetch targets from the combined input that would most reduce knowledge-graph
-gaps. Prefer:
+Select **at most 3** fetch targets from the combined input that would most reduce knowledge-graph gaps. Prefer:
 
 1. High-information citations (landmark cases, constitutional references).
 2. Jurisdictions with zero cases before those with 1–4 cases.

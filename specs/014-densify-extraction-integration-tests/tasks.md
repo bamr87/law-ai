@@ -100,5 +100,4 @@
 - **BL-20260526-01** — *test-gap, low* — Add a mutation variant test seeding two cases with overlapping aliases to assert `head(collect(c.id))` determinism matches BL-20260429-12 (spec-002 follow-up). _Surfaced in:_ specs/014-densify-extraction-integration-tests.
 - **BL-20260526-02** — *test-gap, low* — Add an integration test asserting `test_citation_resolver_integration` tests are NOT collected by `pytest -q` (no `-m integration`) in the CI environment, confirming AC-5 isolation contract. _Surfaced in:_ specs/014-densify-extraction-integration-tests.
 <!-- original placeholder below -->
-  pre-existing items (BL-20260429-11, BL-20260429-21) that are
-  intentionally out of scope. -->
+pre-existing items (BL-20260429-11, BL-20260429-21) that are intentionally out of scope. -->

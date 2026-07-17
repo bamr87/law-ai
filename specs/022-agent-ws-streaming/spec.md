@@ -9,34 +9,18 @@
 
 ## 1. Problem & Motivation
 
-`POST /api/analysis` currently blocks until both `LegalAnalyst` and
-`PrecedentHunter` complete (~1–5 s on local Ollama), then returns one
-JSON blob. There is no progress feedback — users see a spinner and
-cannot tell which stage the pipeline is on.
+`POST /api/analysis` currently blocks until both `LegalAnalyst` and `PrecedentHunter` complete (~1–5 s on local Ollama), then returns one JSON blob. There is no progress feedback — users see a spinner and cannot tell which stage the pipeline is on.
 
-The `AgentRunConsumer` WebSocket skeleton was shipped in spec-011 T-010:
-it accepts connections at `/ws/agents/{run_id}`, joins Redis channel group
-`agent-run-{run_id}`, and forwards any `agent_event` group messages to the
-client. Currently no producers emit events to those groups — the consumer
-is a skeleton waiting for traffic.
+The `AgentRunConsumer` WebSocket skeleton was shipped in spec-011 T-010: it accepts connections at `/ws/agents/{run_id}`, joins Redis channel group `agent-run-{run_id}`, and forwards any `agent_event` group messages to the client. Currently no producers emit events to those groups — the consumer is a skeleton waiting for traffic.
 
-This spec wires the producers: `_run_analysis` in
-`law_ai/analysis/urls.py` publishes `agent_step` events to the channel
-group after each agent completes, so a client connected to
-`/ws/agents/{analysis_id}` sees real-time step progress and a final
-`complete` event, while the HTTP response stays unchanged (backward
-compatible).
+This spec wires the producers: `_run_analysis` in `law_ai/analysis/urls.py` publishes `agent_step` events to the channel group after each agent completes, so a client connected to `/ws/agents/{analysis_id}` sees real-time step progress and a final `complete` event, while the HTTP response stays unchanged (backward compatible).
 
 ## 2. Origin & Background
 
 - **BL-20260503-09** — *feature, med* — "Real Channels producers for
-  `/ws/agents/{run_id}` so `LegalAnalyst`/`PrecedentHunter` progress
-  streams to the consumer skeleton landed by spec 011 T-010." _Surfaced
-  in:_ specs/011-django-backend.
+`/ws/agents/{run_id}` so `LegalAnalyst`/`PrecedentHunter` progress streams to the consumer skeleton landed by spec 011 T-010." _Surfaced in:_ specs/011-django-backend.
 - **BL-20260429-24** — *feature, med* — "Stream agent trace events to the
-  `/analysis` UI via SSE so users see `LegalAnalyst` → `PrecedentHunter`
-  progress." _Surfaced in:_ specs/007-analysis-studio. This spec resolves
-  the WS half; SSE remains a follow-up.
+`/analysis` UI via SSE so users see `LegalAnalyst` → `PrecedentHunter` progress." _Surfaced in:_ specs/007-analysis-studio. This spec resolves the WS half; SSE remains a follow-up.
 
 ## 3. Goals
 
@@ -66,30 +50,21 @@ compatible).
 ## 5. Functional Requirements
 
 - **FR-1**: `_run_analysis` calls
-  `channel_layer.group_send(f"agent-run-{analysis_id}", event)` after
-  each agent step using `async_to_sync` or native async call, depending
-  on whether `_run_analysis` is async. Events are fire-and-forget; if the
-  channel layer is unavailable, the error is logged but does NOT abort
-  the analysis.
+`channel_layer.group_send(f"agent-run-{analysis_id}", event)` after each agent step using `async_to_sync` or native async call, depending on whether `_run_analysis` is async. Events are fire-and-forget; if the channel layer is unavailable, the error is logged but does NOT abort the analysis.
 - **FR-2**: The `agent_step` event payload carries:
   `{"type":"agent_event","payload":{"type":"agent_step","agent":<name>,
   "trace_id":<str|null>,"latency_ms":<float>,"confidence":<float>}}`.
-  The outer `type: "agent_event"` key is required by Channels to route to
-  `AgentRunConsumer.agent_event()`.
+The outer `type: "agent_event"` key is required by Channels to route to `AgentRunConsumer.agent_event()`.
 - **FR-3**: After both agents finish, emit a `complete` event:
-  `{"type":"agent_event","payload":{"type":"complete","analysis_id":<id>,
-  "confidence":<float>,"requires_human_review":<bool>}}`.
+`{"type":"agent_event","payload":{"type":"complete","analysis_id":<id>, "confidence":<float>,"requires_human_review":<bool>}}`.
 - **FR-4**: Every `group_send` call is logged via `core.provenance`
   (event type `ws_event_sent`; `source=analysis`; `confidence=1.0`).
 - **FR-5**: If no subscriber is connected (empty group), the `group_send`
-  is still called (Channels silently drops it) — no special handling
-  needed.
+is still called (Channels silently drops it) — no special handling needed.
 - **FR-6**: A unit test in `tests/api/test_analysis.py` patches the
-  channel layer and asserts the correct sequence of `group_send` calls
-  (two `agent_step` + one `complete`).
+channel layer and asserts the correct sequence of `group_send` calls (two `agent_step` + one `complete`).
 - **FR-7**: The existing `test_agent_run_consumer_ready_and_group_event`
-  integration test in `tests/agentsapi/test_consumer.py` must still pass
-  (no consumer changes).
+integration test in `tests/agentsapi/test_consumer.py` must still pass (no consumer changes).
 
 ## 6. Non-Functional Requirements
 
@@ -110,13 +85,9 @@ Reference: [docs/data-model.md](../../docs/data-model.md) — no changes.
 
 ## 8. API Surface
 
-**Unchanged HTTP route**: `POST /api/analysis` — request/response schema
-identical to spec-007/spec-011 definition. The `id` field in the response
-is already the `analysis_id` that clients should use as the WS channel key.
+**Unchanged HTTP route**: `POST /api/analysis` — request/response schema identical to spec-007/spec-011 definition. The `id` field in the response is already the `analysis_id` that clients should use as the WS channel key.
 
-**Existing WebSocket route** (no change to routing or consumer):
-`/ws/agents/{run_id}` — `AgentRunConsumer`. Clients now receive the
-following new events during an active analysis:
+**Existing WebSocket route** (no change to routing or consumer): `/ws/agents/{run_id}` — `AgentRunConsumer`. Clients now receive the following new events during an active analysis:
 
 | Event `type` in payload | When emitted | Key fields |
 |---|---|---|
@@ -125,21 +96,14 @@ following new events during an active analysis:
 
 ## 9. Agent / Crew Impact
 
-No new agents. Changes to `law_ai/analysis/urls.py` (`_run_analysis`
-function) to call the channel layer. See [docs/agent-roles.md](../../docs/agent-roles.md)
-for `LegalAnalyst` and `PrecedentHunter` — their `run()` signatures are
-unchanged.
+No new agents. Changes to `law_ai/analysis/urls.py` (`_run_analysis` function) to call the channel layer. See [docs/agent-roles.md](../../docs/agent-roles.md) for `LegalAnalyst` and `PrecedentHunter` — their `run()` signatures are unchanged.
 
 ## 10. Acceptance Criteria
 
 - **AC-1**: Given a client subscribed to `/ws/agents/{analysis_id}` before
-  the POST completes, when `POST /api/analysis` is called, then the client
-  receives an `agent_step` event for `LegalAnalyst`, an `agent_step` event
-  for `PrecedentHunter`, and a `complete` event — in that order.
+the POST completes, when `POST /api/analysis` is called, then the client receives an `agent_step` event for `LegalAnalyst`, an `agent_step` event for `PrecedentHunter`, and a `complete` event — in that order.
 - **AC-2**: Given the channel layer is unavailable (e.g. Redis down), when
-  `POST /api/analysis` is called, then the HTTP response is returned
-  normally (no 500 error); an error is logged but the analysis result is
-  not affected.
+`POST /api/analysis` is called, then the HTTP response is returned normally (no 500 error); an error is logged but the analysis result is not affected.
 - **AC-3**: The `AnalysisResponse` JSON returned by POST is identical to
   the pre-spec schema (no new required fields, no field removals).
 - **AC-4**: `test_agent_run_consumer_ready_and_group_event` still passes.
@@ -154,11 +118,7 @@ unchanged.
 
 ## 12. Risks & Open Questions
 
-**OQ-1 (RESOLVED)** — `_run_analysis` is `async def` and is dispatched via
-`asgiref.sync.async_to_sync` into Daphne's existing ASGI event loop. Calling
-`await layer.group_send(...)` directly inside `_run_analysis` is correct and
-non-blocking. No deadlock risk. Implemented in
-`backend/law_ai/analysis/urls.py` (`_emit_ws_event` helper).
+**OQ-1 (RESOLVED)** — `_run_analysis` is `async def` and is dispatched via `asgiref.sync.async_to_sync` into Daphne's existing ASGI event loop. Calling `await layer.group_send(...)` directly inside `_run_analysis` is correct and non-blocking. No deadlock risk. Implemented in `backend/law_ai/analysis/urls.py` (`_emit_ws_event` helper).
 
 ## 13. Out of Scope / Follow-ups
 
