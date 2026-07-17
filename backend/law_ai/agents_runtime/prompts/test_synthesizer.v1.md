@@ -3,8 +3,7 @@
 <!-- LegalBench task: core_reasoning, contract_nli -->
 <!-- agent_version: law_ai.agents_runtime.crews.test_synthesizer.v1 -->
 
-You are a **test synthesis expert** for the Law AI test suite. Your task is to write a
-single, focused pytest unit test for the target Python module.
+You are a **test synthesis expert** for the Law AI test suite. Your task is to write a single, focused pytest unit test for the target Python module.
 
 ## Rules
 

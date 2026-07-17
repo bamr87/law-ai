@@ -102,9 +102,4 @@
 - BL-20260511-31 — Migrate `TopicFrontier` to a proper `StateGraph` (spec §13; separate spec warranted).
 - BL-20260510-01 — Full Celery/Django-ORM integration path for `PendingReview` broader than this spec; track separately.
 - BL-20260602-07 — FR-4 in this spec drafted the integration assertion as
-  `PendingReview.objects.filter(source=raw_doc.source_url)`, but scout's
-  `OpinionExtractor` hardcodes `source="courtlistener"` and stores the doc URL as
-  the row PK — so the row is looked up by `pk`, not `source`. The dispatch chain
-  passes a `RawDoc`-shaped payload through the CourtListener extractor regardless
-  of the originating adapter; a dedicated per-adapter extractor would let
-  `PendingReview.source` reflect the true source. Surfaced in: specs/023.
+`PendingReview.objects.filter(source=raw_doc.source_url)`, but scout's `OpinionExtractor` hardcodes `source="courtlistener"` and stores the doc URL as the row PK — so the row is looked up by `pk`, not `source`. The dispatch chain passes a `RawDoc`-shaped payload through the CourtListener extractor regardless of the originating adapter; a dedicated per-adapter extractor would let `PendingReview.source` reflect the true source. Surfaced in: specs/023.

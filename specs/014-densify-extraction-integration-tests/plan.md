@@ -5,11 +5,7 @@
 
 ## 1. Architecture Overview
 
-The new tests live alongside the existing unit tests and reuse the
-session-scoped Docker fixtures introduced by spec 013 (`neo4j_integration_driver`,
-`clean_neo4j_db`). No new infrastructure, no new fixtures, no production-code
-changes — this is a pure test addition that exercises the Cypher in
-`backend/law_ai/core/neo4j/citation_resolver.py` against a real Neo4j.
+The new tests live alongside the existing unit tests and reuse the session-scoped Docker fixtures introduced by spec 013 (`neo4j_integration_driver`, `clean_neo4j_db`). No new infrastructure, no new fixtures, no production-code changes — this is a pure test addition that exercises the Cypher in `backend/law_ai/core/neo4j/citation_resolver.py` against a real Neo4j.
 
 ```mermaid
 flowchart LR
@@ -34,8 +30,7 @@ flowchart LR
 
 ## 3. Data & Schema Migrations
 
-None. Tests CREATE/DETACH DELETE `Case` nodes within the per-test
-`clean_neo4j_db` lifecycle.
+None. Tests CREATE/DETACH DELETE `Case` nodes within the per-test `clean_neo4j_db` lifecycle.
 
 ## 4. Tech Choices & Alternatives
 
@@ -49,15 +44,11 @@ No deviation from [docs/constitution.md](../../docs/constitution.md) §2.
 
 ## 5. Provenance & Audit Hook-up
 
-`densify_extraction` already calls `provenance.log_graph_query` for each
-Cypher round-trip (verified in `backend/law_ai/core/neo4j/citation_resolver.py`).
-Tests assert that `target_case_id` is populated correctly; provenance is
-emitted as a side-effect and is not the system-under-test.
+`densify_extraction` already calls `provenance.log_graph_query` for each Cypher round-trip (verified in `backend/law_ai/core/neo4j/citation_resolver.py`). Tests assert that `target_case_id` is populated correctly; provenance is emitted as a side-effect and is not the system-under-test.
 
 ## 6. HITL Gates
 
-None. `densify_extraction` is a deterministic graph utility — no LLM call,
-no agent decision, no `human_approval_required` flag.
+None. `densify_extraction` is a deterministic graph utility — no LLM call, no agent decision, no `human_approval_required` flag.
 
 ## 7. Test Strategy
 
@@ -66,8 +57,7 @@ no agent decision, no `human_approval_required` flag.
 - **Integration tests**: new file `test_citation_resolver_integration.py`,
   three tests — see FR-1 in spec.md.
 - **Docker services required**: Neo4j only (Postgres/Redis not used by
-  `densify_extraction`). The shared `docker_services` fixture brings up all
-  three but that's a no-op cost when only Neo4j is touched.
+`densify_extraction`). The shared `docker_services` fixture brings up all three but that's a no-op cost when only Neo4j is touched.
 - **LegalBench subset**: none — no reasoning logic touched (NFR-LegalBench).
 - **Frontend**: none.
 

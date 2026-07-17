@@ -133,8 +133,7 @@ curl -X POST http://localhost:8000/api/analysis \
 
 ### Live progress via WebSocket (spec 022)
 
-After `POST /api/analysis`, three events are published to the
-`agent-run-{id}` Redis channel group (consumed by `/ws/agents/{id}`):
+After `POST /api/analysis`, three events are published to the `agent-run-{id}` Redis channel group (consumed by `/ws/agents/{id}`):
 
 ```
 {"type": "agent_step", "agent": "LegalAnalyst",     "trace_id": "...", "latency_ms": ..., "confidence": 0.9}

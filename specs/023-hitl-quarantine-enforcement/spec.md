@@ -9,11 +9,7 @@
 
 ## 1. Problem & Motivation
 
-Constitution §5 and `specs/018` NFR-HITL-1 require that when any
-`SourceAdapter.requires_human_approval` is `True`, **every** `RawDoc` it
-produces MUST route through `PendingReview` (quarantine) regardless of
-confidence score. This prevents high-stakes or new-source documents from
-being committed directly to Neo4j without a human reviewer.
+Constitution §5 and `specs/018` NFR-HITL-1 require that when any `SourceAdapter.requires_human_approval` is `True`, **every** `RawDoc` it produces MUST route through `PendingReview` (quarantine) regardless of confidence score. This prevents high-stakes or new-source documents from being committed directly to Neo4j without a human reviewer.
 
 The production code is **already wired correctly**:
 
@@ -25,15 +21,9 @@ _node_dispatch
   → _quarantine() always called when force_quarantine=True
 ```
 
-However, the only existing test (`test_sets_human_approval_when_adapter_requires_it`)
-checks only that `state["human_approval_required"] is True`. It never asserts
-that `scout.run_and_commit` was actually called with `force_quarantine=True`,
-and its mock returns `{"committed": True}` — the wrong value for a quarantined
-doc. A regression (e.g. accidental removal of `force_quarantine=` kwarg in
-`_dispatch_target`) would pass silently.
+However, the only existing test (`test_sets_human_approval_when_adapter_requires_it`) checks only that `state["human_approval_required"] is True`. It never asserts that `scout.run_and_commit` was actually called with `force_quarantine=True`, and its mock returns `{"committed": True}` — the wrong value for a quarantined doc. A regression (e.g. accidental removal of `force_quarantine=` kwarg in `_dispatch_target`) would pass silently.
 
-This spec adds the safety-net tests that make the HITL enforcement
-verifiable and regression-proof, closing BL-20260511-30.
+This spec adds the safety-net tests that make the HITL enforcement verifiable and regression-proof, closing BL-20260511-30.
 
 ## 2. Goals
 
@@ -42,8 +32,7 @@ verifiable and regression-proof, closing BL-20260511-30.
 - **G2**: Add a unit test asserting the dispatch summary records `committed: False`
   (quarantined) when `force_quarantine=True` reaches the real `IngestionScout`.
 - **G3**: Add an `@pytest.mark.integration` test confirming that a
-  `requires_human_approval=True` adapter produces a `PendingReview` row (not a
-  Neo4j `Case` node) after a full `_node_dispatch` call against a live stack.
+`requires_human_approval=True` adapter produces a `PendingReview` row (not a Neo4j `Case` node) after a full `_node_dispatch` call against a live stack.
 - **G4**: Strengthen `test_sets_human_approval_when_adapter_requires_it` to
   also assert `run_and_commit.call_args` includes `force_quarantine=True`.
 
@@ -58,22 +47,16 @@ verifiable and regression-proof, closing BL-20260511-30.
 ## 4. User Stories
 
 - As a **legal reviewer**, I want confidence that documents from
-  `requires_human_approval=True` sources always land in the HITL queue, so
-  that no unreviewed ingestion bypasses the approval gate.
+`requires_human_approval=True` sources always land in the HITL queue, so that no unreviewed ingestion bypasses the approval gate.
 - As a **developer**, I want CI tests that catch any accidental removal of
-  `force_quarantine=True` in the dispatch chain, so that HITL regressions
-  are surfaced immediately.
+`force_quarantine=True` in the dispatch chain, so that HITL regressions are surfaced immediately.
 
 ## 5. Functional Requirements
 
 - **FR-1**: A unit test `test_force_quarantine_true_passed_to_run_and_commit`
-  calls `_node_dispatch` with an adapter whose `requires_human_approval=True`,
-  captures the mock `scout.run_and_commit` call args, and asserts
-  `call_kwargs["force_quarantine"] is True`.
+calls `_node_dispatch` with an adapter whose `requires_human_approval=True`, captures the mock `scout.run_and_commit` call args, and asserts `call_kwargs["force_quarantine"] is True`.
 - **FR-2**: A unit test `test_dispatch_summary_shows_not_committed_when_force_quarantine`
-  calls `_dispatch_target` with `force_quarantine=True` and a mocked
-  `IngestionScout` whose `run_and_commit` returns `{"committed": False, "pending": True,
-  "confidence": 0.5}`, and asserts the resulting dispatch entry has `committed=False`.
+calls `_dispatch_target` with `force_quarantine=True` and a mocked `IngestionScout` whose `run_and_commit` returns `{"committed": False, "pending": True, "confidence": 0.5}`, and asserts the resulting dispatch entry has `committed=False`.
 - **FR-3**: Strengthen the existing `test_sets_human_approval_when_adapter_requires_it`
   by adding `scout.run_and_commit.assert_called_once_with(ANY, force_quarantine=True)`.
 - **FR-4**: An `@pytest.mark.integration` test
@@ -99,11 +82,9 @@ verifiable and regression-proof, closing BL-20260511-30.
 
 ## 7. Data Model Impact
 
-No new Neo4j nodes, Postgres tables, or vector collections. The integration
-test reads from the existing `ingestionapp_pendingreview` table.
+No new Neo4j nodes, Postgres tables, or vector collections. The integration test reads from the existing `ingestionapp_pendingreview` table.
 
-Reference: [docs/data-model.md](../../docs/data-model.md) — `PendingReview` model
-(`law_ai.ingestionapp.models`).
+Reference: [docs/data-model.md](../../docs/data-model.md) — `PendingReview` model (`law_ai.ingestionapp.models`).
 
 ## 8. API Surface
 
@@ -121,14 +102,11 @@ No new agents. Touches test files only:
 ## 10. Acceptance Criteria
 
 - **AC-1**: Given an adapter with `requires_human_approval=True`, when
-  `_node_dispatch` is called, then `scout.run_and_commit` is called with
-  `force_quarantine=True` (verified via `assert_called_once_with`).
+`_node_dispatch` is called, then `scout.run_and_commit` is called with `force_quarantine=True` (verified via `assert_called_once_with`).
 - **AC-2**: Given `force_quarantine=True`, when `_dispatch_target` returns a
   dispatch entry, then `entry["committed"] is False`.
 - **AC-3**: (Integration) Given a live Postgres + `CELERY_TASK_ALWAYS_EAGER=True`
-  and an adapter with `requires_human_approval=True`, when `_node_dispatch`
-  executes, then a `PendingReview` row exists with the dispatched doc's
-  `source_url` and `committed=False` in the dispatch summary.
+and an adapter with `requires_human_approval=True`, when `_node_dispatch` executes, then a `PendingReview` row exists with the dispatched doc's `source_url` and `committed=False` in the dispatch summary.
 - **AC-4**: `make test-backend` exits 0 and backend coverage does not decrease.
 - **AC-5**: `make lint` exits 0 (ruff + black).
 
@@ -140,11 +118,7 @@ No new agents. Touches test files only:
 ## 12. Risks & Open Questions
 
 - **R-1**: The integration test (FR-4) requires `CELERY_TASK_ALWAYS_EAGER=True`
-  and Django ORM access in an async test context. Use
-  `@pytest.mark.django_db(transaction=True)` and wrap the async dispatch
-  call in `asyncio.run` or `asgiref.sync.async_to_sync` from a **sync** test
-  body to avoid `SynchronousOnlyOperation` (mirrors fix from BL-20260510-01 /
-  `tests/ingestion/test_scout_integration.py`).
+and Django ORM access in an async test context. Use `@pytest.mark.django_db(transaction=True)` and wrap the async dispatch call in `asyncio.run` or `asgiref.sync.async_to_sync` from a **sync** test body to avoid `SynchronousOnlyOperation` (mirrors fix from BL-20260510-01 / `tests/ingestion/test_scout_integration.py`).
 
 No open questions — spec is self-contained and implementation is confirmed correct.
 
@@ -157,6 +131,4 @@ No open questions — spec is self-contained and implementation is confirmed cor
 
 ## Origin & Background
 
-Claimed from: **BL-20260511-30** (feature, high) — "Enforce
-`requires_human_approval=True` quarantine path in `TopicFrontier._node_dispatch`".
-Surfaced during specs/018-autonomous-framework PR review.
+Claimed from: **BL-20260511-30** (feature, high) — "Enforce `requires_human_approval=True` quarantine path in `TopicFrontier._node_dispatch`". Surfaced during specs/018-autonomous-framework PR review.

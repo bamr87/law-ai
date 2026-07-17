@@ -218,8 +218,7 @@ roadmap_crew = Crew(
 result = roadmap_crew.kickoff(inputs={"company_okrs": "...", "current_roadmap": "..."})
 ```
 
-**Sample Prompt for Prioritizer**:
-"You are a senior PM. Given [OKRs], [customer feedback summary], [tech constraints], score each proposed feature on RICE (Reach, Impact, Confidence, Effort). Output JSON with scores, rationale, and recommended quarter. Consider agent capacity for implementation."
+**Sample Prompt for Prioritizer**: "You are a senior PM. Given [OKRs], [customer feedback summary], [tech constraints], score each proposed feature on RICE (Reach, Impact, Confidence, Effort). Output JSON with scores, rationale, and recommended quarter. Consider agent capacity for implementation."
 
 ### 3.6 Roadmap Tool Recommendations
 

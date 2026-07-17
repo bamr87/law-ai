@@ -2,9 +2,7 @@
 
 ## Summary
 
-The `force_quarantine` mechanism was already implemented in spec 018 across
-`TopicFrontier._node_dispatch` → `_dispatch_target` → `IngestionScout.run_and_commit`.
-This spec adds the missing test coverage to verify the contract end-to-end.
+The `force_quarantine` mechanism was already implemented in spec 018 across `TopicFrontier._node_dispatch` → `_dispatch_target` → `IngestionScout.run_and_commit`. This spec adds the missing test coverage to verify the contract end-to-end.
 
 ## Approach
 

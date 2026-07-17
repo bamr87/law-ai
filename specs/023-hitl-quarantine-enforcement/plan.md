@@ -4,8 +4,7 @@
 
 ## 1. Architecture Overview
 
-This spec adds tests only — no production code changes. The existing dispatch
-chain is confirmed correct:
+This spec adds tests only — no production code changes. The existing dispatch chain is confirmed correct:
 
 ```
 _node_dispatch
@@ -15,9 +14,7 @@ _node_dispatch
   → _quarantine() always called when force_quarantine=True
 ```
 
-The plan is to intercept at each seam with `pytest-mock` and assert the
-`force_quarantine=True` kwarg propagates end-to-end, plus one integration
-test confirming a `PendingReview` row is written to Postgres.
+The plan is to intercept at each seam with `pytest-mock` and assert the `force_quarantine=True` kwarg propagates end-to-end, plus one integration test confirming a `PendingReview` row is written to Postgres.
 
 ## 2. Component Changes
 
@@ -30,18 +27,14 @@ No migrations, no API changes, no frontend changes (NG1–NG3 from spec.md).
 
 ## 3. Data & Schema Migrations
 
-None. Reads from existing `ingestionapp_pendingreview` table (integration test
-only).
+None. Reads from existing `ingestionapp_pendingreview` table (integration test only).
 
 ## 4. Tech Choices & Alternatives
 
 - **`pytest-mock` `mocker.patch`**: keeps unit tests dependency-free and fast
-  (NFR-PERF-1). Alternative (`unittest.mock.patch`) is equivalent but less
-  ergonomic in pytest.
+(NFR-PERF-1). Alternative (`unittest.mock.patch`) is equivalent but less ergonomic in pytest.
 - **`@pytest.mark.django_db(transaction=True)`**: required for the integration
-  test (FR-4) to avoid `SynchronousOnlyOperation` when `async_to_sync` wraps
-  `_node_dispatch`. Mirrors the pattern in
-  `tests/ingestion/test_scout_integration.py`.
+test (FR-4) to avoid `SynchronousOnlyOperation` when `async_to_sync` wraps `_node_dispatch`. Mirrors the pattern in `tests/ingestion/test_scout_integration.py`.
 - **`CELERY_TASK_ALWAYS_EAGER=True`**: ensures Celery tasks execute inline
   without a broker for the integration test.
 

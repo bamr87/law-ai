@@ -95,14 +95,10 @@
 > `BL-YYYYMMDD-NN` id.
 
 - **BL-20260429-24** — *feature, med* — Stream agent trace events to the
-  `/analysis` UI via SSE so users see `LegalAnalyst` → `PrecedentHunter`
-  progress instead of waiting for a single JSON response.
+`/analysis` UI via SSE so users see `LegalAnalyst` → `PrecedentHunter` progress instead of waiting for a single JSON response.
 - **BL-20260429-25** — *feature, med* — Persist analyses (request +
-  response + trace_ids) in Postgres so users can revisit a run by
-  `analysis_id` and the `/agents/runs/{trace_id}` drill-down
-  (BL-20260429-14) can join across child traces.
+response + trace_ids) in Postgres so users can revisit a run by `analysis_id` and the `/agents/runs/{trace_id}` drill-down (BL-20260429-14) can join across child traces.
 - **BL-20260429-26** — *feature, low* — "Save & share" — let signed-in
   users bookmark an analysis with a slug and produce a shareable URL.
 - **BL-20260429-27** — *test-gap, low* — Add a Playwright smoke test
-  hitting `/analysis` end-to-end against a Docker stack (form fill →
-  result render → trace ID copy).
+hitting `/analysis` end-to-end against a Docker stack (form fill → result render → trace ID copy).

@@ -1,8 +1,6 @@
 # Analyze Node Prompt — Spec 010 / LegalWorkflow
 
-**Version**: 1
-**Model**: configurable via `OLLAMA_DEFAULT_MODEL`
-**Inputs**: `question` (str), `retrieved` (list of {title, snippet, source_url})
+**Version**: 1 **Model**: configurable via `OLLAMA_DEFAULT_MODEL` **Inputs**: `question` (str), `retrieved` (list of {title, snippet, source_url})
 **Output**: JSON `{"answer": str, "citations": [{"text": str, "source_url": str | null}], "confidence": float}`
 
 System message:

@@ -91,11 +91,8 @@
 > `BL-YYYYMMDD-NN` id.
 
 - **BL-20260429-21** — *test-gap, med* — Docker-backed integration test
-  for `app.db.graph_queries.neighborhood` against a real Neo4j; mirrors
-  the gap filed for the citation resolver (BL-20260429-10).
+for `app.db.graph_queries.neighborhood` against a real Neo4j; mirrors the gap filed for the citation resolver (BL-20260429-10).
 - **BL-20260429-22** — *feature, med* — Add a "shortest path" endpoint
-  (`/api/graph/path?from=&to=`) so the UI can highlight precedent chains
-  between two cases.
+(`/api/graph/path?from=&to=`) so the UI can highlight precedent chains between two cases.
 - **BL-20260429-23** — *feature, low* — UI filters for the case picker
-  (court, date range) and a sidebar inspector that shows the selected
-  node's full properties + source URL.
+(court, date range) and a sidebar inspector that shows the selected node's full properties + source URL.
