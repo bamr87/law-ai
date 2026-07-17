@@ -10,9 +10,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Detect which areas the diff touches so the expensive backend/frontend
+  # jobs (service containers, full npm ci) skip on docs/config-only changes.
+  # spec-gate and repo-structural still run on every push/PR.
+  changes:
+    name: Detect Changed Paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/ci.yml'
+
   spec-gate:
     name: Spec Drift Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,6 +59,7 @@ jobs:
     # no Docker, Neo4j, or node_modules — just pytest. The heavier backend/
     # frontend subprocess suites are excluded via markers.
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: spec-gate
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +77,9 @@ jobs:
     # the base package only — no [dev], no cache — and import-checks every
     # top-level Django app + each ingestion service entry point.
     runs-on: ubuntu-latest
-    needs: spec-gate
+    timeout-minutes: 15
+    needs: [spec-gate, changes]
+    if: needs.changes.outputs.backend == 'true'
     defaults:
       run:
         working-directory: backend
@@ -109,7 +139,9 @@ jobs:
   backend-lint:
     name: Backend Lint + Type-check
     runs-on: ubuntu-latest
-    needs: spec-gate
+    timeout-minutes: 15
+    needs: [spec-gate, changes]
+    if: needs.changes.outputs.backend == 'true'
     defaults:
       run:
         working-directory: backend
@@ -128,7 +160,9 @@ jobs:
   backend-test:
     name: Backend Tests + Coverage
     runs-on: ubuntu-latest
-    needs: spec-gate
+    timeout-minutes: 15
+    needs: [spec-gate, changes]
+    if: needs.changes.outputs.backend == 'true'
     services:
       neo4j:
         image: neo4j:5-community
@@ -174,7 +208,9 @@ jobs:
   frontend:
     name: Frontend Lint + Test
     runs-on: ubuntu-latest
-    needs: spec-gate
+    timeout-minutes: 15
+    needs: [spec-gate, changes]
+    if: needs.changes.outputs.frontend == 'true'
     defaults:
       run:
         working-directory: frontend
@@ -193,6 +229,7 @@ jobs:
   legalbench:
     name: LegalBench Regression (changed reasoning only)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: backend-test
     if: contains(github.event.pull_request.labels.*.name, 'reasoning-change')
     defaults:

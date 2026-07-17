@@ -1,0 +1,17 @@
+# Batch frontend npm updates into one grouped weekly PR instead of the
+# default per-advisory security jobs that were retry-looping (10 failed
+# "Dependabot Updates" jobs in the 14 days to 2026-07-16, 9 on 7/16 alone).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      frontend-npm:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
