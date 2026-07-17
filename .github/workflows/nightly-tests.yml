@@ -1,12 +1,18 @@
 name: Nightly Tests & Autonomy
 
-# Runs every day at 06:00 UTC.  Also triggerable manually with an optional
-# `dry_run` flag that skips the expensive Docker steps (coverage, LegalBench,
-# synthesis) while still validating spec/backlog gates and opening the PR.
+# Runs weekly on Monday at 06:00 UTC.  Also triggerable manually with an
+# optional `dry_run` flag that skips the expensive Docker steps (coverage,
+# LegalBench, synthesis) while still validating spec/backlog gates and
+# opening the PR.
+#
+# NOTE: cadence was reduced from daily to weekly after 37/37 scheduled runs
+# failed on hosted-runner disk exhaustion (0 MB free during `docker compose
+# up` after building both app images). Restore daily cadence only after a
+# sustained green streak.
 
 on:
   schedule:
-    - cron: "0 6 * * *"
+    - cron: "0 6 * * 1"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -36,11 +42,37 @@ jobs:
           python-version: "3.12"
 
       # ------------------------------------------------------------------
+      # Reclaim hosted-runner disk space BEFORE building. Every scheduled
+      # run of this workflow died with "Free space left: 0 MB" during
+      # `docker compose up` (see run 28644585073, 2026-07-03): the backend
+      # image (chromadb/spacy/onnxruntime/crewai/langgraph) is multi-GB and
+      # the standard ubuntu-latest runner only has ~14 GB free. Removing
+      # the preinstalled Android SDK, .NET, GHC, and CodeQL toolcaches
+      # reclaims ~25-30 GB.
+      # ------------------------------------------------------------------
+      - name: Free disk space on hosted runner
+        if: ${{ !inputs.dry_run }}
+        run: |
+          echo "Disk before cleanup:" && df -h /
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo docker image prune -af
+          echo "Disk after cleanup:" && df -h /
+
+      # ------------------------------------------------------------------
       # Build images once — reused by all make targets below.
       # ------------------------------------------------------------------
       - name: Build Docker images
         if: ${{ !inputs.dry_run }}
         run: docker compose build backend frontend
+
+      # Drop the intermediate build cache once images exist — the layer
+      # cache is not reused within this run and costs several GB.
+      - name: Reclaim Docker build cache
+        if: ${{ !inputs.dry_run }}
+        run: |
+          docker builder prune -f
+          df -h /
 
       # ------------------------------------------------------------------
       # Infra services — needed by test-legalbench + autonomy-run.
