@@ -15,11 +15,23 @@ from law_ai.lsat.factory.coverage import (
 
 class TestCensus:
     def test_counts_by_concept_overlap(self, factory_env: FactoryConfig) -> None:
+        from law_ai.lsat.factory.taxonomy import get_archetype
+        from law_ai.lsat.services.bank import load_bank
+
         counts = census()
-        # lr-002 is a med weaken item in the seed bank.
+        bank = list(load_bank().values())
+        # Census counts an item toward an archetype via the archetype's PRIMARY
+        # concept tag; verify against a recomputation so the test is robust to
+        # bank growth (no hard-coded per-cell numbers).
+        for arch_id in ("lr-weaken", "lg-grouping", "rc-inference"):
+            primary = get_archetype(arch_id).concepts[0]
+            for diff in ("easy", "med", "hard"):
+                expected = sum(
+                    1 for q in bank if q.difficulty == diff and primary in q.concepts
+                )
+                assert counts[(arch_id, diff)] == expected
+        # Seed sanity: the bundled lr-002 med weaken item is present.
         assert counts[("lr-weaken", "med")] >= 1
-        # No grouping-game items exist yet.
-        assert counts[("lg-grouping", "med")] == 0
 
     def test_zero_weight_cells_want_nothing(self, factory_env: FactoryConfig) -> None:
         cells = {
@@ -40,19 +52,40 @@ class TestPlanTargets:
         assert 0 < len(targets) <= factory_env.max_jobs
         assert all(1 <= t.count <= factory_env.drafts_per_job for t in targets)
 
-    def test_passage_strategy(self, factory_env: FactoryConfig) -> None:
-        targets = plan_targets(factory_env.model_copy(update={"max_jobs": 200}))
-        by_arch = {t.archetype_id: t for t in targets}
-        # RC archetypes ride an existing passage.
-        rc = by_arch.get("rc-inference")
-        assert rc is not None and rc.mode == "items"
-        assert rc.passage_id is not None and rc.passage_id.startswith("rc-passage-")
-        # No grouping game exists → brand-new passage_set on the premium tier.
-        grouping = by_arch.get("lg-grouping")
-        assert grouping is not None
-        assert grouping.mode == "passage_set"
-        assert grouping.passage_id is None
-        assert grouping.tier == "premium"
+    def test_passage_targets_ride_existing_passages(
+        self, factory_env: FactoryConfig
+    ) -> None:
+        from law_ai.lsat.services.bank import load_passages
+
+        # target_per_cell high so every passage-bound archetype is a target,
+        # regardless of how full the bank is.
+        cfg = factory_env.model_copy(update={"max_jobs": 300, "target_per_cell": 12})
+        targets = plan_targets(cfg)
+        pids = set(load_passages())
+        rc_riding = [t for t in targets if t.section == "RC" and t.mode == "items"]
+        assert rc_riding, "RC passages exist, so RC targets should ride them"
+        # No passage-bound 'items' target may carry a dangling passage id.
+        for t in targets:
+            if t.section in ("RC", "LG") and t.mode == "items":
+                assert t.passage_id in pids
+            if t.mode == "passage_set":
+                assert t.passage_id is None
+
+    def test_passage_set_when_no_passage_exists(
+        self, factory_env: FactoryConfig, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # With no passages at all, every passage-bound archetype must author a
+        # brand-new set on the premium tier (the passage_set branch).
+        import law_ai.lsat.factory.coverage as cov
+
+        monkeypatch.setattr(cov, "load_passages", lambda: {})
+        cfg = factory_env.model_copy(update={"max_jobs": 300, "target_per_cell": 12})
+        lg_targets = [t for t in plan_targets(cfg) if t.section == "LG"]
+        assert lg_targets, "expected LG targets"
+        for t in lg_targets:
+            assert t.mode == "passage_set"
+            assert t.passage_id is None
+            assert t.tier == "premium"
 
     def test_gap_boost_prioritizes_weak_concepts(
         self, factory_env: FactoryConfig
