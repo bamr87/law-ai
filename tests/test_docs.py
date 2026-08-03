@@ -18,6 +18,7 @@ REQUIRED_DOCS = [
     "docs/architecture.md",
     "docs/agent-roles.md",
     "docs/constitution.md",
+    "docs/philosophy.md",
     "docs/ao-sdlc.md",
     "docs/data-model.md",
     "docs/data-sources.md",
@@ -49,6 +50,33 @@ def test_agents_md_mentions_orchestration_policy(repo_root: Path) -> None:
     assert "github copilot" in text
     assert "claude code" in text, "AGENTS.md must name Claude Code as a sanctioned surface"
     assert "forbidden" in text, "AGENTS.md must spell out the forbidden agents list"
+
+
+def test_jurisprudential_stance_is_stated_and_enforced(repo_root: Path) -> None:
+    """The philosophy must keep both halves, and stay wired to an enforcing clause.
+
+    Recorded by docs/adr/0004-jurisprudential-stance.md. The stance is only
+    coherent as a *descriptive* premise about the corpus paired with its
+    *normative* rejection as a design goal — a future edit that keeps one half
+    and drops the other flips the project's meaning, so both are asserted.
+    """
+    philosophy = (repo_root / "docs" / "philosophy.md").read_text().lower()
+    assert "interest of the stronger" in philosophy, (
+        "docs/philosophy.md must state the Thrasymachean premise it is built on"
+    )
+    assert "descriptiv" in philosophy and "normativ" in philosophy, (
+        "docs/philosophy.md must keep the descriptive/normative split — the "
+        "premise is adopted about the data and rejected as a design goal"
+    )
+
+    constitution = (repo_root / "docs" / "constitution.md").read_text().lower()
+    assert "## 13." in constitution, "constitution must retain §13 (jurisprudential honesty)"
+    assert "philosophy.md" in constitution, (
+        "constitution §13 must link back to docs/philosophy.md"
+    )
+
+    agents = (repo_root / "AGENTS.md").read_text().lower()
+    assert "philosophy.md" in agents, "AGENTS.md must point agents at the philosophy"
 
 
 # Directories that never contain authored Markdown we control (deps, build

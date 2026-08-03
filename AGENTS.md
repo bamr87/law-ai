@@ -29,13 +29,22 @@ Repo-level instructions for Copilot live in [.github/copilot-instructions.md](.g
 | Product runtime (what the deployed app uses to answer legal questions) | Ollama (open-source models) | Constitution §1: open-source, privacy-first, local-first |
 
 
+**Jurisprudential Stance** — *the premise underneath the principles*
+
+> "Justice is nothing else than the interest of the stronger." — Thrasymachus, Plato, *Republic* I.338c
+
+We hold this **descriptively, about our data** — the legal record is the record of what the stronger parties have gotten courts to say (opinions are written by the side that won; settlement selection and repeat-player advantage skew which disputes ever get published; citation counts measure litigation resources before they measure correctness) — and we **reject it normatively, as a goal for the system**. A craft serves its subject, not its practitioner (*Republic* I.341c–342e): Law AI serves its user, especially the under-resourced one. The job is to make legal asymmetry **visible and contestable**, never to launder it as neutral truth and never to exploit it.
+
+Full argument in [docs/philosophy.md](docs/philosophy.md); enforced as [docs/constitution.md](docs/constitution.md) §13. The review question it puts on every feature that ranks, scores, or summarizes authority: **who is the stronger here, and what does this feature do for them?**
+
 **Core Principles for All Code Changes**
 - **Open Source First**: Every component must be MIT/AGPL compatible. No proprietary dependencies.
 - **Privacy by Default**: Local-first (Ollama + local DBs). Cloud is optional.
 - **Auditability**: Every agent decision, prompt, tool call, and retrieval must be logged with full provenance.
 - **Legal Accuracy**: All outputs must be grounded in retrieved sources + citations. Use LegalBench for regression testing.
+- **Power-Aware Output**: Attribute every legal proposition to its issuing authority (court, jurisdiction, date, binding/persuasive). Never present citation counts or centrality as a correctness score, and never let "no results in our corpus" read as "no such law." Label asymmetry; do not filter by it.
 - **Graph-Native Thinking**: Prefer Neo4j Cypher traversals over pure vector search when relationships matter (precedents, citations, doctrines).
-- **Human-in-the-Loop (HITL)**: Critical paths (ingestion of new cases, high-stakes analysis) require explicit approval gates.
+- **Human-in-the-Loop (HITL)**: Critical paths (ingestion of new cases, high-stakes analysis) require explicit approval gates. The gate is where decision power deliberately sits with a human.
 
 ---
 
@@ -249,11 +258,12 @@ This repo is designed to grow itself. Every `/implement` cycle ends by recording
 ## Important Context Files (Read These First)
 
 When starting work, read in this order:
-1. [docs/architecture.md](docs/architecture.md) — Full system diagram + component responsibilities
-2. [docs/agent-roles.md](docs/agent-roles.md) — Responsibilities + tool requirements for each agent
-3. [PRD.md](PRD.md) — Full product requirements
-4. [Law_AI_Proposal.md](Law_AI_Proposal.md) — Original technical proposal with Mermaid diagrams
-5. [docs/related-github-repos.md](docs/related-github-repos.md) — Upstream OSS we integrate with
+1. [docs/philosophy.md](docs/philosophy.md) — What we believe legal data is + the P1–P7 obligations that follow
+2. [docs/architecture.md](docs/architecture.md) — Full system diagram + component responsibilities
+3. [docs/agent-roles.md](docs/agent-roles.md) — Responsibilities + tool requirements for each agent
+4. [PRD.md](PRD.md) — Full product requirements
+5. [Law_AI_Proposal.md](Law_AI_Proposal.md) — Original technical proposal with Mermaid diagrams
+6. [docs/related-github-repos.md](docs/related-github-repos.md) — Upstream OSS we integrate with
 
 `docs/data-model.md`, `docs/data-sources.md`, and `docs/legalbench.md` are referenced throughout this file but may not yet exist — create them when you do work that warrants them rather than skipping the documentation step.
 
@@ -272,6 +282,8 @@ When responding to user requests:
 - Bypass the provenance/audit layer
 - Create nodes without `source` and `confidence` properties
 - Ignore HITL requirements for ingestion or high-stakes analysis
+- Rank or assert legal authority by citation volume as if it measured correctness
+- State a legal proposition without naming the authority that issued it
 
 ---
 
