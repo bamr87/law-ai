@@ -116,6 +116,22 @@ Recorded by [docs/adr/0003-autonomy-orchestrator.md](adr/0003-autonomy-orchestra
 
 Promotion to Level 3 — even for narrow change classes — requires a separate ADR amending §10 and these invariants.
 
+## 13. Jurisprudential Honesty (Power-Aware Outputs)
+
+Recorded by [docs/adr/0004-jurisprudential-stance.md](adr/0004-jurisprudential-stance.md); the full argument lives in [docs/philosophy.md](philosophy.md), which is the philosophical source of record for this repo.
+
+The project's operating premise is Thrasymachean **as a description of our data, not as a goal for our system**: the legal record is the record of what the stronger parties have gotten courts to say (victor-authored opinions, non-random settlement selection, repeat-player advantage, uneven coverage). The system's job is to make that visible and contestable — never to launder it as neutral truth, never to exploit it. The craft serves its subject, not its operator.
+
+Every spec and PR must satisfy:
+
+- **Authority ≠ correctness.** A spec **must be rejected** if it presents a citation count, centrality score, or "leading case" ranking as a measure of legal correctness. Such signals may be computed and shown, labelled as what they measure. No agent may assert a holding on citation volume alone.
+- **Attribution.** A spec **must be rejected** if it states a legal proposition without its issuing authority (court, jurisdiction, date, binding/persuasive, majority/dissent). Unattributed statements of "the law" are the laundering this section exists to prevent.
+- **Absence is reported.** Retrieval surfaces must distinguish "no results in our corpus" from "no such law." Thin or jurisdictionally lopsided result sets say so.
+- **Consensus stays a corpus fact.** Agreement across retrieved sources is reported with its count and its sources named — never as verification. This raises the §4 grounding bar; it never relaxes it.
+- **Review question.** Spec review asks: *who is the stronger here, and what does this feature do for them?* An answer is required in spec §2 for any feature that ranks, scores, or summarizes legal authority.
+
+Limits, so this clause is not misread: it authorizes labelling, not filtering. Down-ranking sources by ideology or party identity, assigning moral scores to judges or litigants, or curating the corpus toward a preferred outcome are **prohibited** — they merely install a different stronger party. See [docs/philosophy.md](philosophy.md) §6.
+
 ---
 
 **Amendments to this constitution require an ADR in `docs/adr/` and review by a human maintainer.**
