@@ -108,7 +108,12 @@ select = ["E", "F", "UP", "B", "SIM", "PL", "RUF"]
 # RUF012: Mutable class defaults are the documented DRF idiom for
 # `permission_classes`, `authentication_classes`, etc. Adding ClassVar
 # everywhere adds noise without changing semantics.
-ignore = ["E501", "PLR0913", "PLR2004", "PLC0415", "PLW0603", "B008", "RUF003", "RUF012"]
+# PLR0917: positional-argument-count. The strictly broader PLR0913
+# (too-many-arguments) is already ignored above, so tripping on the
+# positional subset is incoherent — ruff 0.16 promoted PLR0917 out of
+# preview, which turned that latent inconsistency into a CI failure on
+# pre-existing code (`core/provenance.py::log_agent_call`).
+ignore = ["E501", "PLR0913", "PLR0917", "PLR2004", "PLC0415", "PLW0603", "B008", "RUF003", "RUF012"]
 
 [tool.black]
 line-length = 88
