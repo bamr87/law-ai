@@ -3,6 +3,8 @@ description: "AO-SDLC /evolve — autonomously advance the repo by one full AO-S
 argument-hint: "(optional) BL-id to target; blank = auto-pick highest priority"
 ---
 
+> Note: this is **law-ai's** AO-SDLC autopilot loop — distinct from the bamr87 hub monorepo's `/evolve`, which runs the fleet self-evolution loop.
+
 Execute the canonical Law AI **evolve** autopilot.
 
 Read [prompts/evolve.md](../../prompts/evolve.md) now and follow it exactly, including its Stop Conditions and the `/specify → /clarify → /plan → /tasks → /implement` chain.
