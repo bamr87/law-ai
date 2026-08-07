@@ -6,7 +6,7 @@ Claude Code is a sanctioned dev-time surface for this repo (see [AGENTS.md](../A
 
 | Path | What it does |
 |------|--------------|
-| [`settings.json`](settings.json) | Project settings. `permissions.deny` blocks host-level `pytest`/`ruff`/`mypy`/`black`/`pip install`/`npm install`/`python manage.py` (Docker-first enforcement). Wires the two hooks below. |
+| [`settings.json`](settings.json) | Project settings. `permissions.deny` blocks host-level `pytest`/`ruff`/`mypy`/`black`/`pip install`/`npm install`/`python manage.py` and the obvious bypass spellings (`python -m pytest`, `poetry run`, `npm run test`, `npx`) — Docker-first enforcement. Wires the two hooks below. |
 | [`hooks/session-start.sh`](hooks/session-start.sh) | `SessionStart` — injects a short operational reminder (Docker-first rules, sanctioned host commands, the pre-PR gates, the AO-SDLC chain) and reports tool availability. |
 | [`hooks/gate-check.sh`](hooks/gate-check.sh) | `PostToolUse` on `Write`/`Edit` — after any edit to `BACKLOG.md` or `specs/`, runs `spec_validator.py` + `backlog_lint.py` and feeds failures back so the §11 gates stay green. |
 | [`commands/`](commands) | The AO-SDLC chain as slash commands — `/specify`, `/clarify`, `/plan`, `/tasks`, `/implement`, `/evolve`, `/new-agent`. Each is a thin pointer to the canonical prompt under [`prompts/`](../prompts) (single source of truth, shared with GitHub Copilot). |
