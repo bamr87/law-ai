@@ -103,6 +103,10 @@ class ProvenanceLogger:
         output_data: dict[str, Any],
         model: str,
         latency_ms: float,
+        # Keyword-only: keeps the positional arity at 5 (ruff PLR0917) and
+        # matches every existing call site, none of which pass these by
+        # position.
+        *,
         confidence: float | None = None,
         sources: list[dict] | None = None,
     ) -> str:
