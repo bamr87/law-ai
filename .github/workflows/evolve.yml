@@ -21,11 +21,11 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 2
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -50,7 +50,7 @@ jobs:
 
       - name: Open PR with new BACKLOG entries
         if: steps.audit.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           # Stable branch so weekly re-runs update the SAME PR instead of opening
           # a fresh one every run (the old ${{ github.run_id }} branch piled up 6
