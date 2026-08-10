@@ -24,6 +24,9 @@
 
 ## Open
 
+- **BL-20260810-01** — *refactor, med* — Resolve TODO in backend/law_ai/agents_runtime/crews/legal_analyst.py. Comment: "Implement real GraphRAG retrieval + LLM call"
+- **BL-20260810-02** — *refactor, med* — Resolve TODO in backend/law_ai/agents_runtime/crews/precedent_hunter.py. Comment: "Real Cypher + vector search"
+
 - **BL-20260803-01** — *feature, med* — Add disposition + prevailing-party-type metadata to `:Case` ingestion so constitution §13 / philosophy P3 ("surface who prevailed") is satisfiable: extend the CourtListener adapter + `LegalProvenance`-carrying schema with `disposition` (affirmed/reversed/remanded/dismissed) and a coarse `prevailing_party_type`, both nullable, never inferred by an LLM when the record is silent. _Surfaced in:_ docs/adr/0004-jurisprudential-stance.md.
 - **BL-20260803-02** — *feature, med* — GraphRAG retrieval must distinguish "no results in our corpus" from "no such law" (philosophy P4): return an explicit coverage envelope (result count, jurisdictions represented, jurisdictions requested-but-absent, date range) from the retrieval tools and require agents to relay it verbatim rather than answering from an empty set. _Surfaced in:_ docs/adr/0004-jurisprudential-stance.md.
 - **BL-20260803-03** — *feature, low* — Frontend labelling for authority signals (philosophy P1): wherever GraphViewer or the analysis UI sizes/ranks nodes by citation count or centrality, render the legend as a litigation-frequency measure with a tooltip, never as "importance" or "authority". _Surfaced in:_ docs/adr/0004-jurisprudential-stance.md.
