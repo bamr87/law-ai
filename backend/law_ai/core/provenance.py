@@ -30,32 +30,90 @@ logger = logging.getLogger("law_ai.provenance")
 F = TypeVar("F", bound=Callable[..., Any])
 
 
+def _in_async_context() -> bool:
+    """True when called from inside a running event loop.
+
+    Django's ORM raises ``SynchronousOnlyOperation`` there, so the direct
+    write is skipped rather than attempted-and-caught (BL-20260810-10): the
+    old code failed on *every* async agent path and hid it at debug level.
+    """
+    import asyncio
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return False
+    return True
+
+
+def _write_audit_row(event: dict[str, Any]) -> None:
+    """Synchronous ``AuditEvent`` insert. Caller guarantees a sync context."""
+    from law_ai.audit.models import AuditEvent
+
+    AuditEvent.objects.create(
+        kind=event.get("type") or "unknown",
+        trace_id=event.get("trace_id", "") or "",
+        agent_version=event.get("agent_version", "") or "",
+        payload=event,
+    )
+
+
 def _persist(event: dict[str, Any]) -> None:
-    """Persist ``event`` to ``AuditEvent`` with JSONL + Celery fallback."""
+    """Persist ``event`` to JSONL (always) and Postgres (context-dependent).
+
+    JSONL is the durable append-only record and is written first, so an
+    audit event is never lost even when the database leg fails.
+
+    The Postgres leg picks a strategy by execution context:
+
+    * **sync** (Celery worker, management command, WSGI) — write directly.
+    * **async** (daphne/ASGI agent paths) — the ORM cannot be called here,
+      so hand the row to the ``persist_audit_event`` Celery task, which
+      executes it in a worker's sync context.
+    * **async + eager Celery** (tests/dev) — the eager task would run inline
+      in this same async context and fail identically, so skip the DB leg
+      and let JSONL be the record.
+    """
+    jsonl_ok = True
     try:
         audit_store.record(event)
     except Exception as exc:  # pragma: no cover
+        jsonl_ok = False
         logger.warning("audit JSONL persistence failed: %s", exc)
 
-    try:
-        from law_ai.audit.models import AuditEvent
-
-        kind = event.get("type") or "unknown"
-        AuditEvent.objects.create(
-            kind=kind,
-            trace_id=event.get("trace_id", "") or "",
-            agent_version=event.get("agent_version", "") or "",
-            payload=event,
-        )
-    except Exception as exc:
-        logger.debug("audit DB persistence skipped: %s", exc)
-        # Fallback: enqueue Celery task to retry async (FR-7 + spec 011 FR-11).
+    if not _in_async_context():
         try:
-            from law_ai.core.tasks import persist_audit_event
+            _write_audit_row(event)
+            return
+        except Exception as exc:
+            logger.debug("audit DB write failed, deferring to Celery: %s", exc)
 
-            persist_audit_event.delay(event)
-        except Exception:
-            pass
+    try:
+        from django.conf import settings
+
+        eager = bool(getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False))
+    except Exception:  # pragma: no cover - settings always configured
+        eager = False
+
+    if eager and _in_async_context():
+        # Nothing to gain from dispatching: eager execution is inline.
+        if not jsonl_ok:
+            logger.warning(
+                "audit event %s has NO durable record: JSONL failed and the "
+                "DB leg is unavailable in this async/eager context",
+                event.get("type"),
+            )
+        return
+
+    try:
+        from law_ai.core.tasks import persist_audit_event
+
+        persist_audit_event.delay(event)
+    except Exception as exc:
+        # Only a genuine data-loss risk deserves a warning: JSONL already
+        # holds the event in the normal case.
+        level = logger.warning if not jsonl_ok else logger.debug
+        level("audit Celery dispatch failed (%s): %s", type(exc).__name__, exc)
 
 
 class ProvenanceLogger:
@@ -108,7 +166,9 @@ class ProvenanceLogger:
         # position.
         *,
         confidence: float | None = None,
-        sources: list[dict] | None = None,
+        sources: list[dict[str, Any]] | None = None,
+        prompt_id: str | None = None,
+        prompt_version: str | None = None,
     ) -> str:
         trace_id = str(uuid4())
         child_trace_ids = (
@@ -124,12 +184,18 @@ class ProvenanceLogger:
             "model": model,
             "latency_ms": latency_ms,
             "confidence": confidence,
-            "input_hash": hash(str(input_data)),
+            # _stable_hash, not Python's salted hash(): audit hashes must be
+            # reproducible across processes/restarts to prove what an agent saw.
+            "input_hash": _stable_hash(input_data),
             "output_summary": str(output_data)[:500],
             "sources_count": len(sources) if sources else 0,
             "sources": sources[:3] if sources else [],
             "type": "agent_call",
         }
+        if prompt_id:
+            log_entry["prompt_id"] = prompt_id
+        if prompt_version:
+            log_entry["prompt_version"] = prompt_version
         # Preserve a minimal `input` view so the audit store can correlate
         # multi-agent runs (parent → children) and flag error events without
         # leaking full prompts.
@@ -147,8 +213,24 @@ class ProvenanceLogger:
         return trace_id
 
     @staticmethod
+    def log_event(event_type: str, payload: dict[str, Any]) -> None:
+        """Log a lightweight non-agent event (e.g. WS delivery bookkeeping).
+
+        Keeps infrastructure bookkeeping OUT of the ``agent_call`` taxonomy so
+        agent metrics (latency, confidence, call counts) are not polluted by
+        transport events.
+        """
+        log_entry: dict[str, Any] = {
+            "timestamp": datetime.now(UTC).isoformat(),
+            "type": event_type,
+            **payload,
+        }
+        logger.info(json.dumps(log_entry, default=str))
+        _persist(log_entry)
+
+    @staticmethod
     def log_graph_query(
-        cypher: str, params: dict, result_count: int, latency_ms: float
+        cypher: str, params: dict[str, Any], result_count: int, latency_ms: float
     ) -> None:
         log_entry = {
             "timestamp": datetime.now(UTC).isoformat(),
@@ -216,6 +298,22 @@ def _record_node_event(
     return trace_id
 
 
+def _pick_state(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+    """Locate the workflow-state argument for a ``logged_node`` call.
+
+    Decorated node functions are usually bound methods ``(self, state)`` —
+    hashing ``args[0]`` there hashes the instance ``repr`` (with its memory
+    address), which is non-reproducible and information-free. The state is
+    the first Mapping-shaped positional arg (LangGraph states are dicts).
+    """
+    if "state" in kwargs:
+        return kwargs["state"]
+    for arg in args:
+        if isinstance(arg, dict):
+            return arg
+    return args[0] if args else None
+
+
 def logged_node(
     name: str,
     *,
@@ -230,7 +328,7 @@ def logged_node(
 
             @functools.wraps(func)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-                state = args[0] if args else kwargs.get("state")
+                state = _pick_state(args, kwargs)
                 started = time.perf_counter()
                 output = await func(*args, **kwargs)
                 latency = (time.perf_counter() - started) * 1000.0
@@ -251,7 +349,7 @@ def logged_node(
 
         @functools.wraps(func)
         def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-            state = args[0] if args else kwargs.get("state")
+            state = _pick_state(args, kwargs)
             started = time.perf_counter()
             output = func(*args, **kwargs)
             latency = (time.perf_counter() - started) * 1000.0

@@ -47,7 +47,7 @@ docker compose run --rm backend pytest -m integration -v       # by marker
 Multi-agent legal-intelligence platform. Django 5 (ASGI/daphne) + DRF + Channels + Celery backend; Next.js 15 (App Router) frontend; Neo4j knowledge graph + Postgres + Redis; **Ollama is the product runtime LLM** (local-first, open-weights — independent from whatever agent edits the code).
 
 Backend lives in `backend/law_ai/` (the Django project package). Each Django app owns one `/api/*` router:
-- `agents_runtime/` — all agent logic: `crews/` (CrewAI), `graphs/` (LangGraph workflows), `tools/` (Neo4j, CourtListener, GraphRAG), `prompts/` (versioned `*.v<N>.md`).
+- `agents_runtime/` — all agent logic: `crews/` (CrewAI), `graphs/` (LangGraph workflows), `prompts/` (versioned `*.v<N>.md`). (No `tools/` subpackage yet — the tool layer lives in `core/neo4j/`: citation resolver + graph queries.)
 - `agentsapi/` — DRF routers + Channels consumers at `/api/agents/*` (real-time agent streaming over WebSockets).
 - `analysis/` `/api/analysis`, `graph/` `/api/graph/*`, `lsat/` `/api/lsat/*` — feature backends.
 - `ingestionapp/` — quarantine ORM models + Celery ingestion tasks + source clients.

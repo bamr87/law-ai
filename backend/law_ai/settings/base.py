@@ -285,6 +285,16 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ("law_ai.core.auth.ApiKeyAuthentication",),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "UNAUTHENTICATED_USER": None,
+    # Throttling (BL-20260810-11). LLM-invoking endpoints fan out to a single
+    # local Ollama with a 120 s timeout, and the auth gate is open by default
+    # on localhost — so one client (or a crawler) could otherwise starve every
+    # other user. Only the `llm` scope is applied, via ScopedRateThrottle on
+    # the endpoints that actually invoke a model; cheap read endpoints are
+    # deliberately unthrottled.
+    "DEFAULT_THROTTLE_CLASSES": (),
+    "DEFAULT_THROTTLE_RATES": {
+        "llm": env("LLM_THROTTLE_RATE", default="20/min"),
+    },
 }
 
 # Channels

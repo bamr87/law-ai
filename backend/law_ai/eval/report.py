@@ -25,31 +25,62 @@ from __future__ import annotations
 import json
 import logging
 import time
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from law_ai.eval.legalbench import LegalBenchConfig
 
-logger = logging.getLogger("law_ai.eval.report")
+from law_ai.eval.paths import BASELINE_PATH, HISTORY_PATH
 
-_CACHE_ROOT = Path("backend/var/legalbench")
+logger = logging.getLogger("law_ai.eval.report")
 
 
 def _load_baseline() -> dict[str, float] | None:
     """Return ``{subset: accuracy}`` from ``baseline.json`` or ``None`` if absent."""
-    baseline_path = _CACHE_ROOT / "baseline.json"
-    if not baseline_path.exists():
+    if not BASELINE_PATH.exists():
         return None
     try:
-        raw = json.loads(baseline_path.read_text(encoding="utf-8"))
-        # Accept both a flat dict and our full report format.
+        raw = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
+        # Accept the full report format, the `accuracies` envelope written by
+        # `update_baseline`, and a bare {subset: accuracy} mapping.
         if "subsets" in raw:
             return {row["subset"]: row["accuracy"] for row in raw["subsets"]}
+        if "accuracies" in raw:
+            return {k: float(v) for k, v in raw["accuracies"].items()}
         return {k: float(v) for k, v in raw.items()}
     except Exception as exc:
         logger.warning("Could not load baseline.json: %s", exc)
         return None
+
+
+def _append_history(report: dict[str, Any]) -> None:
+    """Append a compact per-run row to ``history.jsonl``.
+
+    Without this there was no score history at all — every run overwrote
+    nothing and informed nothing, so "accuracy over time" could not be
+    answered even in principle (BL-20260810-04).
+    """
+    row = {
+        "run_id": report.get("run_id"),
+        "timestamp": report.get("timestamp"),
+        "model": report.get("model"),
+        "accuracies": {r["subset"]: r["accuracy"] for r in report.get("subsets", [])},
+        "scored": {
+            r["subset"]: r.get("scored", r.get("n")) for r in report.get("subsets", [])
+        },
+        "errored": {
+            r["subset"]: r.get("errored", 0) for r in report.get("subsets", [])
+        },
+        "synthetic": {
+            r["subset"]: r.get("synthetic", False) for r in report.get("subsets", [])
+        },
+    }
+    try:
+        HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with HISTORY_PATH.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row, default=str) + "\n")
+    except Exception as exc:  # pragma: no cover - history is best-effort
+        logger.warning("could not append eval history: %s", exc)
 
 
 def write_report(
@@ -89,10 +120,14 @@ def write_report(
         "run_id": config.run_id,
         "model": config.model,
         "timestamp": timestamp,
+        # A run built from stub fixtures must never read as a measurement.
+        "synthetic": any(r.get("synthetic") for r in subset_results),
         "subsets": subset_results,
     }
     if delta:
         report["delta"] = delta
+
+    _append_history(report)
 
     if config.report_path:
         config.report_path.parent.mkdir(parents=True, exist_ok=True)

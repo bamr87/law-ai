@@ -1,10 +1,10 @@
 .PHONY: help setup dev down logs ps debug shell-backend shell-frontend manage \
 	test test-backend test-frontend test-coverage test-smoke test-specs \
-	test-integration test-legalbench \
+	test-integration test-legalbench test-legalbench-gate legalbench-baseline \
 	lint format typecheck migrate ingest \
 	evolve-audit lint-specs \
 	autonomy-run autonomy-status autonomy-stop \
-	local-ai-up local-ai-down local-ai-pull local-ai-health validate-claude-code \
+	local-ai-up local-ai-down local-ai-pull local-ai-verify local-ai-health validate-claude-code \
 	lsat-author-demo lsat-export legal-analyst-demo host-setup host-test clean
 
 # =============================================================================
@@ -141,7 +141,7 @@ test-specs:
 
 test-integration:
 	$(DC) up -d neo4j postgres redis --wait
-	@trap '$(DC) down' EXIT INT TERM; \
+	@trap '$(DC) stop neo4j postgres redis' EXIT INT TERM; \
 	  $(DC) run --rm \
 	    -e DATABASE_URL=postgresql://law_ai:law_ai-dev@postgres:5432/law_ai \
 	    -e NEO4J_URI=bolt://neo4j:7687 \
@@ -155,6 +155,20 @@ test-integration:
 
 test-legalbench:
 	$(RUN_BACKEND_FULL) python -m law_ai.eval.legalbench --subset core_reasoning,precedent_retrieval
+
+# CI form: fails the build when a listed subset drops more than 1 pp against
+# backend/var/legalbench/baseline.json (constitution §3). Exit codes are
+# distinct — 1 = regression, 2 = the eval could not run (Ollama down / model
+# not pulled), so a broken stack is never reported as a model regression.
+test-legalbench-gate:
+	$(RUN_BACKEND_FULL) python -m law_ai.eval.legalbench \
+		--subset core_reasoning,precedent_retrieval --check-regression
+
+# Record the current accuracies as the tracked baseline. Refuses to run
+# against synthetic stub fixtures — cache a real dataset first.
+legalbench-baseline:
+	$(RUN_BACKEND_FULL) python -m law_ai.eval.legalbench \
+		--subset core_reasoning,precedent_retrieval --update-baseline
 
 # ---------------------------------------------------------------------------
 # Quality (Docker-only)
@@ -197,10 +211,16 @@ local-ai-up:
 local-ai-down:
 	$(DC) stop ollama phoenix postgres redis neo4j
 
+# Pull the model set defined by OLLAMA_BOOTSTRAP_MODELS in the container —
+# reading it back rather than restating it here keeps this target and
+# ollama-bootstrap.sh from drifting apart (BL-20260810-12).
 local-ai-pull:
-	$(DC) exec ollama ollama pull mistral:7b-instruct-q4_K_M
-	$(DC) exec ollama ollama pull llama3.1:8b-instruct-q4_K_M
-	$(DC) exec ollama ollama pull nomic-embed-text
+	$(DC) exec ollama sh -c 'for m in $$OLLAMA_BOOTSTRAP_MODELS; do echo "pulling $$m"; ollama pull "$$m"; done'
+
+# Is the configured gate model actually present? (same check the container
+# healthcheck runs)
+local-ai-verify:
+	$(DC) exec ollama /scripts/ollama-healthcheck.sh && echo "gate model present"
 
 local-ai-health:
 	@curl -fsS http://localhost:8000/api/agents/health/local-ai | python3 -m json.tool

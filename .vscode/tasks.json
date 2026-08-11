@@ -2,7 +2,26 @@
   // All tasks run inside Docker via the Makefile. No host Python or Node
   // toolchain is required. See AGENTS.md "Docker-First Workflow" and the
   // Makefile for details. Pair with .vscode/launch.json (Docker attach).
+  //
+  // Note: there is no built-in `$pytest` problem matcher in VS Code —
+  // pytest tasks intentionally declare an empty matcher rather than a
+  // nonexistent one (which broke task resolution warnings and captured
+  // nothing).
   "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "pytestArgs",
+      "type": "promptString",
+      "description": "pytest args (e.g. tests/agents/test_legal_analyst.py::TestDefaultPath -q  |  -k citation)",
+      "default": "-q --tb=short"
+    },
+    {
+      "id": "manageCmd",
+      "type": "promptString",
+      "description": "Django manage.py command (e.g. migrate, lsat_export --out var/lsat_site)",
+      "default": "migrate"
+    }
+  ],
   "tasks": [
     {
       "label": "Docker: Start Full Stack",
@@ -18,7 +37,7 @@
     },
     {
       "label": "Docker: Start Full Stack (Debug)",
-      "detail": "Starts stack with debugpy/inspect ports exposed (5678 backend, 5679 worker, 9229 frontend)",
+      "detail": "Starts stack with debug ports (5678 backend, 5679 worker, 9229/9230 frontend) — then use launch.json attach configs",
       "type": "shell",
       "command": "make debug",
       "group": "build",
@@ -88,9 +107,7 @@
         "echo": true,
         "reveal": "always"
       },
-      "problemMatcher": [
-        "$pytest"
-      ]
+      "problemMatcher": []
     },
     {
       "label": "Docker: Backend Tests",
@@ -101,9 +118,19 @@
         "echo": true,
         "reveal": "always"
       },
-      "problemMatcher": [
-        "$pytest"
-      ]
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: Backend Single Test (prompt)",
+      "detail": "Run one backend test file/node/keyword inside the container. Start DBs first if the test touches Postgres/Neo4j.",
+      "type": "shell",
+      "command": "docker compose run --rm --no-deps backend pytest ${input:pytestArgs}",
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
     },
     {
       "label": "Docker: Frontend Tests",
@@ -136,9 +163,7 @@
         "echo": true,
         "reveal": "always"
       },
-      "problemMatcher": [
-        "$pytest"
-      ]
+      "problemMatcher": []
     },
     {
       "label": "Docker: LegalBench Eval",
@@ -156,6 +181,74 @@
       "type": "shell",
       "command": "make lint-specs",
       "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Evolve: Discovery Audit",
+      "detail": "python3 scripts/evolve_audit.py + spec/backlog validators (host stdlib only)",
+      "type": "shell",
+      "command": "make evolve-audit",
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Autonomy: Run Cycle (dry-run)",
+      "detail": "One autonomy cycle with --dry-run (requires AUTONOMY_ENABLED=True in .env to run for real)",
+      "type": "shell",
+      "command": "make autonomy-run KIND=test_pillar DRY_RUN=--dry-run",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Autonomy: Beat Status",
+      "type": "shell",
+      "command": "make autonomy-status",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "LSAT: Export Static Site Data",
+      "type": "shell",
+      "command": "make lsat-export",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Agents: LSAT Author Demo",
+      "type": "shell",
+      "command": "make lsat-author-demo",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Agents: Legal Analyst (IRAC) Demo",
+      "type": "shell",
+      "command": "make legal-analyst-demo",
+      "group": "build",
       "presentation": {
         "echo": true,
         "reveal": "always"
@@ -188,6 +281,17 @@
       "label": "Docker: Migrate",
       "type": "shell",
       "command": "make migrate",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: Manage.py (prompt)",
+      "type": "shell",
+      "command": "make manage CMD='${input:manageCmd}'",
       "group": "build",
       "presentation": {
         "echo": true,

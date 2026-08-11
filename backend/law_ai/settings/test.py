@@ -22,3 +22,12 @@ CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
 
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
+
+# Throttling is effectively disabled for the suite (BL-20260810-11): the API
+# tests fire many requests at the LLM-scoped endpoints in well under a
+# minute and would otherwise trip the production 20/min limit. Tests that
+# assert throttling behaviour override this rate explicitly.
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,  # noqa: F405
+    "DEFAULT_THROTTLE_RATES": {"llm": "100000/min"},
+}

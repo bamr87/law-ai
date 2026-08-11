@@ -16,6 +16,9 @@ from django.urls import path
 from pydantic import BaseModel, Field, ValidationError
 from rest_framework import status  # type: ignore[import-untyped]
 from rest_framework.response import Response  # type: ignore[import-untyped]
+from rest_framework.throttling import (  # type: ignore[import-untyped]
+    ScopedRateThrottle,
+)
 from rest_framework.views import APIView  # type: ignore[import-untyped]
 
 from law_ai.agents_runtime.crews.legal_analyst import IRACOutput, LegalAnalyst
@@ -23,6 +26,7 @@ from law_ai.agents_runtime.crews.precedent_hunter import (
     PrecedentHunter,
     PrecedentList,
 )
+from law_ai.agentsapi.consumers import stream_group
 from law_ai.core.auth import RequireAnalysis
 from law_ai.core.provenance import provenance
 
@@ -33,7 +37,18 @@ class AnalysisRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=20_000)
     jurisdiction: str | None = Field(default=None, max_length=64)
     case_id: str | None = Field(default=None, max_length=200)
-    use_langgraph: bool = Field(default=False)
+    # Spec 027: the retrieval-backed LangGraph/Ollama workflow is the DEFAULT
+    # engine. Pass false explicitly to reach the dev-time Claude Code path or
+    # the honest degraded stub.
+    use_langgraph: bool = Field(default=True)
+    # Spec 032: client-chosen correlation id. Subscribe to
+    # /ws/agents/<stream_id> BEFORE posting, and step events arrive as
+    # each agent finishes. Without it the group is keyed on the
+    # server-generated analysis id, which the client cannot know until the
+    # response arrives — i.e. too late to receive anything.
+    stream_id: str | None = Field(
+        default=None, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._-]+$"
+    )
 
 
 class AgentTraceEntry(BaseModel):
@@ -64,10 +79,13 @@ def _new_analysis_id() -> str:
 
 
 async def _emit_ws_event(
-    analysis_id: str,
+    stream_key: str,
     payload: dict[str, object],
 ) -> None:
-    """Send a progress event to the ``agent-run-{analysis_id}`` WS group.
+    """Send a progress event to the ``agent-run-{stream_key}`` WS group.
+
+    ``stream_key`` is the client's ``stream_id`` when supplied, so a client
+    that subscribed before posting actually receives these (spec 032).
 
     Fire-and-forget: if the channel layer is unavailable (no Redis, no
     subscriber), the error is logged but never re-raised so that a Redis
@@ -78,26 +96,24 @@ async def _emit_ws_event(
         if layer is None:
             return
         await layer.group_send(
-            f"agent-run-{analysis_id}",
+            # Shared helper so producer and consumer group names cannot drift.
+            stream_group(stream_key),
             {"type": "agent_event", "payload": payload},
         )
-        provenance.log_agent_call(  # type: ignore[no-untyped-call]
-            agent_name="AnalysisStudio",
-            input_data={
-                "event_type": "ws_event_sent",
+        # Transport bookkeeping, not an agent call: a distinct event type
+        # keeps agent metrics (latency/confidence/counts) unpolluted.
+        provenance.log_event(
+            "ws_event_sent",
+            {
                 "source": "analysis",
-                "analysis_id": analysis_id,
+                "analysis_id": stream_key,
                 "ws_event_type": str(payload.get("type")),
             },
-            output_data={},
-            model="channels",
-            latency_ms=0.0,
-            confidence=1.0,
         )
     except Exception:
         _logger.warning(
-            "WS event emit failed for analysis_id=%s",
-            analysis_id,
+            "WS event emit failed for stream_key=%s",
+            stream_key,
             exc_info=True,
         )
 
@@ -125,39 +141,63 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
         "use_langgraph": req.use_langgraph,
     }
     analysis_id = _new_analysis_id()
+    # Events go to the client's stream id when supplied; otherwise the
+    # analysis id keeps the old (undeliverable, but harmless) behaviour.
+    stream_key = req.stream_id or analysis_id
     started = time.perf_counter()
+
+    async def _run_step(
+        agent_name: str, awaitable: Awaitable[Any]
+    ) -> tuple[Any, float]:
+        """Await one agent and emit its step event *as it finishes*.
+
+        Emitting inside the gather is the point: the previous code awaited
+        both agents and only then sent every event, so even a subscribed
+        client received the whole trace at once, after the work was done.
+        """
+        result, elapsed_ms = await _timed(awaitable)
+        await _emit_ws_event(
+            stream_key,
+            {
+                "type": "agent_step",
+                "agent": agent_name,
+                "analysis_id": analysis_id,
+                "trace_id": getattr(result, "trace_id", None),
+                "latency_ms": round(elapsed_ms, 2),
+                "confidence": getattr(result, "confidence", 0.0),
+                "degraded": bool(getattr(result, "degraded", False)),
+            },
+        )
+        return result, elapsed_ms
+
     (irac, analyst_ms), (precedents, hunter_ms) = await asyncio.gather(
-        _timed(analyst.run(payload)),  # type: ignore[no-untyped-call]
-        _timed(hunter.run(payload)),  # type: ignore[no-untyped-call]
+        _run_step("LegalAnalyst", analyst.run(payload)),
+        _run_step("PrecedentHunter", hunter.run(payload)),
     )
     total_ms = (time.perf_counter() - started) * 1000.0
-    confidence = round((irac.confidence + precedents.confidence) / 2, 4)
-    requires_human_review = confidence < HITL_THRESHOLD or "Pending human review" in (
-        irac.conclusion or ""
+    # Degraded agents (unimplemented/offline paths) are excluded from the
+    # confidence mean — a fabricated-or-empty result must not drag a real
+    # agent's score up or down. No real contributions ⇒ confidence 0.0.
+    contributions = [
+        out.confidence
+        for out in (irac, precedents)
+        if not getattr(out, "degraded", False)
+    ]
+    confidence = (
+        round(sum(contributions) / len(contributions), 4) if contributions else 0.0
     )
-    # Emit WS step events — fire-and-forget. Redis failure is non-fatal (AC-2).
-    await _emit_ws_event(
-        analysis_id,
-        {
-            "type": "agent_step",
-            "agent": "LegalAnalyst",
-            "trace_id": irac.trace_id,
-            "latency_ms": round(analyst_ms, 2),
-            "confidence": irac.confidence,
-        },
+    # Structured flags, not prose string-matching: any degraded agent or an
+    # agent-level review flag forces HITL regardless of the confidence mean.
+    requires_human_review = (
+        confidence < HITL_THRESHOLD
+        or irac.degraded
+        or precedents.degraded
+        or irac.requires_review
     )
+    # Step events already fired as each agent finished (see _run_step); this
+    # is the terminal event. Fire-and-forget: Redis failure is non-fatal.
     await _emit_ws_event(
-        analysis_id,
-        {
-            "type": "agent_step",
-            "agent": "PrecedentHunter",
-            "trace_id": precedents.trace_id,
-            "latency_ms": round(hunter_ms, 2),
-            "confidence": precedents.confidence,
-        },
-    )
-    await _emit_ws_event(
-        analysis_id,
+        stream_key,
         {
             "type": "complete",
             "analysis_id": analysis_id,
@@ -165,12 +205,12 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
             "requires_human_review": requires_human_review,
         },
     )
-    irac_sources: list[Any] = list(irac.sources)  # type: ignore[no-untyped-call]
+    irac_sources: list[Any] = list(irac.sources)
     sources: list[dict[str, str]] = [
         {"title": str(s.get("title", "")), "url": str(s.get("url", ""))}
         for s in irac_sources
     ] + [{"title": p.title, "url": p.url} for p in precedents.precedents]
-    provenance.log_agent_call(  # type: ignore[no-untyped-call]
+    provenance.log_agent_call(
         agent_name="AnalysisStudio",
         input_data={
             "analysis_id": analysis_id,
@@ -218,6 +258,11 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
 
 class AnalysisView(APIView):
     permission_classes = [RequireAnalysis]
+    # BL-20260810-11: this endpoint fans out to Ollama (120 s timeout) on an
+    # open-by-default auth gate — throttle so one client cannot starve the
+    # single local model server for everyone.
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "llm"
 
     def post(self, request: Any, *args: Any, **kwargs: Any) -> Any:
         try:
@@ -229,7 +274,7 @@ class AnalysisView(APIView):
         try:
             body = async_to_sync(_run_analysis)(req)
         except Exception as exc:
-            provenance.log_agent_call(  # type: ignore[no-untyped-call]
+            provenance.log_agent_call(
                 agent_name="AnalysisStudio",
                 input_data={
                     "jurisdiction": req.jurisdiction,

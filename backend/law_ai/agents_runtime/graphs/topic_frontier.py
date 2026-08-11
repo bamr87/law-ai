@@ -1,14 +1,14 @@
-"""TopicFrontier — 4-node sequential workflow (spec 018 T-007).
+"""TopicFrontier — 4-node LangGraph workflow (spec 018 T-007, spec 027).
 
 Nodes:
 
     scan_graph → prioritize → dispatch → summarize
 
-Note: Despite the module name referring to "LangGraph", this workflow uses
-direct sequential async execution (``await _node_*(state)``) rather than a
-``langgraph.graph.StateGraph`` with compiled edges.  A future spec will
-migrate to a proper StateGraph to gain retries, conditional branching, and
-checkpointing (tracked as a BACKLOG follow-up).
+Spec 027 made this a real compiled ``langgraph.graph.StateGraph`` (the
+sequential claim in spec 018 was aspirational until then). When the
+``local-ai`` extra is not installed the workflow degrades to direct
+sequential async execution of the same node functions, so a bare install
+still runs autonomy cycles.
 
 ``scan_graph``   reads two Cypher helpers (``list_orphan_citations``,
                  ``list_under_cited_jurisdictions``) and populates the
@@ -39,14 +39,13 @@ import json
 import logging
 import secrets
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 from typing import Any, TypedDict
 
 from pydantic import BaseModel, Field
 
 from law_ai.core import audit_jsonl
+from law_ai.core.provenance import provenance
 from law_ai.core.settings_proxy import settings_proxy as settings
 
 logger = logging.getLogger("law_ai.graphs.topic_frontier")
@@ -116,23 +115,19 @@ def _load_prompt() -> str:
 
 
 def _call_ollama(prompt: str, *, model: str, base_url: str, timeout: int = 120) -> str:
-    """Call Ollama ``/api/generate`` and return the raw text response.
+    """Generate text via the shared LangChain transport (spec 027).
 
-    Raises :class:`RuntimeError` on network failure so callers can fall back
-    gracefully.
+    Same name + signature + ``RuntimeError`` contract as the old raw-urllib
+    implementation (the DI seam ``ollama_caller`` and tests rely on it), but
+    the call now goes through the retry-wrapped shared ``ChatOllama``.
     """
-    payload = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode()
-    req = urllib.request.Request(
-        f"{base_url.rstrip('/')}/api/generate",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
+    from law_ai.agents_runtime.llm import generate_text_sync
+
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            body = json.loads(resp.read())
-            return str(body.get("response", ""))
-    except urllib.error.URLError as exc:
+        return generate_text_sync(
+            prompt, model=model, base_url=base_url, timeout_s=float(timeout)
+        )
+    except Exception as exc:
         raise RuntimeError(f"Ollama unreachable at {base_url}: {exc}") from exc
 
 
@@ -278,13 +273,31 @@ async def _node_prioritize(
     model: str = settings.OLLAMA_DEFAULT_MODEL
     base_url: str = settings.OLLAMA_BASE_URL
 
+    llm_started = time.monotonic()
     if ollama_caller is not None:
         raw = ollama_caller(full_prompt, model=model, base_url=base_url)
     else:
         raw = _call_ollama(full_prompt, model=model, base_url=base_url)
+    llm_latency_ms = (time.monotonic() - llm_started) * 1000.0
 
     targets = _parse_targets(raw)
 
+    # Constitution §4: the LLM call itself goes through core.provenance
+    # (model + latency + reproducible input hash), not just the summary
+    # event below.
+    provenance.log_agent_call(
+        agent_name="TopicFrontier.prioritize",
+        input_data={
+            "trace_id": state.get("trace_id", ""),
+            "orphan_citations_count": len(state.get("orphan_citations", [])),
+            "under_cited_count": len(state.get("under_cited_jurisdictions", [])),
+        },
+        output_data={"targets": targets},
+        model=model,
+        latency_ms=llm_latency_ms,
+        prompt_id="topic_frontier_prioritize",
+        prompt_version=PROMPT_VERSION,
+    )
     audit_jsonl.record(
         {
             "type": "topic_frontier.prioritize",
@@ -310,12 +323,12 @@ async def _node_dispatch(
     if registry is None:
         from law_ai.ingestionapp.sources import SOURCE_REGISTRY
 
-        registry = SOURCE_REGISTRY  # type: ignore[assignment]
+        registry = SOURCE_REGISTRY
 
     if scout_factory is None:
         from law_ai.ingestionapp.services.scout import IngestionScout
 
-        scout_factory = IngestionScout  # type: ignore[assignment]
+        scout_factory = IngestionScout
 
     dispatched: list[dict[str, Any]] = []
     human_approval_required = False
@@ -403,8 +416,60 @@ class TopicFrontier:
         self._registry = registry
         self._scout_factory = scout_factory
 
+    def _build_graph(self) -> Any:
+        """Compile the real LangGraph ``StateGraph`` (spec 027).
+
+        Node functions keep their DI-kwarg signatures for direct unit
+        testing; thin async closures bind the injected collaborators so each
+        graph node takes only ``state``.
+
+        Raises:
+            ImportError: when the ``local-ai`` extra (langgraph) is missing —
+                ``run`` falls back to sequential execution.
+        """
+        from langgraph.graph import END, StateGraph
+
+        async def scan_graph(state: TopicFrontierState) -> TopicFrontierState:
+            return await _node_scan_graph(
+                state, neo4j_session_factory=self._neo4j_session_factory
+            )
+
+        async def prioritize(state: TopicFrontierState) -> TopicFrontierState:
+            return await _node_prioritize(state, ollama_caller=self._ollama_caller)
+
+        async def dispatch(state: TopicFrontierState) -> TopicFrontierState:
+            return await _node_dispatch(
+                state, registry=self._registry, scout_factory=self._scout_factory
+            )
+
+        builder: Any = StateGraph(TopicFrontierState)
+        builder.add_node("scan_graph", scan_graph)
+        builder.add_node("prioritize", prioritize)
+        builder.add_node("dispatch", dispatch)
+        builder.add_node("summarize", _node_summarize)
+        builder.set_entry_point("scan_graph")
+        builder.add_edge("scan_graph", "prioritize")
+        builder.add_edge("prioritize", "dispatch")
+        builder.add_edge("dispatch", "summarize")
+        builder.add_edge("summarize", END)
+        return builder.compile()
+
+    async def _run_sequential(self, state: TopicFrontierState) -> TopicFrontierState:
+        """Fallback path for bare installs without the ``local-ai`` extra."""
+        state = await _node_scan_graph(
+            state, neo4j_session_factory=self._neo4j_session_factory
+        )
+        state = await _node_prioritize(state, ollama_caller=self._ollama_caller)
+        state = await _node_dispatch(
+            state, registry=self._registry, scout_factory=self._scout_factory
+        )
+        return await _node_summarize(state)
+
     async def run(self, *, trace_id: str | None = None) -> TopicFrontierOutput:
-        """Execute all 4 nodes in sequence and return :class:`TopicFrontierOutput`.
+        """Execute the 4-node graph and return :class:`TopicFrontierOutput`.
+
+        Uses the compiled LangGraph ``StateGraph`` when available; degrades
+        to sequential execution of the same nodes on bare installs.
 
         Example::
 
@@ -425,14 +490,13 @@ class TopicFrontier:
             "latency_ms": 0.0,
         }
 
-        state = await _node_scan_graph(
-            state, neo4j_session_factory=self._neo4j_session_factory
-        )
-        state = await _node_prioritize(state, ollama_caller=self._ollama_caller)
-        state = await _node_dispatch(
-            state, registry=self._registry, scout_factory=self._scout_factory
-        )
-        state = await _node_summarize(state)
+        try:
+            graph = self._build_graph()
+        except ImportError:
+            logger.info("topic_frontier: langgraph unavailable, running sequentially")
+            state = await self._run_sequential(state)
+        else:
+            state = await graph.ainvoke(state)
 
         latency_ms = (time.monotonic() - t0) * 1000.0
         return TopicFrontierOutput(

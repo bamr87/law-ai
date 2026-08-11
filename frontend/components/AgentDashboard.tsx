@@ -1033,7 +1033,8 @@ function AgentLaunchModal({
 }) {
   const [text, setText] = useState('')
   const [jurisdiction, setJurisdiction] = useState('')
-  const [useLangGraph, setUseLangGraph] = useState(false)
+  // Spec 027: the LangGraph + Ollama workflow is the default engine.
+  const [useLangGraph, setUseLangGraph] = useState(true)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [resultTrace, setResultTrace] = useState<string | null>(null)
@@ -1058,7 +1059,7 @@ function AgentLaunchModal({
       const irac = resp.irac
       setResult(
         [
-          `Mode: ${useLangGraph ? 'LangGraph (real Ollama)' : 'legacy stub'}`,
+          `Mode: ${useLangGraph ? 'LangGraph (real Ollama)' : 'no-engine stub (degraded)'}`,
           `Issue: ${irac.issue}`,
           `Rule: ${irac.rule}`,
           `Application: ${irac.application}`,

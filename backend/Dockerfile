@@ -14,8 +14,12 @@ COPY pyproject.toml README.md ./
 COPY law_ai ./law_ai
 COPY manage.py ./
 
-# Install Python dependencies (editable install requires law_ai/ + README.md to exist)
-RUN pip install --no-cache-dir -e ".[dev,local-ai]"
+# Install Python dependencies (editable install requires law_ai/ + README.md
+# to exist). BuildKit cache mount keeps pip's download/wheel cache across
+# rebuilds: law_ai/ is COPYied above, so any code change invalidates this
+# layer — the cache turns those reinstalls from a multi-GB download into a
+# local re-link.
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e ".[dev,local-ai]"
 
 # Copy the rest of the application code (tests, scripts, etc.)
 COPY . .
@@ -23,8 +27,10 @@ COPY . .
 # Expose port
 EXPOSE 8000
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+# Healthcheck (compose overrides this with its own gated check; the
+# start-period covers the collectstatic+migrate+checkpointer boot chain
+# for standalone `docker run` use).
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Spec 011: Django ASGI via daphne. Migrations + checkpointer schema run

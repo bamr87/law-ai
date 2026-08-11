@@ -1,12 +1,88 @@
 'use client'
 
 import AgentTrace from '@/components/AgentTrace'
+import { LegalDisclaimerBanner } from '@/components/LegalDisclaimer'
+import {
+  newStreamId,
+  openAgentStream,
+  type AgentStepEvent,
+} from '@/lib/agentStream'
 import {
   runAnalysis,
   type AnalysisRequest,
   type AnalysisResponse,
 } from '@/lib/api'
 import { useCallback, useState } from 'react'
+
+const HITL_THRESHOLD = 0.7
+
+/**
+ * Agents reporting in as they finish (spec 032). Renders nothing until the
+ * first event lands, so a failed socket degrades to the plain skeleton
+ * rather than showing an empty "live" panel that never fills.
+ */
+function LiveTrace({ steps }: { steps: AgentStepEvent[] }) {
+  if (steps.length === 0) return null
+  return (
+    <section
+      aria-labelledby="live-trace-heading"
+      aria-live="polite"
+      className="rounded-lg border border-indigo-500/30 bg-indigo-500/5 px-4 py-3"
+    >
+      <h2
+        id="live-trace-heading"
+        className="mb-2 text-xs uppercase tracking-wider text-indigo-300"
+      >
+        Agents reporting
+      </h2>
+      <ul className="space-y-1 text-sm text-slate-300">
+        {steps.map((step) => (
+          <li key={`${step.agent}-${step.trace_id ?? ''}`} className="flex gap-2">
+            <span aria-hidden="true">✓</span>
+            <span className="font-medium text-slate-200">{step.agent}</span>
+            <span className="text-slate-500">
+              {Math.round(step.latency_ms)} ms
+            </span>
+            {step.degraded && (
+              <span className="text-amber-300">degraded — no engine ran</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/**
+ * Explain why review is required using the STRUCTURED flags the backend
+ * now returns. The banner previously asserted "confidence is below the 70%
+ * threshold" unconditionally, which is wrong whenever a degraded agent or
+ * an unresolved citation triggered the flag instead.
+ */
+function reviewReason(result: AnalysisResponse): string {
+  if (result.irac.degraded) {
+    return (
+      'No analysis engine ran for this request, so the output below is a ' +
+      'placeholder — not a legal analysis. Do not rely on it.'
+    )
+  }
+  if (result.precedents.degraded) {
+    return (
+      'Precedent search did not run, so no supporting authority was ' +
+      'retrieved. Absence here does not mean no precedent exists.'
+    )
+  }
+  if (result.irac.requires_review) {
+    return (
+      'The cited authorities could not all be verified against the ' +
+      'knowledge graph. Check each citation before relying on it.'
+    )
+  }
+  return (
+    `Overall confidence ${Math.round(result.confidence * 100)}% is below the ` +
+    `${Math.round(HITL_THRESHOLD * 100)}% threshold. Treat this as a draft.`
+  )
+}
 
 const SAMPLE: AnalysisRequest = {
   text:
@@ -33,25 +109,50 @@ const MAX_LEN = 20_000
 export default function AnalysisStudio() {
   const [text, setText] = useState('')
   const [jurisdiction, setJurisdiction] = useState('')
-  const [useLanggraph, setUseLanggraph] = useState(false)
+  // Spec 027: the LangGraph + Ollama workflow is the default engine.
+  const [useLanggraph, setUseLanggraph] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AnalysisResponse | null>(null)
+  const [liveSteps, setLiveSteps] = useState<AgentStepEvent[]>([])
 
   const submit = useCallback(async () => {
     if (!text.trim() || submitting) return
     setSubmitting(true)
     setError(null)
+    setLiveSteps([])
+
+    // Spec 032: subscribe BEFORE posting. `openAgentStream` resolves on the
+    // server's `ready`, so by the time we POST the group membership exists
+    // and step events land as each agent finishes. Streaming is strictly an
+    // enhancement — if the socket fails we still run the analysis and the
+    // REST response remains authoritative.
+    const streamId = newStreamId()
+    let socket: WebSocket | null = null
+    try {
+      socket = await openAgentStream(streamId, (event) => {
+        if (event.type === 'agent_step') {
+          setLiveSteps((prev) => [...prev, event])
+        }
+      })
+    } catch {
+      socket = null
+    }
+
     try {
       const body = await runAnalysis({
         text,
         jurisdiction: jurisdiction || undefined,
-        use_langgraph: useLanggraph || undefined,
+        // Explicit boolean: the server defaults to true, so an omitted flag
+        // would silently re-enable the engine when the user opted out.
+        use_langgraph: useLanggraph,
+        ...(socket ? { stream_id: streamId } : {}),
       })
       setResult(body)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Analysis failed')
     } finally {
+      socket?.close()
       setSubmitting(false)
     }
   }, [text, jurisdiction, useLanggraph, submitting])
@@ -163,9 +264,11 @@ export default function AnalysisStudio() {
         </div>
       )}
 
+      {submitting && <LiveTrace steps={liveSteps} />}
       {submitting && <SkeletonResult />}
 
       {result && !submitting && <ResultPanel result={result} />}
+      {!result && !submitting && <LegalDisclaimerBanner className="mt-6" />}
     </div>
   )
 }
@@ -211,11 +314,36 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
           role="alert"
           className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
         >
-          <strong className="font-semibold">Human review recommended.</strong>{' '}
-          Overall confidence{' '}
-          {Math.round(result.confidence * 100)}% is below the 70% HITL
-          threshold. Treat this output as a draft.
+          <strong className="font-semibold">Human review required.</strong>{' '}
+          {reviewReason(result)}
         </div>
+      )}
+
+      {/* UPL guardrail (BL-20260810-07): sits directly above generated
+          analysis, where over-reliance is most likely. */}
+      <LegalDisclaimerBanner />
+
+      {result.irac.retrieval && (
+        <section
+          aria-labelledby="coverage-heading"
+          className="rounded-lg border border-slate-800 bg-slate-900/40 px-4 py-3 text-xs text-slate-400"
+        >
+          <h2
+            id="coverage-heading"
+            className="mb-1 text-xs uppercase tracking-wider text-slate-500"
+          >
+            Corpus coverage
+          </h2>
+          <p className="text-slate-300">
+            {result.irac.retrieval.coverage_note ||
+              `${result.irac.retrieval.result_count} passage(s) retrieved.`}
+          </p>
+          {result.irac.retrieval.queries.length > 0 && (
+            <p className="mt-1 text-slate-500">
+              Searched: {result.irac.retrieval.queries.join(' · ')}
+            </p>
+          )}
+        </section>
       )}
 
       {/* IRAC card */}
@@ -244,7 +372,7 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
             </h3>
             <ul className="space-y-1 text-sm">
               {result.irac.sources.map((s, i) => (
-                <li key={i}>
+                <li key={i} className="flex flex-wrap items-center gap-2">
                   {s.url ? (
                     <a
                       href={String(s.url)}
@@ -256,6 +384,22 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
                     </a>
                   ) : (
                     <span className="text-slate-300">{String(s.title)}</span>
+                  )}
+                  {/* BL-20260810-02: an unresolved citation is exactly what a
+                      reviewer must inspect, so it is labelled rather than
+                      hidden. `verified` absent ⇒ path predates the check. */}
+                  {s.verified === true && (
+                    <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[11px] text-emerald-300">
+                      verified in graph
+                    </span>
+                  )}
+                  {s.verified === false && (
+                    <span
+                      title="This authority could not be resolved against the knowledge graph — verify it against the official record before relying on it."
+                      className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] text-amber-300"
+                    >
+                      unverified
+                    </span>
                   )}
                 </li>
               ))}

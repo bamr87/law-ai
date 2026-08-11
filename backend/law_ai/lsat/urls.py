@@ -13,6 +13,7 @@ from pydantic import BaseModel, ValidationError
 from rest_framework import status
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from law_ai.core import audit_jsonl as audit_store
@@ -264,6 +265,10 @@ class StatsView(_Base):
 
 
 class TutorView(_Base):
+    # BL-20260810-11: the only LSAT endpoint that invokes an LLM.
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "llm"
+
     def post(self, request, *args, **kwargs):
         try:
             req = TutorRequest.model_validate(request.data)

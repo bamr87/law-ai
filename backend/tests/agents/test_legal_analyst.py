@@ -23,18 +23,77 @@ def _irac_payload(confidence: float = 0.85) -> str:
 
 class TestDefaultPath:
     @pytest.mark.asyncio
-    async def test_returns_mock_without_calling_claude(self) -> None:
+    async def test_returns_honest_degraded_output_without_calling_claude(
+        self,
+    ) -> None:
+        """Default path fabricates nothing: degraded, confidence 0, HITL forced."""
         from law_ai.agents_runtime.crews import legal_analyst as mod
 
         agent = mod.LegalAnalyst()
         with (
             patch.object(mod.claude_code, "is_active", return_value=False),
             patch.object(mod.claude_code, "generate", new=AsyncMock()) as gen,
-            patch.object(mod.provenance, "log_agent_call", return_value="t"),
+            patch.object(mod.provenance, "log_agent_call", return_value="t") as log,
         ):
-            out = await agent.run({"question": "x"})
+            out = await agent.run({"question": "Is a clickwrap clause binding?"})
         assert gen.await_count == 0  # default path must not touch Claude Code
-        assert out.issue  # static mock IRAC still populated
+        assert out.degraded is True
+        assert out.requires_review is True
+        assert out.confidence == 0.0
+        assert out.sources == []  # never invent authorities
+        assert "NOT IMPLEMENTED" in out.rule
+        # The audit trail must not attribute this to a real model.
+        assert log.call_args.kwargs["model"] == "degraded/not-implemented"
+
+
+class TestLangGraphDefaultEngine:
+    """Spec 027: LangGraph is the default engine with a resilience boundary."""
+
+    @pytest.mark.asyncio
+    async def test_probe_failure_degrades_instead_of_raising(self) -> None:
+        from law_ai.agents_runtime import llm
+        from law_ai.agents_runtime.crews import legal_analyst as mod
+
+        agent = mod.LegalAnalyst()
+        with (
+            patch.object(
+                llm, "ollama_available_async", new=AsyncMock(return_value=False)
+            ),
+            patch.object(mod.provenance, "log_agent_call", return_value="t") as log,
+        ):
+            out = await agent.run({"text": "Is X liable?", "use_langgraph": True})
+        assert out.degraded is True
+        assert out.requires_review is True
+        assert out.confidence == 0.0
+        assert "ENGINE UNAVAILABLE" in out.rule
+        assert log.call_args.kwargs["model"] == "fallback/offline"
+
+    @pytest.mark.asyncio
+    async def test_workflow_crash_degrades_instead_of_raising(self) -> None:
+        from law_ai.agents_runtime import llm
+        from law_ai.agents_runtime.crews import legal_analyst as mod
+        from law_ai.agents_runtime.graphs import LegalWorkflow
+
+        agent = mod.LegalAnalyst()
+        with (
+            patch.object(
+                llm, "ollama_available_async", new=AsyncMock(return_value=True)
+            ),
+            patch.object(
+                LegalWorkflow, "invoke", new=AsyncMock(side_effect=OSError("boom"))
+            ),
+            patch.object(mod.provenance, "log_agent_call", return_value="t") as log,
+        ):
+            out = await agent.run({"text": "Is X liable?", "use_langgraph": True})
+        assert out.degraded is True
+        assert out.confidence == 0.0
+        assert "OSError" in out.rule
+        assert log.call_args.kwargs["model"] == "fallback/offline"
+
+    def test_analysis_request_defaults_to_langgraph(self) -> None:
+        from law_ai.analysis.urls import AnalysisRequest
+
+        assert AnalysisRequest(text="x").use_langgraph is True
 
 
 class TestViaClaudeCode:
