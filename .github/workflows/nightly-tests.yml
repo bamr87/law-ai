@@ -92,9 +92,23 @@ jobs:
       # ------------------------------------------------------------------
       # LegalBench regression eval.
       # ------------------------------------------------------------------
-      - name: Run LegalBench eval
+      # Gating form (spec 031): exit 1 on a >1 pp drop vs baseline.json,
+      # exit 2 when the eval could not run at all (Ollama down / model not
+      # pulled) — previously an unreachable model scored every item wrong
+      # and reported a cheerful accuracy of 0.0.
+      - name: Run LegalBench eval (regression gate)
         if: ${{ !inputs.dry_run }}
-        run: make test-legalbench
+        run: make test-legalbench-gate
+
+      - name: Upload LegalBench reports + score history
+        if: ${{ !inputs.dry_run && always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: legalbench-${{ github.run_id }}
+          path: |
+            backend/var/legalbench/*.json
+            backend/var/legalbench/history.jsonl
+          retention-days: 90
 
       # ------------------------------------------------------------------
       # Spec / BACKLOG validators (host stdlib only — no container needed).
@@ -139,6 +153,12 @@ jobs:
       # ------------------------------------------------------------------
       - name: Run autonomy test synthesis
         if: ${{ !inputs.dry_run }}
+        # AUTONOMY_ENABLED must be set explicitly here: compose defaults it to
+        # False (constitution §12 I3 kill-switch), so without this env the
+        # synthesis step was a silent no-op on every scheduled run.
+        # test_pillar needs no source allow-list (that gates corpus_growth).
+        env:
+          AUTONOMY_ENABLED: "True"
         run: make autonomy-run KIND=test_pillar
 
       # ------------------------------------------------------------------

@@ -25,9 +25,9 @@ import logging
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger("law_ai.eval.loaders")
+from law_ai.eval.paths import subset_cache_path
 
-_CACHE_ROOT = Path("backend/var/legalbench")
+logger = logging.getLogger("law_ai.eval.loaders")
 
 # ---------------------------------------------------------------------------
 # Synthetic stubs used when no cache file is present (unit-test friendly)
@@ -105,7 +105,7 @@ def load_task(subset: str, *, limit: int | None = None) -> list[dict[str, Any]]:
             f"Unknown subset {subset!r}. Allowed: {sorted(ALLOWED_SUBSETS)}"
         )
 
-    cache_path = _CACHE_ROOT / subset / "items.jsonl"
+    cache_path = subset_cache_path(subset)
     if cache_path.exists():
         items = _load_jsonl(cache_path)
         logger.debug("Loaded %d items from cache: %s", len(items), cache_path)
@@ -113,8 +113,9 @@ def load_task(subset: str, *, limit: int | None = None) -> list[dict[str, Any]]:
         items = list(_SYNTHETIC_STUBS.get(subset, []))
         logger.warning(
             "Cache file missing for subset %r (%s). "
-            "Using %d synthetic stub(s). "
-            "Run scripts to populate real data or place items.jsonl at %s.",
+            "Using %d synthetic stub(s) — these are smoke-test fixtures, NOT "
+            "LegalBench data, and any accuracy computed from them is "
+            "meaningless as a quality signal. Place real items.jsonl at %s.",
             subset,
             cache_path,
             len(items),
@@ -124,6 +125,15 @@ def load_task(subset: str, *, limit: int | None = None) -> list[dict[str, Any]]:
     if limit is not None:
         items = items[:limit]
     return items
+
+
+def is_synthetic(subset: str) -> bool:
+    """True when ``subset`` has no cached data and would fall back to stubs.
+
+    The harness records this on every report so a run against smoke-test
+    fixtures can never be mistaken for a real LegalBench measurement.
+    """
+    return not subset_cache_path(subset).exists()
 
 
 def _load_jsonl(path: Path) -> list[dict[str, Any]]:

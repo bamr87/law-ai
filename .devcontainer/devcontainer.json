@@ -1,0 +1,60 @@
+{
+  // Dev Container for Law AI (BL-20260810-09).
+  //
+  // Why: AGENTS.md forbids running pytest/ruff/mypy/npm on the host, but the
+  // VS Code Python and ESLint extensions need an interpreter and a
+  // node_modules to give IntelliSense, test discovery, and inline lint. That
+  // left editor tooling either broken or quietly violating the Docker-first
+  // rule. Attaching the editor to the *same* compose service the Makefile
+  // uses resolves both: one Python 3.12 environment, one node_modules, and
+  // the same image CI builds.
+  //
+  // Usage: "Dev Containers: Reopen in Container". The `backend` service
+  // starts its dependencies (postgres/neo4j/redis) via depends_on, so a
+  // terminal in here can run pytest against real databases immediately.
+  "name": "Law AI (backend)",
+  "dockerComposeFile": ["../docker-compose.yml"],
+  "service": "backend",
+  "workspaceFolder": "/app",
+  // Keep the container alive for the editor: the compose command runs
+  // daphne, which we do not want owning the dev-container lifecycle.
+  "overrideCommand": true,
+  "shutdownAction": "stopCompose",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.debugpy",
+        "ms-python.black-formatter",
+        "charliermarsh.ruff",
+        "ms-python.mypy-type-checker",
+        "redhat.vscode-yaml",
+        "tamasfe.even-better-toml",
+        "github.copilot",
+        "github.copilot-chat",
+        "anthropic.claude-code"
+      ],
+      "settings": {
+        // The image installs the package with `pip install -e`, so the
+        // system interpreter IS the project environment — no venv.
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        // pytest.ini at the repo root drives the orchestrator suite; the
+        // real backend suite is rooted here (see backend/pyproject.toml).
+        "python.testing.pytestArgs": ["tests"],
+        "python.analysis.typeCheckingMode": "strict"
+      }
+    }
+  },
+
+  // The repo root is mounted at /repo by the compose service (autonomy reads
+  // BACKLOG.md + specs/ from there), so both trees are reachable in-editor.
+  "remoteEnv": {
+    "REPO_ROOT": "/repo",
+    // Tests must never hit the live tracing collector.
+    "PHOENIX_COLLECTOR_ENDPOINT": ""
+  }
+}

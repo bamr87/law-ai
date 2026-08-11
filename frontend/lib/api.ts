@@ -29,13 +29,37 @@ export const agentFetch = apiFetch
 
 // --- Analysis Studio (spec 007) ---
 
+/** Retrieval coverage envelope (constitution §13 "absence is reported"). */
+export interface RetrievalStats {
+  queries: string[]
+  result_count: number
+  lexical_count?: number
+  expanded_count?: number
+  jurisdiction_requested?: string | null
+  jurisdictions_present?: string[]
+  jurisdiction_absent?: boolean
+  coverage_note?: string
+}
+
 export interface IRACOutput {
   issue: string
   rule: string
   application: string
   conclusion: string
-  sources: { title?: string; url?: string; [k: string]: unknown }[]
+  sources: {
+    title?: string
+    url?: string
+    /** False when the citation could not be resolved against the graph. */
+    verified?: boolean
+    resolved_case_id?: string | null
+    [k: string]: unknown
+  }[]
   confidence: number
+  /** True when no real analysis ran (unimplemented/offline/engine down). */
+  degraded?: boolean
+  /** Structured HITL flag — not inferred from prose. */
+  requires_review?: boolean
+  retrieval?: RetrievalStats | null
   reasoning_trace: string[]
   trace_id?: string | null
 }
@@ -54,6 +78,8 @@ export interface PrecedentList {
   precedents: Precedent[]
   summary: string
   confidence: number
+  /** True when no real retrieval ran — never present as search results. */
+  degraded?: boolean
   trace_id?: string | null
 }
 

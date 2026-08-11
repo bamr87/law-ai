@@ -83,6 +83,15 @@ backend/var/lsat_factory/
 # lives at frontend/public/lsat-practice/data/)
 backend/var/lsat_site/
 
+# LegalBench run artifacts (spec 031 — per-run reports and the append-only
+# score history are runtime state; CI keeps them as artifacts instead).
+# baseline.json is deliberately NOT ignored: it is the tracked reference
+# the regression gate compares against. LICENSES.md stays tracked too.
+backend/var/legalbench/*.json
+!backend/var/legalbench/baseline.json
+backend/var/legalbench/history.jsonl
+backend/var/legalbench/*/items.jsonl
+
 # Playwright MCP session artifacts (screenshots, snapshots)
 .playwright-mcp/
 

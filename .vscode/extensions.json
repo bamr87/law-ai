@@ -1,7 +1,11 @@
 {
+  // Sanctioned AI dev surfaces ONLY (AGENTS.md § Development Orchestration):
+  // GitHub Copilot + Claude Code. Do NOT add Cursor/Continue/Aider/Codex/
+  // Gemini extensions here — CI and review reject their config files.
   "recommendations": [
     "ms-python.python",
     "ms-python.vscode-pylance",
+    "ms-python.debugpy",
     "ms-python.black-formatter",
     "charliermarsh.ruff",
     "ms-python.mypy-type-checker",
@@ -12,13 +16,15 @@
     "ms-vscode-remote.remote-containers",
     "github.copilot",
     "github.copilot-chat",
-    "continue.continue",
+    "anthropic.claude-code",
     "ms-vscode.vscode-typescript-next",
     "redhat.vscode-yaml",
     "tamasfe.even-better-toml",
     "davidanson.vscode-markdownlint",
     "yzhang.markdown-all-in-one",
-    "neo4j-extensions.neo4j-vscode-extension",
     "ms-vscode.makefile-tools"
+  ],
+  "unwantedRecommendations": [
+    "continue.continue"
   ]
 }

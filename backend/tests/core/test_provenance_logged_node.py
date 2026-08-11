@@ -81,3 +81,50 @@ async def test_logged_node_returns_uuid_when_no_otel(audit_path: Path) -> None:
     trace_id = events[0]["trace_id"]
     # UUID4 is 36 chars with dashes; OTEL trace ids are 32 hex chars.
     assert len(trace_id) in (32, 36)
+
+
+@pytest.mark.asyncio
+async def test_logged_node_hashes_state_not_self_for_bound_methods(
+    audit_path: Path,
+) -> None:
+    """Bound methods (self, state): input_hash must cover the STATE.
+
+    Regression: the wrapper used ``args[0]`` — the instance — whose repr
+    includes a memory address, making every input_hash non-reproducible and
+    information-free.
+    """
+
+    class Workflow:
+        @logged_node("analyze")
+        async def analyze(self, state: dict) -> dict:
+            return {"answer": "x"}
+
+    state = {"question": "is a clickwrap clause binding?"}
+    await Workflow().analyze(state)
+    await Workflow().analyze(state)  # different instance, same state
+
+    events = [json.loads(line) for line in audit_path.read_text().splitlines()]
+    assert len(events) == 2
+    # Same state ⇒ same reproducible hash, regardless of instance identity.
+    assert events[0]["input_hash"] == events[1]["input_hash"]
+    assert events[0]["input_hash"] == _stable_hash(state)
+
+
+def test_log_agent_call_input_hash_is_stable(audit_path: Path) -> None:
+    """agent_call input_hash uses _stable_hash, not Python's salted hash()."""
+    from law_ai.core.provenance import provenance
+
+    input_data = {"question": "q", "jurisdiction": "US"}
+    provenance.log_agent_call("A", input_data, {"ok": 1}, "m", 1.0)
+    events = [json.loads(line) for line in audit_path.read_text().splitlines()]
+    assert events[-1]["input_hash"] == _stable_hash(input_data)
+
+
+def test_log_event_uses_distinct_type(audit_path: Path) -> None:
+    """log_event records the given type — never 'agent_call'."""
+    from law_ai.core.provenance import provenance
+
+    provenance.log_event("ws_event_sent", {"analysis_id": "an-1"})
+    events = [json.loads(line) for line in audit_path.read_text().splitlines()]
+    assert events[-1]["type"] == "ws_event_sent"
+    assert events[-1]["analysis_id"] == "an-1"

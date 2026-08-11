@@ -6,9 +6,15 @@ set +e
 
 branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
 have() { command -v "$1" >/dev/null 2>&1 && echo yes || echo no; }
+# `timeout` is GNU coreutils — absent on stock macOS, which made this check
+# always report the daemon as down there. Use it only when available.
 docker_up="no"
-if command -v docker >/dev/null 2>&1 && timeout 8 docker info >/dev/null 2>&1; then
-  docker_up="yes"
+if command -v docker >/dev/null 2>&1; then
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 8 docker info >/dev/null 2>&1 && docker_up="yes"
+  else
+    docker info >/dev/null 2>&1 && docker_up="yes"
+  fi
 fi
 
 read -r -d '' CTX <<EOF

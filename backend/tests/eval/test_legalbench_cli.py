@@ -97,11 +97,15 @@ class TestLoaders:
             """),
             encoding="utf-8",
         )
-        monkeypatch.setattr("law_ai.eval.loaders._CACHE_ROOT", tmp_path)
-
+        # Paths are now anchored in law_ai.eval.paths (spec 031), so redirect
+        # the helper the loader calls rather than a module-level constant.
         import law_ai.eval.loaders as loaders_module
 
-        monkeypatch.setattr(loaders_module, "_CACHE_ROOT", tmp_path)
+        monkeypatch.setattr(
+            loaders_module,
+            "subset_cache_path",
+            lambda subset: tmp_path / subset / "items.jsonl",
+        )
 
         items = loaders_module.load_task("core_reasoning")
         assert len(items) == 3
@@ -186,7 +190,8 @@ class TestReport:
     ) -> None:
         import law_ai.eval.report as report_module
 
-        monkeypatch.setattr(report_module, "_CACHE_ROOT", tmp_path)
+        monkeypatch.setattr(report_module, "BASELINE_PATH", tmp_path / "baseline.json")
+        monkeypatch.setattr(report_module, "HISTORY_PATH", tmp_path / "history.jsonl")
         baseline = tmp_path / "baseline.json"
         baseline.write_text(json.dumps({"core_reasoning": 0.70}), encoding="utf-8")
 
@@ -216,7 +221,8 @@ class TestReport:
     ) -> None:
         import law_ai.eval.report as report_module
 
-        monkeypatch.setattr(report_module, "_CACHE_ROOT", tmp_path)
+        monkeypatch.setattr(report_module, "BASELINE_PATH", tmp_path / "baseline.json")
+        monkeypatch.setattr(report_module, "HISTORY_PATH", tmp_path / "history.jsonl")
 
         from law_ai.eval.legalbench import LegalBenchConfig
 
@@ -268,8 +274,15 @@ class TestRunEval:
         # accuracy: stub returns "Guilty mind" which matches stub answer
         assert report["subsets"][0]["correct"] == 1
 
-    def test_run_eval_handles_ollama_error_gracefully(self, tmp_path: Path) -> None:
-        from law_ai.eval.legalbench import LegalBenchConfig, run_eval
+    def test_total_ollama_failure_is_an_infrastructure_error(
+        self, tmp_path: Path
+    ) -> None:
+        """Spec 031: a dead Ollama must not report as accuracy 0.0."""
+        from law_ai.eval.legalbench import (
+            EvalInfrastructureError,
+            LegalBenchConfig,
+            run_eval,
+        )
 
         cfg = LegalBenchConfig(
             subsets=["causation"],
@@ -278,15 +291,14 @@ class TestRunEval:
             report_path=tmp_path / "run.json",
         )
 
-        with patch(
-            "law_ai.eval.legalbench._call_ollama",
-            side_effect=RuntimeError("Ollama offline"),
+        with (
+            patch(
+                "law_ai.eval.legalbench._call_ollama",
+                side_effect=RuntimeError("Ollama offline"),
+            ),
+            pytest.raises(EvalInfrastructureError, match="infrastructure failure"),
         ):
-            report = run_eval(cfg)
-
-        # Should complete with 0 correct (response was "") rather than crash
-        assert report["subsets"][0]["correct"] == 0
-        assert report["subsets"][0]["n"] == 1
+            run_eval(cfg)
 
 
 # ---------------------------------------------------------------------------

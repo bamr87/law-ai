@@ -1,31 +1,48 @@
 # Docker Compose override that enables debugger attach for backend, worker, and frontend.
 # Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.debug.yml up
+#   docker compose -f docker-compose.yml -f docker-compose.debug.yml up   (or `make debug`)
 # Then attach via .vscode/launch.json:
-#   - "Docker: Attach to backend (debugpy)"  → port 5678
-#   - "Docker: Attach to worker (debugpy)"   → port 5679
-#   - "Docker: Attach to frontend (Next.js node)" → port 9229
+#   - "Docker: Attach to backend (debugpy)"        → port 5678
+#   - "Docker: Attach to worker (debugpy)"         → port 5679
+#   - "Docker: Attach to frontend server (node)"   → port 9230
+#   - "Docker: Attach to frontend CLI (node)"      → port 9229
+#
+# Debug commands MUST mirror the production compose commands semantically —
+# only the debugger wrapper may differ. A previous version dropped the
+# worker's `--beat -Q autonomy,celery`, silently killing the autonomy queue
+# and beat schedule under `make debug`.
 
 services:
   backend:
-    command: >
-      sh -c "python manage.py collectstatic --noinput &&
-             python manage.py migrate --noinput &&
-             python manage.py ensure_checkpointer &&
-             python -m debugpy --listen 0.0.0.0:5678
-             -m daphne -b 0.0.0.0 -p 8000 law_ai.asgi:application"
+    # Single line on purpose: a folded (`>`) block whose continuation lines
+    # are more-indented than the first keeps their newlines, which split the
+    # debugpy invocation into two shell commands (debugpy usage error, then
+    # `-m: command not found`) — daphne never started under `make debug`.
+    command: sh -c "python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py ensure_checkpointer && python -m debugpy --listen 0.0.0.0:5678 -m daphne -b 0.0.0.0 -p 8000 law_ai.asgi:application"
     ports:
       - "8000:8000"
       - "5678:5678"
 
   worker:
+    # Parity with docker-compose.yml: keep --beat and the autonomy queue.
     command: >
-      python -m debugpy --listen 0.0.0.0:5679 -m celery -A law_ai worker -l info
+      python -m debugpy --listen 0.0.0.0:5679
+      -m celery -A law_ai worker --beat -l info -Q autonomy,celery
     ports:
       - "5679:5679"
 
   frontend:
-    command: sh -c "node --inspect=0.0.0.0:9229 node_modules/.bin/next dev"
+    # NODE_OPTIONS propagates the inspector to the child processes Next.js
+    # spawns: the CLI binds 9229, the actual dev SERVER (where App Router
+    # server components / API routes run) auto-increments to 9230. Wrapping
+    # only the CLI binary (`node --inspect .bin/next dev`) left server-side
+    # breakpoints unbound.
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NODE_OPTIONS=--inspect=0.0.0.0:9229
+    command: npm run dev
     ports:
       - "3000:3000"
       - "9229:9229"
+      - "9230:9230"
+      - "9231:9231"

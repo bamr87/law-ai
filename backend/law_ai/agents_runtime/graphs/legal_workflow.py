@@ -43,11 +43,39 @@ class WorkflowCitation(BaseModel):
     resolved_case_id: str | None = None
 
 
+class RetrievalStats(BaseModel):
+    """Coverage envelope for retrieval (constitution §13 "absence is reported").
+
+    Lets reviewers distinguish "no results in our corpus" from "no such law"
+    (BL-20260803-02): the queries actually issued, how many passages came
+    back, which jurisdictions are actually represented, and whether the
+    requested one is missing entirely.
+    """
+
+    queries: list[str] = Field(default_factory=list)
+    result_count: int = 0
+    lexical_count: int = 0
+    expanded_count: int = Field(
+        default=0, description="Passages added by CITES graph expansion."
+    )
+    jurisdiction_requested: str | None = None
+    jurisdictions_present: list[str] = Field(default_factory=list)
+    jurisdiction_absent: bool = Field(
+        default=False,
+        description="True when nothing came back from the requested jurisdiction.",
+    )
+    coverage_note: str = Field(
+        default="",
+        description="Human-readable caveat about corpus coverage for this run.",
+    )
+
+
 class LegalWorkflowOutput(BaseModel):
     answer: str
     citations: list[WorkflowCitation] = Field(default_factory=list)
     confidence: float = Field(0.0, ge=0.0, le=1.0)
     human_approval_required: bool = False
+    retrieval_stats: RetrievalStats = Field(default_factory=RetrievalStats)
     trace_id: str | None = None
     phoenix_trace_url: str | None = None
     langgraph_thread_id: str | None = None
@@ -65,6 +93,9 @@ class LegalWorkflowState(TypedDict, total=False):
     case_id: str | None
     queries: list[str]
     retrieved: list[dict[str, Any]]
+    # Coverage detail published by retrievers that expose `last_coverage`
+    # (see agents_runtime.tools.graph_rag) — merged into RetrievalStats.
+    retrieval_coverage: dict[str, Any]
     answer: str
     citations: list[dict[str, Any]]
     confidence: float
@@ -87,15 +118,15 @@ Retriever = Callable[[LegalWorkflowState], Awaitable[list[dict[str, Any]]]]
 
 
 def _default_llm_factory() -> _LLMLike:
-    """Build a real ``ChatOllama`` instance against the configured Ollama."""
-    from langchain_ollama import ChatOllama
+    """Build the shared retry-wrapped ``ChatOllama`` runnable (spec 027).
 
-    return ChatOllama(
-        base_url=settings.OLLAMA_BASE_URL,
-        model=settings.OLLAMA_DEFAULT_MODEL,
-        temperature=0.0,
-        timeout=settings.OLLAMA_REQUEST_TIMEOUT_S,
-    )
+    Routed through :mod:`law_ai.agents_runtime.llm` so every agent shares one
+    LangChain transport with tenacity-backed retries (constitution §8).
+    """
+    from law_ai.agents_runtime.llm import build_chat_ollama
+
+    runnable: _LLMLike = build_chat_ollama()
+    return runnable
 
 
 async def _default_cite_resolver(citations: list[str]) -> dict[str, str | None]:
@@ -110,15 +141,18 @@ async def _default_cite_resolver(citations: list[str]) -> dict[str, str | None]:
         return await resolve_citations(session, citations)
 
 
-async def _default_retriever(
-    state: LegalWorkflowState,
-) -> list[dict[str, Any]]:
-    """Stub retriever — real GraphRAG lands in BL-20260502-04 follow-up.
+def _build_default_retriever() -> Retriever:
+    """Real hybrid GraphRAG retriever (BL-20260810-01).
 
-    Returns an empty list so the ``analyze`` node will trigger the spec's
-    insufficient-sources refusal path. Tests inject a richer retriever.
+    Lexical fulltext over ``:Case``/``:StatuteSection`` plus one hop of
+    ``CITES`` expansion, every query logged via ``log_graph_query``. It
+    yields an empty list (⇒ the refusal path) only when Neo4j itself is
+    unreachable — an honest "we retrieved nothing", never a fabrication.
     """
-    return []
+    from law_ai.agents_runtime.tools.graph_rag import build_default_retriever
+
+    retriever: Retriever = build_default_retriever()
+    return retriever
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +177,11 @@ def _coerce_text(message: Any) -> str:
 
 
 def _parse_json(text: str, default: dict[str, Any]) -> dict[str, Any]:
-    """Best-effort JSON extraction. Tolerates fenced code blocks + prose."""
+    """Best-effort JSON extraction. Tolerates fenced code blocks + prose.
+
+    Always returns a dict: a response that parses to a JSON array/scalar is
+    as unusable as unparseable text, so both fall back to ``default``.
+    """
     if not text:
         return default
     cleaned = text.strip()
@@ -153,17 +191,30 @@ def _parse_json(text: str, default: dict[str, Any]) -> dict[str, Any]:
         if "\n" in cleaned:
             cleaned = cleaned.split("\n", 1)[1]
     try:
-        return json.loads(cleaned)
+        parsed = json.loads(cleaned)
+        if isinstance(parsed, dict):
+            return parsed
     except json.JSONDecodeError:
-        # Fall back: find the first {...} block.
-        start = cleaned.find("{")
-        end = cleaned.rfind("}")
-        if start != -1 and end != -1 and end > start:
-            try:
-                return json.loads(cleaned[start : end + 1])
-            except json.JSONDecodeError:
-                pass
+        pass
+    # Fall back: find the first {...} block.
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            parsed = json.loads(cleaned[start : end + 1])
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
     return default
+
+
+def _clamp01(value: Any, default: float = 0.5) -> float:
+    """Coerce an LLM-supplied confidence to a float in [0, 1]."""
+    try:
+        return min(1.0, max(0.0, float(value)))
+    except (TypeError, ValueError):
+        return default
 
 
 # ---------------------------------------------------------------------------
@@ -190,7 +241,9 @@ class LegalWorkflow:
     ) -> None:
         self._llm_factory = llm_factory or _default_llm_factory
         self._cite_resolver = cite_resolver or _default_cite_resolver
-        self._retriever = retriever or _default_retriever
+        # Built eagerly (no connection is opened until first query) so the
+        # instance can publish `last_coverage` after each retrieval.
+        self._retriever = retriever or _build_default_retriever()
         self._checkpointer = checkpointer
 
     # -- nodes -------------------------------------------------------------
@@ -215,11 +268,29 @@ class LegalWorkflow:
         )
         raw = _coerce_text(await llm.ainvoke(prompt))
         parsed = _parse_json(raw, {"queries": [question], "rationale": "fallback"})
-        queries = [str(q)[:120] for q in (parsed.get("queries") or [])][:3] or [
-            question
-        ]
+        raw_queries = parsed.get("queries") or []
+        if not isinstance(raw_queries, list):
+            raw_queries = []
+        queries = [str(q)[:120] for q in raw_queries][:3] or [question]
         retrieved = await self._retriever({**state, "queries": queries})
-        return {"queries": queries, "retrieved": retrieved}
+        out: dict[str, Any] = {"queries": queries, "retrieved": retrieved}
+        # Retrievers may publish a richer coverage envelope (result mix,
+        # jurisdictions actually represented). Returning it here is what
+        # merges it into graph state — mutating the input state would not.
+        coverage = getattr(self._retriever, "last_coverage", None)
+        if coverage is not None:
+            out["retrieval_coverage"] = {
+                "lexical_count": getattr(coverage, "lexical_count", 0),
+                "expanded_count": getattr(coverage, "expanded_count", 0),
+                "jurisdictions_present": list(
+                    getattr(coverage, "jurisdictions_present", [])
+                ),
+                "jurisdiction_absent": bool(
+                    getattr(coverage, "jurisdiction_absent", False)
+                ),
+                "coverage_note": coverage.note() if hasattr(coverage, "note") else "",
+            }
+        return out
 
     @logged_node(
         "analyze",
@@ -238,15 +309,24 @@ class LegalWorkflow:
                 "confidence": 0.2,
             }
         llm = self._llm_factory()
+        # Every passage carries its issuing authority so the model can
+        # attribute propositions (constitution §13) instead of stating
+        # unsourced "the law".
         passages = "\n\n".join(
-            f"[{idx + 1}] {item.get('title', 'Untitled')} — "
-            f"{item.get('snippet', '')[:500]}\nURL: {item.get('source_url') or ''}"
+            f"[{idx + 1}] {item.get('title', 'Untitled')}"
+            + (f" — {item['court']}" if item.get("court") else "")
+            + (f" ({item['decided_at']})" if item.get("decided_at") else "")
+            + f"\n{str(item.get('snippet', ''))[:500]}"
+            + f"\nURL: {item.get('source_url') or ''}"
             for idx, item in enumerate(retrieved)
         )
         prompt = (
             "Answer the question using ONLY the passages below. Cite every "
-            "legal proposition. Return strict JSON with keys answer, "
-            "citations (array of {text, source_url}), confidence (0..1).\n\n"
+            "legal proposition, naming the issuing authority (court and date) "
+            "for each. If the passages do not answer the question, say so "
+            "instead of answering from general knowledge. Return strict JSON "
+            "with keys answer, citations (array of {text, source_url}), "
+            "confidence (0..1).\n\n"
             f"Question: {question}\n\nPassages:\n{passages}"
         )
         raw = _coerce_text(await llm.ainvoke(prompt))
@@ -259,18 +339,23 @@ class LegalWorkflow:
                 "confidence": 0.2,
             },
         )
+        raw_citations = parsed.get("citations") or []
+        if not isinstance(raw_citations, list):
+            raw_citations = []
         citations = [
             {
                 "text": str(c.get("text", "")).strip(),
                 "source_url": c.get("source_url"),
             }
-            for c in (parsed.get("citations") or [])
-            if str(c.get("text", "")).strip()
+            for c in raw_citations
+            # Models sometimes emit bare strings or nulls in the array;
+            # only dict entries carry the {text, source_url} shape we need.
+            if isinstance(c, dict) and str(c.get("text", "")).strip()
         ]
         return {
             "answer": str(parsed.get("answer", "")).strip(),
             "citations": citations,
-            "confidence": float(parsed.get("confidence", 0.5)),
+            "confidence": _clamp01(parsed.get("confidence")),
         }
 
     @logged_node(
@@ -282,7 +367,11 @@ class LegalWorkflow:
     async def _cite_check(self, state: LegalWorkflowState) -> dict[str, Any]:
         candidates = state.get("citations") or []
         if not candidates:
-            return {"citations": [], "human_approval_required": False}
+            # An answer with zero citations cannot satisfy the constitution
+            # §13 attribution rule (every legal proposition names its issuing
+            # authority) — and the refusal path lands here too. Either way a
+            # human must look before this output is relied on.
+            return {"citations": [], "human_approval_required": True}
         normalized = [str(c.get("text", "")).strip() for c in candidates]
         try:
             mapping = await self._cite_resolver(normalized)
@@ -362,11 +451,34 @@ class LegalWorkflow:
         latency_ms = (time.perf_counter() - started) * 1000.0
 
         citations = [WorkflowCitation(**c) for c in (result.get("citations") or [])]
+        retrieved = result.get("retrieved") or []
+        jurisdiction_requested = result.get("jurisdiction")
+        cov = result.get("retrieval_coverage") or {}
+        default_note = (
+            "No passages were retrieved from the knowledge graph. Absence "
+            "of results in this corpus does NOT mean no such law exists."
+            if not retrieved
+            else f"{len(retrieved)} passage(s) retrieved from the "
+            "knowledge graph; coverage is limited to the ingested corpus."
+        )
+        retrieval_stats = RetrievalStats(
+            queries=[str(q) for q in (result.get("queries") or [])],
+            result_count=len(retrieved),
+            lexical_count=int(cov.get("lexical_count", len(retrieved))),
+            expanded_count=int(cov.get("expanded_count", 0)),
+            jurisdiction_requested=jurisdiction_requested,
+            jurisdictions_present=[
+                str(j) for j in (cov.get("jurisdictions_present") or [])
+            ],
+            jurisdiction_absent=bool(cov.get("jurisdiction_absent", False)),
+            coverage_note=str(cov.get("coverage_note") or default_note),
+        )
         return LegalWorkflowOutput(
             answer=result.get("answer", ""),
             citations=citations,
-            confidence=float(result.get("confidence", 0.0)),
+            confidence=_clamp01(result.get("confidence"), default=0.0),
             human_approval_required=bool(result.get("human_approval_required", False)),
+            retrieval_stats=retrieval_stats,
             trace_id=trace_id,
             phoenix_trace_url=phoenix_trace_url(trace_id),
             langgraph_thread_id=thread,

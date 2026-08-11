@@ -17,7 +17,19 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* UPL guardrail (BL-20260810-07). This site is aimed at prospective
+            law students — laypeople — so the disclaimer ships on every page. */}
+        <footer role="contentinfo" className="site-disclaimer">
+          <p>
+            <strong>Study aid, not legal advice.</strong> These practice
+            questions and explanations are AI-assisted study material for LSAT
+            preparation. They are not legal advice, do not describe the law of
+            any jurisdiction, and create no attorney–client relationship.
+          </p>
+        </footer>
+      </body>
     </html>
   )
 }

@@ -69,6 +69,12 @@ def test_parse_json_returns_default_on_failure() -> None:
     assert _parse_json("nope", {"fallback": True}) == {"fallback": True}
 
 
+def test_parse_json_rejects_non_dict_payloads() -> None:
+    """A JSON array/scalar response falls back to the default dict."""
+    assert _parse_json('["a", "b"]', {"fallback": True}) == {"fallback": True}
+    assert _parse_json("42", {"fallback": True}) == {"fallback": True}
+
+
 # ---------------------------------------------------------------------------
 # Workflow
 # ---------------------------------------------------------------------------
@@ -120,6 +126,9 @@ async def test_workflow_happy_path_verifies_citations(
     assert len(result.citations) == 1
     assert result.citations[0].source == "analyze"
     assert result.citations[0].resolved_case_id == "case-0"
+    # Coverage envelope (BL-20260803-02): result count + queries surfaced.
+    assert result.retrieval_stats.result_count == len(fake_retrieved_passages)
+    assert result.retrieval_stats.queries == ["judicial review"]
     # Two LLM calls: retrieve + analyze (cite_check is deterministic).
     assert len(fake_llm.calls) == 2
 
@@ -175,8 +184,73 @@ async def test_workflow_handles_empty_retrieval() -> None:
     result = await wf.invoke("How is the weather?")
     assert "Insufficient sources" in result.answer
     assert result.confidence <= 0.4
-    assert result.human_approval_required is False  # nothing to verify
+    # A refusal (zero citations) must be reviewed by a human before anyone
+    # relies on it — "no results in our corpus" ≠ "no such law" (§13).
+    assert result.human_approval_required is True
     assert len(fake_llm.calls) == 1  # only the retrieve call
+    # Coverage envelope reports the empty retrieval explicitly.
+    assert result.retrieval_stats.result_count == 0
+    assert result.retrieval_stats.queries  # queries drafted even on refusal
+    assert "does NOT mean no such law" in result.retrieval_stats.coverage_note
+
+
+@pytest.mark.asyncio
+async def test_workflow_survives_malformed_llm_output_shapes(
+    fake_retrieved_passages: list[dict],
+) -> None:
+    """Plausible-but-wrong LLM shapes must degrade, never crash the graph.
+
+    analyze returns: a JSON array; citations holding bare strings/nulls; a
+    non-numeric confidence. All previously raised (AttributeError on
+    list.get / float("high")).
+    """
+    fake_llm = FakeOllama(
+        [
+            '{"queries": ["q"]}',
+            '{"answer": "Answer.", "citations": ["Marbury v. Madison", null, '
+            '{"text": "Real v. Cite", "source_url": null}], '
+            '"confidence": "high"}',
+        ]
+    )
+
+    async def fake_resolver(citations: list[str]) -> dict[str, str | None]:
+        return {c: None for c in citations}
+
+    async def fake_retriever(state):
+        return fake_retrieved_passages
+
+    wf = LegalWorkflow(
+        llm_factory=lambda: fake_llm,
+        cite_resolver=fake_resolver,
+        retriever=fake_retriever,
+    )
+    result = await wf.invoke("Anything?")
+    # Only the dict-shaped citation survives; junk entries are dropped.
+    assert [c.text for c in result.citations] == ["Real v. Cite"]
+    # Non-numeric confidence clamps to the 0.5 default, not a crash.
+    assert result.confidence == pytest.approx(0.5)
+    assert result.human_approval_required is True  # unresolved citation
+
+
+@pytest.mark.asyncio
+async def test_workflow_survives_json_array_response() -> None:
+    """A top-level JSON array from the model takes the refusal default."""
+    fake_llm = FakeOllama(['["not", "a", "dict"]'])
+
+    async def fake_resolver(citations: list[str]) -> dict[str, str | None]:
+        return {}
+
+    async def fake_retriever(state):
+        return []
+
+    wf = LegalWorkflow(
+        llm_factory=lambda: fake_llm,
+        cite_resolver=fake_resolver,
+        retriever=fake_retriever,
+    )
+    result = await wf.invoke("Anything?")
+    assert "Insufficient sources" in result.answer
+    assert result.human_approval_required is True
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,14 @@
+# Keep the build context small and NEVER copy host-platform artifacts into
+# the Linux image: a darwin-arm64 node_modules overlaying `npm ci`'s output
+# breaks native deps (swc, esbuild) in non-obvious ways.
+node_modules
+.next
+out
+coverage
+.turbo
+npm-debug.log*
+.DS_Store
+.env*
+!.env.example
+Dockerfile
+.dockerignore

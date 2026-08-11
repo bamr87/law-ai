@@ -531,3 +531,20 @@ main#view {
   padding-top: 1.25rem;
   padding-bottom: 1.25rem;
 }
+
+/* ---- UPL disclaimer (BL-20260810-07) ---- */
+.site-disclaimer {
+  border-top: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  padding: 1rem 1.25rem;
+}
+.site-disclaimer p {
+  margin: 0 auto;
+  max-width: 70ch;
+}
+.site-disclaimer strong {
+  color: var(--text);
+}

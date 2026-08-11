@@ -33,6 +33,21 @@ CONFIDENCE_THRESHOLD = 0.7
 PENDING_REVIEW_DIR = Path("backend/var/pending_review")
 
 
+def _hitl_gates_enabled() -> bool:
+    """Whether the ingestion HITL gate is armed (constitution §5).
+
+    Reads ``ENABLE_HUMAN_APPROVAL_GATES`` at call time (not import time) so
+    tests and operators can flip it per-run. Defaults to *True* — the safe
+    reading — when settings are unavailable.
+    """
+    try:
+        from django.conf import settings
+
+        return bool(getattr(settings, "ENABLE_HUMAN_APPROVAL_GATES", True))
+    except Exception:  # pragma: no cover - settings always configured in app
+        return True
+
+
 class IngestionScout:
     """Concrete agent for ingesting US court opinions."""
 
@@ -115,7 +130,11 @@ class IngestionScout:
     # Commit
     # ------------------------------------------------------------------
     async def run_and_commit(
-        self, payload: dict[str, Any], *, force_quarantine: bool = False
+        self,
+        payload: dict[str, Any],
+        *,
+        force_quarantine: bool = False,
+        force_commit: bool = False,
     ) -> dict[str, Any]:
         """Extract then either commit to Neo4j or quarantine.
 
@@ -127,11 +146,42 @@ class IngestionScout:
             When *True*, always route to the HITL queue regardless of
             confidence score.  Set this when the source adapter's
             ``requires_human_approval`` flag is True (spec 018 NFR-HITL-1).
+        force_commit:
+            When *True*, bypass the confidence gate and commit. Reserved for
+            the human-approval path (spec 029): the item was quarantined,
+            a person reviewed it, and that approval **is** the HITL gate.
+            ``force_quarantine`` wins if both are set, so an
+            approval-required source can never be auto-committed.
 
         Returns a small summary dict suitable for the CLI run report.
+
+        This method remains the single writer of ``:Case`` nodes
+        (constitution §12 invariant I1) — the approval path routes through
+        here rather than writing to the graph itself.
         """
         result = self.extract(payload)
-        if force_quarantine or not result.is_high_confidence(self._threshold):
+        gates_enabled = _hitl_gates_enabled()
+        should_quarantine = force_quarantine or (
+            not force_commit
+            and gates_enabled
+            and not result.is_high_confidence(self._threshold)
+        )
+        if not gates_enabled and not force_quarantine and not force_commit:
+            # Constitution §5 requires HITL on ingestion; running with the
+            # gate off is an operator override that must leave a trace.
+            provenance.log_event(
+                "hitl_gate_disabled",
+                {
+                    "agent": self.name,
+                    "case_id": result.case_id,
+                    "confidence": result.confidence,
+                    "detail": (
+                        "ENABLE_HUMAN_APPROVAL_GATES=False — low-confidence "
+                        "extraction committed without human review"
+                    ),
+                },
+            )
+        if should_quarantine:
             await self._quarantine(result, payload)
             return {
                 "case_id": result.case_id,

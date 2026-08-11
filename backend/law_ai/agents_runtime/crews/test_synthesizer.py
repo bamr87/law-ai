@@ -21,8 +21,6 @@ from __future__ import annotations
 import logging
 import re
 import textwrap
-import urllib.error
-import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -39,7 +37,13 @@ logger = logging.getLogger("law_ai.agents_runtime.crews.test_synthesizer")
 
 AGENT_VERSION = "law_ai.agents_runtime.crews.test_synthesizer.v1"
 _PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "test_synthesizer.v1.md"
-_PROPOSED_DIR = Path("backend/tests/autonomy/proposed")
+# Anchored to the backend package root (this file lives at
+# backend/law_ai/agents_runtime/crews/), NOT the process CWD: the container
+# runs with CWD=/app (== host ./backend), so a CWD-relative
+# "backend/tests/..." landed proposals in backend/backend/tests/... where
+# neither CI's inventory step nor reviewers ever looked.
+_BACKEND_ROOT = Path(__file__).resolve().parents[3]
+_PROPOSED_DIR = _BACKEND_ROOT / "tests" / "autonomy" / "proposed"
 _SKIP_DECORATOR = '@pytest.mark.skip("autonomy-proposed")'
 _SKIP_MARKER = "autonomy-proposed"
 
@@ -90,21 +94,20 @@ def _load_prompt_template() -> str:
 
 
 def _call_ollama(prompt: str, *, model: str, base_url: str, timeout: int = 120) -> str:
-    """POST to Ollama /api/generate and return the response text."""
-    import json
+    """Generate text via the shared LangChain transport (spec 027).
 
-    payload = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode()
-    req = urllib.request.Request(
-        f"{base_url.rstrip('/')}/api/generate",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
+    Same name + signature + ``RuntimeError`` contract as the old raw-urllib
+    implementation (tests patch this seam), but the call now goes through
+    ``law_ai.agents_runtime.llm.generate_text_sync`` — one retry-wrapped
+    ``ChatOllama`` runnable shared by every agent.
+    """
+    from law_ai.agents_runtime.llm import generate_text_sync
+
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode())
-            return str(data.get("response", ""))
-    except urllib.error.URLError as exc:
+        return generate_text_sync(
+            prompt, model=model, base_url=base_url, timeout_s=float(timeout)
+        )
+    except Exception as exc:
         raise RuntimeError(f"Ollama call failed: {exc}") from exc
 
 

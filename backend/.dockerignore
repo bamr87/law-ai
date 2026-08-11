@@ -1,0 +1,21 @@
+# Keep the build context small; runtime state and host artifacts must not
+# leak into the image (the bind mount provides live code in dev anyway).
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.venv
+htmlcov
+coverage.xml
+.coverage
+staticfiles
+var
+celerybeat-schedule*
+db.sqlite3
+.DS_Store
+.env*
+!.env.example
+Dockerfile
+.dockerignore

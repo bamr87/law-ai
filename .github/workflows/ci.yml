@@ -227,7 +227,7 @@ jobs:
       - run: npm test -- --run
 
   legalbench:
-    name: LegalBench Regression (changed reasoning only)
+    name: LegalBench harness check (changed reasoning only)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: backend-test
@@ -235,12 +235,24 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # This job used to invoke `python -m app.eval.legalbench` — the
+    # pre-rebrand package path, which no longer exists — with no Ollama
+    # service and no assertion on the result, so it could only ever have
+    # failed or measured nothing (BL-20260810-04). PR-time runners cannot
+    # host a multi-GB model (see nightly-tests.yml, which had to drop to a
+    # weekly cadence over disk exhaustion), so the *measurement* lives in
+    # the nightly job; this job verifies the harness itself is sound.
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev,legalbench]"
-      - name: Run LegalBench subset
-        run: python -m app.eval.legalbench --subset core_reasoning,precedent_retrieval
+      - run: pip install -e ".[dev]"
+      - name: Verify the eval harness (scoring, paths, regression gate)
+        run: pytest tests/eval -q
+      - name: Remind reviewers where the real measurement runs
+        run: |
+          echo "::notice::Harness verified. The scored LegalBench run with a" \
+               "real model happens in the nightly workflow" \
+               "(make test-legalbench), which gates on --check-regression."

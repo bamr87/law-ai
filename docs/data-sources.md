@@ -6,8 +6,19 @@ Open, machine-readable corpora used by Law AI.
 | ------------------------- | ---------------------------------------------------------------- | ------------------- | ------------- | --------------------- | -------- |
 | **CourtListener**         | https://www.courtlistener.com/api/rest/v3                        | Public domain (US)  | API token (optional, higher quota) | ~5000 req/hr/token | **Active** (spec 001) |
 | **Colorado Revised Statutes** | https://law.justia.com/codes/colorado/2024/title-N/          | Underlying CRS text: public domain (US gov work). Justia commentary: CC-BY 4.0. | None | Be polite — ≤ 1 req/sec | **Active** (spec 016) |
-| Caselaw Access Project    | https://case.law                                                 | CC BY-NC            | API token     | 500 cases/day (free)  | Planned  |
+| Caselaw Access Project    | https://case.law / https://static.case.law                       | Public domain / CC0 metadata | None (bulk) | None — static bulk downloads | Planned  |
 | GovInfo (federal regs)    | https://api.govinfo.gov                                          | Public domain (US)  | API key       | 1000 req/hr           | Planned  |
+| eCFR (current CFR text)   | https://www.ecfr.gov/developers/documentation/api/v1             | Public domain (US)  | None          | Be polite             | Planned  |
+| U.S. Code (OLRC)          | https://uscode.house.gov/download/download.shtml                 | Public domain (US)  | None (bulk XML) | None — bulk releases | Planned  |
+| RECAP archive (dockets)   | https://www.courtlistener.com/api/rest/v3 (recap endpoints)      | Public domain (US)  | API token     | shared with CourtListener | Planned  |
+
+> **CAP note (2024 update).** The 500-cases/day quota above described CAP's pre-2024
+> research-access terms. In March 2024 the Caselaw Access Project released the full
+> ~6.9M-case corpus as unrestricted bulk data (static downloads; also merged into
+> CourtListener's collection). A jurisdiction-scoped bulk import is therefore viable
+> and is tracked in BACKLOG. Per constitution §5/§12-I2, each new source adapter
+> still requires its own `/specify` cycle with HITL quarantine — this table records
+> candidates, not authorization.
 
 ## CourtListener
 

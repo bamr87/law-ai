@@ -45,3 +45,25 @@ def quarantine_extraction(payload: dict[str, Any]) -> str:
         payload={"id": pid, "source": payload.get("source"), "kind": kind},
     )
     return pid
+
+
+@shared_task(name="law_ai.ingestionapp.commit_approved_reviews", ignore_result=True)
+def commit_approved_reviews_task(limit: int | None = None) -> dict[str, int]:
+    """Sweep approved-but-uncommitted quarantine rows into the graph.
+
+    Spec 029 / BL-20260810-03: makes ``PendingReview.approved`` mean
+    something. Idempotent — committed rows are skipped — so it is safe to
+    run on a beat schedule as well as on demand.
+
+    Constitution §12 I1 is preserved: the sweep delegates to
+    ``IngestionScout.run_and_commit``; it never writes Neo4j itself.
+    """
+    from law_ai.ingestionapp.services.approval import (
+        DEFAULT_SWEEP_LIMIT,
+        commit_approved_reviews,
+    )
+
+    results = commit_approved_reviews(limit or DEFAULT_SWEEP_LIMIT)
+    committed = sum(1 for r in results if r.get("committed"))
+    failed = sum(1 for r in results if r.get("error"))
+    return {"processed": len(results), "committed": committed, "failed": failed}

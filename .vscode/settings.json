@@ -5,7 +5,10 @@
     "source.organizeImports": "explicit"
   },
 
-  // Python
+  // Python — lint/format config lives in backend/pyproject.toml (ruff, black,
+  // mypy). The extensions resolve it per-file, so no args are duplicated here:
+  // duplicated args drift from the canonical config (and `ruff.lint.args` is
+  // deprecated by the ruff extension's native server anyway).
   "[python]": {
     "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.formatOnSave": true,
@@ -13,11 +16,11 @@
       "source.fixAll.ruff": "explicit"
     }
   },
-  "python.defaultInterpreterPath": "./backend/.venv/bin/python",
   "python.analysis.typeCheckingMode": "strict",
   "python.analysis.autoImportCompletions": true,
-  "ruff.lint.args": ["--select", "E,F,UP,B,SIM,PL", "--ignore", "E501"],
-  "black-formatter.args": ["--line-length", "88"],
+  // Docker-first: there is deliberately NO host venv. Pylance uses the
+  // default interpreter for IntelliSense; run/test/lint always go through
+  // `make …` / the tasks in tasks.json (see AGENTS.md).
 
   // TypeScript / React / Next.js
   "[typescript]": {
@@ -40,7 +43,9 @@
   "search.exclude": {
     "**/node_modules": true,
     "**/.venv": true,
-    "**/dist": true
+    "**/dist": true,
+    "**/.next": true,
+    "**/htmlcov": true
   },
 
   // Recommended for this project
@@ -49,6 +54,9 @@
     "titleBar.activeForeground": "#e0f2fe"
   },
   "terminal.integrated.env.linux": {
+    "PYTHONPATH": "${workspaceFolder}/backend"
+  },
+  "terminal.integrated.env.osx": {
     "PYTHONPATH": "${workspaceFolder}/backend"
   }
 }

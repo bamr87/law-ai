@@ -25,6 +25,26 @@ def test_autonomy_score_empty() -> None:
 
 
 # ---------------------------------------------------------------------------
+# _PROPOSED_DIR anchoring
+# ---------------------------------------------------------------------------
+
+
+class TestProposedDirAnchor:
+    def test_proposed_dir_is_anchored_to_backend_root(self) -> None:
+        """Regression: a CWD-relative 'backend/tests/...' path wrote proposals
+        to backend/backend/tests/... inside the container (CWD=/app==backend),
+        where CI's inventory step never looked."""
+        from law_ai.agents_runtime.crews import test_synthesizer as ts
+
+        assert ts._PROPOSED_DIR.is_absolute()
+        # Anchored to the directory containing manage.py / law_ai, ending in
+        # tests/autonomy/proposed — independent of the process CWD.
+        assert ts._PROPOSED_DIR.parts[-3:] == ("tests", "autonomy", "proposed")
+        assert (ts._BACKEND_ROOT / "law_ai").is_dir()
+        assert "backend/backend" not in ts._PROPOSED_DIR.as_posix()
+
+
+# ---------------------------------------------------------------------------
 # ProposedTestInput / ProposedTest models
 # ---------------------------------------------------------------------------
 

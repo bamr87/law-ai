@@ -28,11 +28,27 @@ from pathlib import Path
 from typing import Any
 
 from law_ai.core.settings_proxy import settings_proxy as settings
-from law_ai.eval.loaders import load_task
+from law_ai.eval.loaders import is_synthetic, load_task
+from law_ai.eval.paths import BASELINE_PATH, CACHE_ROOT
 from law_ai.eval.report import write_report
 from law_ai.eval.scoring import score_response
 
 logger = logging.getLogger("law_ai.eval.legalbench")
+
+#: Constitution §3: a listed subset may not regress more than 1 pp.
+REGRESSION_TOLERANCE_PP = 1.0
+
+
+class EvalInfrastructureError(RuntimeError):
+    """The eval could not run — as distinct from the model scoring badly.
+
+    Before this existed, an unreachable Ollama produced an empty response
+    per item, every item scored *incorrect*, and the run reported a
+    cheerful ``accuracy=0.0`` (BL-20260810-04). That is indistinguishable
+    from a catastrophic model regression, which is exactly the signal a
+    regression gate must not confuse.
+    """
+
 
 # ---------------------------------------------------------------------------
 # Allowed subset names (constitution §3 — only tracked subsets are permitted
@@ -72,9 +88,8 @@ class LegalBenchConfig:
             )
         if self.report_path is None:
             timestamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
-            default_dir = Path("backend/var/legalbench")
-            default_dir.mkdir(parents=True, exist_ok=True)
-            self.report_path = default_dir / f"{timestamp}.json"
+            CACHE_ROOT.mkdir(parents=True, exist_ok=True)
+            self.report_path = CACHE_ROOT / f"{timestamp}.json"
 
 
 def _call_ollama(prompt: str, *, model: str, base_url: str, timeout: int = 120) -> str:
@@ -82,11 +97,21 @@ def _call_ollama(prompt: str, *, model: str, base_url: str, timeout: int = 120) 
 
     Deliberately avoids importing ``langchain_ollama`` so the eval harness
     works even when the ``local-ai`` extras aren't installed.
+
+    Decoding is pinned to ``temperature=0`` with a fixed seed: a 1 pp
+    regression policy is not meaningful against nondeterministic sampling.
     """
     import urllib.error
     import urllib.request
 
-    payload = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode()
+    payload = json.dumps(
+        {
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {"temperature": 0.0, "seed": 0},
+        }
+    ).encode()
     req = urllib.request.Request(
         f"{base_url.rstrip('/')}/api/generate",
         data=payload,
@@ -125,6 +150,7 @@ def run_eval(config: LegalBenchConfig) -> dict[str, Any]:
         logger.info("subset=%s items=%d model=%s", subset, len(items), config.model)
 
         correct = 0
+        errored = 0
         subset_results: list[dict[str, Any]] = []
         for item in items:
             item_id = item.get("index", str(uuid.uuid4()))
@@ -132,6 +158,7 @@ def run_eval(config: LegalBenchConfig) -> dict[str, Any]:
             expected = str(item.get("answer", ""))
 
             t0 = time.perf_counter()
+            error: str | None = None
             try:
                 response = _call_ollama(
                     prompt,
@@ -141,11 +168,18 @@ def run_eval(config: LegalBenchConfig) -> dict[str, Any]:
             except RuntimeError as exc:
                 logger.warning("ollama error item=%s: %s", item_id, exc)
                 response = ""
+                error = str(exc)[:300]
+                errored += 1
 
             latency_ms = (time.perf_counter() - t0) * 1000
-            is_correct, norm_response = score_response(response, expected, subset)
-            if is_correct:
-                correct += 1
+            # An item that never reached the model is NOT a wrong answer: it
+            # is excluded from the accuracy denominator below.
+            is_correct = False
+            norm_response = ""
+            if error is None:
+                is_correct, norm_response = score_response(response, expected, subset)
+                if is_correct:
+                    correct += 1
 
             item_result: dict[str, Any] = {
                 "subset": subset,
@@ -155,6 +189,8 @@ def run_eval(config: LegalBenchConfig) -> dict[str, Any]:
                 "correct": is_correct,
                 "latency_ms": round(latency_ms, 1),
             }
+            if error is not None:
+                item_result["error"] = error
             subset_results.append(item_result)
 
             # Provenance span per item (constitution §4 / spec 018 NFR-AUDIT-1)
@@ -170,20 +206,86 @@ def run_eval(config: LegalBenchConfig) -> dict[str, Any]:
             )
 
         n = len(subset_results)
-        accuracy = round(correct / n, 4) if n else 0.0
+        scored = n - errored
+        if n and errored == n:
+            raise EvalInfrastructureError(
+                f"every item in subset {subset!r} failed to reach the model "
+                f"({errored}/{n}). This is an infrastructure failure, not a "
+                "score of 0.0 — check that Ollama is running and the model "
+                f"{config.model!r} is pulled (make local-ai-up)."
+            )
+        # Denominator is items that actually ran, so partial infra failure
+        # degrades coverage rather than silently deflating accuracy.
+        accuracy = round(correct / scored, 4) if scored else 0.0
         results.append(
             {
                 "subset": subset,
                 "n": n,
+                "scored": scored,
+                "errored": errored,
                 "correct": correct,
                 "accuracy": accuracy,
+                "synthetic": is_synthetic(subset),
                 "items": subset_results,
             }
         )
-        logger.info("subset=%s accuracy=%.4f (%d/%d)", subset, accuracy, correct, n)
+        logger.info(
+            "subset=%s accuracy=%.4f (%d/%d scored, %d errored)",
+            subset,
+            accuracy,
+            correct,
+            scored,
+            errored,
+        )
 
     report = write_report(results, config=config)
     return report
+
+
+def check_regression(
+    report: dict[str, Any], *, tolerance_pp: float = REGRESSION_TOLERANCE_PP
+) -> list[str]:
+    """Return human-readable regression messages (empty when clean).
+
+    Compares each subset against ``baseline.json`` (constitution §3: no
+    listed subset may drop more than 1 pp).
+    """
+    problems: list[str] = []
+    delta = report.get("delta") or {}
+    for subset, row in delta.items():
+        drop_pp = -float(row.get("delta_pp", 0.0))
+        if drop_pp > tolerance_pp:
+            problems.append(
+                f"{subset}: {row['before']:.4f} → {row['after']:.4f} "
+                f"({row['delta_pp']:+.2f} pp, tolerance {tolerance_pp} pp)"
+            )
+    return problems
+
+
+def update_baseline(report: dict[str, Any]) -> Path:
+    """Write the run's per-subset accuracies to ``baseline.json``.
+
+    Refuses to baseline a synthetic run: a baseline derived from smoke-test
+    fixtures would make every later regression check meaningless.
+    """
+    rows = report.get("subsets", [])
+    synthetic = [r["subset"] for r in rows if r.get("synthetic")]
+    if synthetic:
+        raise EvalInfrastructureError(
+            "refusing to write a baseline from synthetic stub data for "
+            f"{synthetic}: cache real LegalBench items first "
+            f"({CACHE_ROOT}/<subset>/items.jsonl)."
+        )
+    payload = {
+        "model": report.get("model"),
+        "timestamp": report.get("timestamp"),
+        "run_id": report.get("run_id"),
+        "accuracies": {r["subset"]: r["accuracy"] for r in rows},
+    }
+    BASELINE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    BASELINE_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    logger.info("baseline updated: %s", BASELINE_PATH)
+    return BASELINE_PATH
 
 
 def _emit_item_event(
@@ -251,9 +353,86 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--report",
         default="",
-        help="Output JSON path (default: backend/var/legalbench/<UTC>.json).",
+        help="Output JSON path (default: <backend>/var/legalbench/<UTC>.json).",
+    )
+    parser.add_argument(
+        "--check-regression",
+        action="store_true",
+        help=(
+            "Exit non-zero when any subset drops more than "
+            f"{REGRESSION_TOLERANCE_PP} pp against baseline.json "
+            "(constitution §3). Use this in CI."
+        ),
+    )
+    parser.add_argument(
+        "--update-baseline",
+        action="store_true",
+        help="Write this run's accuracies to baseline.json (rejects stub runs).",
+    )
+    parser.add_argument(
+        "--fail-on-synthetic",
+        action="store_true",
+        help=(
+            "Exit non-zero when any subset fell back to synthetic stubs — "
+            "guards CI against 'measuring' fixtures."
+        ),
     )
     return parser
+
+
+def _print_summary(report: dict[str, Any], config: LegalBenchConfig) -> None:
+    """Human-readable run summary, with stub/error status made obvious."""
+    print(f"run_id: {report['run_id']}")
+    for row in report.get("subsets", []):
+        flags = []
+        if row.get("synthetic"):
+            flags.append("SYNTHETIC-STUBS")
+        if row.get("errored"):
+            flags.append(f"{row['errored']} errored")
+        suffix = f"  [{', '.join(flags)}]" if flags else ""
+        print(
+            f"  {row['subset']}: accuracy={row['accuracy']:.4f} "
+            f"({row['correct']}/{row.get('scored', row['n'])}){suffix}"
+        )
+    print(f"report: {config.report_path}")
+
+    if report.get("synthetic"):
+        print(
+            "WARNING: at least one subset used synthetic stub fixtures. "
+            "These accuracies are NOT a LegalBench measurement.",
+            file=sys.stderr,
+        )
+
+
+def _apply_gates(report: dict[str, Any], args: argparse.Namespace) -> int:
+    """Apply the opt-in CI gates; return the process exit code."""
+    exit_code = 0
+
+    if args.fail_on_synthetic and report.get("synthetic"):
+        print("FAIL: run used synthetic stubs (--fail-on-synthetic)", file=sys.stderr)
+        exit_code = 1
+
+    if args.update_baseline:
+        try:
+            print(f"baseline: {update_baseline(report)}")
+        except EvalInfrastructureError as exc:
+            print(f"FAIL: {exc}", file=sys.stderr)
+            exit_code = 1
+
+    if args.check_regression:
+        problems = check_regression(report)
+        if problems:
+            for line in problems:
+                print(f"REGRESSION: {line}", file=sys.stderr)
+            exit_code = 1
+        elif not report.get("delta"):
+            print(
+                "note: no baseline.json to compare against — run with "
+                "--update-baseline once a real dataset is cached.",
+                file=sys.stderr,
+            )
+
+    return exit_code
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -278,14 +457,16 @@ def main(argv: list[str] | None = None) -> None:
     except ValueError as exc:
         parser.error(str(exc))
         return
+    except EvalInfrastructureError as exc:
+        # Exit 2 (not 1): "the eval could not run" is a different failure
+        # from "the model regressed", and CI should treat it differently.
+        print(f"INFRASTRUCTURE ERROR: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
 
-    # Summarise to stdout
-    print(f"run_id: {report['run_id']}")
-    for row in report.get("subsets", []):
-        print(
-            f"  {row['subset']}: accuracy={row['accuracy']:.4f} ({row['correct']}/{row['n']})"
-        )
-    print(f"report: {config.report_path}")
+    _print_summary(report, config)
+    exit_code = _apply_gates(report, args)
+    if exit_code:
+        raise SystemExit(exit_code)
 
 
 if __name__ == "__main__":

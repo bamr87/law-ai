@@ -87,11 +87,13 @@ class TestParseTargets:
 
 
 class TestCallOllama:
-    def test_raises_on_url_error(self) -> None:
-        import urllib.error
-
+    def test_raises_on_transport_error(self) -> None:
+        """The LangChain-backed transport preserves the RuntimeError contract."""
         with (
-            patch("urllib.request.urlopen", side_effect=urllib.error.URLError("down")),
+            patch(
+                "law_ai.agents_runtime.llm.generate_text_sync",
+                side_effect=OSError("down"),
+            ),
             pytest.raises(RuntimeError, match="Ollama unreachable"),
         ):
             _call_ollama("prompt", model="llama3", base_url="http://localhost:11434")
@@ -486,3 +488,46 @@ def test_requires_human_approval_produces_pending_review_row(
     assert state["human_approval_required"] is True
     assert state["dispatched"][0]["committed"] is False
     assert PendingReview.objects.filter(pk=source_url).exists()
+
+
+# ---------------------------------------------------------------------------
+# Spec 027: real LangGraph StateGraph compilation
+# ---------------------------------------------------------------------------
+
+
+class TestStateGraphCompilation:
+    def test_build_graph_compiles_all_four_nodes(self) -> None:
+        pytest.importorskip("langgraph")
+        tf = tf_module.TopicFrontier()
+        graph = tf._build_graph()
+        node_names = set(graph.get_graph().nodes)
+        assert {"scan_graph", "prioritize", "dispatch", "summarize"} <= node_names
+
+    @pytest.mark.asyncio
+    async def test_run_executes_through_compiled_graph(self) -> None:
+        """run() routes through graph.ainvoke when langgraph is installed."""
+        pytest.importorskip("langgraph")
+
+        with (
+            patch.object(
+                tf_module,
+                "_node_scan_graph",
+                new=AsyncMock(
+                    side_effect=lambda state, **_: {
+                        **state,
+                        "orphan_citations": [],
+                        "under_cited_jurisdictions": [],
+                    }
+                ),
+            ),
+            patch.object(tf_module.audit_jsonl, "record", lambda *_: None),
+            patch.object(tf_module.provenance, "log_agent_call", lambda *a, **k: "t"),
+        ):
+            tf = tf_module.TopicFrontier(
+                ollama_caller=lambda *_, **__: "[]",
+                registry={},
+                scout_factory=MagicMock,
+            )
+            out = await tf.run(trace_id="t-graph")
+        assert out.trace_id == "t-graph"
+        assert out.targets == []
