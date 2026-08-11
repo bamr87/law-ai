@@ -74,15 +74,20 @@ class TestParsePayload:
 
 
 class TestClaudeCodeExecutor:
-    def test_gate_refuses_outside_dev_optin(self) -> None:
-        # Default test settings: LSAT_LLM_PROVIDER unset → inactive (AC-5).
-        assert not claude_code.is_active()
-        with pytest.raises(ExecutorUnavailable):
+    def test_refuses_without_any_claude_credential(self, settings) -> None:
+        settings.CLAUDE_CODE_OAUTH_TOKEN = ""
+        settings.ANTHROPIC_API_KEY = ""
+        with pytest.raises(ExecutorUnavailable, match="no Claude credential"):
             ClaudeCodeExecutor(FactoryConfig())
+
+    def test_falls_back_to_api_key_when_no_oauth_token(self, settings) -> None:
+        settings.CLAUDE_CODE_OAUTH_TOKEN = ""
+        settings.ANTHROPIC_API_KEY = "sk-ant-api03-test"
+        assert ClaudeCodeExecutor(FactoryConfig())._auth == "api_key"
 
     @pytest.mark.asyncio
     async def test_tier_routes_model_id(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(claude_code, "is_active", lambda: True)
+        monkeypatch.setattr(claude_code, "oauth_token", lambda: "tok")
         fake = AsyncMock(return_value=json.dumps({"drafts": [_DRAFT]}))
         monkeypatch.setattr(claude_code, "generate", fake)
         executor = ClaudeCodeExecutor(FactoryConfig())
@@ -98,7 +103,7 @@ class TestClaudeCodeExecutor:
     async def test_passage_mode_skips_schema(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(claude_code, "is_active", lambda: True)
+        monkeypatch.setattr(claude_code, "oauth_token", lambda: "tok")
         fake = AsyncMock(
             return_value=json.dumps({"drafts": [_DRAFT], "passage": {"title": "x"}})
         )

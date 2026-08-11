@@ -140,14 +140,25 @@ async def _probe_checkpointer() -> dict[str, Any]:
 
 
 async def _probe_claude_code() -> dict[str, Any]:
-    """Dev-time-only Claude Code OAuth reachability (constitution §1).
+    """Claude-over-OAuth reachability (tier 1 of the chain).
 
-    Delegates to :func:`law_ai.core.claude_code.probe`, which refuses to call
-    out outside development and reports inline rather than raising.
+    Delegates to :func:`law_ai.core.claude_code.probe`, which reports inline
+    rather than raising so one dead provider cannot fail the health response.
     """
     from law_ai.core import claude_code
 
-    return await claude_code.probe()
+    return await claude_code.probe(auth="oauth")
+
+
+async def _probe_llm_chain() -> list[dict[str, Any]]:
+    """Every provider in ``LLM_PROVIDER_CHAIN``, in the order it is tried.
+
+    This is the probe that matters operationally: it answers "which provider
+    is actually going to serve the next request, and why" in one payload.
+    """
+    from law_ai.core import llm
+
+    return await llm.chain_status()
 
 
 async def _probe_phoenix() -> dict[str, Any]:
@@ -338,17 +349,19 @@ class LocalAIHealthView(_Base):
         async def _gather() -> dict[str, Any]:
             import asyncio as _asyncio
 
-            ollama, checkpointer, phoenix, claude = await _asyncio.gather(
+            ollama, checkpointer, phoenix, claude, chain = await _asyncio.gather(
                 _probe_ollama(),
                 _probe_checkpointer(),
                 _probe_phoenix(),
                 _probe_claude_code(),
+                _probe_llm_chain(),
             )
             return {
                 "ollama": ollama,
                 "checkpointer": checkpointer,
                 "phoenix": phoenix,
                 "claude_code": claude,
+                "llm_chain": chain,
             }
 
         return Response(async_to_sync(_gather)())

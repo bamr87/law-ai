@@ -46,7 +46,7 @@ The user-supplied argument (if any) selects the target:
 ## Constraints
 
 - **Never** finish an `/implement` step without appending entries to the spec's `## Follow-ups Discovered` and to [BACKLOG.md](../../BACKLOG.md) `## Open` with fresh `BL-YYYYMMDD-NN` ids (constitution §11).
-- **Never** suggest closed-source LLMs for the product runtime, bypass `core.provenance` logging, or skip HITL gates.
+- **Never** bypass `law_ai.core.llm` to call a provider transport directly, add a third-party LLM vendor beyond Anthropic/Ollama without a constitution §1 amendment, bypass `core.provenance` logging, or skip HITL gates.
 - Keep edits scoped to the chosen target — do not opportunistically refactor unrelated code.
 - If GitHub issue tooling is unavailable and the argument is an issue reference, ask the user to paste the issue body rather than guessing.
 

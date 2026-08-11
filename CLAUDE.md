@@ -6,7 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 [AGENTS.md](AGENTS.md) is the single source of truth for coding standards, tech stack, project structure, and quality gates. Read it before non-trivial work. This file only captures the operational essentials and the things that are easy to get wrong. Do not duplicate AGENTS.md content here.
 
-> Orchestration policy: GitHub Copilot and Claude Code are both sanctioned dev surfaces ([AGENTS.md](AGENTS.md) § "Development Orchestration", [docs/constitution.md](docs/constitution.md) §1). Cursor, Continue.dev, Aider, Codex, and Gemini CLI remain forbidden. Claude is a **dev-time** tool only — the product runtime LLM stays Ollama / local-first; never wire Claude in as the product LLM.
+> Orchestration policy: GitHub Copilot and Claude Code are both sanctioned dev surfaces ([AGENTS.md](AGENTS.md) § "Development Orchestration", [docs/constitution.md](docs/constitution.md) §1). Cursor, Continue.dev, Aider, Codex, and Gemini CLI remain forbidden.
+>
+> Runtime LLM policy (constitution §1, amended 2026-08-11): the product runtime is the ordered chain in `LLM_PROVIDER_CHAIN` — Claude over OAuth, then Claude over `ANTHROPIC_API_KEY`, then local Ollama — implemented in `law_ai.core.llm`. Claude is the default. Local-first remains supported by pinning `LLM_PROVIDER_CHAIN=ollama`, which is **required** for data under a confidentiality obligation that forbids third-party processing. Adding any third vendor (OpenAI, Gemini, …) needs a further constitution amendment.
 
 ## Docker-first (the rule you will trip on)
 
@@ -44,10 +46,10 @@ docker compose run --rm backend pytest -m integration -v       # by marker
 
 ## Architecture (big picture)
 
-Multi-agent legal-intelligence platform. Django 5 (ASGI/daphne) + DRF + Channels + Celery backend; Next.js 15 (App Router) frontend; Neo4j knowledge graph + Postgres + Redis; **Ollama is the product runtime LLM** (local-first, open-weights — independent from whatever agent edits the code).
+Multi-agent legal-intelligence platform. Django 5 (ASGI/daphne) + DRF + Channels + Celery backend; Next.js 15 (App Router) frontend; Neo4j knowledge graph + Postgres + Redis; **the runtime LLM is the provider chain in `law_ai/core/llm/`** — Claude first, local Ollama last (independent from whatever agent edits the code).
 
 Backend lives in `backend/law_ai/` (the Django project package). Each Django app owns one `/api/*` router:
-- `agents_runtime/` — all agent logic: `crews/` (CrewAI), `graphs/` (LangGraph workflows), `prompts/` (versioned `*.v<N>.md`). (No `tools/` subpackage yet — the tool layer lives in `core/neo4j/`: citation resolver + graph queries.)
+- `agents_runtime/` — all agent logic: `crews/` (CrewAI), `graphs/` (LangGraph workflows, incl. `ChatProviderChain`-backed `LegalWorkflow`), `tools/` (`GraphRAGRetriever` in `graph_rag.py` — hybrid lexical fulltext + `CITES` graph-expansion retrieval), `prompts/` (versioned `*.v<N>.md`). `core/neo4j/` holds the lower-level citation resolver + raw Cypher queries the tools build on.
 - `agentsapi/` — DRF routers + Channels consumers at `/api/agents/*` (real-time agent streaming over WebSockets).
 - `analysis/` `/api/analysis`, `graph/` `/api/graph/*`, `lsat/` `/api/lsat/*` — feature backends.
 - `ingestionapp/` — quarantine ORM models + Celery ingestion tasks + source clients.
@@ -68,7 +70,8 @@ Every `/implement` cycle MUST close the loop ([docs/constitution.md](docs/consti
 
 ## Non-negotiables
 
-- Log every LLM call, tool use, and retrieval through `core.provenance` — never bypass the audit layer.
+- Log every LLM call, tool use, and retrieval through `core.provenance` — never bypass the audit layer. Model calls go through `law_ai.core.llm` (which writes the `llm_call` event); never call a provider transport directly from a feature module.
+- The LegalBench harness stays pinned to Ollama — routing eval through the chain would make benchmark numbers non-comparable.
 - Graph nodes always carry `source` + `confidence`; never hard-delete (soft-delete with `archived_at`).
 - HITL approval gates are required on ingestion and high-stakes analysis (`ENABLE_HUMAN_APPROVAL_GATES`).
 - New agents implement `run(input: dict) -> dict` (Pydantic output) and ship a test under `backend/tests/agents/`.

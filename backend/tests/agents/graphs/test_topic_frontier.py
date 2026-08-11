@@ -23,7 +23,7 @@ from law_ai.agents_runtime.graphs.topic_frontier import (
     _node_summarize,
     _dispatch_target,
     _parse_targets,
-    _call_ollama,
+    _call_llm,
 )
 
 # ---------------------------------------------------------------------------
@@ -82,21 +82,21 @@ class TestParseTargets:
 
 
 # ---------------------------------------------------------------------------
-# _call_ollama error path
+# _call_llm error path
 # ---------------------------------------------------------------------------
 
 
-class TestCallOllama:
-    def test_raises_on_transport_error(self) -> None:
-        """The LangChain-backed transport preserves the RuntimeError contract."""
+class TestCallLLM:
+    def test_raises_when_whole_chain_fails(self) -> None:
+        """The chain-backed transport preserves the RuntimeError contract."""
         with (
             patch(
-                "law_ai.agents_runtime.llm.generate_text_sync",
+                "law_ai.core.llm.generate",
                 side_effect=OSError("down"),
             ),
-            pytest.raises(RuntimeError, match="Ollama unreachable"),
+            pytest.raises(RuntimeError, match="no LLM provider"),
         ):
-            _call_ollama("prompt", model="llama3", base_url="http://localhost:11434")
+            _call_llm("prompt", model="llama3", base_url="http://localhost:11434")
 
 
 # ---------------------------------------------------------------------------
@@ -130,6 +130,42 @@ class TestNodeScanGraph:
 # ---------------------------------------------------------------------------
 
 
+class TestDefaultCallerInsideEventLoop:
+    """The node runs in the event loop, so its default caller must be async.
+
+    Regression guard: every other node test injects ``llm_caller``, so a
+    default path that blocks (or refuses to run) inside a running loop would
+    otherwise only surface in production.
+    """
+
+    @pytest.mark.asyncio
+    async def test_default_path_awaits_the_chain(self, tmp_path: Any) -> None:
+        from law_ai.core.llm.base import LLMResult
+
+        result = LLMResult(
+            text=_FAKE_TARGETS,
+            provider="claude_code",
+            model="claude-opus-5",
+            latency_ms=1.0,
+        )
+        with (
+            patch.object(tf_module.audit_jsonl, "record", lambda *_: None),
+            patch(
+                "law_ai.core.llm.agenerate",
+                new=AsyncMock(return_value=result),
+            ) as mock_agen,
+        ):
+            state = await _node_prioritize(
+                {
+                    "trace_id": "abc",
+                    "orphan_citations": ["123 U.S. 1"],
+                    "under_cited_jurisdictions": ["us-co"],
+                },
+            )
+        assert mock_agen.await_count == 1
+        assert state["targets"][0]["query"] == "Brown v. Board"
+
+
 class TestNodePrioritize:
     @pytest.mark.asyncio
     async def test_calls_ollama_and_parses(self, tmp_path: Any) -> None:
@@ -141,7 +177,7 @@ class TestNodePrioritize:
                     "orphan_citations": ["123 U.S. 1"],
                     "under_cited_jurisdictions": ["us-co"],
                 },
-                ollama_caller=lambda *_, **__: _FAKE_TARGETS,
+                llm_caller=lambda *_, **__: _FAKE_TARGETS,
             )
         assert state["targets"][0]["query"] == "Brown v. Board"
         assert any(e["type"] == "topic_frontier.prioritize" for e in recorded)
@@ -153,7 +189,7 @@ class TestNodePrioritize:
 
         state = await _node_prioritize(
             {"trace_id": "x", "orphan_citations": [], "under_cited_jurisdictions": []},
-            ollama_caller=lambda *_, **__: "bad json",
+            llm_caller=lambda *_, **__: "bad json",
         )
         assert state["targets"] == []
 
@@ -373,7 +409,7 @@ class TestTopicFrontierRun:
 
             tf = TopicFrontier(
                 neo4j_session_factory=_fake_session,
-                ollama_caller=lambda *_, **__: _FAKE_TARGETS,
+                llm_caller=lambda *_, **__: _FAKE_TARGETS,
                 registry={"courtlistener": adapter},
                 scout_factory=MagicMock(return_value=scout),
             )
@@ -404,7 +440,7 @@ class TestTopicFrontierRun:
 
             tf = TopicFrontier(
                 neo4j_session_factory=_fake_session2,
-                ollama_caller=lambda *_, **__: "[]",
+                llm_caller=lambda *_, **__: "[]",
                 registry={},
                 scout_factory=MagicMock(return_value=AsyncMock()),
             )
@@ -524,7 +560,7 @@ class TestStateGraphCompilation:
             patch.object(tf_module.provenance, "log_agent_call", lambda *a, **k: "t"),
         ):
             tf = tf_module.TopicFrontier(
-                ollama_caller=lambda *_, **__: "[]",
+                llm_caller=lambda *_, **__: "[]",
                 registry={},
                 scout_factory=MagicMock,
             )

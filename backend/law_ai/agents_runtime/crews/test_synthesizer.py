@@ -93,22 +93,25 @@ def _load_prompt_template() -> str:
     return _PROMPT_PATH.read_text(encoding="utf-8")
 
 
-def _call_ollama(prompt: str, *, model: str, base_url: str, timeout: int = 120) -> str:
-    """Generate text via the shared LangChain transport (spec 027).
+def _call_llm(prompt: str, *, model: str, base_url: str, timeout: int = 120) -> str:
+    """Generate text through the shared provider chain (spec 034).
 
-    Same name + signature + ``RuntimeError`` contract as the old raw-urllib
-    implementation (tests patch this seam), but the call now goes through
-    ``law_ai.agents_runtime.llm.generate_text_sync`` — one retry-wrapped
-    ``ChatOllama`` runnable shared by every agent.
+    Keeps the signature and ``RuntimeError`` contract of the Ollama-only
+    helper it replaces (tests patch this seam), but the request now runs the
+    Claude-first chain and only reaches Ollama as the last fallback. ``model``
+    scopes the Ollama tier only — it is meaningless to the Claude tiers, whose
+    model comes from ``CLAUDE_CODE_MODEL``. ``base_url`` and ``timeout`` are
+    accepted for signature compatibility; the Ollama transport reads both from
+    settings.
     """
-    from law_ai.agents_runtime.llm import generate_text_sync
+    from law_ai.core import llm
 
     try:
-        return generate_text_sync(
-            prompt, model=model, base_url=base_url, timeout_s=float(timeout)
-        )
+        return llm.generate(
+            prompt, models={"ollama": model}, agent="test_synthesizer"
+        ).text
     except Exception as exc:
-        raise RuntimeError(f"Ollama call failed: {exc}") from exc
+        raise RuntimeError(f"LLM call failed: {exc}") from exc
 
 
 def _extract_code_block(llm_output: str) -> str:
@@ -198,7 +201,7 @@ class TestSynthesizer:
         trace_id = str(uuid4())
         started_at = datetime.now(UTC).isoformat()
 
-        raw_output = _call_ollama(prompt, model=model, base_url=base_url)
+        raw_output = _call_llm(prompt, model=model, base_url=base_url)
         finished_at = datetime.now(UTC).isoformat()
 
         code = _extract_code_block(raw_output)

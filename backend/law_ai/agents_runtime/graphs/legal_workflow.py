@@ -109,7 +109,9 @@ class LegalWorkflowState(TypedDict, total=False):
 
 
 class _LLMLike(Protocol):
-    async def ainvoke(self, prompt: str) -> Any:  # pragma: no cover - structural
+    # Positional-only so both the chain shim (`prompt`) and LangChain chat
+    # models (`input`, plus extra optional params) satisfy the protocol.
+    async def ainvoke(self, prompt: str, /) -> Any:  # pragma: no cover - structural
         ...
 
 
@@ -118,14 +120,17 @@ Retriever = Callable[[LegalWorkflowState], Awaitable[list[dict[str, Any]]]]
 
 
 def _default_llm_factory() -> _LLMLike:
-    """Build the shared retry-wrapped ``ChatOllama`` runnable (spec 027).
+    """Build the LangChain chat model bound to the provider chain (spec 035).
 
-    Routed through :mod:`law_ai.agents_runtime.llm` so every agent shares one
-    LangChain transport with tenacity-backed retries (constitution §8).
+    A real :class:`~law_ai.core.llm.ChatProviderChain` (LangChain
+    ``BaseChatModel``), so this workflow — the default analysis engine — runs
+    Claude-first with local fallback (spec 034) *and* participates in
+    LangChain's callback/tracing machinery. ``_coerce_text`` handles the
+    returned ``AIMessage``.
     """
-    from law_ai.agents_runtime.llm import build_chat_ollama
+    from law_ai.core.llm import ChatProviderChain
 
-    runnable: _LLMLike = build_chat_ollama()
+    runnable: _LLMLike = ChatProviderChain(agent="legal_workflow")
     return runnable
 
 

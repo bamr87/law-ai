@@ -1,6 +1,6 @@
 # `.claude/` — Claude Code configuration for Law AI
 
-Claude Code is a sanctioned dev-time surface for this repo (see [AGENTS.md](../AGENTS.md) § "Development Orchestration" and [CLAUDE.md](../CLAUDE.md)). This directory configures the Claude Code harness so every session inherits the repo's **Docker-first, spec-driven** guardrails. It does **not** change the product runtime — the deployed app's LLM stays Ollama (local-first) per constitution §1.
+Claude Code is a sanctioned dev-time surface for this repo (see [AGENTS.md](../AGENTS.md) § "Development Orchestration" and [CLAUDE.md](../CLAUDE.md)). This directory configures the Claude Code harness so every session inherits the repo's **Docker-first, spec-driven** guardrails. It does **not** change the product-runtime LLM policy: that's the ordered provider chain in `LLM_PROVIDER_CHAIN` (Claude by default — Claude Code OAuth then `ANTHROPIC_API_KEY` — with Ollama as the local-only last-tier fallback, required for data under a confidentiality obligation forbidding third-party processing) per [docs/constitution.md](../docs/constitution.md) §1. Which AI edits this repo's code is independent of which LLM serves end users.
 
 ## Layout
 

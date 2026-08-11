@@ -1,21 +1,35 @@
-# Claude Code as a dev-time LLM (LSAT)
+# The Claude transport (`law_ai.core.claude_code`)
 
-A **development-only** integration that lets the LSAT tutor borrow your local [Claude Code](https://claude.com/claude-code) OAuth subscription as an alternative to a running Ollama instance — handy when iterating on a laptop without the local model stack up.
+[`law_ai.core.claude_code`](../backend/law_ai/core/claude_code.py) is the Anthropic transport that backs tiers 1–2 of the product-runtime LLM chain — Claude over a subscription OAuth token, then Claude over a plain `ANTHROPIC_API_KEY`. Per [docs/constitution.md](constitution.md) §1 (amended 2026-08-11, spec 034), **Claude is the default product runtime**; local Ollama is the chain's last-tier fallback, not the default. This page covers how the transport works, how to configure it (OAuth is the fastest path for local dev, since it reuses your existing Claude Code subscription), and how to pin the runtime to Ollama-only when that's what a matter requires.
 
-## Boundary (read this first)
+No gate exists anymore. Earlier revisions of this module required an explicit `LSAT_LLM_PROVIDER=claude_code` opt-in plus a development environment before Claude would run; that gate was **repealed** by spec 034. Every call site — the LSAT tutor, the LSAT content author, and `LegalAnalyst` — now calls [`law_ai.core.llm.agenerate()`](../backend/law_ai/core/llm/router.py) unconditionally, in every environment (dev, prod, and test — test settings blank the credentials instead of gating on environment, see `settings/test.py`). The router tries the chain in order and falls back automatically; nothing needs to be "activated."
 
-This is a **dev-time tool**, not a product runtime path. Per [docs/constitution.md](constitution.md) §1 and [AGENTS.md](../AGENTS.md) ("Development Orchestration"), **Claude must never be the product runtime LLM** — Ollama (local-first, open-weights) stays the default. The integration enforces this: it engages only when **all** of the following hold, and otherwise falls back to Ollama / the deterministic offline path:
+## How Claude fits into the runtime chain
 
-1. `LSAT_LLM_PROVIDER=claude_code` (explicit operator opt-in), **and**
-2. the process is in a development environment (`DEBUG=true` or
-   `ENVIRONMENT=development`), **and**
-3. a `CLAUDE_CODE_OAUTH_TOKEN` is present.
+[`law_ai.core.llm.router`](../backend/law_ai/core/llm/router.py) reads `LLM_PROVIDER_CHAIN` (default `claude_code,anthropic_api,ollama`) and tries each named provider in order until one is configured and answers:
 
-The gate lives in [`law_ai.core.claude_code`](../backend/law_ai/core/claude_code.py) (`is_active()`); production and test environments can never activate it.
+1. `claude_code` — Claude via `CLAUDE_CODE_OAUTH_TOKEN` (this module, `oauth` mode).
+2. `anthropic_api` — Claude via `ANTHROPIC_API_KEY` (this module, `api_key` mode).
+3. `ollama` — the local open-weights model ([docs/local-ai.md](local-ai.md)).
 
-## How it connects (OAuth, not an API key)
+Every attempt — including the ones that failed before a later tier succeeded — is written to the audit layer via `ProvenanceLogger.log_event` (constitution §5), so a fallback is always visible after the fact. When every tier fails, the caller degrades to an honest refusal, never a fabricated answer (constitution §13).
 
-The backend talks to the Anthropic Messages API exactly the way the Claude Code CLI does: an **OAuth bearer token** plus the `oauth-2025-04-20` beta header — not an `x-api-key`. The first system block identifies the request as Claude Code, as OAuth tokens require.
+**Run fully local.** Pin the chain to skip the hosted tiers entirely:
+
+```dotenv
+LLM_PROVIDER_CHAIN=ollama
+```
+
+Constitution §1 makes this **required**, not optional, for any matter under a confidentiality obligation that forbids third-party processing — prompts sent through either Claude tier leave the machine. Deployments that routinely handle privileged client data should default to this pin rather than opting in per request.
+
+## Two auth modes, one transport
+
+| Mode | Credential | Header | Chain tier |
+|---|---|---|---|
+| `oauth` | `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) | `Authorization: Bearer …` + `anthropic-beta: oauth-2025-04-20` | 1 (tried first) |
+| `api_key` | `ANTHROPIC_API_KEY` | `x-api-key: …` | 2 (tried when OAuth is absent or failing) |
+
+Both modes hit the same Anthropic Messages API and the same model. OAuth tokens are scoped to the Claude Code CLI surface, so that mode additionally prepends a required identity system block (`"You are Claude Code, Anthropic's official CLI for Claude."`); the API-key mode does not, since a plain API request has no reason to claim to be a CLI.
 
 ```
 Authorization: Bearer $CLAUDE_CODE_OAUTH_TOKEN
@@ -23,7 +37,7 @@ anthropic-beta: oauth-2025-04-20
 anthropic-version: 2023-06-01
 ```
 
-## Setup
+## Setup (OAuth, for local dev)
 
 1. Mint a long-lived token from your Claude Code subscription:
 
@@ -31,15 +45,16 @@ anthropic-version: 2023-06-01
    claude setup-token   # prints an sk-ant-oat01-... OAuth token
    ```
 
-2. Add it to `.env` (see [.env.example](../.env.example)) and opt in:
+2. Add it to `.env` (see [.env.example](../.env.example)):
 
    ```dotenv
-   LSAT_LLM_PROVIDER=claude_code
    CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...
-   CLAUDE_CODE_MODEL=claude-opus-4-8        # default
+   CLAUDE_CODE_MODEL=claude-opus-5    # default
    ```
 
-   Keep `LSAT_LLM_PROVIDER=ollama` (the default) to use the local model.
+   That's sufficient — no provider opt-in flag is needed; the chain tries `claude_code` first by default. To use an API key instead (e.g. no Claude Code subscription), set `ANTHROPIC_API_KEY` and skip the OAuth token; `ANTHROPIC_MODEL` overrides the model id for that tier only, otherwise it follows `CLAUDE_CODE_MODEL`.
+
+   `LSAT_LLM_PROVIDER` still exists in settings but no code path reads it today (`claude_code.is_selected()`, the function that would check it, has no callers) — it is vestigial. `LLM_PROVIDER_CHAIN` is the real selector; use the local-only pin above if you want to force Ollama instead of Claude.
 
 ## Validate the connection
 
@@ -47,46 +62,58 @@ anthropic-version: 2023-06-01
 make validate-claude-code
 ```
 
-The command (`backend/law_ai/lsat/management/commands/validate_claude_code.py`) prints the gate status, performs a near-free OAuth round-trip, and — when fully opted in — runs the LSAT tutor end-to-end through Claude Code to prove the app path works.
+The command ([`validate_claude_code.py`](../backend/law_ai/lsat/management/commands/validate_claude_code.py)) proves tier 1 of the chain end-to-end: it performs a near-free OAuth round-trip against the Messages API, then runs the LSAT tutor through it to confirm the app path works.
 
-The dashboard health endpoint also reports it under `claude_code`:
+The dashboard health endpoint reports the same thing plus the full chain status:
 
 ```bash
 make local-ai-health   # GET /api/agents/health/local-ai
 ```
 
-## Run a live agent
+The response includes a `claude_code` object (the OAuth-tier probe) and an `llm_chain` array — every provider in `LLM_PROVIDER_CHAIN`, in try order, with reachability — answering "which provider will actually serve the next request, and why" in one payload.
 
-With the gate active, run the `LSATContentAuthor` crew end-to-end against Claude Code — it builds a prompt, drafts a question, parses + validates it against the `DraftQuestion` contract, and logs provenance:
+## Run a live agent
 
 ```bash
 make lsat-author-demo
 # or: make lsat-author-demo ARGS='--section RC --difficulty hard'
 ```
 
-On the Claude Code path the draft is pinned with **structured outputs** (`output_config.format` + a JSON Schema) so Opus returns schema-valid JSON every time; the agent additionally normalizes the answer choices to the canonical A–E set and falls back to a deterministic offline draft if the provider is unreachable. Transient `429/5xx/529` responses are retried with exponential backoff (`CLAUDE_CODE_MAX_RETRIES`).
-
-The **`LegalAnalyst`** crew (`agents_runtime`) shares the same gate: when Claude Code is active, its default (non-LangGraph) path produces a real IRAC analysis over OAuth instead of the static mock, degrading to a labeled placeholder on failure. Run it live:
+This runs the `LSATContentAuthor` crew end-to-end through the provider chain — it builds a prompt, drafts a question, parses + validates it against the `DraftQuestion` contract, and logs provenance. On a Claude tier, the draft is pinned with **structured outputs** (`output_config.format` + a JSON Schema) so the model returns schema-valid JSON every time; the agent additionally normalizes the answer choices to the canonical A–E set and falls back to a deterministic offline draft if every tier is unreachable. Transient `429/5xx/529` responses are retried with exponential backoff (`CLAUDE_CODE_MAX_RETRIES`).
 
 ```bash
 make legal-analyst-demo
 make legal-analyst-demo ARGS='--question "Is a browsewrap arbitration clause enforceable?"'
 ```
 
-> `LegalAnalyst` IRAC authorities are model-generated and flagged unverified —
-> they still require GraphRAG grounding / human review before any real use.
+`LegalAnalyst` ([`agents_runtime/crews/legal_analyst.py`](../backend/law_ai/agents_runtime/crews/legal_analyst.py)) has two internal paths, both chain-backed:
 
-All four call sites — LSAT tutor, LSAT content author, and LegalAnalyst — share the one `law_ai.core.claude_code.is_active()` gate, so they all honor `LSAT_LLM_PROVIDER` and the dev-only rule together.
+- **Default** (`use_langgraph=true`, the `AnalysisRequest` default): delegates to `LegalWorkflow` ([docs/local-ai.md](local-ai.md)), whose LLM is `ChatProviderChain` — a LangChain `BaseChatModel` over this same chain (spec 035).
+- **Explicit escape hatch** (`use_langgraph=false`): calls `llm.agenerate()` directly for a real IRAC analysis, degrading to a labeled offline placeholder only if every tier fails.
+
+Either way the analysis is Claude-generated by default, not a mock. Its authorities are model-generated and flagged unverified — they still require GraphRAG grounding / human review before any real use.
+
+All three agents — LSAT tutor, LSAT content author, and `LegalAnalyst` — route through the same `law_ai.core.llm.agenerate()` entry point, which tries the chain in order and only degrades to an offline fallback once every tier has failed.
 
 ## Configuration reference
 
 | Env var | Default | Purpose |
 |---|---|---|
-| `LSAT_LLM_PROVIDER` | `ollama` | `claude_code` opts the LSAT tutor in (dev only). |
-| `CLAUDE_CODE_OAUTH_TOKEN` | _(unset)_ | OAuth token from `claude setup-token`. |
-| `CLAUDE_CODE_MODEL` | `claude-opus-4-8` | Claude model id. |
-| `CLAUDE_CODE_MAX_TOKENS` | `1024` | Max output tokens per tutor call. |
+| `LLM_PROVIDER_CHAIN` | `claude_code,anthropic_api,ollama` | Ordered provider list; pin to `ollama` for local-only. |
+| `CLAUDE_CODE_OAUTH_TOKEN` | _(unset)_ | OAuth token from `claude setup-token` (tier 1). |
+| `ANTHROPIC_API_KEY` | _(unset)_ | Standard API key (tier 2). |
+| `CLAUDE_CODE_MODEL` | `claude-opus-5` | Model id for both Claude tiers. |
+| `ANTHROPIC_MODEL` | _(unset)_ | Overrides the model id for tier 2 only; falls back to `CLAUDE_CODE_MODEL`. |
+| `CLAUDE_EFFORT` | _(unset)_ | Optional reasoning-effort hint passed through `output_config.effort`. |
+| `CLAUDE_CODE_MAX_TOKENS` | `8192` | Max output tokens per call. |
 | `CLAUDE_CODE_REQUEST_TIMEOUT_S` | `60` | HTTP timeout. |
+| `CLAUDE_CODE_MAX_RETRIES` | `3` | Retries on transient `429/5xx/529`. |
 | `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | API base (override for proxies). |
+| `LSAT_LLM_PROVIDER` | _(unset)_ | Vestigial — no code path reads it; kept in settings for backward compatibility only. |
 
-Every tutor call is still recorded through the audit layer (the `model` field shows `claude_code/<model>`), so provenance is preserved regardless of provider.
+Every call is recorded through the audit layer (the `model` field shows e.g. `claude_code/claude-opus-5` or `anthropic_api/claude-opus-5`), so provenance is preserved regardless of which tier served the request.
+
+## See also
+
+- [docs/local-ai.md](local-ai.md) — the Ollama tier, `ChatProviderChain`, and the LangGraph substrate this transport feeds as tiers 1–2.
+- [docs/constitution.md](constitution.md) §1 — the runtime LLM policy this page implements.

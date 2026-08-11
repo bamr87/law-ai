@@ -1,15 +1,12 @@
-"""``validate_claude_code`` — verify the dev-time Claude Code OAuth integration.
+"""``validate_claude_code`` — verify the Claude OAuth tier of the runtime chain.
 
-Proves the application can talk to a local Claude Code subscription over OAuth
-and, when fully opted in, that the LSAT tutor actually routes through it. Run
-inside the backend container::
+Proves the application can talk to Anthropic over a Claude subscription OAuth
+token (tier 1 of ``LLM_PROVIDER_CHAIN``, constitution §1 as amended) and that
+the LSAT tutor actually routes through it end-to-end. Run inside the backend
+container::
 
     make validate-claude-code
     # or: make manage CMD='validate_claude_code'
-
-It is a development convenience only — Ollama stays the product runtime LLM
-(constitution §1). The command refuses to engage outside a development
-environment, matching :mod:`law_ai.core.claude_code`.
 """
 
 from __future__ import annotations
@@ -23,7 +20,7 @@ from law_ai.core import claude_code
 
 
 class Command(BaseCommand):
-    help = "Validate the Claude Code OAuth dev integration used by the LSAT tutor."
+    help = "Validate the Claude OAuth tier of the LLM provider chain end-to-end."
 
     def add_arguments(self, parser: Any) -> None:
         parser.add_argument(
@@ -53,29 +50,17 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("\nOAuth connection validated."))
             return
 
-        if not claude_code.is_active():
-            self.stdout.write(
-                self.style.WARNING(
-                    "\nOAuth connection validated, but the LSAT tutor is NOT routed "
-                    "to Claude Code.\nSet LSAT_LLM_PROVIDER=claude_code (in development) "
-                    "to make the tutor use it; reason: "
-                    + str(claude_code.inactive_reason())
-                )
-            )
-            return
-
         self._run_tutor(opts["question_id"])
 
     # ------------------------------------------------------------------
     # Steps
     # ------------------------------------------------------------------
     def _print_gate(self) -> None:
-        self.stdout.write(self.style.MIGRATE_HEADING("Claude Code OAuth gate"))
+        self.stdout.write(self.style.MIGRATE_HEADING("Claude OAuth tier (chain tier 1)"))
         rows = {
-            "provider selected": claude_code.is_selected(),
             "development env": claude_code.is_development(),
-            "token present": claude_code.oauth_token() is not None,
-            "tutor active": claude_code.is_active(),
+            "oauth token": claude_code.oauth_token() is not None,
+            "api key (tier 2)": claude_code.api_key() is not None,
             "model": claude_code.model(),
         }
         for key, value in rows.items():

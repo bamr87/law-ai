@@ -55,9 +55,8 @@ The API is **default-open** in dev (no `*_API_KEY` set), so curl needs no auth. 
 
 ## Drive the agents with a real LLM (optional)
 
-These `make` targets run agents through their full pipeline. They use the **dev-only Claude Code OAuth provider** when opted in (`LSAT_LLM_PROVIDER=claude_code`
-+ `CLAUDE_CODE_OAUTH_TOKEN` in `backend/.env`, see
-[docs/claude-code-dev-llm.md](docs/claude-code-dev-llm.md)); otherwise they fall back to Ollama / a deterministic offline draft, so they still run on a clean clone.
+These `make` targets run agents through their full pipeline. They call the product `LLM_PROVIDER_CHAIN` unconditionally (Claude OAuth → `ANTHROPIC_API_KEY` → Ollama, constitution §1) — set `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in `backend/.env` for a live Claude run (see
+[docs/claude-code-dev-llm.md](docs/claude-code-dev-llm.md)); with neither configured and no reachable Ollama they degrade to a deterministic offline draft, so they still run on a clean clone.
 
 ```bash
 make legal-analyst-demo                      # LegalAnalyst → IRAC analysis
@@ -107,7 +106,8 @@ which overrides the settings' SQLite test default (env wins over `.env`). A bare
 - **Phoenix/OpenTelemetry spams `Failed to resolve 'phoenix'`** when the stack
 isn't up. Set `-e PHOENIX_COLLECTOR_ENDPOINT=` (the driver does) to silence it — it's noise, not an error.
 - **`DJANGO_SETTINGS_MODULE` defaults to `law_ai.settings.dev`** (DEBUG=True) via
-  `manage.py`/`asgi.py`. That's what makes the dev-only Claude Code gate eligible.
+  `manage.py`/`asgi.py`. Claude/Ollama credentials are read the same way in every
+  environment except `test`, which hard-blanks them (`settings/test.py`).
 - **macOS hosts have no `timeout`** — don't wrap commands in it; rely on the
   tool/shell timeout instead.
 
@@ -119,4 +119,4 @@ isn't up. Set `-e PHOENIX_COLLECTOR_ENDPOINT=` (the driver does) to silence it �
 | `Bind for 0.0.0.0:8000 failed: port is already allocated` | `docker rm -f law_ai-api`, or run the driver with `PORT=8001`. |
 | Driver hangs at "waiting for /health" | `docker logs law_ai-api` — usually a missing `-e DATABASE_URL` override or a migrate error. |
 | Endless `Failed to resolve 'phoenix'` lines | Set `-e PHOENIX_COLLECTOR_ENDPOINT=`. |
-| Agent demo says `via mock / fallback` | Expected without an LLM. For live runs, set `LSAT_LLM_PROVIDER=claude_code` + `CLAUDE_CODE_OAUTH_TOKEN` in `backend/.env` (dev only), or have Ollama running. |
+| Agent demo says `via mock / fallback` | Expected when every `LLM_PROVIDER_CHAIN` tier is unreachable. For a live run, set `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in `backend/.env`, or have Ollama running. |

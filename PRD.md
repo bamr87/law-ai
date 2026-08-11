@@ -5,7 +5,7 @@
 **Date:** April 29, 2026  
 **Status:** Draft for Review  
 **Owner:** Product Team (AI Legal Systems Initiative)  
-**Related:** [Technical Proposal](Law_AI_Proposal.docx) | [Architecture Diagram](imagine_images/nYGs6.jpg)
+**Related:** [Technical Proposal](Law_AI_Proposal.md) | [Architecture](docs/architecture.md) | [Constitution](docs/constitution.md)
 
 ---
 
@@ -16,14 +16,14 @@
 The platform integrates:
 - **Specialized AI Agent Crews** (built with CrewAI + LangGraph) for legal research, case analysis, precedent mapping, logic validation, and adaptive education.
 - **Neo4j-powered Knowledge Graphs** that automatically connect cases, statutes, holdings, citations, and legal doctrines.
-- **Hybrid GraphRAG** retrieval combining vector search with graph traversals for precise, explainable answers.
+- **Graph-grounded retrieval** — lexical fulltext search combined with graph (`CITES`) traversal expansion for precise, explainable answers, with vector/hybrid GraphRAG as a planned but not-yet-implemented extension (see [§6.3](#63-data--model-requirements)).
 - **Public Legal Data Pipelines** pulling from CourtListener, Harvard Caselaw Access Project (CAP), RECAP, legislation.gov.uk, and other open sources.
 - **Dedicated LSAT & Bar Prep Lab** with grounded explanations linked to the live knowledge graph.
 - **Modern Interactive Frontend** featuring draggable knowledge graphs (Cytoscape.js), real-time agent monitoring, and collaborative workspaces.
 
-**Primary Goal:** Democratize high-quality legal AI by making it fully open-source, privacy-first (local LLM support via Ollama), auditable, and extensible — lowering barriers for solo practitioners, public defenders, law schools, and access-to-justice initiatives.
+**Primary Goal:** Democratize high-quality legal AI by making it fully open-source, auditable, and extensible, with a local-only runtime mode (Ollama, no third-party processing) available for confidentiality-bound work — lowering barriers for solo practitioners, public defenders, law schools, and access-to-justice initiatives.
 
-**Target Launch:** MVP in 3 months; v1.0 in 6 months.
+**Target Launch:** MVP in 3 months; v1.0 in 6 months. *(Status: this doc's original April 29, 2026 timeline has passed — see [§10](#10-milestones--roadmap) for a status note.)*
 
 ---
 
@@ -61,7 +61,7 @@ Legal professionals and students face:
 - Functional Analyst + Precedent Hunter agent crew producing IRAC briefs with >70% expert approval rate.
 - Interactive Cytoscape graph explorer working on real data.
 - Basic LSAT module with 3 full practice sections + AI explanations.
-- Local Docker Compose deployment running entirely offline with Ollama.
+- Docker Compose deployment running with the Claude-default provider chain; a fully offline mode is available by pinning `LLM_PROVIDER_CHAIN=ollama` (required, not optional, for confidentiality-bound data).
 
 ---
 
@@ -129,19 +129,20 @@ Legal professionals and students face:
 
 ## 6. Technical Requirements & Architecture
 
+> The stack described here is a snapshot; [docs/constitution.md](docs/constitution.md) §2 ("Tech Stack (Locked)") is the enforced, authoritative version and should be treated as the tie-breaker if this section drifts. See also [docs/architecture.md](docs/architecture.md) for the current implementation-level architecture.
+
 ### 6.1 High-Level Architecture (see diagram)
 ```
 Public Legal Sources (CourtListener, CAP, legislation.gov.uk, EUR-Lex)
           ↓ (Ingestion Scout Agent)
 Backend Layer
-  • Django 5 (ASGI) + Django REST Framework (REST) + Channels (WebSocket for agent streaming) + Celery (background jobs)
-  • CrewAI + LangGraph (orchestration & state machines)
-  • PostgreSQL (users, projects, run history, LSAT metrics)
-  • Neo4j Community (knowledge graph + vector index)
-  • Chroma / Weaviate (supplementary embeddings)
-  • Ollama (local LLM serving – Llama 3.1 70B, Mistral, Phi-3, etc.)
+  • Django 5 (ASGI/daphne) + Django REST Framework (REST) + Channels (WebSocket for agent streaming) + Celery (background jobs)
+  • CrewAI + LangGraph (orchestration & state machines); LangChain (langchain-core) provides ChatProviderChain, the LangGraph-native LLM wrapper
+  • PostgreSQL (users, projects, run history, LSAT metrics, LangGraph checkpoints)
+  • Neo4j Community (knowledge graph — lexical fulltext + graph traversal retrieval today; no vector index yet)
+  • LLM provider chain (law_ai.core.llm): Claude via Claude Code OAuth → Claude via ANTHROPIC_API_KEY → Ollama (local, last-tier fallback)
           ↓
-Frontend (Next.js 15 + TypeScript + Tailwind + shadcn/ui)
+Frontend (Next.js + TypeScript + Tailwind + shadcn/ui)
   • Interactive Cytoscape.js knowledge graph
   • Analysis Studio (real-time agent traces)
   • LSAT Lab (adaptive practice + analytics)
@@ -149,23 +150,23 @@ Frontend (Next.js 15 + TypeScript + Tailwind + shadcn/ui)
 ```
 
 ### 6.2 Core Technology Stack (All Open Source)
-- **Backend**: Python 3.12+, Django 5 (ASGI), Django REST Framework, Channels, Celery, Pydantic v2 (domain layer), CrewAI, LangGraph, LangChain (tool abstractions only)
-- **Databases**: PostgreSQL 16, Neo4j 5.x Community, Chroma
-- **LLM Runtime**: Ollama (primary), optional vLLM / Hugging Face Text Generation Inference for scale
+- **Backend**: Python 3.12+, Django 5 (ASGI/daphne), Django REST Framework, Channels, Celery, Pydantic v2 (domain layer), CrewAI, LangGraph, LangChain (`langchain-core` — a core dependency, not tool abstractions only; backs `ChatProviderChain`, the default LLM for `LegalWorkflow`)
+- **Databases**: PostgreSQL 16, Neo4j 5.x Community
+- **LLM Runtime**: ordered provider chain (`LLM_PROVIDER_CHAIN`), Claude default (Claude Code OAuth, then `ANTHROPIC_API_KEY`), Ollama as the local last-tier fallback — required, not optional, for data under a confidentiality obligation forbidding third-party processing (see [docs/constitution.md](docs/constitution.md) §1)
 - **NLP & Legal Parsing**: Eyecite, Blackstone (spaCy pipeline), pdfplumber, Unstructured.io
-- **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Tailwind, shadcn/ui, TanStack Query, Cytoscape.js, React Flow, Recharts
-- **Auth & Collaboration**: Supabase (self-hostable) or Keycloak + PostgreSQL
-- **DevOps**: Docker Compose (full local stack), GitHub Actions, optional Coolify / Railway for cloud self-host
+- **Frontend**: Next.js (App Router), React, TypeScript, Tailwind, shadcn/ui, TanStack Query, Cytoscape.js, React Flow, Recharts — see [docs/constitution.md](docs/constitution.md) §2 for the locked major versions
+- **Auth**: API-key authentication (`law_ai.core.auth.ApiKeyAuthentication`); RBAC/SSO are not yet implemented
+- **DevOps**: Docker Compose (full local stack, Docker-first for all dev/test/lint commands via `make`), GitHub Actions
 
 ### 6.3 Data & Model Requirements
 - **Primary Corpora**: CourtListener (real-time + bulk), CAP bulk Parquet (6.9M cases), Pile-of-Law (256GB for domain adaptation), LegalBench (162 tasks for continuous evaluation).
-- **Embedding Models**: Open-source (BGE, Snowflake, or legal-specific fine-tunes).
-- **Evaluation**: LegalBench + LegalBench-RAG harness integrated into CI; nightly regression on held-out tasks.
+- **Embedding Models**: Not yet implemented — retrieval today is lexical fulltext search plus graph (`CITES`) traversal expansion only (`backend/law_ai/agents_runtime/tools/graph_rag.py`). No embedding column exists on `:Case` yet; `chromadb` is a declared dependency with zero current usage. Vector/hybrid GraphRAG remains planned, not shipped.
+- **Evaluation**: LegalBench harness integrated into CI, pinned to Ollama regardless of the product-runtime provider chain (so benchmark numbers stay comparable run-to-run); nightly regression on held-out tasks. LegalBench-RAG is aspirational pending the vector work above.
 
 ### 6.4 Security, Privacy & Compliance
-- **Privacy-first**: Default local-only mode (Ollama + local DBs). No data leaves user machine unless explicit cloud opt-in.
-- **Auditability**: Every agent decision, prompt, tool call, and retrieval logged with immutable hash chain (supporting ABA ethics opinions on AI use).
-- **Access Control**: Workspace-level RBAC; optional SSO/SAML for firms.
+- **Runtime LLM default**: Claude (Claude Code OAuth token, then `ANTHROPIC_API_KEY`) is the default provider; requests route through the third-party Anthropic API unless the deployment pins `LLM_PROVIDER_CHAIN=ollama`. That local-only pin is **required**, not optional, for data under a confidentiality obligation forbidding third-party processing (see [docs/constitution.md](docs/constitution.md) §1, amended 2026-08-11).
+- **Auditability**: Every agent decision, prompt, tool call, and retrieval logged through `core.provenance` (supporting ABA ethics opinions on AI use).
+- **Access Control**: Currently API-key authentication only (`law_ai.core.auth.ApiKeyAuthentication`); workspace-level RBAC and SSO/SAML are not yet implemented.
 - **Data Minimization**: Only store user-uploaded documents + derived graph nodes they explicitly approve.
 - **Disclaimers**: Prominent "AI Assistant – Not Legal Advice" + "Verify all citations" in every output; one-click "report issue" to maintainers.
 
@@ -175,14 +176,16 @@ Frontend (Next.js 15 + TypeScript + Tailwind + shadcn/ui)
 
 ### Agent Roles & Responsibilities
 
+> This table states the target agent roster. For which of these are actually shipped vs. still conceptual, see [docs/agent-roles.md](docs/agent-roles.md), which distinguishes "Current Agents (MVP)" from "Planned Agents (Post-MVP)." As of this writing, **Ingestion Scout, Legal Analyst, and Precedent Hunter are implemented** (`backend/law_ai/agents_runtime/crews/`), along with `TestSynthesizer` and `TopicFrontier` (LangGraph workflows) and `LSATContentAuthor` (an autonomy-gated agent, not a general "Educator"). **Logic Weaver and a standalone Orchestrator/Educator agent do not exist yet** — orchestration today is the `LegalWorkflow` LangGraph `StateGraph`, not a dedicated Orchestrator agent.
+
 | Agent | Role Type | Core Responsibilities | Required Tools | Output Schema | Evaluation Method |
 |-------|-----------|-----------------------|----------------|---------------|-------------------|
 | **Ingestion Scout** | Data | Fetch/parse/extract/validate/commit legal documents to graph | CourtListener client, Eyecite, Blackstone, PDF parsers, Neo4j writer | Structured extraction + confidence score + proposed Cypher | Manual review queue + automated LegalBench-style entity F1 |
-| **Legal Analyst** | Reasoning | IRAC brief, issue spotting, argument tree, risk assessment | GraphRAG retriever, LegalBench prompts, structured output (Pydantic) | JSON: {issues, rules, application, conclusion, citations, risks} | Expert blind review; LegalBench "Rule QA" & "Issue Spotting" tasks |
-| **Precedent Hunter** | Retrieval | Surface on-point, analogous, and distinguishing cases with explanations | Neo4j Cypher (shortest path, community detection), vector similarity, citation graph | Ranked list + natural language justification + distinguishing factors | Citation recall@10 vs SCDB gold; human relevance rating |
-| **Logic Weaver** | Reasoning | Build argument maps, detect fallacies, strength scoring, counter-argument generation | Custom reasoning prompts, entailment models, LegalBench NLI tasks | Argument graph (nodes = propositions, edges = support/attack) | Agreement with expert annotations; fallacy detection precision |
-| **Educator (LSAT/Bar)** | Education | Generate/validate practice questions, explain answers with graph grounding, adaptive sequencing | Question bank + generator, performance DB, concept subgraph retriever | Explanation + linked cases/rules + next recommended drill | Pre/post test delta; item response theory calibration |
-| **Orchestrator** | Meta | Plan decomposition, agent routing, state management, HITL gates, workflow checkpointing | LangGraph state machine, shared memory, human approval nodes | Executable plan + execution trace + final synthesized artifact | Workflow success rate; trace auditability score |
+| **Legal Analyst** | Reasoning | IRAC brief, issue spotting, argument tree, risk assessment | Graph retriever, LegalBench prompts, structured output (Pydantic) | JSON: {issues, rules, application, conclusion, citations, risks} | Expert blind review; LegalBench "Rule QA" & "Issue Spotting" tasks |
+| **Precedent Hunter** | Retrieval | Surface on-point, analogous, and distinguishing cases with explanations | Neo4j Cypher (shortest path, community detection), lexical fulltext + citation graph expansion (vector similarity planned, not yet implemented) | Ranked list + natural language justification + distinguishing factors | Citation recall@10 vs SCDB gold; human relevance rating |
+| **Logic Weaver** *(planned, not shipped)* | Reasoning | Build argument maps, detect fallacies, strength scoring, counter-argument generation | Custom reasoning prompts, entailment models, LegalBench NLI tasks | Argument graph (nodes = propositions, edges = support/attack) | Agreement with expert annotations; fallacy detection precision |
+| **Educator (LSAT/Bar)** *(closest shipped analog: `LSATContentAuthor`, a differently-scoped, HITL-gated autonomy agent)* | Education | Generate/validate practice questions, explain answers with graph grounding, adaptive sequencing | Question bank + generator, performance DB, concept subgraph retriever | Explanation + linked cases/rules + next recommended drill | Pre/post test delta; item response theory calibration |
+| **Orchestrator** *(today: the `LegalWorkflow` LangGraph `StateGraph`, not a standalone agent)* | Meta | Plan decomposition, agent routing, state management, HITL gates, workflow checkpointing | LangGraph state machine, shared memory, human approval nodes | Executable plan + execution trace + final synthesized artifact | Workflow success rate; trace auditability score |
 
 **Prompt Engineering Standards**:
 - All prompts versioned in repo with Git SHA.
@@ -223,13 +226,15 @@ Frontend (Next.js 15 + TypeScript + Tailwind + shadcn/ui)
 | **Reliability** | Agent workflow success rate | >98% for defined tasks | Automatic retry + fallback to simpler agent |
 | **Scalability** | Concurrent users per self-hosted instance | 50–200 (depending on hardware) | Horizontal scaling guide for cloud deploys |
 | **Performance** | End-to-end case brief generation | <30s (local), <8s (cloud GPU) | Quantized models supported |
-| **Maintainability** | Code coverage + type safety | >85% coverage, strict TypeScript + mypy | Pre-commit hooks + CI |
+| **Maintainability** | Code coverage + type safety | ≥75% coverage on backend (`--cov-fail-under=75`, per [backend/pyproject.toml](backend/pyproject.toml) and [docs/constitution.md](docs/constitution.md) §3); strict TypeScript + mypy --strict | Pre-commit hooks + CI |
 | **Legal/Ethical** | Audit log completeness | 100% of agent actions logged | Immutable, exportable for bar complaints |
 | **Open Source** | License & contribution model | MIT/AGPL dual; CLA required for large contributions | Clear governance in CONTRIBUTING.md |
 
 ---
 
 ## 10. Milestones & Roadmap
+
+> **Status note (2026-08-11):** this section's dates are from the original April 29, 2026 draft and have not been reconciled against actual delivery. Spec 034 (Claude-default LLM provider chain) and spec 035 (LangChain/LangGraph promoted to core dependencies) both shipped 2026-08-11 and are not reflected in the phase breakdown below — see `specs/034-claude-default-runtime/` and `specs/035-langchain-first-class/` (or the current `specs/` index) for what has actually landed. Treat the phase content as directional, not a committed schedule.
 
 **Q2 2026 (MVP – Internal Alpha)**
 - Weeks 1–4: Core ingestion pipeline + Neo4j schema + Eyecite/Blackstone integration (50k cases)
@@ -296,7 +301,7 @@ Frontend (Next.js 15 + TypeScript + Tailwind + shadcn/ui)
 
 ## 13. AI Development Orchestration Capabilities (GitHub Copilot + Claude Code)
 
-GitHub Copilot and Claude Code are the **sanctioned AI development orchestrators** for this repo (see [docs/constitution.md](docs/constitution.md) §1 and [AGENTS.md](AGENTS.md) "Development Orchestration"). The capabilities below are exercised through Copilot Chat (Ask / Edit / Agent modes) and the GitHub Copilot coding agent; Claude Code (CLI / IDE) runs the same AO-SDLC chain and `/evolve` from the shared [prompts/](prompts/). The product *runtime* LLM remains Ollama — these capabilities are about how the codebase itself gets built and evolved.
+GitHub Copilot and Claude Code are the **sanctioned AI development orchestrators** for this repo (see [docs/constitution.md](docs/constitution.md) §1 and [AGENTS.md](AGENTS.md) "Development Orchestration"). The capabilities below are exercised through Copilot Chat (Ask / Edit / Agent modes) and the GitHub Copilot coding agent; Claude Code (CLI / IDE) runs the same AO-SDLC chain and `/evolve` from the shared [prompts/](prompts/). This dev-orchestration layer (which AI edits this repo) is independent of the product-*runtime* LLM layer (which model answers end users): as of spec 034, the product runtime is the ordered chain `LLM_PROVIDER_CHAIN=claude_code,anthropic_api,ollama` — Claude by default, Ollama as the local last-tier fallback (docs/constitution.md §1). Do not conflate the two when reading "which model" into this section.
 
 1. **Spec-driven workflow execution** — Copilot Chat Agent mode runs the AO-SDLC chain ([/specify](prompts/specify.md) → [/clarify](prompts/clarify.md) → [/plan](prompts/plan.md) → [/tasks](prompts/tasks.md) → [/implement](prompts/implement.md)) end-to-end, halting at HITL gates.
 2. **Autonomous BACKLOG advancement** — [/evolve](prompts/evolve.md) picks the highest-priority `BL-*` item and ships it; the GitHub Copilot coding agent runs the same chain in the cloud when an issue is assigned to `@copilot`.

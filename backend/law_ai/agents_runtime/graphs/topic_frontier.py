@@ -114,21 +114,41 @@ def _load_prompt() -> str:
     return _PROMPT_PATH.read_text(encoding="utf-8")
 
 
-def _call_ollama(prompt: str, *, model: str, base_url: str, timeout: int = 120) -> str:
-    """Generate text via the shared LangChain transport (spec 027).
+def _call_llm(prompt: str, *, model: str, base_url: str, timeout: int = 120) -> str:
+    """Generate text through the shared provider chain (spec 034).
 
-    Same name + signature + ``RuntimeError`` contract as the old raw-urllib
-    implementation (the DI seam ``ollama_caller`` and tests rely on it), but
-    the call now goes through the retry-wrapped shared ``ChatOllama``.
+    Keeps the ``RuntimeError`` contract the ``llm_caller`` DI seam relies on,
+    but the request now runs the Claude-first chain and only reaches Ollama as
+    the last fallback. ``model`` scopes the Ollama tier only; ``base_url`` and
+    ``timeout`` are accepted for signature compatibility (the Ollama transport
+    reads both from settings).
     """
-    from law_ai.agents_runtime.llm import generate_text_sync
+    from law_ai.core import llm
 
     try:
-        return generate_text_sync(
-            prompt, model=model, base_url=base_url, timeout_s=float(timeout)
+        return llm.generate(
+            prompt, models={"ollama": model}, agent="topic_frontier"
+        ).text
+    except Exception as exc:
+        raise RuntimeError(f"no LLM provider could serve the request: {exc}") from exc
+
+
+async def _acall_llm(prompt: str, *, model: str) -> str:
+    """Async twin of :func:`_call_llm` for the graph nodes.
+
+    ``_node_prioritize`` runs inside the event loop, where the sync entry point
+    refuses to run (it would block every other request on the worker). Same
+    ``RuntimeError`` contract as the sync helper.
+    """
+    from law_ai.core import llm
+
+    try:
+        result = await llm.agenerate(
+            prompt, models={"ollama": model}, agent="topic_frontier"
         )
     except Exception as exc:
-        raise RuntimeError(f"Ollama unreachable at {base_url}: {exc}") from exc
+        raise RuntimeError(f"no LLM provider could serve the request: {exc}") from exc
+    return result.text
 
 
 def _parse_targets(llm_output: str) -> list[dict[str, Any]]:
@@ -257,9 +277,9 @@ async def _node_scan_graph(
 async def _node_prioritize(
     state: TopicFrontierState,
     *,
-    ollama_caller: Any = None,
+    llm_caller: Any = None,
 ) -> TopicFrontierState:
-    """Call Ollama to rank fetch targets; injectable for tests."""
+    """Rank fetch targets via the provider chain; injectable for tests."""
     prompt_template = _load_prompt()
     user_data = json.dumps(
         {
@@ -274,10 +294,10 @@ async def _node_prioritize(
     base_url: str = settings.OLLAMA_BASE_URL
 
     llm_started = time.monotonic()
-    if ollama_caller is not None:
-        raw = ollama_caller(full_prompt, model=model, base_url=base_url)
+    if llm_caller is not None:
+        raw = llm_caller(full_prompt, model=model, base_url=base_url)
     else:
-        raw = _call_ollama(full_prompt, model=model, base_url=base_url)
+        raw = await _acall_llm(full_prompt, model=model)
     llm_latency_ms = (time.monotonic() - llm_started) * 1000.0
 
     targets = _parse_targets(raw)
@@ -395,7 +415,7 @@ class TopicFrontier:
 
     :param neo4j_session_factory: async context-manager factory for Neo4j
         sessions.  ``None`` → use ``get_neo4j_driver``.
-    :param ollama_caller: callable with signature
+    :param llm_caller: callable with signature
         ``(prompt, *, model, base_url) -> str``.  ``None`` → real Ollama.
     :param registry: source adapter dict override.  ``None`` → ``SOURCE_REGISTRY``.
     :param scout_factory: callable that returns an ``IngestionScout``.
@@ -407,12 +427,12 @@ class TopicFrontier:
         self,
         *,
         neo4j_session_factory: Any = None,
-        ollama_caller: Any = None,
+        llm_caller: Any = None,
         registry: dict[str, Any] | None = None,
         scout_factory: Any = None,
     ) -> None:
         self._neo4j_session_factory = neo4j_session_factory
-        self._ollama_caller = ollama_caller
+        self._llm_caller = llm_caller
         self._registry = registry
         self._scout_factory = scout_factory
 
@@ -435,7 +455,7 @@ class TopicFrontier:
             )
 
         async def prioritize(state: TopicFrontierState) -> TopicFrontierState:
-            return await _node_prioritize(state, ollama_caller=self._ollama_caller)
+            return await _node_prioritize(state, llm_caller=self._llm_caller)
 
         async def dispatch(state: TopicFrontierState) -> TopicFrontierState:
             return await _node_dispatch(
@@ -459,7 +479,7 @@ class TopicFrontier:
         state = await _node_scan_graph(
             state, neo4j_session_factory=self._neo4j_session_factory
         )
-        state = await _node_prioritize(state, ollama_caller=self._ollama_caller)
+        state = await _node_prioritize(state, llm_caller=self._llm_caller)
         state = await _node_dispatch(
             state, registry=self._registry, scout_factory=self._scout_factory
         )
@@ -473,7 +493,7 @@ class TopicFrontier:
 
         Example::
 
-            tf = TopicFrontier(ollama_caller=mock_llm, ...)
+            tf = TopicFrontier(llm_caller=mock_llm, ...)
             output = await tf.run()
             assert output.dispatched  # at least one doc committed
         """

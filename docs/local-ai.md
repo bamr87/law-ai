@@ -2,31 +2,46 @@
 
 > Companion to [specs/010-local-ai-stack/](../specs/010-local-ai-stack/). This page is the operator-facing manual for running Law AI's LangGraph + Ollama + Phoenix substrate locally.
 
+**LLM selection note.** This page documents the local *infrastructure* (Neo4j, Postgres, Redis, Ollama, Phoenix). It does not, by itself, determine which model answers a request: `LegalWorkflow`'s LLM is `ChatProviderChain`, which tries the constitution-§1 provider chain — Claude (OAuth), then Claude (API key), then Ollama — in that order (`LLM_PROVIDER_CHAIN`, default `claude_code,anthropic_api,ollama`). Bringing this stack up does **not** make Ollama the default; it makes Ollama *available* as the chain's last tier. To guarantee every request stays local (required for data under a confidentiality obligation that forbids third-party processing — see [docs/constitution.md](constitution.md) §1), pin the chain explicitly:
+
+```dotenv
+LLM_PROVIDER_CHAIN=ollama
+```
+
+See [docs/claude-code-dev-llm.md](claude-code-dev-llm.md) for the Claude tiers.
+
 ## At a glance
 
 | Component | Image / Module | Purpose | Default endpoint |
 |-----------|---------------|---------|------------------|
-| Ollama | `ollama/ollama:latest` | Local LLM server | `http://localhost:11434` |
-| LangGraph | `app.agents.graphs.legal_workflow` | 3-node `retrieve → analyze → cite_check` | (in-process) |
-| Postgres | `postgres:16-alpine` | LangGraph checkpointer + HITL queue | `localhost:5432` |
+| Ollama | `ollama/ollama:0.12.6` | Local LLM server — chain's last tier (opt in via `LLM_PROVIDER_CHAIN=ollama` for local-only) | `http://localhost:11434` |
+| LangGraph | `law_ai.agents_runtime.graphs.legal_workflow` | 3-node `retrieve → analyze → cite_check` | (in-process) |
+| Postgres | `postgres:16-alpine` | LangGraph checkpointer (reads `POSTGRES_URL`) + HITL queue | `localhost:5432` |
 | Redis | `redis:7-alpine` | Optional checkpointer + cache | `localhost:6379` |
 | Neo4j | `neo4j:5-community` | Knowledge graph | `localhost:7687` / UI `7474` |
-| Phoenix | `arizephoenix/phoenix:latest` | OTEL collector + trace UI | `localhost:6006` |
+| Phoenix | `arizephoenix/phoenix:12.9.0` | OTEL collector + trace UI | `localhost:6006` |
 | Backend | `backend/law_ai/asgi.py` (Django ASGI via daphne) | API + agent host | `localhost:8000` |
+
+Image tags are deliberately pinned in [docker-compose.yml](../docker-compose.yml) (not `:latest`) so dev and eval runs stay reproducible — bump them on purpose, not by drift.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
   Frontend -->|REST| Backend
-  Backend -->|ChatOllama| Ollama
+  Backend -->|ChatProviderChain| Chain{{LLM_PROVIDER_CHAIN}}
+  Chain -->|"1: OAuth"| ClaudeOAuth[Claude · OAuth]
+  Chain -->|"2: API key"| ClaudeAPI[Claude · API key]
+  Chain -->|"3: fallback"| Ollama
   Backend -->|AsyncPostgresSaver| Postgres
   Backend -->|RedisSaver opt-in| Redis
   Backend -->|Cypher| Neo4j
   Backend -->|OTLP/HTTP| Phoenix
 ```
 
-Every node in `LegalWorkflow` is wrapped by [`@logged_node`](../backend/law_ai/core/provenance.py#L142). That decorator records to two places:
+`LegalWorkflow`'s default LLM factory builds a [`ChatProviderChain`](../backend/law_ai/core/llm/langchain.py) — a real LangChain `BaseChatModel` (spec 035) — rather than talking to Ollama directly. `langchain-core` and `langgraph-checkpoint-{postgres,redis}` are core backend dependencies (`backend/pyproject.toml`), not an optional extra.
+
+Every node in `LegalWorkflow` is wrapped by [`@logged_node`](../backend/law_ai/core/provenance.py). That decorator records to two places:
 
 1. The append-only JSONL audit store at `.audit/provenance.jsonl` (powers `/api/agents/runs`).
 2. An OpenTelemetry span exported to Phoenix (when `PHOENIX_COLLECTOR_ENDPOINT` is set).
@@ -42,7 +57,9 @@ make local-ai-up
 # 2. Wait until Phoenix + Ollama report healthy.
 make local-ai-health      # hits /api/agents/health/local-ai
 
-# 3. Run a workflow against Ollama.
+# 3. Run a workflow. With no Claude credentials in .env this falls through
+#    to Ollama automatically; set LLM_PROVIDER_CHAIN=ollama to guarantee it
+#    even when Claude credentials are present.
 curl -s -X POST http://localhost:8000/api/analysis \
   -H "content-type: application/json" \
   -d '{"text":"What is the holding of Marbury v. Madison?","use_langgraph":true}' \
@@ -58,11 +75,12 @@ The response includes `phoenix_trace_url` and `langgraph_thread_id` — paste ei
 
 | Variable | Default | Notes |
 |----------|---------|-------|
+| `LLM_PROVIDER_CHAIN` | `claude_code,anthropic_api,ollama` | Ordered LLM provider list `ChatProviderChain` reads (constitution §1). Pin to `ollama` to force local-only. See [docs/claude-code-dev-llm.md](claude-code-dev-llm.md) for the Claude tiers. |
 | `OLLAMA_BASE_URL` | `http://ollama:11434` | Override to `http://localhost:11434` for host runs. |
 | `OLLAMA_DEFAULT_MODEL` | `mistral:7b-instruct-q4_K_M` | Bump to `llama3.1:8b-instruct-q4_K_M` on 64 GB+. |
 | `OLLAMA_REQUEST_TIMEOUT_S` | `120.0` | Raise for very long contexts. |
-| `LANGGRAPH_CHECKPOINTER` | `postgres` | `postgres` \| `redis` \| `memory`. |
-| `PHOENIX_COLLECTOR_ENDPOINT` | `http://phoenix:6006/v1/traces` | **Unset disables tracing entirely.** Required no-op for tests. |
+| `LANGGRAPH_CHECKPOINTER` | `postgres` | `postgres` \| `redis` \| `memory`. Postgres reads `POSTGRES_URL` (not `DATABASE_URL`, spec 035). |
+| `PHOENIX_COLLECTOR_ENDPOINT` | _(blank in `settings/base.py`; `docker-compose.yml` sets it to `http://phoenix:6006/v1/traces` for the `backend` service)_ | **Unset disables tracing entirely.** Blank it in `.env` to opt out even inside the compose stack. |
 | `PHOENIX_UI_URL` | `http://localhost:6006` | Used to build deep-links in API responses. |
 | `PHOENIX_PROJECT_NAME` | `law_ai` | Phoenix tab label. |
 | `AUTONOMY_ENABLED` | `false` | **Kill-switch** for all scheduled autonomy loops (spec 018 §12 invariant I3). Set to `true` to activate. |
@@ -91,8 +109,10 @@ A Langfuse fallback is tracked as [BL-20260502-07](../BACKLOG.md) in case the Ph
 
 ## Resuming a workflow after a backend restart
 
+Run this inside the backend container (`make shell-backend`, then `python manage.py shell -c '...'`, or `docker compose run --rm backend python manage.py shell`) — never on the host:
+
 ```python
-from app.agents.graphs import LegalWorkflow
+from law_ai.agents_runtime.graphs import LegalWorkflow
 
 wf = LegalWorkflow()
 state = await wf.get_state("lwf-abc123")
@@ -105,8 +125,8 @@ The Postgres checkpointer survives `docker compose restart backend`. Run `Reset 
 
 - **`make local-ai-health` says `ollama.reachable=false`** — first-boot model pull may still be running. Tail with `docker compose logs -f ollama` and wait until `[ollama-bootstrap] all models present`.
 - **`phoenix.reachable=false`** — confirm port 6006 is free (`lsof -i :6006`); the Next.js dev server does not collide today, but other Phoenix installs do.
-- **`checkpointer.reachable=false` with "langgraph not installed"** — install the optional extra: `cd backend && pip install -e ".[dev,local-ai]"`.
-- **Workflow returns `"Insufficient sources to answer confidently"`** — the default retriever returns no passages until the GraphRAG hookup lands ([BL-20260502-04](../BACKLOG.md)). Inject a custom retriever for now.
+- **`checkpointer.reachable=false`** — `langgraph`, `langchain-core`, and `langgraph-checkpoint-{postgres,redis}` are core backend dependencies (spec 035), so a missing-package error is unlikely under the normal Docker build. If you see an error mentioning "install the local-ai extra," that message text is stale (the extra now only carries Phoenix/OTel packages) — ignore the wording and instead check that Postgres is actually reachable and that `POSTGRES_URL` is correct (`make ps`, `docker compose logs postgres`). Never `pip install` on the host to fix this — rebuild the image instead (`docker compose build backend`).
+- **Workflow returns `"Insufficient sources to answer confidently"`** — as of spec 028, `LegalWorkflow`'s default retriever is a real hybrid GraphRAG lookup ([`agents_runtime/tools/graph_rag.py`](../backend/law_ai/agents_runtime/tools/graph_rag.py), lexical fulltext + `CITES` graph expansion; [BL-20260810-01](../BACKLOG.md)), not the old `[]` stub. This message now means Neo4j is unreachable, or the query genuinely matched nothing in the corpus — not that retrieval is unimplemented. Confirm Neo4j is up (`make local-ai-health`) before assuming a code gap.
 
 ## Autonomy Loop
 
@@ -125,11 +145,14 @@ Every cycle passes through `law_ai.core.autonomy.run_cycle`, which emits paired 
 ```bash
 # Trigger a cycle manually (dry-run to preview without side-effects)
 make autonomy-run KIND=corpus_growth  # or test_pillar / digest
-python manage.py run_autonomy --kind digest --dry-run
+make manage CMD='run_autonomy --kind digest --dry-run'
 ```
 
 ## Related specs
 
-- [specs/010-local-ai-stack/](../specs/010-local-ai-stack/) — the source spec for everything on this page.
+- [specs/010-local-ai-stack/](../specs/010-local-ai-stack/) — the source spec for the infrastructure on this page (Ollama, Postgres/Redis checkpointers, Neo4j, Phoenix).
+- [specs/034-claude-default-runtime/](../specs/034-claude-default-runtime/) — makes Claude the default LLM tier in `LLM_PROVIDER_CHAIN`; Ollama is the fallback documented here.
+- [specs/035-langchain-first-class/](../specs/035-langchain-first-class/) — makes LangChain/LangGraph core dependencies and introduces `ChatProviderChain`, the LLM `LegalWorkflow` actually runs.
+- [specs/028-real-graphrag-retrieval/](../specs/028-real-graphrag-retrieval/) — the hybrid retriever referenced in Troubleshooting.
 - [specs/002-resolve-citations-to-cases/](../specs/002-resolve-citations-to-cases/) — `cite_check` reuses this resolver.
 - [specs/007-analysis-studio/](../specs/007-analysis-studio/) — `/api/analysis` is the public surface that exposes `use_langgraph`.

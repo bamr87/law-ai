@@ -21,29 +21,42 @@ def _irac_payload(confidence: float = 0.85) -> str:
     )
 
 
+def _llm_result(
+    text: str, *, provider: str = "claude_code", model: str = "claude-opus-5"
+):
+    """Build the LLMResult the provider chain hands back."""
+    from law_ai.core.llm.base import LLMResult
+
+    return LLMResult(text=text, provider=provider, model=model, latency_ms=1.0)
+
+
 class TestDefaultPath:
     @pytest.mark.asyncio
-    async def test_returns_honest_degraded_output_without_calling_claude(
-        self,
-    ) -> None:
-        """Default path fabricates nothing: degraded, confidence 0, HITL forced."""
+    async def test_degrades_honestly_when_no_provider_is_reachable(self) -> None:
+        """A dead chain fabricates nothing: degraded, confidence 0, HITL forced.
+
+        Spec 034 replaced the old hardcoded "not implemented" path — the
+        non-LangGraph route now runs the real chain — but the constitution
+        §4/§13 guarantee is unchanged: never invent analysis, never attribute
+        a degraded row to a real model.
+        """
         from law_ai.agents_runtime.crews import legal_analyst as mod
+        from law_ai.core import llm as llm_pkg
 
         agent = mod.LegalAnalyst()
+        boom = AsyncMock(side_effect=llm_pkg.LLMUnavailableError("all providers down"))
         with (
-            patch.object(mod.claude_code, "is_active", return_value=False),
-            patch.object(mod.claude_code, "generate", new=AsyncMock()) as gen,
+            patch.object(mod.llm, "agenerate", new=boom),
             patch.object(mod.provenance, "log_agent_call", return_value="t") as log,
         ):
             out = await agent.run({"question": "Is a clickwrap clause binding?"})
-        assert gen.await_count == 0  # default path must not touch Claude Code
         assert out.degraded is True
         assert out.requires_review is True
         assert out.confidence == 0.0
         assert out.sources == []  # never invent authorities
-        assert "NOT IMPLEMENTED" in out.rule
+        assert "OFFLINE FALLBACK" in out.rule
         # The audit trail must not attribute this to a real model.
-        assert log.call_args.kwargs["model"] == "degraded/not-implemented"
+        assert log.call_args.kwargs["model"] == "fallback/offline"
 
 
 class TestLangGraphDefaultEngine:
@@ -96,17 +109,19 @@ class TestLangGraphDefaultEngine:
         assert AnalysisRequest(text="x").use_langgraph is True
 
 
-class TestViaClaudeCode:
+class TestViaProviderChain:
+    """The non-LangGraph path routes through the shared provider chain."""
+
     @pytest.mark.asyncio
-    async def test_routes_to_claude_code_when_active(self) -> None:
+    async def test_uses_the_provider_the_chain_selected(self) -> None:
         from law_ai.agents_runtime.crews import legal_analyst as mod
 
         agent = mod.LegalAnalyst()
         with (
-            patch.object(mod.claude_code, "is_active", return_value=True),
-            patch.object(mod.claude_code, "model", return_value="claude-opus-4-8"),
             patch.object(
-                mod.claude_code, "generate", new=AsyncMock(return_value=_irac_payload())
+                mod.llm,
+                "agenerate",
+                new=AsyncMock(return_value=_llm_result(_irac_payload())),
             ),
             patch.object(
                 mod.provenance, "log_agent_call", return_value="trace-cc"
@@ -120,7 +135,23 @@ class TestViaClaudeCode:
         ]
         assert out.confidence == 0.85
         assert out.trace_id == "trace-cc"
-        assert log.call_args.kwargs["model"] == "claude_code/claude-opus-4-8"
+        assert log.call_args.kwargs["model"] == "claude_code/claude-opus-5"
+
+    @pytest.mark.asyncio
+    async def test_audit_records_the_tier_that_actually_served(self) -> None:
+        """After a fallback the trail must name Ollama, not the tier we wanted."""
+        from law_ai.agents_runtime.crews import legal_analyst as mod
+
+        agent = mod.LegalAnalyst()
+        fell_back = _llm_result(
+            _irac_payload(), provider="ollama", model="mistral:7b-instruct-q4_K_M"
+        )
+        with (
+            patch.object(mod.llm, "agenerate", new=AsyncMock(return_value=fell_back)),
+            patch.object(mod.provenance, "log_agent_call", return_value="t") as log,
+        ):
+            await agent.run({"question": "x"})
+        assert log.call_args.kwargs["model"] == "ollama/mistral:7b-instruct-q4_K_M"
 
     @pytest.mark.asyncio
     async def test_clamps_out_of_range_confidence(self) -> None:
@@ -128,12 +159,10 @@ class TestViaClaudeCode:
 
         agent = mod.LegalAnalyst()
         with (
-            patch.object(mod.claude_code, "is_active", return_value=True),
-            patch.object(mod.claude_code, "model", return_value="claude-opus-4-8"),
             patch.object(
-                mod.claude_code,
-                "generate",
-                new=AsyncMock(return_value=_irac_payload(confidence=9.0)),
+                mod.llm,
+                "agenerate",
+                new=AsyncMock(return_value=_llm_result(_irac_payload(confidence=9.0))),
             ),
             patch.object(mod.provenance, "log_agent_call", return_value="t"),
         ):
@@ -149,8 +178,7 @@ class TestViaClaudeCode:
         agent = mod.LegalAnalyst()
         boom = AsyncMock(side_effect=httpx.ConnectError("overloaded"))
         with (
-            patch.object(mod.claude_code, "is_active", return_value=True),
-            patch.object(mod.claude_code, "generate", new=boom),
+            patch.object(mod.llm, "agenerate", new=boom),
             patch.object(mod.provenance, "log_agent_call", return_value="t") as log,
         ):
             out = await agent.run({"question": "Is X liable?"})

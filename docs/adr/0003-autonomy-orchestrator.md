@@ -75,3 +75,8 @@ No GitHub Actions workflow in this design is granted permissions sufficient to m
 | §10 autonomy level | Level 2 explicitly retained; this ADR is the recorded reaffirmation. |
 | §11 continuous evolution | Loop appends BACKLOG items; never deletes; spec-driven additions of new adapters preserved. |
 | New §12 autonomy invariants | This ADR is the source of those invariants. |
+
+## Supersedes / Superseded by
+
+- Supersedes: none.
+- Superseded by: none.

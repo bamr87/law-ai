@@ -21,8 +21,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from law_ai.core import audit_jsonl as audit_store
-from law_ai.core import claude_code
-from law_ai.core.settings_proxy import settings_proxy as settings
+from law_ai.core import claude_code, llm
 from law_ai.lsat.services.bank import (
     ChoiceLabel,
     Concept,
@@ -143,57 +142,28 @@ _LLM_SYSTEM = (
 
 
 # ---------------------------------------------------------------------------
-# Ollama client (lightweight; avoids langchain dependency)
-# ---------------------------------------------------------------------------
-
-
-async def _ollama_generate(prompt: str, *, model: str) -> str:
-    """Call Ollama's /api/generate and return the raw response text.
-
-    Raises ``httpx.HTTPError`` / ``asyncio.TimeoutError`` on failure so the
-    caller can fall back gracefully.
-    """
-    url = settings.OLLAMA_BASE_URL.rstrip("/") + "/api/generate"
-    payload = {
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "options": {"temperature": 0.2},
-        "format": "json",
-    }
-    timeout = httpx.Timeout(settings.OLLAMA_REQUEST_TIMEOUT_S)
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        resp = await client.post(url, json=payload)
-        resp.raise_for_status()
-        data = resp.json()
-    return str(data.get("response") or "").strip()
-
-
-# ---------------------------------------------------------------------------
 # Provider routing
 # ---------------------------------------------------------------------------
 
 
 async def _generate_coaching(prompt: str) -> tuple[str, str]:
-    """Generate raw coaching text via the configured provider.
+    """Generate raw coaching text through the shared provider chain (spec 034).
 
-    Routes to the dev-time Claude Code OAuth provider when an operator has
-    opted in *and* the dev gate passes (:func:`claude_code.is_active`);
-    otherwise uses local Ollama — the product-runtime default. Returns
-    ``(raw_text, model_label)``; raises on provider/transport failure so the
-    caller can fall back to the deterministic offline path.
+    Claude first, the Anthropic API key second, local Ollama last. Returns
+    ``(raw_text, model_label)``; raises when every provider fails so the caller
+    can fall back to the deterministic offline path rather than inventing an
+    answer (constitution §13).
     """
-    if claude_code.is_active():
-        raw = await claude_code.generate(prompt, system=_LLM_SYSTEM)
-        return raw, claude_code.model_label()
-    raw = await _ollama_generate(prompt, model=settings.OLLAMA_DEFAULT_MODEL)
-    return raw, settings.OLLAMA_DEFAULT_MODEL
+    result = await llm.agenerate(
+        prompt, system=_LLM_SYSTEM, json_mode=True, agent="lsat_tutor"
+    )
+    return result.text, result.model_label
 
 
 def _parse_llm_payload(text: str) -> tuple[str, list[str]]:
     """Best-effort parse of the JSON-only contract returned by the prompt."""
     try:
-        obj = claude_code.loads_first_json(text)
+        obj = llm.loads_first_json(text)
     except json.JSONDecodeError:
         # Treat the whole response as the coaching paragraph.
         return text.strip()[:1_500], []
@@ -293,6 +263,7 @@ async def tutor(req: TutorRequest, q: Question) -> TutorResponse:
         httpx.HTTPError,
         OSError,
         claude_code.ClaudeCodeUnavailableError,
+        llm.LLMUnavailableError,
     ) as exc:
         logger.info("LSAT tutor falling back to offline path: %s", exc)
     except Exception as exc:  # pragma: no cover - defensive

@@ -2,14 +2,13 @@
 
 Spec 024 FR-6. Three ways to turn a :class:`GenerationJob` into drafts:
 
-* :class:`ClaudeCodeExecutor` — **dev-time only**. Maps the job's tier onto a
-  Claude model id (bulk→Haiku, standard→Sonnet, premium→Opus, judge→Fable by
-  default) through the existing OAuth gate. The constitution §1 guarantee is
-  enforced *here*: construction raises :class:`ExecutorUnavailable` unless
-  ``core.claude_code.is_active()`` — outside an opted-in development
-  environment this class cannot exist, let alone run.
-* :class:`OllamaExecutor` — the always-sanctioned local runtime path; every
-  tier maps to ``OLLAMA_DEFAULT_MODEL``.
+* :class:`ClaudeCodeExecutor` — tier-routed Claude generation. Maps the job's
+  tier onto a Claude model id (bulk→Haiku, standard→Sonnet, premium→Opus,
+  judge→Fable by default) and authenticates with the OAuth subscription token
+  when present, falling back to ``ANTHROPIC_API_KEY``. Construction raises
+  :class:`ExecutorUnavailable` when neither credential is configured.
+* :class:`OllamaExecutor` — the local open-weights path; every tier maps to
+  ``OLLAMA_DEFAULT_MODEL``.
 * :class:`DraftFileExecutor` — no network at all: fulfills jobs from an
   externally produced JSONL of ``{"job_id": …, "drafts": […]}`` records,
   which is how out-of-process generation farms (or a Claude Code session
@@ -78,14 +77,24 @@ def _parse_payload(raw: str, job_id: str) -> dict[str, Any]:
 
 
 class ClaudeCodeExecutor:
-    """Tier-routed dev-time Claude generation (see module docstring)."""
+    """Tier-routed Claude generation (see module docstring).
+
+    The factory pins a provider explicitly rather than running the chain, so
+    that a manifest's tier→model routing is reproducible: a silent fallback to
+    a different tier — or to the local model — would make a generated bank
+    impossible to attribute. Use ``--executor ollama`` for the local path.
+    """
 
     name = "claude_code"
 
     def __init__(self, config: FactoryConfig) -> None:
-        if not claude_code.is_active():
+        self._auth: claude_code.AuthMode = (
+            "oauth" if claude_code.oauth_token() is not None else "api_key"
+        )
+        if claude_code.credential(self._auth) is None:
             raise ExecutorUnavailable(
-                claude_code.inactive_reason() or "Claude Code provider is not active"
+                "no Claude credential configured — set CLAUDE_CODE_OAUTH_TOKEN "
+                "(`claude setup-token`) or ANTHROPIC_API_KEY"
             )
         self._config = config
 
@@ -102,6 +111,7 @@ class ClaudeCodeExecutor:
             model_id=model_id,
             max_tokens=int(getattr(settings, "LSAT_FACTORY_MAX_TOKENS", 8192)),
             response_schema=schema,
+            auth=self._auth,
         )
         latency_ms = (time.perf_counter() - started) * 1000.0
         return RawBatch(

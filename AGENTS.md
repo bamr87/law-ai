@@ -21,14 +21,16 @@ Repo-level instructions for Copilot live in [.github/copilot-instructions.md](.g
 
 **Forbidden in this repo**: Cursor, Continue.dev, Aider, Codex, Gemini CLI, or any other third-party coding agent. Do not commit their config files (`.cursorrules`, `.continuerc.json`, `.aider.conf.yml`, etc.). The only sanctioned agent configs are Copilot's `.github/copilot-instructions.md` / `*.instructions.md` and Claude Code's [CLAUDE.md](CLAUDE.md) / `.claude/` / [.mcp.json](.mcp.json).
 
-**Dev-time MCP servers.** [.mcp.json](.mcp.json) wires project-scoped Model Context Protocol servers into the sanctioned dev surfaces so the *dev* agent can introspect the local Docker stack directly: `law-ai-postgres` (read-only SQL against the compose Postgres) and `law-ai-neo4j` (Cypher against the compose Neo4j). These are development tooling — the **product runtime** takes no MCP dependency and stays Ollama/local-first (constitution §1). The credentials in that file are the local docker-compose dev defaults, not secrets. Start the stack (`make dev` or `docker compose up -d postgres neo4j`) before using them.
+**Dev-time MCP servers.** [.mcp.json](.mcp.json) wires project-scoped Model Context Protocol servers into the sanctioned dev surfaces so the *dev* agent can introspect the local Docker stack directly: `law-ai-postgres` (read-only SQL against the compose Postgres) and `law-ai-neo4j` (Cypher against the compose Neo4j). These are development tooling — the **product runtime** takes no MCP dependency (constitution §1). The credentials in that file are the local docker-compose dev defaults, not secrets. Start the stack (`make dev` or `docker compose up -d postgres neo4j`) before using them.
 
-**Important distinction**: This applies to **how the codebase is built**. The **product runtime LLM** that serves end users is still Ollama (local-first, open weights) per [docs/constitution.md](docs/constitution.md) §1 — Claude is a dev-time tool only and must never be wired in as the product runtime. The two layers are independent:
+**Important distinction**: This section is about **how the codebase is built**. Which model *serves end users* is a separate, independently configured decision — since the 2026-08-11 amendment to [docs/constitution.md](docs/constitution.md) §1, the product runtime is an ordered provider chain that defaults to Claude and falls back to local Ollama. The two layers stay independent: changing your dev surface does not change the runtime, and vice versa.
 
 | Layer | Tool | Why |
 |-------|------|-----|
 | Dev orchestration (writing/refactoring this repo) | GitHub Copilot or Claude Code | Sanctioned surfaces; shared custom instructions + prompt templates; CI integration |
-| Product runtime (what the deployed app uses to answer legal questions) | Ollama (open-source models) | Constitution §1: open-source, privacy-first, local-first |
+| Product runtime (what the deployed app uses to answer legal questions) | `LLM_PROVIDER_CHAIN` — Claude (OAuth), then Claude (API key), then Ollama | Constitution §1 as amended: highest-capability answers by default, local-first still reachable by pinning `ollama` |
+
+**Privileged data caveat**: the Claude tiers send prompt text to a third party. Deployments handling data under a confidentiality obligation that forbids third-party processing must pin `LLM_PROVIDER_CHAIN=ollama` (constitution §1).
 
 
 **Jurisprudential Stance** — *the premise underneath the principles*
@@ -40,8 +42,8 @@ We hold this **descriptively, about our data** — the legal record is the recor
 Full argument in [docs/philosophy.md](docs/philosophy.md); enforced as [docs/constitution.md](docs/constitution.md) §13. The review question it puts on every feature that ranks, scores, or summarizes authority: **who is the stronger here, and what does this feature do for them?**
 
 **Core Principles for All Code Changes**
-- **Open Source First**: Every component must be MIT/AGPL compatible. No proprietary dependencies.
-- **Privacy by Default**: Local-first (Ollama + local DBs). Cloud is optional.
+- **Open Source First**: Every *code* dependency must be MIT/AGPL compatible — no proprietary libraries in the codebase itself. This governs what we build with, not which model answers end users: the product-runtime LLM vendor is a separate, independently governed decision (see Development Orchestration above and constitution §1), and its default tier is the closed-source Claude API.
+- **Privacy by Choice**: local DBs always; the LLM tier is operator-selected via `LLM_PROVIDER_CHAIN`. Claude is the default for answer quality; a fully local run (`LLM_PROVIDER_CHAIN=ollama`) stays a first-class, supported configuration.
 - **Auditability**: Every agent decision, prompt, tool call, and retrieval must be logged with full provenance.
 - **Legal Accuracy**: All outputs must be grounded in retrieved sources + citations. Use LegalBench for regression testing.
 - **Power-Aware Output**: Attribute every legal proposition to its issuing authority (court, jurisdiction, date, binding/persuasive). Never present citation counts or centrality as a correctness score, and never let "no results in our corpus" read as "no such law." Label asymmetry; do not filter by it.
@@ -59,7 +61,7 @@ Full argument in [docs/philosophy.md](docs/philosophy.md); enforced as [docs/con
 - `python3 scripts/spec_validator.py` and `python3 scripts/backlog_lint.py` (stdlib-only, no deps)
 - `git`, `gh`, and editor-driven tools
 
-Why: every contributor — and every agent — gets the same Python 3.11, the same Node 20, the same Neo4j 5, the same Postgres 16, the same Ollama, the same C deps for `eyecite`/`spaCy`. No "works on my machine". No host venv drift. Aligns with constitution §1 (reproducibility) and §4 (auditability of every run).
+Why: every contributor — and every agent — gets the same Python 3.12, the same Node 22, the same Neo4j 5, the same Postgres 16, the same Ollama, the same C deps for `eyecite`/`spaCy`. No "works on my machine". No host venv drift. Aligns with constitution §1 (reproducibility) and §4 (auditability of every run).
 
 Legacy `host-*` make targets exist for emergency fallback only and MUST NOT be used in CI, prompts, or docs.
 
@@ -96,13 +98,14 @@ Project status, tooling rationale, and onboarding live in [README.md](README.md)
 ## Tech Stack (Non-Negotiable)
 
 **Backend**
-- Python 3.11+
+- Python 3.12+
 - Django 5 (ASGI via daphne) + Django REST Framework + Channels + Celery + Pydantic v2 (domain layer)
-- **CrewAI** (role-based crews) + **LangGraph** (stateful workflows)
+- **CrewAI** (role-based crews) + **LangChain** + **LangGraph** (stateful workflows) — core dependencies since spec 035, not extras. `ChatProviderChain` (`backend/law_ai/core/llm/langchain.py`) is a real LangChain `BaseChatModel` fronting the provider chain below and is `LegalWorkflow`'s default LLM factory (`agents_runtime/graphs/legal_workflow.py`); `langgraph-checkpoint-postgres`/`-redis` persist `StateGraph` state via `AsyncPostgresSaver` against `settings.POSTGRES_URL`, provisioned by `manage.py ensure_checkpointer` (wired into `make migrate`)
 - Neo4j Community + official Python driver
 - PostgreSQL + asyncpg
-- Chroma or Weaviate (vector)
-- Ollama (primary LLM) — support Llama 3.1 70B, Mistral, Phi-3, Qwen2.5
+- `chromadb` is a declared dependency but not yet wired into any retrieval path — the planned vector leg for GraphRAG is a native Neo4j vector index blended with the existing lexical retriever, not a separate vector store (open: BL-20260810-17)
+- Anthropic Claude (default LLM, via OAuth token or `ANTHROPIC_API_KEY`)
+- Ollama (local fallback LLM, `LLM_PROVIDER_CHAIN=ollama` tier) — bootstraps `mistral:7b-instruct` and `llama3.1:8b-instruct` per `OLLAMA_BOOTSTRAP_MODELS`/`OLLAMA_DEFAULT_MODEL` (`.env.example`, `docker-compose.yml`); change those env vars to run other models
 - Eyecite + Blackstone (spaCy) for legal NLP
 
 **Frontend**
@@ -117,9 +120,9 @@ Project status, tooling rationale, and onboarding live in [README.md](README.md)
 
 ---
 
-## Project Structure (Target — Some Subdirs Are Planned)
+## Project Structure
 
-This is the canonical layout, mirroring the actual `backend/law_ai/` Django package and the `frontend/` Next.js app. When adding new code, place it in the matching directory; do not invent new top-level locations.
+This is the canonical layout, mirroring the actual `backend/law_ai/` Django package and the `frontend/` Next.js app — it matches what exists on disk today, not a future target. When adding new code, place it in the matching directory; do not invent new top-level locations.
 
 ```
 law-ai/                                 # workspace root (GitHub slug stays `law-ai`)
@@ -240,7 +243,7 @@ See `prompts/new-agent.md` for the exact prompt template.
 
 Before any PR — every command runs in Docker:
 1. `make lint` (ruff + black + frontend eslint, all in containers) and `make typecheck` (mypy --strict + tsc --noEmit)
-2. `make test` (backend pytest + frontend vitest in containers) — must keep ≥65% coverage
+2. `make test` (backend pytest + frontend vitest in containers) — must clear the configured coverage floors: backend ≥75% (`backend/pyproject.toml` `--cov-fail-under=75`), frontend ≥65-70% by category (`frontend/vitest.config.ts` thresholds)
 3. `make test-legalbench` when reasoning logic changed
 4. Manual smoke test of Analysis Studio + Knowledge Graph in the browser (against `make dev`)
 5. **Continuous-evolution gate** ([docs/constitution.md](docs/constitution.md) §11):
@@ -267,7 +270,7 @@ When starting work, read in this order:
 5. [Law_AI_Proposal.md](Law_AI_Proposal.md) — Original technical proposal with Mermaid diagrams
 6. [docs/related-github-repos.md](docs/related-github-repos.md) — Upstream OSS we integrate with
 
-`docs/data-model.md`, `docs/data-sources.md`, and `docs/legalbench.md` are referenced throughout this file but may not yet exist — create them when you do work that warrants them rather than skipping the documentation step.
+`docs/data-model.md`, `docs/data-sources.md`, `docs/legalbench.md`, and [docs/django-conventions.md](docs/django-conventions.md) (Django app-layout and coding conventions) all exist — keep them current as the schema, sources, eval harness, and conventions evolve rather than skipping the documentation step.
 
 ---
 
@@ -280,7 +283,7 @@ When responding to user requests:
 - End with **"Ready for review. LegalBench delta: +X% on relevant tasks"** when applicable
 
 **Never**:
-- Suggest closed-source models or services as primary
+- Bypass `LLM_PROVIDER_CHAIN` to call a provider transport directly, or add a third-party model vendor (OpenAI, Gemini, …) to the product runtime without a constitution §1 amendment
 - Bypass the provenance/audit layer
 - Create nodes without `source` and `confidence` properties
 - Ignore HITL requirements for ingestion or high-stakes analysis

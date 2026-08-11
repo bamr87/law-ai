@@ -1,24 +1,25 @@
-"""Claude Code OAuth provider — **dev-time only** LLM alternative to Ollama.
+"""Anthropic Claude transport — the product runtime's primary LLM (spec 034).
 
-Lets a developer point the LSAT tutor at their local Claude Code OAuth
-subscription instead of a running Ollama instance, e.g. when iterating on
-laptops without the local model stack up. It talks to the Anthropic Messages
-API the same way the Claude Code CLI does: an OAuth bearer token (minted with
-``claude setup-token`` and exported as ``CLAUDE_CODE_OAUTH_TOKEN``) plus the
-``oauth-2025-04-20`` beta header — **not** an API key.
+Talks to the Anthropic Messages API under either of two auth modes:
 
-Constitution guardrail (docs/constitution.md §1, AGENTS.md "Development
-Orchestration"): Claude is a **dev-time** tool and MUST NEVER be the product
-runtime LLM. This module enforces that — :func:`is_active` returns ``False``
-unless the process is running in a development environment AND an operator has
-explicitly opted in via ``LSAT_LLM_PROVIDER=claude_code`` AND a token is
-present. Outside development the provider refuses to engage and the caller
-falls back to Ollama / the deterministic offline path. Ollama stays the
-default product runtime; this is purely a local developer convenience.
+* ``oauth`` — a Claude subscription token minted with ``claude setup-token``
+  and exported as ``CLAUDE_CODE_OAUTH_TOKEN``, sent as a bearer token with the
+  ``oauth-2025-04-20`` beta header. This is the chain's first choice.
+* ``api_key`` — a standard ``ANTHROPIC_API_KEY`` sent as ``x-api-key``. Same
+  models, same response shape; the chain's second choice when OAuth is absent
+  or failing.
 
-The client mirrors :mod:`law_ai.lsat.services.tutor`'s lightweight Ollama
-client (raw ``httpx``, no SDK dependency) so the bare backend image keeps
-booting without extra packages.
+OAuth tokens are scoped to the Claude Code surface, so that mode additionally
+prepends the required identity system block; the API-key mode does not (a
+plain API request has no reason to claim to be a CLI).
+
+Constitution note (docs/constitution.md §1, amended 2026-08-11): Claude is the
+**default product runtime**, with the Anthropic API key and then local Ollama
+as fallbacks. The dev-only gate this module used to enforce has been repealed;
+provider selection and fallback now live in :mod:`law_ai.core.llm.router`.
+
+The client stays raw ``httpx`` (no SDK dependency) so the bare backend image
+keeps booting without extra packages.
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 
@@ -35,6 +36,10 @@ from law_ai.core.settings_proxy import settings_proxy as settings
 logger = logging.getLogger("law_ai.core.claude_code")
 
 PROVIDER_NAME = "claude_code"
+
+#: Which credential a request authenticates with. "oauth" = a Claude
+#: subscription token; "api_key" = a standard ANTHROPIC_API_KEY.
+AuthMode = Literal["oauth", "api_key"]
 
 # OAuth tokens are scoped to the Claude Code surface, so the Messages API
 # requires the request to identify as Claude Code: the first system block must
@@ -64,22 +69,52 @@ class ClaudeCodeUnavailableError(RuntimeError):
     """Raised when a Claude Code call is attempted without a usable config."""
 
 
+class ClaudeRefusalError(RuntimeError):
+    """Raised when Claude's safety classifiers decline the request.
+
+    A declined request is a **successful HTTP 200** carrying
+    ``stop_reason: "refusal"`` and an empty or partial ``content`` — code that
+    reads the text blocks unconditionally would hand the caller a silently
+    blank answer. Raising instead lets the provider chain fall through to the
+    next tier, and lets the caller degrade to an honest refusal rather than a
+    fabricated one (constitution §13).
+    """
+
+    def __init__(self, category: str | None = None) -> None:
+        self.category = category
+        super().__init__(
+            f"Claude declined the request (category={category or 'unspecified'})"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Gating helpers (the constitution lives here)
 # ---------------------------------------------------------------------------
 
 
 def oauth_token() -> str | None:
-    """Return the configured OAuth token, or ``None`` when unset/blank."""
+    """Return the configured OAuth subscription token, or ``None`` when unset."""
     token = getattr(settings, "CLAUDE_CODE_OAUTH_TOKEN", "") or ""
     return token.strip() or None
+
+
+def api_key() -> str | None:
+    """Return the configured ``ANTHROPIC_API_KEY``, or ``None`` when unset."""
+    key = getattr(settings, "ANTHROPIC_API_KEY", "") or ""
+    return key.strip() or None
+
+
+def credential(auth: AuthMode) -> str | None:
+    """Return the credential backing *auth*, or ``None`` when it is unset."""
+    return oauth_token() if auth == "oauth" else api_key()
 
 
 def is_development() -> bool:
     """True iff the process is running in a development environment.
 
-    Hard gate for the constitution's "dev-time only" rule. Either ``DEBUG`` is
-    on or ``ENVIRONMENT`` names a dev profile; production/test never qualify.
+    No longer a gate on Claude usage (constitution §1 was amended to make
+    Claude the default runtime) — retained because the health probe and the
+    validate command still report which environment they ran in.
     """
     if bool(getattr(settings, "DEBUG", False)):
         return True
@@ -88,32 +123,34 @@ def is_development() -> bool:
 
 
 def is_selected() -> bool:
-    """True iff an operator has opted Claude Code in as the LSAT provider."""
-    provider = str(getattr(settings, "LSAT_LLM_PROVIDER", "ollama") or "ollama").lower()
+    """True iff an operator has explicitly pinned the legacy LSAT provider.
+
+    Legacy escape hatch: ``LSAT_LLM_PROVIDER`` predates the provider chain and
+    now only matters when someone pins a single provider for the LSAT surface.
+    The chain in ``LLM_PROVIDER_CHAIN`` is the real selector.
+    """
+    provider = str(getattr(settings, "LSAT_LLM_PROVIDER", "claude_code") or "").lower()
     return provider == PROVIDER_NAME
 
 
 def is_active() -> bool:
-    """True iff Claude Code should serve the LSAT tutor for this request.
+    """True iff the OAuth transport has a usable credential.
 
-    All three must hold: opted in, in development, and a token is present.
-    The tutor checks this to decide whether to route to Claude Code; any
-    ``False`` keeps Ollama as the product runtime.
+    Kept for the management commands that report provider state. Callers that
+    want the *routed* answer should ask :mod:`law_ai.core.llm.router` instead —
+    a missing OAuth token no longer means "no Claude", because the API-key
+    provider may still serve the request.
     """
-    return is_selected() and is_development() and oauth_token() is not None
+    return oauth_token() is not None
 
 
 def inactive_reason() -> str | None:
     """Explain why :func:`is_active` is ``False`` (for logs / the validator)."""
-    if not is_selected():
-        return "LSAT_LLM_PROVIDER is not 'claude_code' (Ollama remains the default)"
-    if not is_development():
-        return (
-            "refusing outside development — Claude Code is a dev-time tool only "
-            "(constitution §1); the product runtime stays Ollama"
-        )
     if oauth_token() is None:
-        return "CLAUDE_CODE_OAUTH_TOKEN is not set (run `claude setup-token`)"
+        return (
+            "CLAUDE_CODE_OAUTH_TOKEN is not set (run `claude setup-token`); "
+            "the chain will fall back to ANTHROPIC_API_KEY, then Ollama"
+        )
     return None
 
 
@@ -137,11 +174,29 @@ def _messages_url() -> str:
     return base.rstrip("/") + "/v1/messages"
 
 
-def _extract_text(data: dict[str, Any]) -> str:
-    """Concatenate the ``text`` blocks of a Messages API response."""
+def _extract_text(data: dict[str, Any], *, allow_truncation: bool = False) -> str:
+    """Concatenate the ``text`` blocks of a Messages API response.
+
+    Guards ``stop_reason`` first: a refusal carries empty/partial content and
+    must not be mistaken for an answer, and a ``max_tokens`` stop means the
+    payload is truncated — for a JSON-schema call that is a broken document,
+    so both raise rather than returning a misleading string.
+    """
+    stop_reason = data.get("stop_reason")
+    if stop_reason == "refusal":
+        details = data.get("stop_details") or {}
+        raise ClaudeRefusalError(details.get("category"))
+
     blocks = data.get("content") or []
     parts = [b.get("text", "") for b in blocks if b.get("type") == "text"]
-    return "".join(parts).strip()
+    text = "".join(parts).strip()
+
+    if stop_reason == "max_tokens" and not allow_truncation:
+        raise ClaudeCodeUnavailableError(
+            "response truncated at max_tokens "
+            f"({len(text)} chars) — raise CLAUDE_CODE_MAX_TOKENS"
+        )
+    return text
 
 
 def strip_code_fence(text: str) -> str:
@@ -196,6 +251,65 @@ def _retry_after_seconds(response: httpx.Response) -> float | None:
         return None
 
 
+def _build_payload(
+    prompt: str,
+    *,
+    system: str | None,
+    model_id: str | None,
+    max_tokens: int | None,
+    response_schema: dict[str, Any] | None,
+    auth: AuthMode,
+    effort: str | None,
+) -> dict[str, Any]:
+    """Assemble the Messages API request body."""
+    # Only the OAuth surface requires the Claude Code identity block; a plain
+    # API-key request is an ordinary API call and must not claim to be a CLI.
+    system_blocks: list[dict[str, str]] = []
+    if auth == "oauth":
+        system_blocks.append({"type": "text", "text": CLAUDE_CODE_IDENTITY})
+    if system:
+        system_blocks.append({"type": "text", "text": system})
+
+    payload: dict[str, Any] = {
+        "model": model_id or model(),
+        "max_tokens": max_tokens
+        or int(getattr(settings, "CLAUDE_CODE_MAX_TOKENS", 8192)),
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    if system_blocks:
+        payload["system"] = system_blocks
+
+    # `output_config` carries both the structured-output format and the effort
+    # level, so build it once rather than assigning it twice.
+    output_config: dict[str, Any] = {}
+    if response_schema is not None:
+        output_config["format"] = {"type": "json_schema", "schema": response_schema}
+    resolved_effort = effort or str(getattr(settings, "CLAUDE_EFFORT", "") or "")
+    if resolved_effort:
+        output_config["effort"] = resolved_effort
+    if output_config:
+        payload["output_config"] = output_config
+    return payload
+
+
+def _build_headers(secret: str, auth: AuthMode) -> dict[str, str]:
+    """Auth headers for the chosen credential.
+
+    OAuth tokens go on ``Authorization: Bearer`` plus the Claude Code beta
+    header; an API key goes on ``x-api-key``. Sending the wrong pair is a 401.
+    """
+    headers = {
+        "anthropic-version": _ANTHROPIC_VERSION,
+        "content-type": "application/json",
+    }
+    if auth == "oauth":
+        headers["authorization"] = f"Bearer {secret}"
+        headers["anthropic-beta"] = _OAUTH_BETA_HEADER
+    else:
+        headers["x-api-key"] = secret
+    return headers
+
+
 async def generate(
     prompt: str,
     *,
@@ -204,8 +318,18 @@ async def generate(
     max_tokens: int | None = None,
     response_schema: dict[str, Any] | None = None,
     max_retries: int | None = None,
+    auth: AuthMode = "oauth",
+    effort: str | None = None,
+    allow_truncation: bool = False,
 ) -> str:
-    """Call the Anthropic Messages API over OAuth and return the text reply.
+    """Call the Anthropic Messages API and return the text reply.
+
+    ``auth`` picks the credential: ``"oauth"`` (a Claude subscription token,
+    the chain's first choice) or ``"api_key"`` (``ANTHROPIC_API_KEY``).
+
+    Note there is deliberately no ``temperature``/``top_p``/``top_k``: those
+    parameters were removed on Claude Opus 5 / 4.8 / 4.7 and now return a 400.
+    Steer output through the prompt and ``effort`` instead.
 
     Pass ``response_schema`` (a JSON Schema) to constrain the reply to
     schema-valid JSON via structured outputs — the reliable way to get parseable
@@ -215,35 +339,24 @@ async def generate(
     re-raises ``httpx`` errors so callers can fall back gracefully (the LSAT
     tutor catches these like Ollama failures).
     """
-    token = oauth_token()
-    if token is None:
+    secret = credential(auth)
+    if secret is None:
         raise ClaudeCodeUnavailableError(
             "CLAUDE_CODE_OAUTH_TOKEN is not set; run `claude setup-token`"
+            if auth == "oauth"
+            else "ANTHROPIC_API_KEY is not set"
         )
 
-    system_blocks: list[dict[str, str]] = [
-        {"type": "text", "text": CLAUDE_CODE_IDENTITY}
-    ]
-    if system:
-        system_blocks.append({"type": "text", "text": system})
-
-    payload: dict[str, Any] = {
-        "model": model_id or model(),
-        "max_tokens": max_tokens
-        or int(getattr(settings, "CLAUDE_CODE_MAX_TOKENS", 2048)),
-        "system": system_blocks,
-        "messages": [{"role": "user", "content": prompt}],
-    }
-    if response_schema is not None:
-        payload["output_config"] = {
-            "format": {"type": "json_schema", "schema": response_schema}
-        }
-    headers = {
-        "authorization": f"Bearer {token}",
-        "anthropic-version": _ANTHROPIC_VERSION,
-        "anthropic-beta": _OAUTH_BETA_HEADER,
-        "content-type": "application/json",
-    }
+    payload = _build_payload(
+        prompt,
+        system=system,
+        model_id=model_id,
+        max_tokens=max_tokens,
+        response_schema=response_schema,
+        auth=auth,
+        effort=effort,
+    )
+    headers = _build_headers(secret, auth)
     timeout = httpx.Timeout(
         float(getattr(settings, "CLAUDE_CODE_REQUEST_TIMEOUT_S", 60.0))
     )
@@ -261,7 +374,9 @@ async def generate(
             try:
                 resp = await client.post(url, json=payload, headers=headers)
                 resp.raise_for_status()
-                return _extract_text(resp.json())
+                return _extract_text(
+                    resp.json(), allow_truncation=allow_truncation
+                )
             except httpx.HTTPStatusError as exc:
                 status = exc.response.status_code
                 if status not in _RETRYABLE_STATUS or attempt == attempts - 1:
@@ -289,36 +404,32 @@ async def generate(
     raise ClaudeCodeUnavailableError("exhausted retries without a response")
 
 
-async def probe() -> dict[str, Any]:
+async def probe(*, auth: AuthMode = "oauth") -> dict[str, Any]:
     """Reachability probe for the local-ai health endpoint.
 
-    Performs a near-free OAuth round-trip (a couple of output tokens) when the
-    dev gate + token are in place, so the dashboard can confirm the connection
-    without spending real budget. Never raises — failures are reported inline.
+    Performs a near-free round-trip (a couple of output tokens) when a
+    credential for *auth* is present, so the dashboard can confirm the
+    connection without spending real budget. Never raises — failures are
+    reported inline so one dead provider cannot fail the health response.
     """
-    selected = is_selected()
-    dev = is_development()
-    token_present = oauth_token() is not None
-
+    secret_present = credential(auth) is not None
     base: dict[str, Any] = {
-        "provider": PROVIDER_NAME,
-        "selected": selected,
-        "development": dev,
-        "token_present": token_present,
+        "provider": PROVIDER_NAME if auth == "oauth" else "anthropic_api",
+        "auth": auth,
+        "credential_present": secret_present,
+        "development": is_development(),
         "model": model(),
     }
 
-    if not dev:
+    if not secret_present:
         return {
             **base,
             "reachable": False,
-            "reason": "disabled outside development (constitution §1)",
-        }
-    if not token_present:
-        return {
-            **base,
-            "reachable": False,
-            "reason": "CLAUDE_CODE_OAUTH_TOKEN not set",
+            "reason": (
+                "CLAUDE_CODE_OAUTH_TOKEN not set"
+                if auth == "oauth"
+                else "ANTHROPIC_API_KEY not set"
+            ),
         }
 
     try:
@@ -327,6 +438,11 @@ async def probe() -> dict[str, Any]:
             system="You are a connectivity probe. Reply with exactly one word.",
             max_tokens=_PROBE_MAX_TOKENS,
             max_retries=1,  # health checks fail fast rather than block on backoff
+            auth=auth,
+            # Thinking is on by default on current Claude models and counts
+            # against max_tokens, so a probe reliably stops at the cap. That
+            # still proves the credential and the round-trip work.
+            allow_truncation=True,
         )
         return {**base, "reachable": True, "sample": sample[:40]}
     except httpx.HTTPStatusError as exc:

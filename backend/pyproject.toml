@@ -24,7 +24,15 @@ dependencies = [
     "pydantic>=2.11.0,<2.13.0",
     "pydantic-settings>=2.10.0,<2.11.0",
     "crewai>=1.14.0",
+    # Spec 035: LangChain + LangGraph are core stack, not extras — the default
+    # analysis engine is a LangGraph StateGraph, its Postgres checkpointer is
+    # provisioned at container boot (ensure_checkpointer), and the LangChain
+    # chat-model layer fronts the LLM provider chain (constitution §1).
     "langgraph>=1.1.0",
+    "langchain-core>=1.3.0",
+    "langchain-ollama>=1.1.0",
+    "langgraph-checkpoint-postgres>=3.0.0",
+    "langgraph-checkpoint-redis>=0.4.0",
     "neo4j>=6.1.0",
     # Spec 011: kept for non-Django async DB callers (LangGraph checkpointer init,
     # legacy code paths that have not yet migrated to the Django ORM).
@@ -72,15 +80,10 @@ legalbench = [
     "evaluate>=0.4.6",
 ]
 local-ai = [
-    # Spec 010 FR-1: lazy-imported by app.agents.graphs.* and
-    # app.core.telemetry. The base install stays slim; install with
-    #   pip install -e ".[dev,local-ai]"
-    # to enable the LangGraph LegalWorkflow + Phoenix tracing.
-    "langchain-ollama>=1.1.0",
-    "langchain-core>=1.3.0",
-    "langgraph-checkpoint-postgres>=3.0.0",
-    "langgraph-checkpoint-redis>=0.4.0",
-    "psycopg[binary]>=3.3.0",
+    # Spec 035 moved the LangChain/LangGraph runtime deps into core
+    # `dependencies` — the LangGraph engine and its checkpointer are not
+    # optional. What remains here is Phoenix/OTel tracing, which the app
+    # genuinely degrades without (core.telemetry lazy-imports it).
     "arize-phoenix-otel>=0.16.0",
     "opentelemetry-api>=1.34.0,<1.35.0",
     "opentelemetry-sdk>=1.34.0,<1.35.0",

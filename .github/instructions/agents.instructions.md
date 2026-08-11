@@ -11,7 +11,7 @@ These rules are mandatory for every file under [backend/law_ai/agents_runtime/](
 
 - **Crews** (CrewAI role-based) live in [backend/law_ai/agents_runtime/crews/](../../backend/law_ai/agents_runtime/crews/).
 - **Workflows** (LangGraph stateful) live in [backend/law_ai/agents_runtime/graphs/](../../backend/law_ai/agents_runtime/graphs/).
-- **Tools** (Neo4j, CourtListener, etc.) live in [backend/law_ai/agents_runtime/tools/](../../backend/law_ai/agents_runtime/tools/).
+- **Tools** (currently Neo4j graph retrieval, `graph_rag.py`) live in [backend/law_ai/agents_runtime/tools/](../../backend/law_ai/agents_runtime/tools/). Ingestion source clients (CourtListener, statute scouts, etc.) live under `ingestionapp/sources/` and `ingestionapp/services/` instead — outside this directory's scope.
 - **Prompts** are versioned `.md` or `.txt` files in [backend/law_ai/agents_runtime/prompts/](../../backend/law_ai/agents_runtime/prompts/). Never inline prompt strings in Python code.
 
 ## Every Agent Must Implement
@@ -36,14 +36,18 @@ class MyAgent:
 
 ## LLM Provider
 
-- Default to **Ollama** (open-source models). Never hardcode a closed-source provider as primary.
-- Provider selection goes through `law_ai.core.config`, never direct env reads inside an agent.
+- Product-runtime model calls go through the ordered chain in `law_ai.core.llm` (`LLM_PROVIDER_CHAIN`, default `claude_code,anthropic_api,ollama`): Claude over OAuth, then Claude over `ANTHROPIC_API_KEY`, then local Ollama. **Claude is the default** (constitution §1, amended 2026-08-11 for spec 034) — this repeals the older "Ollama-default, no closed-source primary" rule; do not reintroduce it.
+- Never call a provider transport (Claude Code SDK, Anthropic API client, Ollama client) directly. Use `law_ai.core.llm.agenerate()` for plain calls, or `law_ai.core.llm.ChatProviderChain` (a LangChain `BaseChatModel`, spec 035) as the model for LangGraph nodes — see `graphs/legal_workflow.py`'s `_default_llm_factory()` for the canonical pattern. `law_ai.core.llm` is the sole choke point that writes the `llm_call` provenance event; bypassing it is rejected at review regardless of which provider is involved.
+- `law_ai.agents_runtime.llm` is a separate, **Ollama-only** transport (`ChatOllama` + retry) — it is not the default engine. It backs `crews/legal_analyst.py`'s explicit `use_langgraph=false` escape hatch and the LSAT crews specifically, not new agents in general. Reach for `law_ai.core.llm` unless you have a concrete reason to force Ollama-only.
+- Provider/model selection goes through `law_ai.core.llm` (or `law_ai.core.settings_proxy` for non-LLM settings) — never direct env reads inside an agent. There is no `law_ai.core.config` module; do not reference it.
+- LegalBench evals stay pinned to Ollama for reproducibility (constitution §1) — do not route eval runs through the chain.
+- Deployments handling data under a confidentiality obligation that forbids third-party processing MUST pin `LLM_PROVIDER_CHAIN=ollama` (constitution §1). `ollama` remains a first-class, fully supported local-only configuration, not a deprecated fallback.
 
 ## Tools (`agents_runtime/tools/`)
 
 - All Neo4j writes must include `source`, `confidence`, `ingest_timestamp`, `agent_version` properties.
 - Never delete graph nodes — soft-delete with `archived_at`.
-- No direct Neo4j access from anywhere outside `law_ai.core` (Neo4j driver) or `law_ai.agents_runtime.tools`.
+- Within `agents_runtime/`, no direct Neo4j access outside `law_ai.core` (Neo4j driver) or `law_ai.agents_runtime.tools` — go through `tools/graph_rag.py` rather than opening a driver session in a crew or graph node. (`ingestionapp/` has its own Neo4j call sites for scouting/ingestion; that's a different directory's rules.)
 
 ## Mandatory Tests
 
@@ -60,5 +64,5 @@ Coverage for new agent code must keep total backend coverage ≥75% (`make test-
 - Inline prompts as Python string literals.
 - Bypassing `core.provenance` (silent LLM/tool calls).
 - Returning unstructured `dict[str, Any]` from `run()`.
-- Hardcoding API keys, model names, or endpoints (use `law_ai.core.config`).
+- Hardcoding API keys, model names, or endpoints (use `law_ai.core.llm` for provider/model selection, `law_ai.core.settings_proxy` for other settings).
 - Creating graph nodes without `source` and `confidence`.

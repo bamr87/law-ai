@@ -841,9 +841,24 @@ function HealthPanel({
 
   if (!health) return null
 
+  // The chain is ordered, so the first configured + reachable tier is the one
+  // that will actually serve the next request. Naming it explicitly beats
+  // making operators infer it from a row of green dots.
+  const chain = health.llm_chain ?? []
+  const servingIndex = chain.findIndex((p) => p.configured && p.reachable !== false)
+
   const services: Array<{ label: string; reachable: boolean; detail: string }> = [
+    ...chain.map((provider, i) => ({
+      label: `${i + 1}. ${provider.provider}`,
+      reachable: provider.configured && provider.reachable !== false,
+      detail: !provider.configured
+        ? (provider.reason ?? 'not configured')
+        : provider.reachable === false
+          ? (provider.error ?? provider.reason ?? 'unreachable')
+          : `${provider.model ?? 'ready'}${i === servingIndex ? ' — serving' : ''}`,
+    })),
     {
-      label: 'Ollama',
+      label: 'Ollama host',
       reachable: health.ollama.reachable,
       detail: health.ollama.reachable
         ? `${health.ollama.models.length} model${health.ollama.models.length !== 1 ? 's' : ''}: ${health.ollama.models.slice(0, 3).join(', ')}${health.ollama.models.length > 3 ? '…' : ''}`

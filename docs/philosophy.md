@@ -79,7 +79,7 @@ HITL gates ([constitution.md](constitution.md) §5) are not merely a safety feat
 
 ### P7 — Do not become the stronger.
 
-Open weights, open source, local-first, no telemetry on user matters, full data export. A closed legal model that only its vendor can inspect *is* the Thrasymachean ruler in the relevant sense — it defines what counts as a correct answer and cannot be audited on that definition. This is the philosophical grounding for what [constitution.md](constitution.md) §1 already enforces as a rejection rule, and the reason it may not be relaxed for convenience.
+A closed model that only its vendor can inspect, that a user cannot leave, and whose answers cannot be traced to a named provider *is* the Thrasymachean ruler in the relevant sense: it defines what counts as a correct answer and cannot be audited on that definition. [constitution.md](constitution.md) §1 (amended 2026-08-11) answers that risk without banning closed models outright — Claude is now the *default* product runtime, and the trade is named there rather than hidden. What §1 still forbids is a *locked* interpreter, not a closed one: the fully local, open-weights tier (`LLM_PROVIDER_CHAIN=ollama`) must stay permanently reachable, and is mandatory rather than optional for any matter under a confidentiality obligation that forbids third-party processing; every call is provenance-logged with which provider actually served it, so the system can never answer from behind an anonymous "the model said so"; and no second closed vendor may be added to the chain without amending the constitution in the open. P7 forbids the lock, not the vendor — an interpreter a user can always leave, and can always name, is not yet the ruler Thrasymachus described.
 
 ---
 
@@ -93,7 +93,7 @@ The stance is not new machinery bolted onto the repo. It is the reason the machi
 | §4 `source` + `confidence` on all nodes | No proposition floats free of the party that produced it |
 | §4 Soft-delete, never hard-delete | The record of what was once claimed cannot be quietly rewritten by whoever holds the database |
 | §5 HITL on ingestion + high-stakes output | Decision power stays with a human (P6) |
-| §1 Open-source, local-first product runtime | The interpreter of the law is not owned by one party (P7) |
+| §1 Provider chain: local-first stays reachable, no vendor lock without amendment | The interpreter of the law is never locked to one unaccountable party (P7) |
 | §3 Source-grounded outputs + LegalBench | Skepticism about the corpus raises the evidentiary bar; it does not lower it (P5) |
 | §12 I1 No auto-merge | Autonomy proposes; humans dispose |
 
