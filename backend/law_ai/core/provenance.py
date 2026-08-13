@@ -12,6 +12,7 @@ enqueued so the row eventually lands in Postgres.
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import hashlib
 import inspect
@@ -20,7 +21,7 @@ import logging
 import time
 from datetime import UTC, datetime
 from typing import Any, TypeVar
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from uuid import uuid4
 
 from law_ai.core import audit_jsonl as audit_store
@@ -314,6 +315,50 @@ def _pick_state(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
     return args[0] if args else None
 
 
+@contextlib.contextmanager
+def _node_span(
+    name: str,
+    *,
+    model: str | None,
+    prompt_id: str | None,
+    prompt_version: str | None,
+) -> Iterator[Any]:
+    """OpenInference ``CHAIN`` span around one LangGraph node (spec 037 FR-4).
+
+    Opened **unconditionally**. With tracing disabled the global provider is
+    the default no-op one and this costs nothing, which is the idiomatic OTEL
+    pattern and keeps a single code path under test (spec 037 OQ-4).
+    ``_current_trace_id`` below already reads the ambient span on that same
+    default path, so this introduces no new dependency on the OTEL API.
+
+    The audit write in the caller stays outside this contextmanager's control
+    flow — it is unconditional and must never become contingent on tracing
+    (constitution §4; spec 037 NG2/NFR-AUDIT-1).
+    """
+    try:
+        from opentelemetry import trace
+    except Exception:  # pragma: no cover - OTEL API always present in practice
+        yield None
+        return
+
+    tracer = trace.get_tracer("law_ai.provenance")
+    # `start_as_current_span` already records the exception and sets ERROR
+    # status on the way out, then re-raises — which is exactly FR-4's
+    # requirement, so there is nothing to add here. Doing it explicitly as
+    # well attaches the exception event twice.
+    with tracer.start_as_current_span(f"node.{name}") as span:
+        span.set_attribute("openinference.span.kind", "CHAIN")
+        span.set_attribute("langgraph.node", name)
+        for key, value in (
+            ("model", model),
+            ("prompt_id", prompt_id),
+            ("prompt_version", prompt_version),
+        ):
+            if value is not None:
+                span.set_attribute(key, value)
+        yield span
+
+
 def logged_node(
     name: str,
     *,
@@ -330,7 +375,40 @@ def logged_node(
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                 state = _pick_state(args, kwargs)
                 started = time.perf_counter()
-                output = await func(*args, **kwargs)
+                with _node_span(
+                    name,
+                    model=model,
+                    prompt_id=prompt_id,
+                    prompt_version=prompt_version,
+                ):
+                    output = await func(*args, **kwargs)
+                    latency = (time.perf_counter() - started) * 1000.0
+                    _record_node_event(
+                        node=name,
+                        state=state,
+                        output=output,
+                        latency_ms=latency,
+                        extra={
+                            "model": model,
+                            "prompt_id": prompt_id,
+                            "prompt_version": prompt_version,
+                        },
+                    )
+                return output
+
+            return async_wrapper  # type: ignore[return-value]
+
+        @functools.wraps(func)
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            state = _pick_state(args, kwargs)
+            started = time.perf_counter()
+            with _node_span(
+                name,
+                model=model,
+                prompt_id=prompt_id,
+                prompt_version=prompt_version,
+            ):
+                output = func(*args, **kwargs)
                 latency = (time.perf_counter() - started) * 1000.0
                 _record_node_event(
                     node=name,
@@ -343,27 +421,6 @@ def logged_node(
                         "prompt_version": prompt_version,
                     },
                 )
-                return output
-
-            return async_wrapper  # type: ignore[return-value]
-
-        @functools.wraps(func)
-        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-            state = _pick_state(args, kwargs)
-            started = time.perf_counter()
-            output = func(*args, **kwargs)
-            latency = (time.perf_counter() - started) * 1000.0
-            _record_node_event(
-                node=name,
-                state=state,
-                output=output,
-                latency_ms=latency,
-                extra={
-                    "model": model,
-                    "prompt_id": prompt_id,
-                    "prompt_version": prompt_version,
-                },
-            )
             return output
 
         return sync_wrapper  # type: ignore[return-value]

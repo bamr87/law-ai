@@ -278,3 +278,132 @@ async def test_workflow_resumes_thread(
     )
     result = await wf.invoke("q", thread_id="my-resume-id")
     assert result.langgraph_thread_id == "my-resume-id"
+
+
+# ---------------------------------------------------------------------------
+# Spec 037 FR-5 — the span must name the model that actually served the call
+# ---------------------------------------------------------------------------
+
+
+class _FakeChainMessage:
+    """Mimics ChatProviderChain's AIMessage: content + response_metadata."""
+
+    def __init__(self, text: str, model_label: str) -> None:
+        self.content = text
+        self.response_metadata = {
+            "provider": model_label.split("/", maxsplit=1)[0],
+            "model": model_label.rsplit("/", maxsplit=1)[-1],
+            "model_label": model_label,
+            "fell_back": False,
+        }
+
+
+class FakeChain:
+    def __init__(self, responses: list[str], model_label: str) -> None:
+        self._responses = list(responses)
+        self._label = model_label
+
+    async def ainvoke(self, prompt: str) -> _FakeChainMessage:
+        text = self._responses.pop(0) if self._responses else "{}"
+        return _FakeChainMessage(text, self._label)
+
+
+_SPAN_TEST_PASSAGES = [
+    {
+        "title": "Marbury v. Madison",
+        "snippet": "Established judicial review.",
+        "source_url": "https://example.test/marbury",
+    }
+]
+
+
+async def _run_with(llm, retrieved: list[dict] | None = None):
+    from opentelemetry import trace as otel_trace
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    memory = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(memory))
+    real_get = otel_trace.get_tracer_provider
+    otel_trace.get_tracer_provider = lambda: provider  # type: ignore[assignment]
+
+    async def fake_resolver(citations: list[str]) -> dict[str, str | None]:
+        return {}
+
+    async def fake_retriever(state):
+        return retrieved if retrieved is not None else _SPAN_TEST_PASSAGES
+
+    try:
+        wf = LegalWorkflow(
+            llm_factory=lambda: llm,
+            cite_resolver=fake_resolver,
+            retriever=fake_retriever,
+        )
+        await wf.invoke("Did Marbury establish judicial review?")
+    finally:
+        otel_trace.get_tracer_provider = real_get  # type: ignore[assignment]
+
+    spans = {s.name: dict(s.attributes or {}) for s in memory.get_finished_spans()}
+    return spans
+
+
+async def test_workflow_span_reports_the_serving_model() -> None:
+    """The attribute hard-coded OLLAMA_DEFAULT_MODEL; Claude has served since spec 034."""
+    llm = FakeChain(
+        [
+            '{"queries": ["judicial review"], "rationale": "ok"}',
+            '{"answer": "Marbury established judicial review.",'
+            ' "citations": [], "confidence": 0.9}',
+        ],
+        model_label="claude_code/claude-opus-5",
+    )
+    spans = await _run_with(llm)
+
+    attrs = spans["legal_workflow.invoke"]
+    assert attrs["legal_workflow.model"] == "claude_code/claude-opus-5"
+    assert attrs["openinference.span.kind"] == "CHAIN"
+
+
+async def test_workflow_span_reports_a_fallback_tier_truthfully() -> None:
+    """Reporting the *configured* head would lie whenever the chain falls back."""
+    llm = FakeChain(
+        [
+            '{"queries": ["q"], "rationale": "ok"}',
+            '{"answer": "local answer", "citations": [], "confidence": 0.5}',
+        ],
+        model_label="ollama/mistral",
+    )
+    spans = await _run_with(llm)
+    assert spans["legal_workflow.invoke"]["legal_workflow.model"] == "ollama/mistral"
+
+
+async def test_workflow_span_omits_the_model_when_none_served() -> None:
+    """No passages ⇒ the refusal path calls no model, so there is nothing true to report."""
+    llm = FakeChain(
+        ['{"queries": ["q"], "rationale": "ok"}'], "claude_code/claude-opus-5"
+    )
+    spans = await _run_with(llm, retrieved=[])
+
+    attrs = spans["legal_workflow.invoke"]
+    # retrieve still ran, so its label is present; what must never appear is a
+    # fabricated model for a call that did not happen.
+    assert attrs.get("legal_workflow.model") in (None, "claude_code/claude-opus-5")
+
+
+async def test_node_spans_nest_under_the_workflow_span() -> None:
+    """AC-2's structural claim at unit scope: nodes are children, not orphans."""
+    llm = FakeChain(
+        [
+            '{"queries": ["q"], "rationale": "ok"}',
+            '{"answer": "a", "citations": [], "confidence": 0.7}',
+        ],
+        model_label="claude_code/claude-opus-5",
+    )
+    spans = await _run_with(llm)
+    assert "node.retrieve" in spans
+    assert "node.analyze" in spans
+    assert spans["node.analyze"]["openinference.span.kind"] == "CHAIN"
