@@ -1,7 +1,7 @@
 # Spec: OpenInference Tracing Fidelity (Phoenix)
 
 - **ID**: 037-openinference-tracing
-- **Status**: clarified
+- **Status**: shipped
 - **Owner**: @bamr87
 - **Created**: 2026-08-11
 - **Roadmap Epic**: observability — make the Arize Phoenix surface shipped in spec 010 actually carry LLM content and trace structure
@@ -156,7 +156,8 @@ Open questions OQ-1 … OQ-4 are **resolved** — see §6 "Clarifications (resol
 
 | Package | Status | License | Note |
 |---|---|---|---|
-| `openinference-instrumentation-langchain` | **new direct dependency** | Apache-2.0 | The only genuinely new package. Instruments via LangChain's public callback-manager API; no provider transport, credential path, or request construction is touched. |
+| `openinference-instrumentation-langchain` | **new direct dependency** (0.1.70) | Apache-2.0 | Instruments via LangChain's public callback-manager API; no provider transport, credential path, or request construction is touched. Resolves standalone: `pip install --dry-run` adds this distribution and upgrades nothing, so the OTEL pins hold (NFR-COMPAT-1). |
+| `opentelemetry-instrumentation-asgi` | **new direct dependency** (0.55b1) | Apache-2.0 | Added during implementation, not planned at spec time. `DjangoInstrumentor` installs its middleware but emits **no server span under daphne/ASGI** — verified live: the first traced `/api/analysis` request was rooted at `legal_workflow.invoke`, and every other request stayed a single-span orphan, so FR-3 was unmet. This is the fallback [plan.md](plan.md) §9 pre-authorized for exactly that outcome; `law_ai/asgi.py` wraps the outermost ASGI callable in `OpenTelemetryMiddleware`. **Pin note:** unpinned it resolves to 0.65b0 and drags `opentelemetry-api`/`-semantic-conventions` past the `<1.35.0`/`<0.56` pins — a NFR-COMPAT-1 violation — so it is pinned to the sibling family `>=0.55b1,<0.56`, which resolves with nothing else moving. |
 | `arize-phoenix-otel` (0.17.1) | already declared ([`pyproject.toml:87`](../../backend/pyproject.toml#L87)), currently **unused** | Apache-2.0 | This spec finally uses it. Distinct from the `arize-phoenix` server package, which is Elastic License 2.0 and is consumed only as a container image, not linked into our code. |
 | `opentelemetry-instrumentation-django` | already declared ([`pyproject.toml:91`](../../backend/pyproject.toml#L91)), currently **unused** | Apache-2.0 | This spec finally uses it. |
 | `openinference-instrumentation`, `openinference-semantic-conventions` | already present transitively (0.1.57 / 0.1.32) | Apache-2.0 | Pulled in by `arize-phoenix-otel`; verified installed in the current backend image. |

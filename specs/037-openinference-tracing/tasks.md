@@ -168,7 +168,7 @@
 
 - **Refs**: AC-1, AC-2, AC-3, AC-4
 - **Owner**: @bamr87
-- **Status**: `[ ]`
+- **Status**: `[x]`
 - **Steps**:
   1. `make dev`, then issue one `/api/analysis` request.
   2. **AC-3**: `GET localhost:6006/v1/projects` lists a project named `law_ai` (it does not today — the live baseline is `default` + `playground`), and it holds the new spans.
