@@ -24,6 +24,9 @@
 
 ## Open
 
+- **BL-20260811-30** — *feature, med* — Runtime prompt loading *from* Phoenix with local-file fallback: consumers still read files directly, so a tagged Phoenix version can't drive an experiment without a code deploy. Needs an offline-safe fetch (`GET /v1/prompts/{id}/tags/{tag}`, fall back to the registry file) plus provenance of which source served the prompt. _Surfaced in:_ specs/036-phoenix-prompt-registry.
+- **BL-20260811-31** — *refactor, low* — Migrate prompt consumers (`lsat_content_author`, `test_synthesizer`, `topic_frontier`, `legal_workflow` node prompts) onto `agents_runtime.prompts.registry` as the single loader, replacing four hand-rolled `PROMPT_PATH`/`read_text` blocks and their per-file version constants. _Surfaced in:_ specs/036-phoenix-prompt-registry.
+- **BL-20260811-32** — *infra, low* — Run `sync_prompts` automatically (CI job on main, or a `make dev` post-up hook) so the Phoenix prompt store can't drift from the repo between manual `make sync-prompts` runs; needs a no-Phoenix-configured skip path in CI. _Surfaced in:_ specs/036-phoenix-prompt-registry.
 - **BL-20260811-25** — *tech-debt, med* — Checkpointer schema isolation is claimed but not real: `ensure_checkpointer` creates a `langgraph` schema, but the saver's connection string sets no `search_path`, so LangGraph tables land in `public`. Pass `options=-csearch_path=langgraph` or drop the claim (spec 011 FR-13). _Surfaced in:_ specs/035-langchain-first-class.
 - **BL-20260811-26** — *feature, low* — `ChatProviderChain` has no `_astream`; LangChain streaming falls back to buffered generation. Fold into the chain-streaming work (BL-20260811-20). _Surfaced in:_ specs/035-langchain-first-class.
 - **BL-20260811-27** — *tech-debt, low* — Boot-time checkpointer `ensure_schema()` is log-only; a broken URL degrades silently until first workflow use. Surface a visible boot warning or fail fast behind a flag. _Surfaced in:_ specs/035-langchain-first-class.

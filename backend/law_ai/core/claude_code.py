@@ -374,9 +374,7 @@ async def generate(
             try:
                 resp = await client.post(url, json=payload, headers=headers)
                 resp.raise_for_status()
-                return _extract_text(
-                    resp.json(), allow_truncation=allow_truncation
-                )
+                return _extract_text(resp.json(), allow_truncation=allow_truncation)
             except httpx.HTTPStatusError as exc:
                 status = exc.response.status_code
                 if status not in _RETRYABLE_STATUS or attempt == attempts - 1:
