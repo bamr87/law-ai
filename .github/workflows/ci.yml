@@ -194,7 +194,11 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev]"
+        # Mirrors backend/Dockerfile, which installs ".[dev,local-ai]". The
+        # spec 037 telemetry tests import openinference / opentelemetry
+        # directly, so a ".[dev]"-only environment fails them on import while
+        # the container suite passes — CI must match the sanctioned image.
+      - run: pip install -e ".[dev,local-ai]"
       - name: Run pytest with coverage
         # Integration tests require Docker fixtures that aren't available here;
         # they run in the dedicated 'Docker-backed Integration Tests' workflow.

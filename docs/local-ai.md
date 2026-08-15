@@ -81,8 +81,13 @@ The response includes `phoenix_trace_url` and `langgraph_thread_id` — paste ei
 | `OLLAMA_REQUEST_TIMEOUT_S` | `120.0` | Raise for very long contexts. |
 | `LANGGRAPH_CHECKPOINTER` | `postgres` | `postgres` \| `redis` \| `memory`. Postgres reads `POSTGRES_URL` (not `DATABASE_URL`, spec 035). |
 | `PHOENIX_COLLECTOR_ENDPOINT` | _(blank in `settings/base.py`; `docker-compose.yml` sets it to `http://phoenix:6006/v1/traces` for the `backend` service)_ | **Unset disables tracing entirely.** Blank it in `.env` to opt out even inside the compose stack. |
-| `PHOENIX_UI_URL` | `http://localhost:6006` | Used to build deep-links in API responses. |
-| `PHOENIX_PROJECT_NAME` | `law_ai` | Phoenix tab label. |
+| `PHOENIX_UI_URL` | `http://localhost:6006` | Used to build deep-links in API responses (`phoenix_trace_url`). The project segment is resolved to Phoenix's own base64 id via one cached `GET /v1/projects`; if Phoenix is unreachable the field is simply `null` (spec 037 FR-6). |
+| `PHOENIX_PROJECT_NAME` | `law_ai` | The Phoenix project traces land in. Set as the `openinference.project.name` resource attribute (spec 037) — before that it was silently ignored and everything landed in `default`. |
+| `PHOENIX_TRACE_CONTENT` | `false` in `settings/base.py`, **`true` in `settings/dev.py`** | Whether spans carry prompt and completion **text**. Off keeps span kind, model, latency, and the parent/child tree while dropping content (OpenInference `TraceConfig`). See the warning below. |
+
+> **Trace content is a second copy of client data.** With `PHOENIX_TRACE_CONTENT=true`, every prompt and model completion is written into the Phoenix container's `phoenix:/data` volume in readable form. The `core.provenance` audit trail deliberately does *not* do this — it stores an input hash and a 500-character output summary — so tracing is the more permissive store of the two whenever content capture is on.
+>
+> The default is therefore off everywhere **except the dev stack**, where `settings/dev.py` turns it on so `make dev` is useful for debugging. The practical consequence: do not point a `make dev` stack at data under a confidentiality obligation. For those matters pin `LLM_PROVIDER_CHAIN=ollama` (above) **and** either run with `DJANGO_SETTINGS_MODULE=law_ai.settings.prod` or set `PHOENIX_TRACE_CONTENT=false` explicitly in `.env`. Blanking `PHOENIX_COLLECTOR_ENDPOINT` disables tracing entirely and is the strongest option.
 | `AUTONOMY_ENABLED` | `false` | **Kill-switch** for all scheduled autonomy loops (spec 018 §12 invariant I3). Set to `true` to activate. |
 | `AUTONOMY_ALLOWED_SOURCES` | `[]` | Comma-separated list of source adapter names permitted for autonomous ingestion (e.g. `courtlistener,cap`). |
 | `AUTONOMY_MAX_INGEST_PER_CYCLE` | `25` | Hard cap on documents ingested per corpus-growth cycle. |

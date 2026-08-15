@@ -47,3 +47,13 @@ REST_FRAMEWORK = {
     **REST_FRAMEWORK,  # noqa: F405
     "DEFAULT_THROTTLE_RATES": {"llm": "100000/min"},
 }
+
+# Spec 037: the suite must not export traces. `.env` sets
+# PHOENIX_COLLECTOR_ENDPOINT for the compose stack, and django-environ reads
+# it here too, so without this line `CoreConfig.ready()` registers a live
+# tracer provider and every test run ships spans into the Phoenix container —
+# polluting the trace store and (post-FR-7) potentially test prompt content.
+# It also makes AC-5 unobservable: "no global tracer provider is set" cannot
+# be asserted in a process that set one at boot.
+PHOENIX_COLLECTOR_ENDPOINT = None
+PHOENIX_TRACE_CONTENT = False

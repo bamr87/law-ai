@@ -35,7 +35,7 @@ class CoreConfig(AppConfig):
         try:
             from law_ai.core.telemetry import init_tracing
 
-            init_tracing(None)
+            init_tracing()
         except Exception as exc:  # pragma: no cover - log-only
             logger.warning("telemetry init skipped: %s", exc)
 

@@ -19,7 +19,6 @@ from collections.abc import Awaitable, Callable
 
 from pydantic import BaseModel, Field
 
-from law_ai.core.settings_proxy import settings_proxy as settings
 from law_ai.core.provenance import logged_node
 from law_ai.core.telemetry import phoenix_trace_url
 
@@ -101,6 +100,10 @@ class LegalWorkflowState(TypedDict, total=False):
     confidence: float
     human_approval_required: bool
     notes: list[str]
+    # `provider/model` of the tier that actually served the analyze call, so
+    # `invoke` can put a true value on the trace span (spec 037 FR-5). Absent
+    # when no model was called (e.g. no passages retrieved).
+    model_label: str
 
 
 # ---------------------------------------------------------------------------
@@ -163,6 +166,24 @@ def _build_default_retriever() -> Retriever:
 # ---------------------------------------------------------------------------
 # JSON-from-LLM helpers
 # ---------------------------------------------------------------------------
+
+
+def _model_label(message: Any) -> str | None:
+    """The ``provider/model`` that actually served this reply, if it says.
+
+    ``ChatProviderChain`` records the tier that answered in
+    ``response_metadata["model_label"]`` (e.g. ``claude_code/claude-opus-5``),
+    which is the same label the ``llm_call`` provenance event carries. Test
+    doubles and plain-string replies do not, hence ``None`` — spec 037 FR-5
+    prefers reporting nothing over reporting a model that did not serve the
+    call, which is the bug it exists to fix.
+    """
+    metadata = getattr(message, "response_metadata", None)
+    if isinstance(metadata, dict):
+        label = metadata.get("model_label")
+        if label:
+            return str(label)
+    return None
 
 
 def _coerce_text(message: Any) -> str:
@@ -255,7 +276,9 @@ class LegalWorkflow:
 
     @logged_node(
         "retrieve",
-        model="(ollama)",
+        # See the analyze node below: the serving tier is per-call, so a
+        # static model id here can only be wrong. Reported as `model_label`.
+        model="provider_chain",
         prompt_id="legal_workflow.retrieve",
         prompt_version=PROMPT_VERSION,
     )
@@ -271,7 +294,8 @@ class LegalWorkflow:
             f"Jurisdiction: {state.get('jurisdiction') or 'any'}\n"
             f"Question: {question}"
         )
-        raw = _coerce_text(await llm.ainvoke(prompt))
+        reply = await llm.ainvoke(prompt)
+        raw = _coerce_text(reply)
         parsed = _parse_json(raw, {"queries": [question], "rationale": "fallback"})
         raw_queries = parsed.get("queries") or []
         if not isinstance(raw_queries, list):
@@ -279,6 +303,9 @@ class LegalWorkflow:
         queries = [str(q)[:120] for q in raw_queries][:3] or [question]
         retrieved = await self._retriever({**state, "queries": queries})
         out: dict[str, Any] = {"queries": queries, "retrieved": retrieved}
+        served = _model_label(reply)
+        if served:
+            out["model_label"] = served
         # Retrievers may publish a richer coverage envelope (result mix,
         # jurisdictions actually represented). Returning it here is what
         # merges it into graph state — mutating the input state would not.
@@ -298,8 +325,13 @@ class LegalWorkflow:
         return out
 
     @logged_node(
+        # Not a model id: which tier serves this node is decided per call by
+        # the constitution-§1 chain, and the decorator is evaluated once at
+        # import. The tier that actually answered is reported dynamically as
+        # `model_label` in the returned state (spec 037 FR-5); the old
+        # "(ollama)" literal was simply false once Claude became the default.
         "analyze",
-        model="(ollama)",
+        model="provider_chain",
         prompt_id="legal_workflow.analyze",
         prompt_version=PROMPT_VERSION,
     )
@@ -334,7 +366,8 @@ class LegalWorkflow:
             "confidence (0..1).\n\n"
             f"Question: {question}\n\nPassages:\n{passages}"
         )
-        raw = _coerce_text(await llm.ainvoke(prompt))
+        reply = await llm.ainvoke(prompt)
+        raw = _coerce_text(reply)
         parsed = _parse_json(
             raw,
             {
@@ -357,11 +390,17 @@ class LegalWorkflow:
             # only dict entries carry the {text, source_url} shape we need.
             if isinstance(c, dict) and str(c.get("text", "")).strip()
         ]
-        return {
+        out: dict[str, Any] = {
             "answer": str(parsed.get("answer", "")).strip(),
             "citations": citations,
             "confidence": _clamp01(parsed.get("confidence")),
         }
+        # Analyze runs after retrieve, so its label wins in state — and it is
+        # the call whose model a reviewer actually cares about (FR-5).
+        served = _model_label(reply)
+        if served:
+            out["model_label"] = served
+        return out
 
     @logged_node(
         "cite_check",
@@ -448,9 +487,18 @@ class LegalWorkflow:
         tracer = otel_trace.get_tracer("law_ai.legal_workflow")
         started = time.perf_counter()
         with tracer.start_as_current_span("legal_workflow.invoke") as span:
+            span.set_attribute("openinference.span.kind", "CHAIN")
             span.set_attribute("legal_workflow.thread_id", thread)
-            span.set_attribute("legal_workflow.model", settings.OLLAMA_DEFAULT_MODEL)
             result = await graph.ainvoke(state, config=config)
+            # Set *after* the run, from the tier that actually answered. This
+            # attribute used to hard-code OLLAMA_DEFAULT_MODEL, which has been
+            # false since spec 034 made Claude the default runtime; reporting
+            # the intended head of the chain would be equally false whenever a
+            # tier fails over (spec 037 FR-5). Omitted when no model was
+            # called — e.g. the no-passages refusal path.
+            served = result.get("model_label")
+            if served:
+                span.set_attribute("legal_workflow.model", str(served))
             span_ctx = span.get_span_context()
             trace_id = f"{span_ctx.trace_id:032x}" if span_ctx.is_valid else None
         latency_ms = (time.perf_counter() - started) * 1000.0

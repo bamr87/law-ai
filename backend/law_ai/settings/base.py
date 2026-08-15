@@ -70,6 +70,11 @@ env = environ.Env(
     # REST base URL for Phoenix prompt management (spec 036). Blank = derive
     # from PHOENIX_COLLECTOR_ENDPOINT by stripping the /v1/traces suffix.
     PHOENIX_BASE_URL=(str, ""),
+    # Spec 037 FR-7: whether traced spans carry prompt/completion *text*.
+    # Default off. The §4 audit trail itself only stores an input hash and a
+    # truncated output summary — a debugging surface must not retain more
+    # client data than the record of truth. settings/dev.py turns it on.
+    PHOENIX_TRACE_CONTENT=(bool, False),
     # Databases
     POSTGRES_URL=(
         str,
@@ -159,6 +164,7 @@ PHOENIX_COLLECTOR_ENDPOINT: str | None = env("PHOENIX_COLLECTOR_ENDPOINT") or No
 PHOENIX_UI_URL: str = env("PHOENIX_UI_URL")
 PHOENIX_PROJECT_NAME: str = env("PHOENIX_PROJECT_NAME")
 PHOENIX_BASE_URL: str | None = env("PHOENIX_BASE_URL") or None
+PHOENIX_TRACE_CONTENT: bool = env.bool("PHOENIX_TRACE_CONTENT")
 
 POSTGRES_URL: str = env("POSTGRES_URL")
 NEO4J_URI: str = env("NEO4J_URI")

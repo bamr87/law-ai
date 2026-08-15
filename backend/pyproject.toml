@@ -90,6 +90,14 @@ local-ai = [
     "opentelemetry-exporter-otlp-proto-http>=1.34.0,<1.35.0",
     "opentelemetry-instrumentation-django>=0.55b1,<0.56",
     "opentelemetry-instrumentation-httpx>=0.55b1,<0.56",
+    # Spec 037 FR-3 fallback (plan.md §9 risk 3, confirmed live): under
+    # daphne/ASGI, DjangoInstrumentor installs its middleware but emits no
+    # server span, so requests still had no root. Pinned to the sibling
+    # family — unpinned it resolves to 0.65b0 and breaks NFR-COMPAT-1.
+    "opentelemetry-instrumentation-asgi>=0.55b1,<0.56",
+    # Spec 037 FR-2: OpenInference spans for every ChatProviderChain /
+    # LangGraph call. Resolves standalone against the pins above (NFR-COMPAT-1).
+    "openinference-instrumentation-langchain>=0.1.70",
 ]
 nlp = [
     # Blackstone pins spacy==2.1.8 which conflicts with our spacy>=3.7.
