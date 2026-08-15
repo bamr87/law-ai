@@ -38,6 +38,7 @@ help:
 	@echo "  make manage CMD='...'  - Run Django manage.py inside backend container"
 	@echo "  make migrate           - Run migrations + ensure_checkpointer"
 	@echo "  make ingest            - Run scripts/ingest_sample.py"
+	@echo "  make sync-prompts      - Mirror prompt files into Phoenix prompt management"
 	@echo ""
 	@echo "Tests (all run in containers):"
 	@echo "  make test              - Backend pytest + frontend vitest"
@@ -115,6 +116,10 @@ migrate:
 
 ingest:
 	$(RUN_BACKEND_FULL) python scripts/ingest_sample.py --source courtlistener --limit 500
+
+# Spec 036: one-way mirror of the prompt registry into the Phoenix container.
+sync-prompts:
+	$(RUN_BACKEND_FULL) python manage.py sync_prompts
 
 # ---------------------------------------------------------------------------
 # Tests (Docker-only)

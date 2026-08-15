@@ -67,6 +67,9 @@ env = environ.Env(
     PHOENIX_COLLECTOR_ENDPOINT=(str, ""),
     PHOENIX_UI_URL=(str, "http://localhost:6006"),
     PHOENIX_PROJECT_NAME=(str, "law_ai"),
+    # REST base URL for Phoenix prompt management (spec 036). Blank = derive
+    # from PHOENIX_COLLECTOR_ENDPOINT by stripping the /v1/traces suffix.
+    PHOENIX_BASE_URL=(str, ""),
     # Databases
     POSTGRES_URL=(
         str,
@@ -155,6 +158,7 @@ LANGGRAPH_CHECKPOINTER_SCHEMA: str = env("LANGGRAPH_CHECKPOINTER_SCHEMA")
 PHOENIX_COLLECTOR_ENDPOINT: str | None = env("PHOENIX_COLLECTOR_ENDPOINT") or None
 PHOENIX_UI_URL: str = env("PHOENIX_UI_URL")
 PHOENIX_PROJECT_NAME: str = env("PHOENIX_PROJECT_NAME")
+PHOENIX_BASE_URL: str | None = env("PHOENIX_BASE_URL") or None
 
 POSTGRES_URL: str = env("POSTGRES_URL")
 NEO4J_URI: str = env("NEO4J_URI")
