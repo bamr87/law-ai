@@ -39,12 +39,9 @@ Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md)
 ## Follow-ups Discovered
 
 - Wire the live trace into Analysis Studio: call `openAgentStream` before
-  `runAnalysis`, render each `agent_step` as it lands, and fall back to the
-  REST response when the socket fails. The primitive ships here; the UI
-  does not consume it yet, so BL-20260810-06 stays partially open.
+`runAnalysis`, render each `agent_step` as it lands, and fall back to the REST response when the socket fails. The primitive ships here; the UI does not consume it yet, so BL-20260810-06 stays partially open.
 - Reconnect + event replay: a dropped socket loses the in-flight trace with
-  no way to catch up. Needs a short server-side ring buffer per stream id
-  and a `?since=` cursor on connect.
+no way to catch up. Needs a short server-side ring buffer per stream id and a `?since=` cursor on connect.
 - The WS API key travels in the query string and can land in proxy/access
   logs; fold into the per-user token work (BL-20260811-06).
 - Apply the same client-chosen-stream-id pattern to the LSAT tutor and the

@@ -55,8 +55,7 @@ The API is **default-open** in dev (no `*_API_KEY` set), so curl needs no auth. 
 
 ## Drive the agents with a real LLM (optional)
 
-These `make` targets run agents through their full pipeline. They call the product `LLM_PROVIDER_CHAIN` unconditionally (Claude OAuth → `ANTHROPIC_API_KEY` → Ollama, constitution §1) — set `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in `backend/.env` for a live Claude run (see
-[docs/claude-code-dev-llm.md](docs/claude-code-dev-llm.md)); with neither configured and no reachable Ollama they degrade to a deterministic offline draft, so they still run on a clean clone.
+These `make` targets run agents through their full pipeline. They call the product `LLM_PROVIDER_CHAIN` unconditionally (Claude OAuth → `ANTHROPIC_API_KEY` → Ollama, constitution §1) — set `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in `backend/.env` for a live Claude run (see [docs/claude-code-dev-llm.md](docs/claude-code-dev-llm.md)); with neither configured and no reachable Ollama they degrade to a deterministic offline draft, so they still run on a clean clone.
 
 ```bash
 make legal-analyst-demo                      # LegalAnalyst → IRAC analysis
@@ -106,8 +105,7 @@ which overrides the settings' SQLite test default (env wins over `.env`). A bare
 - **Phoenix/OpenTelemetry spams `Failed to resolve 'phoenix'`** when the stack
 isn't up. Set `-e PHOENIX_COLLECTOR_ENDPOINT=` (the driver does) to silence it — it's noise, not an error.
 - **`DJANGO_SETTINGS_MODULE` defaults to `law_ai.settings.dev`** (DEBUG=True) via
-  `manage.py`/`asgi.py`. Claude/Ollama credentials are read the same way in every
-  environment except `test`, which hard-blanks them (`settings/test.py`).
+`manage.py`/`asgi.py`. Claude/Ollama credentials are read the same way in every environment except `test`, which hard-blanks them (`settings/test.py`).
 - **macOS hosts have no `timeout`** — don't wrap commands in it; rely on the
   tool/shell timeout instead.
 

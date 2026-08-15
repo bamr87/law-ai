@@ -56,7 +56,9 @@ class Command(BaseCommand):
     # Steps
     # ------------------------------------------------------------------
     def _print_gate(self) -> None:
-        self.stdout.write(self.style.MIGRATE_HEADING("Claude OAuth tier (chain tier 1)"))
+        self.stdout.write(
+            self.style.MIGRATE_HEADING("Claude OAuth tier (chain tier 1)")
+        )
         rows = {
             "development env": claude_code.is_development(),
             "oauth token": claude_code.oauth_token() is not None,

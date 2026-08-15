@@ -40,15 +40,10 @@ Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md)
 ## Follow-ups Discovered
 
 - Frontend quarantine review queue: the surfaces here are admin + CLI, so
-  a non-operator reviewer still cannot work the queue from the web app
-  (the UI half of BL-20260810-03).
+a non-operator reviewer still cannot work the queue from the web app (the UI half of BL-20260810-03).
 - Celery beat entry for `commit_approved_reviews_task` under
-  `AUTONOMY_ENABLED`, so approvals flow to the graph without a manual
-  sweep — mirroring the spec 019 beat pattern, budget-capped.
+`AUTONOMY_ENABLED`, so approvals flow to the graph without a manual sweep — mirroring the spec 019 beat pattern, budget-capped.
 - Statute/ordinance commit path: `commit_approved_review` routes every
-  `kind` through `IngestionScout` (a `:Case` extractor). Rows with
-  `kind="statute_section"` need `StatuteScout.run_and_commit` dispatch
-  before statute approvals can be committed.
+`kind` through `IngestionScout` (a `:Case` extractor). Rows with `kind="statute_section"` need `StatuteScout.run_and_commit` dispatch before statute approvals can be committed.
 - Reviewer identity is a free-text string; wire it to real Django auth
-  users (FK) once the platform has user accounts, and record the same
-  attribution on LSAT proposal decisions (rest of BL-20260810-08).
+users (FK) once the platform has user accounts, and record the same attribution on LSAT proposal decisions (rest of BL-20260810-08).

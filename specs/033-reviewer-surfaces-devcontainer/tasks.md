@@ -31,13 +31,8 @@ Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md)
 ## Follow-ups Discovered
 
 - Playwright e2e harness: jsdom has no WebSocket, so the component tests can
-  only exercise the streaming *fallback*. Proving the browser client and the
-  Channels consumer work together end-to-end needs a real browser — this is
-  also the missing piece flagged by the audit's "no test crosses the
-  frontend/backend boundary" finding.
+only exercise the streaming *fallback*. Proving the browser client and the Channels consumer work together end-to-end needs a real browser — this is also the missing piece flagged by the audit's "no test crosses the frontend/backend boundary" finding.
 - Extend the dev container to the frontend service (or add a second
-  configuration) so ESLint/TypeScript tooling stops relying on a host
-  `node_modules` the Docker-first rule also forbids.
+configuration) so ESLint/TypeScript tooling stops relying on a host `node_modules` the Docker-first rule also forbids.
 - Surface `retrieval.jurisdiction_absent` distinctly in the coverage panel:
-  the backend computes it (spec 028) and the UI currently folds it into the
-  prose note, so a jurisdictionally-lopsided result set is easy to miss.
+the backend computes it (spec 028) and the UI currently folds it into the prose note, so a jurisdictionally-lopsided result set is easy to miss.

@@ -9,32 +9,20 @@
 
 ## 1. Problem & Motivation
 
-The project's stated goal is continuously improving accuracy, and the
-constitution gates PRs on "no more than 1 pp regression on listed
-LegalBench tasks". Neither was enforceable:
+The project's stated goal is continuously improving accuracy, and the constitution gates PRs on "no more than 1 pp regression on listed LegalBench tasks". Neither was enforceable:
 
 - **Reports were written where nothing reads them.** `_CACHE_ROOT` and the
-  default report directory were the CWD-relative literal
-  `backend/var/legalbench`. The container runs with `CWD=/app`, which *is*
-  the backend directory, so artifacts landed in
-  `backend/backend/var/legalbench/` — the same bug class as the autonomy
-  proposals fixed in spec 026.
+default report directory were the CWD-relative literal `backend/var/legalbench`. The container runs with `CWD=/app`, which *is* the backend directory, so artifacts landed in `backend/backend/var/legalbench/` — the same bug class as the autonomy proposals fixed in spec 026.
 - **Infrastructure failure was scored as wrong answers.** An unreachable
-  Ollama produced an empty response per item; every item scored incorrect;
-  the run reported a cheerful `accuracy=0.0` and exited 0. That is
-  indistinguishable from a catastrophic model regression — precisely the
-  distinction a regression gate exists to make.
+Ollama produced an empty response per item; every item scored incorrect; the run reported a cheerful `accuracy=0.0` and exited 0. That is indistinguishable from a catastrophic model regression — precisely the distinction a regression gate exists to make.
 - **No baseline, no history.** No `baseline.json` was ever written and no
-  run was ever recorded, so "did accuracy move?" could not be answered even
-  in principle.
+run was ever recorded, so "did accuracy move?" could not be answered even in principle.
 - **Scoring could not support a 1 pp policy.** Exact/prefix matching scores
-  the ubiquitous instruction-tuned answer "The answer is True." as *wrong*,
-  and sampling was nondeterministic run to run.
+the ubiquitous instruction-tuned answer "The answer is True." as *wrong*, and sampling was nondeterministic run to run.
 - **The CI job was dead code.** It invoked `python -m app.eval.legalbench`
   — the pre-rebrand package path — with no Ollama service and no assertion.
 
-Verified: `backend/var/legalbench/` contained only `.gitkeep` and
-`LICENSES.md`, so every run to date scored 3–7 synthetic stub items.
+Verified: `backend/var/legalbench/` contained only `.gitkeep` and `LICENSES.md`, so every run to date scored 3–7 synthetic stub items.
 
 ## 2. Goals
 
@@ -49,13 +37,10 @@ Verified: `backend/var/legalbench/` contained only `.gitkeep` and
 ## 3. Non-Goals
 
 - NG1: Fetching/vendoring the actual LegalBench dataset — that carries
-  licensing review and large-file decisions of its own (follow-up). This
-  spec makes the harness *ready* for real data and refuses to pretend
-  otherwise until it arrives.
+licensing review and large-file decisions of its own (follow-up). This spec makes the harness *ready* for real data and refuses to pretend otherwise until it arrives.
 - NG2: Per-task specialised scorers (BM25 recall, NLI entailment).
 - NG3: Running a scored eval in PR-time CI — hosted runners cannot host a
-  multi-GB model (nightly already had to drop to weekly over disk
-  exhaustion).
+multi-GB model (nightly already had to drop to weekly over disk exhaustion).
 
 ## 4. User Stories
 
@@ -69,14 +54,11 @@ Verified: `backend/var/legalbench/` contained only `.gitkeep` and
 ## 5. Functional Requirements
 
 - **FR-1**: New `law_ai.eval.paths` anchors `BACKEND_ROOT`, `CACHE_ROOT`,
-  `BASELINE_PATH`, `HISTORY_PATH`, and `subset_cache_path()` to the module
-  location, never the CWD. `loaders`, `report`, and `legalbench` all use it.
+`BASELINE_PATH`, `HISTORY_PATH`, and `subset_cache_path()` to the module location, never the CWD. `loaders`, `report`, and `legalbench` all use it.
 - **FR-2**: An item that never reached the model is recorded with an
-  `error` field and **excluded from the accuracy denominator** (`scored`
-  and `errored` counts appear per subset).
+`error` field and **excluded from the accuracy denominator** (`scored` and `errored` counts appear per subset).
 - **FR-3**: When *every* item in a subset fails, `run_eval` raises
-  `EvalInfrastructureError`; the CLI exits **2** (distinct from 1 =
-  regression).
+`EvalInfrastructureError`; the CLI exits **2** (distinct from 1 = regression).
 - **FR-4**: Decoding is pinned (`temperature=0`, `seed=0`) so a 1 pp
   threshold is not measuring sampling noise.
 - **FR-5**: Every run appends a compact row to `history.jsonl`
@@ -86,19 +68,13 @@ Verified: `backend/var/legalbench/` contained only `.gitkeep` and
 - **FR-7**: `check_regression()` flags any subset dropping more than
   `REGRESSION_TOLERANCE_PP` (1.0) against the baseline.
 - **FR-8**: CLI flags `--check-regression`, `--update-baseline`, and
-  `--fail-on-synthetic`; `make test-legalbench-gate` and
-  `make legalbench-baseline` wrap them.
+`--fail-on-synthetic`; `make test-legalbench-gate` and `make legalbench-baseline` wrap them.
 - **FR-9**: Reports and CLI output carry a `synthetic` flag; a stub-backed
-  run prints a `SYNTHETIC-STUBS` marker and a stderr warning that the
-  numbers are not a LegalBench measurement.
+run prints a `SYNTHETIC-STUBS` marker and a stderr warning that the numbers are not a LegalBench measurement.
 - **FR-10**: Scoring adds conservative first-label extraction over a closed
-  vocabulary, so "The answer is True." scores correct while
-  "False — it is not true that…" still scores incorrect. Free-text subsets
-  keep strict matching.
+vocabulary, so "The answer is True." scores correct while "False — it is not true that…" still scores incorrect. Free-text subsets keep strict matching.
 - **FR-11**: The CI job stops invoking the non-existent `app.` module path;
-  it verifies the harness (`pytest tests/eval`) and points at nightly for
-  the scored run. Nightly runs the gating form and uploads reports +
-  history as a 90-day artifact.
+it verifies the harness (`pytest tests/eval`) and points at nightly for the scored run. Nightly runs the gating form and uploads reports + history as a 90-day artifact.
 
 ## 6. Non-Functional Requirements
 
@@ -108,13 +84,11 @@ Verified: `backend/var/legalbench/` contained only `.gitkeep` and
 
 ## 7. Data Model Impact
 
-None. New on-disk artifacts under `backend/var/legalbench/`:
-`baseline.json` and `history.jsonl` (both git-ignored run state).
+None. New on-disk artifacts under `backend/var/legalbench/`: `baseline.json` and `history.jsonl` (both git-ignored run state).
 
 ## 8. API Surface
 
-CLI only. Exit codes: 0 clean · 1 regression / refused baseline /
-`--fail-on-synthetic` · 2 infrastructure failure.
+CLI only. Exit codes: 0 clean · 1 regression / refused baseline / `--fail-on-synthetic` · 2 infrastructure failure.
 
 ## 9. Agent / Crew Impact
 
@@ -141,26 +115,19 @@ None — the harness calls Ollama directly and does not route through agents.
 ## 11. LegalBench Impact
 
 - Tasks affected: all listed subsets — but the *measurement* changes, not
-  the model. Accuracy numbers from before this spec are not comparable:
-  they were computed over stub fixtures, with infra failures counted as
-  wrong answers, under nondeterministic sampling.
+the model. Accuracy numbers from before this spec are not comparable: they were computed over stub fixtures, with infra failures counted as wrong answers, under nondeterministic sampling.
 - Expected delta: not applicable until a real dataset is cached; the first
   real run establishes the baseline.
 
 ## 12. Risks & Open Questions
 
 - **R-1**: Until a real dataset is cached, `--check-regression` has nothing
-  to compare and exits 0 with a note. The `--fail-on-synthetic` flag exists
-  for pipelines that must refuse to proceed on fixtures.
+to compare and exits 0 with a note. The `--fail-on-synthetic` flag exists for pipelines that must refuse to proceed on fixtures.
 - **R-2**: First-label extraction is a heuristic. It is deliberately
-  conservative (first label wins, closed vocabulary only), but a task whose
-  correct answer legitimately begins by naming the opposite label would be
-  mis-scored. No such subset is currently listed.
+conservative (first label wins, closed vocabulary only), but a task whose correct answer legitimately begins by naming the opposite label would be mis-scored. No such subset is currently listed.
 - **R-3**: Pinning `seed=0` makes runs reproducible per model build but does
-  not make different Ollama/model versions comparable — hence the pinned
-  image tag from spec 026.
+not make different Ollama/model versions comparable — hence the pinned image tag from spec 026.
 
 ## 13. Out of Scope / Follow-ups
 
-See `tasks.md` → `## Follow-ups Discovered` (mirrored into BACKLOG.md as
-BL-20260811-09 … BL-20260811-12).
+See `tasks.md` → `## Follow-ups Discovered` (mirrored into BACKLOG.md as BL-20260811-09 … BL-20260811-12).
