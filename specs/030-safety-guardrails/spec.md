@@ -12,26 +12,13 @@
 Three independent safety gaps, all verified against the code:
 
 1. **No UPL guardrail anywhere.** Grepping `frontend/app`, `frontend/components`,
-   `lsat-static`, and `docs/` found no "legal advice", "disclaimer", or
-   "attorney" text. The product renders confident IRAC conclusions
-   ("The plaintiff is likely to succeed on a negligence claim") to lawyers,
-   law students, and **prospective** law students — i.e. laypeople — with
-   nothing saying it is not legal advice.
+`lsat-static`, and `docs/` found no "legal advice", "disclaimer", or "attorney" text. The product renders confident IRAC conclusions ("The plaintiff is likely to succeed on a negligence claim") to lawyers, law students, and **prospective** law students — i.e. laypeople — with nothing saying it is not legal advice.
 2. **The audit DB leg failed on every async path.** `_persist` called the
-   Django ORM from inside the event loop, raising `SynchronousOnlyOperation`
-   on every agent call, swallowed at `debug` level; the Celery fallback then
-   ran inline under eager mode and failed identically. Provenance is the
-   platform's constitutional differentiator, so a silently-degraded write
-   path is a §4 problem.
+Django ORM from inside the event loop, raising `SynchronousOnlyOperation` on every agent call, swallowed at `debug` level; the Celery fallback then ran inline under eager mode and failed identically. Provenance is the platform's constitutional differentiator, so a silently-degraded write path is a §4 problem.
 3. **No rate limiting on LLM endpoints.** No DRF throttle existed anywhere.
-   `POST /api/analysis` and the LSAT tutor each fan out to a single local
-   Ollama with a 120 s timeout behind an open-by-default auth gate — one
-   client or crawler could starve every other user.
+`POST /api/analysis` and the LSAT tutor each fan out to a single local Ollama with a 120 s timeout behind an open-by-default auth gate — one client or crawler could starve every other user.
 
-A fourth, related defect surfaced while fixing (1): the Analysis Studio HITL
-banner asserted "confidence … is below the 70% HITL threshold" **whatever**
-triggered review, which is false whenever a degraded agent or an unresolved
-citation set the flag (specs 026/029 made those the common cases).
+A fourth, related defect surfaced while fixing (1): the Analysis Studio HITL banner asserted "confidence … is below the 70% HITL threshold" **whatever** triggered review, which is false whenever a degraded agent or an unresolved citation set the flag (specs 026/029 made those the common cases).
 
 ## 2. Goals
 
@@ -63,28 +50,21 @@ citation set the flag (specs 026/029 made those the common cases).
 ## 5. Functional Requirements
 
 - **FR-1**: `LegalDisclaimerFooter` is mounted in the frontend root layout, so
-  every page carries it; `LegalDisclaimerBanner` renders in Analysis Studio
-  both before a run and alongside results.
+every page carries it; `LegalDisclaimerBanner` renders in Analysis Studio both before a run and alongside results.
 - **FR-2**: The static LSAT site carries an equivalent footer disclaimer on
   every page, with styles in `globals.css`.
 - **FR-3**: `_persist` writes JSONL first (always), then chooses the DB leg by
-  context: direct ORM write when sync; Celery dispatch when async; skip when
-  async **and** Celery is eager (the eager task would fail identically).
+context: direct ORM write when sync; Celery dispatch when async; skip when async **and** Celery is eager (the eager task would fail identically).
 - **FR-4**: A warning is logged only when an event has **no** durable record
-  (JSONL failed *and* the DB leg is unavailable); routine deferral stays at
-  debug so the logs remain readable.
+(JSONL failed *and* the DB leg is unavailable); routine deferral stays at debug so the logs remain readable.
 - **FR-5**: `REST_FRAMEWORK` defines an `llm` throttle scope
-  (default `20/min`, overridable via `LLM_THROTTLE_RATE`);
-  `AnalysisView` and `TutorView` opt in via `ScopedRateThrottle`. No global
-  default throttle is applied, so read endpoints stay unthrottled.
+(default `20/min`, overridable via `LLM_THROTTLE_RATE`); `AnalysisView` and `TutorView` opt in via `ScopedRateThrottle`. No global default throttle is applied, so read endpoints stay unthrottled.
 - **FR-6**: The test settings raise the `llm` rate so the suite's request
   volume cannot trip it; tests asserting throttling force the rate locally.
 - **FR-7**: `IRACOutput` / `PrecedentList` TypeScript types carry the
-  `degraded`, `requires_review`, `retrieval`, and per-source `verified`
-  fields the backend has shipped since spec 026.
+`degraded`, `requires_review`, `retrieval`, and per-source `verified` fields the backend has shipped since spec 026.
 - **FR-8**: The HITL banner derives its message from the structured flags
-  (degraded engine → degraded precedents → unverified citations → confidence
-  threshold), never asserting the threshold reason unconditionally.
+(degraded engine → degraded precedents → unverified citations → confidence threshold), never asserting the threshold reason unconditionally.
 - **FR-9**: Analysis Studio renders the retrieval coverage envelope
   (`irac.retrieval.coverage_note` + queries searched) when present.
 
@@ -103,13 +83,11 @@ None.
 
 ## 8. API Surface
 
-No new routes. `POST /api/analysis` and `POST /api/lsat/tutor` may now return
-**429 Too Many Requests**.
+No new routes. `POST /api/analysis` and `POST /api/lsat/tutor` may now return **429 Too Many Requests**.
 
 ## 9. Agent / Crew Impact
 
-None directly; `core.provenance` (used by every agent) changes its
-persistence strategy only.
+None directly; `core.provenance` (used by every agent) changes its persistence strategy only.
 
 ## 10. Acceptance Criteria
 
@@ -140,11 +118,9 @@ persistence strategy only.
 - **R-1**: The throttle is per-IP for anonymous clients; behind a shared
   proxy this can under-serve legitimate users. Revisit with user accounts.
 - **R-2**: Under async+eager (tests/dev), `AuditEvent` rows are not written;
-  JSONL is the record there. Production (non-eager) still lands rows via the
-  Celery worker. Documented in the `_persist` docstring.
+JSONL is the record there. Production (non-eager) still lands rows via the Celery worker. Documented in the `_persist` docstring.
 - **R-3**: Disclaimer wording is engineering-authored, not counsel-reviewed.
 
 ## 13. Out of Scope / Follow-ups
 
-See `tasks.md` → `## Follow-ups Discovered` (mirrored into BACKLOG.md as
-BL-20260811-05 … BL-20260811-08).
+See `tasks.md` → `## Follow-ups Discovered` (mirrored into BACKLOG.md as BL-20260811-05 … BL-20260811-08).

@@ -37,16 +37,10 @@ Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md)
 ## Follow-ups Discovered
 
 - Vector/embedding leg for GraphRAG: no embedding property exists on
-  `:Case`/`:StatuteSection`, so this retriever is lexical + citation
-  expansion only. Add nomic-embed-text embeddings at ingest, a Neo4j vector
-  index, and reciprocal-rank fusion with the lexical leg.
+`:Case`/`:StatuteSection`, so this retriever is lexical + citation expansion only. Add nomic-embed-text embeddings at ingest, a Neo4j vector index, and reciprocal-rank fusion with the lexical leg.
 - Integration test against real Neo4j (marker `integration`): seed
-  `:Case` + `:CITES` fixtures and assert fulltext hits, expansion,
-  jurisdiction filtering, and that `log_graph_query` rows actually land —
-  today only fake-session unit tests cover the retriever.
+`:Case` + `:CITES` fixtures and assert fulltext hits, expansion, jurisdiction filtering, and that `log_graph_query` rows actually land — today only fake-session unit tests cover the retriever.
 - Populate `:Case.holding_summary` during extraction: it is indexed for
-  fulltext and used as the passage snippet, but the CourtListener extractor
-  never sets it, so passages degrade to "(no holding summary stored)".
+fulltext and used as the passage snippet, but the CourtListener extractor never sets it, so passages degrade to "(no holding summary stored)".
 - A first-class `jurisdiction` property on `:Case` would replace the
-  `court`-prefix heuristic this retriever inherits from
-  `list_under_cited_jurisdictions`.
+`court`-prefix heuristic this retriever inherits from `list_under_cited_jurisdictions`.

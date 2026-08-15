@@ -41,15 +41,10 @@ Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md)
 ## Follow-ups Discovered
 
 - Fetch and cache the real LegalBench dataset (the whole point of the
-  harness): a `scripts/fetch_legalbench.py` with per-task licence review,
-  a pinned revision, and a decision on vendoring vs downloading in CI.
-  Until this lands every run is stub-backed and `--check-regression` has
-  nothing to compare.
+harness): a `scripts/fetch_legalbench.py` with per-task licence review, a pinned revision, and a decision on vendoring vs downloading in CI. Until this lands every run is stub-backed and `--check-regression` has nothing to compare.
 - Establish and commit the first real baseline once the dataset is cached,
-  then flip nightly to `--fail-on-synthetic` so a stub-backed run can never
-  satisfy the gate.
+then flip nightly to `--fail-on-synthetic` so a stub-backed run can never satisfy the gate.
 - Per-task scorers (BM25 recall for retrieval subsets, entailment for
-  `contract_nli`) — the current task-agnostic matcher is a floor, not a
-  ceiling.
+`contract_nli`) — the current task-agnostic matcher is a floor, not a ceiling.
 - Publish the score history somewhere reviewers see it (digest section or
   a small chart in the agent-ops dashboard); today it is only a CI artifact.
