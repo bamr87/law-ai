@@ -12,6 +12,16 @@ updates:
       frontend-npm:
         patterns:
           - "*"
+    ignore:
+      # PR #58 bumped typescript 5.9 -> 7.0 and took the whole grouped PR down
+      # with it: `next lint` died on "typescript-eslint does not support TS
+      # 7.0", raised by the typescript-eslint that eslint-config-next nests
+      # under itself. Until that transitive pin ships TS 7 support, a major
+      # typescript bump can only break the frontend lint job, so hold at 5.x.
+      # Drop this entry once eslint-config-next resolves a TS 7-capable
+      # typescript-eslint.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
     labels:
       - dependencies
