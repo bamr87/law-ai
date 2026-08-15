@@ -226,6 +226,15 @@ services:
       - "4317:4317" # OTLP/gRPC (unused today, exposed for future)
     environment:
       - PHOENIX_WORKING_DIR=/data
+      # Spec 038: route the playground's Anthropic calls through the OAuth
+      # sidecar. The "API key" is a placeholder — the proxy strips it and
+      # substitutes the real Claude OAuth pair; the token itself never
+      # reaches the Phoenix container.
+      - ANTHROPIC_BASE_URL=http://claude-oauth-proxy:8080
+      - ANTHROPIC_API_KEY=oauth-via-claude-oauth-proxy
+    depends_on:
+      claude-oauth-proxy:
+        condition: service_started
     volumes:
       - phoenix:/data
     healthcheck:
@@ -237,6 +246,32 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    restart: unless-stopped
+
+  claude-oauth-proxy:
+    # Spec 038: header-translating sidecar so the Phoenix playground can use
+    # the product's tier-1 Claude OAuth credential. Phoenix can only send a
+    # plain x-api-key; the OAuth token requires Authorization: Bearer + the
+    # oauth beta header (law_ai/core/claude_code.py). The proxy strips the
+    # placeholder key and injects the real pair from .env.
+    # Internal-only: `expose`, never `ports` — this container holds a secret.
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - path: ./.env
+        required: false
+    volumes:
+      - ./backend:/app
+    command: python -m daphne -b 0.0.0.0 -p 8080 scripts.claude_oauth_proxy:application
+    expose:
+      - "8080"
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=3)" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
 
   redis:
