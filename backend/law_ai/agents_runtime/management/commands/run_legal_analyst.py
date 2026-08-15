@@ -80,10 +80,9 @@ class Command(BaseCommand):
     def _print_gate(self) -> None:
         self.stdout.write(self.style.MIGRATE_HEADING("Claude Code OAuth gate"))
         rows = {
-            "provider selected": claude_code.is_selected(),
             "development env": claude_code.is_development(),
-            "token present": claude_code.oauth_token() is not None,
-            "agent active": claude_code.is_active(),
+            "oauth token": claude_code.oauth_token() is not None,
+            "api key (tier 2)": claude_code.api_key() is not None,
             "model": claude_code.model(),
         }
         for key, value in rows.items():

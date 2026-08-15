@@ -1,6 +1,29 @@
 # Law AI — API Examples
 
-Quick-reference `curl` examples for every public REST endpoint. All endpoints are prefixed with the base URL (`http://localhost:8000` for local dev). The optional `X-API-Key` header is required when `LSAT_API_KEY` / `AGENT_API_KEY` is set in your environment (spec 009).
+Quick-reference `curl` examples for every public REST endpoint. All endpoints are prefixed with the base URL (`http://localhost:8000` for local dev). Each router gates on its own optional `<SCOPE>_API_KEY` env var, with the shared `AGENT_API_KEY` as a fallback for every scope (`backend/law_ai/core/auth.py`, spec 009): `AGENT_API_KEY` for `/api/agents`, `ANALYSIS_API_KEY` (or `AGENT_API_KEY`) for `/api/analysis`, `GRAPH_API_KEY` (or `AGENT_API_KEY`) for `/api/graph`, `LSAT_API_KEY` (or `AGENT_API_KEY`) for `/api/lsat`. With no key configured for a scope, that router stays open (local-first dev posture). `GET /health` is never gated.
+
+---
+
+## Health
+
+### Top-level health check (no auth)
+```bash
+curl http://localhost:8000/health
+```
+
+This is the container healthcheck endpoint (`docker-compose.yml`'s `backend` service probes it directly), `AllowAny`, mounted at both `/health` and `/health/`.
+
+**Response** (`200 OK`):
+```json
+{
+  "status": "healthy",
+  "service": "law_ai-backend",
+  "version": "0.1.0",
+  "last_ingest_at": "2026-08-10T09:12:00+00:00"
+}
+```
+
+`last_ingest_at` is `null` when Neo4j is unreachable or has no ingested nodes yet.
 
 ---
 
@@ -27,10 +50,39 @@ curl "http://localhost:8000/api/agents/metrics?limit=500"
 # Returns: p50/p95 latency, avg confidence, success rate, error count per agent
 ```
 
+### Backlog snapshot
+```bash
+curl http://localhost:8000/api/agents/backlog
+# Returns {counts, open, claimed, done} parsed live from BACKLOG.md
+```
+
+### Spec package status
+```bash
+curl http://localhost:8000/api/agents/specs
+# Returns [{id, status}, ...] parsed from each specs/NNN-slug/spec.md's "## Status" line
+```
+
 ### Local AI health
 ```bash
 curl http://localhost:8000/api/agents/health/local-ai
 ```
+
+**Response** (`200 OK`):
+```json
+{
+  "ollama": {"reachable": true, "models": ["mistral:7b-instruct-q4_K_M"]},
+  "checkpointer": {"kind": "postgres", "reachable": true},
+  "phoenix": {"reachable": true, "ui_url": "http://localhost:6006", "enabled": true},
+  "claude_code": {"reachable": true, "auth": "oauth"},
+  "llm_chain": [
+    {"provider": "claude_code", "position": 0, "configured": true, "reachable": true},
+    {"provider": "anthropic_api", "position": 1, "configured": true, "reachable": true},
+    {"provider": "ollama", "position": 2, "configured": true, "reachable": true}
+  ]
+}
+```
+
+`llm_chain` (spec 034/035) reports every provider in `LLM_PROVIDER_CHAIN`, in the order it is tried (`position`), answering "which provider actually serves the next request, and why" — this is the one field to check when diagnosing which tier of the Claude-first / Ollama-last chain is live. Each of the five sub-probes runs independently (`asyncio.gather`), so one dead provider never fails the whole response.
 
 ---
 
@@ -39,6 +91,11 @@ curl http://localhost:8000/api/agents/health/local-ai
 ### List questions
 ```bash
 curl "http://localhost:8000/api/lsat/questions?limit=5&section=LR&difficulty=med"
+```
+
+### Question detail
+```bash
+curl http://localhost:8000/api/lsat/questions/lr-001
 ```
 
 ### Grade an answer
@@ -61,6 +118,16 @@ curl http://localhost:8000/api/lsat/stats
 curl "http://localhost:8000/api/lsat/stats?section=LR"
 ```
 
+### Reference data (sections, concepts, passages)
+```bash
+curl http://localhost:8000/api/lsat/sections               # all sections + per-section question_count
+curl http://localhost:8000/api/lsat/sections/LR             # one section + sample_question_ids
+curl "http://localhost:8000/api/lsat/concepts?section=LR"   # concepts, optionally filtered by section
+curl http://localhost:8000/api/lsat/concepts/parallel-reasoning
+curl "http://localhost:8000/api/lsat/passages?section=RC"   # reading-comprehension passages
+curl http://localhost:8000/api/lsat/passages/<passage_id>   # passage + its questions
+```
+
 ---
 
 ## LSAT Content Authoring (HITL) — spec 019
@@ -75,8 +142,11 @@ curl "http://localhost:8000/api/lsat/proposals?status=pending&limit=20"
 curl -X POST http://localhost:8000/api/lsat/proposals/generate \
   -H 'Content-Type: application/json' \
   -d '{"section": "LR", "difficulty": "med", "count": 2, "concepts": ["parallel-reasoning"]}'
-# Returns proposals with status="pending"; model runs Ollama locally.
-# degraded=true means Ollama was unreachable; fallback placeholder draft returned.
+# Returns proposals with status="pending". The model call goes through the
+# LLM_PROVIDER_CHAIN (spec 034): Claude OAuth first, ANTHROPIC_API_KEY second,
+# local Ollama last.
+# degraded=true means the entire chain was exhausted; a deterministic
+# placeholder draft was returned instead.
 ```
 
 ### Approve a proposal (promotes to live question bank)
@@ -107,47 +177,62 @@ curl "http://localhost:8000/api/lsat/gaps?limit=10"
 ### Run analysis (HTTP)
 
 ```bash
-# POST returns IRAC analysis JSON. Simultaneously emits three WebSocket events
-# to the agent-run-{id} channel group (see WS section below).
 curl -X POST http://localhost:8000/api/analysis \
   -H 'Content-Type: application/json' \
   -H 'X-API-Key: $ANALYSIS_API_KEY' \
-  -d '{"text": "Brown v. Board of Education — equal protection claim."}'
+  -d '{"text": "Brown v. Board of Education — equal protection claim.", "stream_id": "my-stream-1"}'
 ```
 
 **Response** (`200 OK`):
 ```json
 {
   "id": "an-a1b2c3d4e5f6",
-  "issue": "...",
-  "rule": "...",
-  "application": "...",
-  "conclusion": "...",
+  "timestamp": "2026-08-11T09:12:00+00:00",
+  "latency_ms": 1234,
   "confidence": 0.85,
   "requires_human_review": false,
-  "sources": [...],
-  "latency_ms": 1234.5,
+  "irac": {"issue": "...", "rule": "...", "application": "...", "conclusion": "...", "confidence": 0.9, "sources": [...], "trace_id": "...", "..."},
+  "precedents": {"precedents": [...], "confidence": 0.8, "trace_id": "..."},
+  "agent_trace": [
+    {"agent": "LegalAnalyst", "trace_id": "...", "latency_ms": 640.1, "confidence": 0.9},
+    {"agent": "PrecedentHunter", "trace_id": "...", "latency_ms": 580.4, "confidence": 0.8}
+  ],
+  "phoenix_trace_url": null,
   "langgraph_thread_id": null
 }
 ```
 
-### Live progress via WebSocket (spec 022)
+### Live progress via WebSocket (spec 032)
 
-After `POST /api/analysis`, three events are published to the `agent-run-{id}` Redis channel group (consumed by `/ws/agents/{id}`):
+`stream_id` is **client-chosen**, not server-generated — the response's `id` field is returned too late to subscribe to. The contract (`backend/law_ai/agentsapi/consumers.py`):
 
-```
-{"type": "agent_step", "agent": "LegalAnalyst",     "trace_id": "...", "latency_ms": ..., "confidence": 0.9}
-{"type": "agent_step", "agent": "PrecedentHunter",  "trace_id": "...", "latency_ms": ..., "confidence": 0.8}
-{"type": "complete",   "analysis_id": "an-...",     "confidence": 0.85, "requires_human_review": false}
-```
+1. Client picks a `stream_id` itself (`^[A-Za-z0-9._-]{1,64}$`).
+2. Client connects to `/ws/agents/<stream_id>` and waits for a `{"type": "ready"}` event.
+3. Client **then** POSTs `/api/analysis` with that same `stream_id` in the request body.
+4. Two `agent_step` events arrive as each agent finishes, followed by one `complete` event, all published to the `agent-run-<stream_id>` channel-layer group.
 
-Connect to the WS before posting to receive all three events:
 ```javascript
-const ws = new WebSocket(`ws://localhost:8000/ws/agents/${analysisId}`);
-ws.onmessage = (e) => console.log(JSON.parse(e.data));
+const streamId = crypto.randomUUID();
+const ws = new WebSocket(`ws://localhost:8000/ws/agents/${streamId}?api_key=${ANALYSIS_API_KEY}`);
+// Browsers cannot set headers on a WS handshake — pass the key as a query
+// param (or send an X-API-Key header from a non-browser client). Omit
+// entirely when no key is configured for the scope.
+
+ws.onmessage = (e) => {
+  const event = JSON.parse(e.data);
+  if (event.type === "ready") {
+    fetch("http://localhost:8000/api/analysis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-API-Key": ANALYSIS_API_KEY },
+      body: JSON.stringify({ text: "...", stream_id: streamId }),
+    });
+    return;
+  }
+  console.log(event); // {"type": "agent_step", ...} x2, then {"type": "complete", ...}
+};
 ```
 
-Events are fire-and-forget — a Redis outage does not abort the HTTP response.
+Events are fire-and-forget — a Redis outage does not abort the HTTP response, it just means no WS events are delivered.
 
 ---
 
@@ -156,5 +241,7 @@ Events are fire-and-forget — a Redis outage does not abort the HTTP response.
 ```bash
 curl "http://localhost:8000/api/graph/stats"
 curl "http://localhost:8000/api/graph/cases?limit=10"
-curl "http://localhost:8000/api/graph/neighborhood?case_id=<id>&depth=2"
+curl "http://localhost:8000/api/graph/neighborhood/<case_id>?limit=50"
 ```
+
+`case_id` is a path segment, not a query parameter. `limit` (default 50, max 200) is the only query parameter `neighborhood` accepts — there is no `depth` parameter.

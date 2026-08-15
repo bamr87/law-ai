@@ -135,7 +135,7 @@ class TestTestSynthesizerRun:
         # Redirect proposed output dir to tmp_path
         monkeypatch.setattr(ts_module, "_PROPOSED_DIR", tmp_path)
 
-        with patch.object(ts_module, "_call_ollama", return_value=_FAKE_LLM_RESPONSE):
+        with patch.object(ts_module, "_call_llm", return_value=_FAKE_LLM_RESPONSE):
             synth = TestSynthesizer()
             result = synth.run(
                 ProposedTestInput(
@@ -161,7 +161,7 @@ class TestTestSynthesizerRun:
 
         monkeypatch.setattr(ts_module, "_PROPOSED_DIR", tmp_path)
 
-        with patch.object(ts_module, "_call_ollama", return_value=_FAKE_LLM_RESPONSE):
+        with patch.object(ts_module, "_call_llm", return_value=_FAKE_LLM_RESPONSE):
             result = TestSynthesizer().run(
                 ProposedTestInput(module_path="law_ai.eval.loaders")
             )
@@ -185,7 +185,7 @@ class TestTestSynthesizerRun:
         recorded: list[dict] = []
         monkeypatch.setattr(audit_jsonl, "record", recorded.append)
 
-        with patch.object(ts_module, "_call_ollama", return_value=_FAKE_LLM_RESPONSE):
+        with patch.object(ts_module, "_call_llm", return_value=_FAKE_LLM_RESPONSE):
             TestSynthesizer().run(ProposedTestInput(module_path="law_ai.eval.scoring"))
 
         assert len(recorded) == 1
@@ -196,7 +196,7 @@ class TestTestSynthesizerRun:
         assert ev["confidence"] == 1.0
         assert "agent_version" in ev
 
-    def test_run_raises_on_ollama_failure(
+    def test_run_raises_when_chain_fails(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         from law_ai.agents_runtime.crews import test_synthesizer as ts_module
@@ -210,7 +210,7 @@ class TestTestSynthesizerRun:
         with (
             patch.object(
                 ts_module,
-                "_call_ollama",
+                "_call_llm",
                 side_effect=RuntimeError("connection refused"),
             ),
             pytest.raises(RuntimeError, match="connection refused"),

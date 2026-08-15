@@ -37,6 +37,15 @@ def _valid_drafts_payload(count: int = 1, section: str = "LR") -> str:
     )
 
 
+def _llm_result(
+    text: str, *, provider: str = "claude_code", model: str = "claude-opus-5"
+):
+    """Build the LLMResult the provider chain hands back."""
+    from law_ai.core.llm.base import LLMResult
+
+    return LLMResult(text=text, provider=provider, model=model, latency_ms=1.0)
+
+
 class TestPydanticContracts:
     def test_input_caps_count_at_10(self) -> None:
         from law_ai.agents_runtime.crews.lsat_content_author import (
@@ -92,10 +101,10 @@ class TestRunSuccess:
         agent = mod.LSATContentAuthor()
         with (
             patch.object(
-                mod,
-                "_ollama_generate",
-                new=AsyncMock(return_value=_valid_drafts_payload(2)),
-            ) as mock_ollama,
+                mod.llm,
+                "agenerate",
+                new=AsyncMock(return_value=_llm_result(_valid_drafts_payload(2))),
+            ) as mock_llm,
             patch.object(
                 mod.provenance, "log_agent_call", return_value="trace-abc"
             ) as mock_log,
@@ -103,7 +112,7 @@ class TestRunSuccess:
             out = await agent.run(
                 {"section": "LR", "difficulty": "med", "count": 2, "concepts": []}
             )
-        assert mock_ollama.await_count == 1
+        assert mock_llm.await_count == 1
         assert mock_log.call_count == 1
         kwargs = mock_log.call_args.kwargs
         assert kwargs["agent_name"] == "LSATContentAuthor"
@@ -121,9 +130,9 @@ class TestRunSuccess:
         agent = mod.LSATContentAuthor()
         with (
             patch.object(
-                mod,
-                "_ollama_generate",
-                new=AsyncMock(return_value=_valid_drafts_payload(1)),
+                mod.llm,
+                "agenerate",
+                new=AsyncMock(return_value=_llm_result(_valid_drafts_payload(1))),
             ),
             patch.object(mod.provenance, "log_agent_call", return_value="trace-pad"),
         ):
@@ -133,7 +142,7 @@ class TestRunSuccess:
 
 class TestRunFallback:
     @pytest.mark.asyncio
-    async def test_degrades_to_offline_on_ollama_error(self) -> None:
+    async def test_degrades_to_offline_on_chain_error(self) -> None:
         import httpx
 
         from law_ai.agents_runtime.crews import lsat_content_author as mod
@@ -141,7 +150,7 @@ class TestRunFallback:
         agent = mod.LSATContentAuthor()
         boom = AsyncMock(side_effect=httpx.ConnectError("nope"))
         with (
-            patch.object(mod, "_ollama_generate", new=boom),
+            patch.object(mod.llm, "agenerate", new=boom),
             patch.object(
                 mod.provenance, "log_agent_call", return_value="trace-fallback"
             ) as mock_log,
@@ -163,7 +172,9 @@ class TestRunFallback:
         agent = mod.LSATContentAuthor()
         with (
             patch.object(
-                mod, "_ollama_generate", new=AsyncMock(return_value="not json")
+                mod.llm,
+                "agenerate",
+                new=AsyncMock(return_value=_llm_result("not json")),
             ),
             patch.object(mod.provenance, "log_agent_call", return_value="trace-bad"),
         ):
@@ -172,58 +183,66 @@ class TestRunFallback:
         assert out.model == "fallback/offline"
 
 
-class TestRunViaClaudeCode:
-    """Dev-time opt-in: the agent runs against Claude Code instead of Ollama."""
+class TestRunViaProviderChain:
+    """Whatever tier the chain picks, the agent records that tier honestly."""
 
     @pytest.mark.asyncio
-    async def test_routes_to_claude_code_when_active(self) -> None:
+    async def test_uses_the_label_the_chain_reports(self) -> None:
         from law_ai.agents_runtime.crews import lsat_content_author as mod
 
         agent = mod.LSATContentAuthor()
-        gen = AsyncMock(return_value=_valid_drafts_payload(1))
+        gen = AsyncMock(return_value=_llm_result(_valid_drafts_payload(1)))
         with (
-            patch.object(mod.claude_code, "is_active", return_value=True),
-            patch.object(mod.claude_code, "model", return_value="claude-opus-4-8"),
-            patch.object(mod.claude_code, "generate", new=gen),
-            patch.object(mod, "_ollama_generate", new=AsyncMock()) as mock_ollama,
+            patch.object(mod.llm, "agenerate", new=gen),
             patch.object(mod.provenance, "log_agent_call", return_value="trace-cc"),
         ):
             out = await agent.run({"section": "LR", "difficulty": "med", "count": 1})
         assert gen.await_count == 1
-        assert mock_ollama.await_count == 0  # Ollama must not be touched
         assert out.degraded is False
-        assert out.model == "claude_code/claude-opus-4-8"
+        assert out.model == "claude_code/claude-opus-5"
         assert len(out.drafts) == 1
 
     @pytest.mark.asyncio
-    async def test_strips_markdown_fence_from_claude_output(self) -> None:
+    async def test_records_the_fallback_tier_when_claude_is_down(self) -> None:
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
+
+        agent = mod.LSATContentAuthor()
+        fell_back = _llm_result(
+            _valid_drafts_payload(1), provider="ollama", model="mistral"
+        )
+        with (
+            patch.object(mod.llm, "agenerate", new=AsyncMock(return_value=fell_back)),
+            patch.object(mod.provenance, "log_agent_call", return_value="t"),
+        ):
+            out = await agent.run({"section": "LR", "difficulty": "med", "count": 1})
+        assert out.model == "ollama/mistral"
+        assert out.degraded is False
+
+    @pytest.mark.asyncio
+    async def test_strips_markdown_fence_from_model_output(self) -> None:
         from law_ai.agents_runtime.crews import lsat_content_author as mod
 
         agent = mod.LSATContentAuthor()
         fenced = "```json\n" + _valid_drafts_payload(1) + "\n```"
         with (
-            patch.object(mod.claude_code, "is_active", return_value=True),
-            patch.object(mod.claude_code, "model", return_value="claude-opus-4-8"),
             patch.object(
-                mod.claude_code, "generate", new=AsyncMock(return_value=fenced)
+                mod.llm, "agenerate", new=AsyncMock(return_value=_llm_result(fenced))
             ),
             patch.object(mod.provenance, "log_agent_call", return_value="trace-fence"),
         ):
             out = await agent.run({"section": "LR", "difficulty": "med", "count": 1})
         assert out.degraded is False
-        assert out.model == "claude_code/claude-opus-4-8"
+        assert out.model == "claude_code/claude-opus-5"
 
     @pytest.mark.asyncio
-    async def test_degrades_when_claude_code_unavailable(self) -> None:
+    async def test_degrades_when_the_whole_chain_is_unavailable(self) -> None:
         from law_ai.agents_runtime.crews import lsat_content_author as mod
+        from law_ai.core import llm as llm_pkg
 
         agent = mod.LSATContentAuthor()
-        boom = AsyncMock(
-            side_effect=mod.claude_code.ClaudeCodeUnavailableError("no token")
-        )
+        boom = AsyncMock(side_effect=llm_pkg.LLMUnavailableError("all down"))
         with (
-            patch.object(mod.claude_code, "is_active", return_value=True),
-            patch.object(mod.claude_code, "generate", new=boom),
+            patch.object(mod.llm, "agenerate", new=boom),
             patch.object(mod.provenance, "log_agent_call", return_value="trace-ccfail"),
         ):
             out = await agent.run({"section": "LR", "difficulty": "med", "count": 1})
@@ -231,8 +250,8 @@ class TestRunViaClaudeCode:
         assert out.model == "fallback/offline"
 
     @pytest.mark.asyncio
-    async def test_normalizes_extra_choice_from_claude(self) -> None:
-        """A stray empty 6th choice (a real Opus quirk) is trimmed to A-E, not dropped."""
+    async def test_normalizes_extra_choice_from_model(self) -> None:
+        """A stray empty 6th choice (a real Opus quirk) is trimmed to A-E."""
         from law_ai.agents_runtime.crews import lsat_content_author as mod
 
         payload = json.dumps(
@@ -260,16 +279,13 @@ class TestRunViaClaudeCode:
         )
         agent = mod.LSATContentAuthor()
         with (
-            patch.object(mod.claude_code, "is_active", return_value=True),
-            patch.object(mod.claude_code, "model", return_value="claude-opus-4-8"),
             patch.object(
-                mod.claude_code, "generate", new=AsyncMock(return_value=payload)
+                mod.llm, "agenerate", new=AsyncMock(return_value=_llm_result(payload))
             ),
             patch.object(mod.provenance, "log_agent_call", return_value="trace-norm"),
         ):
             out = await agent.run({"section": "LR", "difficulty": "med", "count": 1})
         assert out.degraded is False
-        assert out.model == "claude_code/claude-opus-4-8"
         assert [c.label for c in out.drafts[0].choices] == ["A", "B", "C", "D", "E"]
         assert out.drafts[0].choices[0].text == "first"
 

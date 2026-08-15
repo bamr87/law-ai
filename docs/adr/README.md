@@ -17,3 +17,8 @@ ADRs are the canonical place to record decisions that **deviate from or amend** 
 | 0001  | [Adopt Django backend](0001-adopt-django-backend.md) | accepted | §2 (tech stack), §11 (mission-drift guard) |
 | 0003  | [Autonomy orchestrator](0003-autonomy-orchestrator.md) | accepted | §10 (autonomy level), new §12 (autonomy loop invariants) |
 | 0004  | [Jurisprudential stance](0004-jurisprudential-stance.md) | accepted | new §13 (jurisprudential honesty); reinforces §1, §4, §5 |
+| 0005  | [Claude-default LLM provider chain](0005-claude-default-runtime.md) | accepted | §1 (product-runtime LLM policy) |
+
+`0002` was never assigned an ADR; the sequence intentionally jumps 0001 → 0003 rather than renumbering later entries.
+
+Spec 035 (LangChain/LangGraph promoted to core, non-optional dependencies) was evaluated against this index's own rule and does **not** get an ADR: it makes no constitution amendment (§2 already sanctions LangGraph/CrewAI as tech stack; `langchain-core` is that same framework's substrate, not a new or competing framework choice), so [docs/constitution.md](../constitution.md) §1/§2 already is the durable record.

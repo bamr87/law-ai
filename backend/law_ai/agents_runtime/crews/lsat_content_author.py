@@ -25,9 +25,8 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, Field, model_validator
 
-from law_ai.core import claude_code
+from law_ai.core import claude_code, llm
 from law_ai.core.provenance import provenance
-from law_ai.core.settings_proxy import settings_proxy as settings
 from law_ai.lsat.services.bank import (
     ChoiceLabel,
     Concept,
@@ -215,43 +214,21 @@ _DRAFTS_RESPONSE_SCHEMA: dict[str, Any] = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Ollama client (lightweight; mirrors lsat.services.tutor pattern)
-# ---------------------------------------------------------------------------
-
-
-async def _ollama_generate(prompt: str, *, model: str) -> str:
-    url = settings.OLLAMA_BASE_URL.rstrip("/") + "/api/generate"
-    payload = {
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "options": {"temperature": 0.4},
-        "format": "json",
-    }
-    timeout = httpx.Timeout(settings.OLLAMA_REQUEST_TIMEOUT_S)
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        resp = await client.post(url, json=payload)
-        resp.raise_for_status()
-        data = resp.json()
-    return str(data.get("response") or "").strip()
-
-
 async def _generate(prompt: str) -> tuple[str, str]:
-    """Route generation to the configured provider; return ``(raw, model_label)``.
+    """Generate drafts through the shared provider chain (spec 034).
 
-    Uses the dev-time Claude Code OAuth provider when an operator has opted in
-    (:func:`claude_code.is_active`); otherwise local Ollama — the product
-    default. Raises on provider/transport failure so :meth:`LSATContentAuthor.run`
-    degrades to the deterministic offline draft.
+    Claude first, the Anthropic API key second, local Ollama last, with
+    structured outputs pinning schema-valid JSON on the Claude tiers. Returns
+    ``(raw, model_label)`` and raises when every provider fails, so
+    :meth:`LSATContentAuthor.run` degrades to the deterministic offline draft.
     """
-    if claude_code.is_active():
-        raw = await claude_code.generate(
-            prompt, system=_LLM_SYSTEM, response_schema=_DRAFTS_RESPONSE_SCHEMA
-        )
-        return raw, claude_code.model_label()
-    raw = await _ollama_generate(prompt, model=settings.OLLAMA_DEFAULT_MODEL)
-    return raw, settings.OLLAMA_DEFAULT_MODEL
+    result = await llm.agenerate(
+        prompt,
+        system=_LLM_SYSTEM,
+        response_schema=_DRAFTS_RESPONSE_SCHEMA,
+        agent="lsat_content_author",
+    )
+    return result.text, result.model_label
 
 
 def _normalize_choices(item: dict[str, Any]) -> None:
@@ -283,7 +260,7 @@ def _parse_drafts(
     raw: str, *, section: Section, difficulty: Difficulty
 ) -> list[DraftQuestion]:
     try:
-        obj = claude_code.loads_first_json(raw)
+        obj = llm.loads_first_json(raw)
     except json.JSONDecodeError as exc:
         raise ValueError(f"LLM response not JSON: {exc}") from exc
     raw_drafts = obj.get("drafts") if isinstance(obj, dict) else None
@@ -398,11 +375,9 @@ class LSATContentAuthor:
 
         drafts: list[DraftQuestion] = []
         degraded = False
-        model_used = (
-            claude_code.model_label()
-            if claude_code.is_active()
-            else settings.OLLAMA_DEFAULT_MODEL
-        )
+        # Overwritten by the real label as soon as a provider answers; this
+        # placeholder only survives if _generate raises before returning.
+        model_used = "fallback/offline"
         try:
             raw, model_used = await _generate(prompt)
             drafts = _parse_drafts(raw, section=inp.section, difficulty=inp.difficulty)
@@ -416,6 +391,7 @@ class LSATContentAuthor:
             OSError,
             ValueError,
             claude_code.ClaudeCodeUnavailableError,
+            llm.LLMUnavailableError,
         ) as exc:
             logger.info("LSATContentAuthor falling back to offline: %s", exc)
             degraded = True

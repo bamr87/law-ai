@@ -7,18 +7,17 @@ and risk assessment using GraphRAG retrieval + LLM reasoning.
 Spec 010 FR-3 / T-006, promoted to the DEFAULT engine by spec 027: when
 ``input_data["use_langgraph"]`` is truthy (the ``AnalysisRequest`` default),
 delegate to :class:`law_ai.agents_runtime.graphs.LegalWorkflow` so the
-response is backed by a real Ollama call + provenance trace. The path is
-wrapped in a resilience boundary: if Ollama is unreachable or the LangGraph
-stack is missing, it returns an honestly-degraded refusal instead of raising.
+response is backed by a real retrieval-grounded model call + provenance trace.
+That path is wrapped in a resilience boundary: if the engine is unavailable it
+returns an honestly-degraded refusal instead of raising.
 
-Dev-time Claude Code path: when the shared :func:`law_ai.core.claude_code.is_active`
-gate is on (``LSAT_LLM_PROVIDER=claude_code`` + token, development only), the
-default (non-LangGraph) path produces a real IRAC analysis via Claude Code over
-OAuth — the same dev-only provider the LSAT agents use. It degrades to an
-offline placeholder if Claude Code is unreachable, so the Analysis Studio never
-hard-fails. Outside that gate the default path returns an honestly-degraded
-refusal (``degraded=True``, confidence 0.0, forced human review) — it must
-never fabricate analysis or log it under a real model name (constitution §4/§13).
+Spec 034: both paths run on the shared provider chain in
+:mod:`law_ai.core.llm` — Claude over OAuth, then Claude over the Anthropic API
+key, then local Ollama. The explicit ``use_langgraph=false`` escape hatch calls
+the chain directly (structured outputs pin schema-valid JSON) without the
+graph's retrieval nodes. When every provider fails, the analyst degrades to a
+clearly-labeled offline placeholder — it must never fabricate analysis or log
+it under a real model name (constitution §4/§13).
 """
 
 from __future__ import annotations
@@ -30,7 +29,7 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, Field
 
-from law_ai.core import claude_code
+from law_ai.core import claude_code, llm
 from law_ai.core.provenance import provenance
 
 logger = logging.getLogger("law_ai.agents.legal_analyst")
@@ -163,10 +162,13 @@ def _irac_from_payload(data: Any, question: str) -> IRACOutput:
 def _fallback_irac(question: str) -> IRACOutput:
     return IRACOutput(
         issue=question[:200] or "(no question provided)",
-        rule="[OFFLINE FALLBACK] The dev LLM was unreachable — no analysis generated.",
+        rule=(
+            "[OFFLINE FALLBACK] No LLM provider was reachable — no analysis generated."
+        ),
         application=(
-            "Claude Code was unreachable (e.g. a transient overload). Retry, or "
-            "run with Ollama / the LangGraph workflow."
+            "Every provider in LLM_PROVIDER_CHAIN failed (Claude OAuth, the "
+            "Anthropic API key, then local Ollama). Check credentials and "
+            "connectivity, then retry."
         ),
         conclusion=(
             "Degraded: no LLM analysis produced. This row exists for auditability "
@@ -210,20 +212,19 @@ class LegalAnalyst:
 
     async def run(self, input_data: dict[str, Any]) -> IRACOutput:
         # Spec 027: LangGraph is the DEFAULT engine (AnalysisRequest defaults
-        # use_langgraph=true). The explicit-false escape hatch keeps the
-        # dev-time Claude Code path and the honest degraded stub reachable.
+        # use_langgraph=true). The explicit-false escape hatch runs the same
+        # provider chain directly, without the graph's retrieval nodes.
         if input_data.get("use_langgraph"):
             return await self._run_via_langgraph(input_data)
-        if claude_code.is_active():
-            return await self._run_via_claude_code(input_data)
-        return await self._run_legacy(input_data)
+        return await self._run_via_llm(input_data)
 
-    async def _run_via_claude_code(self, input_data: dict[str, Any]) -> IRACOutput:
-        """Dev-time path: real IRAC analysis via Claude Code over OAuth.
+    async def _run_via_llm(self, input_data: dict[str, Any]) -> IRACOutput:
+        """Real IRAC analysis through the shared provider chain (spec 034).
 
-        Pinned with structured outputs so the response is schema-valid JSON, and
-        degrades to a clearly-labeled offline placeholder on any provider failure
-        (e.g. a transient overload) — never raising into the caller.
+        Claude first, the Anthropic API key second, local Ollama last. Pinned
+        with structured outputs so the Claude tiers return schema-valid JSON,
+        and degrades to a clearly-labeled offline placeholder when the whole
+        chain fails — never raising into the caller.
         """
         start = time.time()
         question = input_data.get("text") or input_data.get("question") or ""
@@ -233,17 +234,21 @@ class LegalAnalyst:
             jurisdiction=str(input_data.get("jurisdiction") or ""),
         )
         try:
-            raw = await claude_code.generate(
-                prompt, system=_IRAC_SYSTEM, response_schema=_IRAC_SCHEMA
+            result = await llm.agenerate(
+                prompt,
+                system=_IRAC_SYSTEM,
+                response_schema=_IRAC_SCHEMA,
+                agent=self.name,
             )
-            output = _irac_from_payload(claude_code.loads_first_json(raw), question)
-            model_used = claude_code.model_label()
+            output = _irac_from_payload(llm.loads_first_json(result.text), question)
+            model_used = result.model_label
         except (
             TimeoutError,
             httpx.HTTPError,
             OSError,
             ValueError,
             claude_code.ClaudeCodeUnavailableError,
+            llm.LLMUnavailableError,
         ) as exc:
             logger.info("LegalAnalyst falling back to offline IRAC: %s", exc)
             output = _fallback_irac(question)
@@ -259,56 +264,6 @@ class LegalAnalyst:
             confidence=output.confidence,
             sources=output.sources,
         )
-        return output
-
-    async def _run_legacy(self, input_data: dict[str, Any]) -> IRACOutput:
-        """Non-LangGraph, non-Claude path: honestly unimplemented.
-
-        This path used to return a hardcoded negligence IRAC at confidence
-        0.82 logged under a real model name — fabricated legal content that
-        cleared the HITL threshold. Per constitution §4/§13 it now returns a
-        clearly-degraded refusal at confidence 0.0 that always requires
-        human review. Use ``use_langgraph=true`` for a real Ollama-backed run.
-        """
-        start = time.time()
-        question = str(
-            input_data.get("text") or input_data.get("question") or ""
-        ).strip()
-
-        output = IRACOutput(
-            issue=question[:200] or "(no question provided)",
-            rule=(
-                "[NOT IMPLEMENTED] The default analysis path performs no "
-                "retrieval and no LLM reasoning — no rule can be stated."
-            ),
-            application=(
-                "No analysis was performed. Re-run with use_langgraph=true "
-                "for the retrieval-backed Ollama workflow."
-            ),
-            conclusion=(
-                "Degraded: no legal analysis produced. This output exists "
-                "for auditability and must not be relied upon."
-            ),
-            sources=[],
-            confidence=0.0,
-            degraded=True,
-            requires_review=True,
-            reasoning_trace=[
-                "default path — no retrieval performed, no LLM invoked",
-            ],
-        )
-
-        latency = (time.time() - start) * 1000
-        trace_id = provenance.log_agent_call(
-            agent_name=self.name,
-            input_data=input_data,
-            output_data=output.model_dump(),
-            model="degraded/not-implemented",
-            latency_ms=latency,
-            confidence=output.confidence,
-            sources=output.sources,
-        )
-        output.trace_id = trace_id
         return output
 
     async def _run_via_langgraph(self, input_data: dict[str, Any]) -> IRACOutput:

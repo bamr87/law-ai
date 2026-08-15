@@ -6,7 +6,9 @@ This document organizes repos by category with:
 - Short description
 - Why it's relevant to Law AI
 - Recommended integration points
-- License / Maturity notes
+- **Status** — whether the repo was actually adopted, once 30+ specs had shipped
+
+> **Status as of 2026-08.** This survey was written in the repo's first commit (2026-05-03), before any spec had shipped, and describes intent rather than the codebase. Some recommendations were adopted as originally planned (`eyecite`, `langgraph`, LegalBench, `cytoscape.js`). Several were superseded by hand-rolled, native implementations that turned out simpler than integrating the listed project (the CrewAI hybrid, the Neo4j GraphRAG fork). A few packages are declared as dependencies but never actually wired in. A handful of linked repos have moved, been renamed, or stopped existing since 2026-05. Each row below now carries a **Status** cell reflecting what's true today — treat the original "Recommendation" and "Action Plan" prose as historical intent, not current architecture. For what's actually running, see [architecture.md](architecture.md) and [AGENTS.md](../AGENTS.md).
 
 ---
 
@@ -14,14 +16,14 @@ This document organizes repos by category with:
 
 These are the foundation for Law AI's agent crews (Ingestion Scout, Legal Analyst, Precedent Hunter, Orchestrator, etc.).
 
-| Repository | Description | Relevance to Law AI | Integration Points |
+| Repository | Description | Relevance to Law AI | Status (2026-08) |
 |------------|-------------|-----------------------|--------------------|
-| [crewAIInc/crewAI](https://github.com/crewAIInc/crewAI) | Lightweight, role-based multi-agent orchestration framework (44k+ stars) | Primary choice for Law AI's "crews" (Analyst + Hunter + Weaver). Simple, fast, and production-ready. | Use as-is for `LegalAnalystCrew`, `PrecedentHunterCrew`. Extend with custom tools (Neo4j, CourtListener). |
-| [langchain-ai/langgraph](https://github.com/langchain-ai/langgraph) | Stateful, graph-based agent workflows with checkpointing, time-travel, and human-in-the-loop (24k+ stars) | Perfect for Law AI's `Orchestrator` (LangGraph state machines + HITL gates + full audit trails). | Core for complex multi-step legal workflows. Combine with CrewAI (hybrid approach already recommended in AGENTS.md). |
-| [microsoft/autogen](https://github.com/microsoft/autogen) | Conversational multi-agent framework with dynamic group chat | Useful for "debate-style" legal reasoning (e.g., Analyst vs. Opposing Counsel simulation). | Secondary — great for advanced "Logic Weaver" or adversarial testing modes. |
-| [brainblend-ai/atomic-agents](https://github.com/brainblend-ai/atomic-agents) | Lightweight, structured, developer-centric agent framework | Good alternative if CrewAI/LangGraph feel too heavy. Strong emphasis on typed I/O. | Use for simpler agents or as inspiration for Pydantic-structured outputs. |
+| [crewAIInc/crewAI](https://github.com/crewAIInc/crewAI) | Lightweight, role-based multi-agent orchestration framework | Original primary choice for Law AI's "crews" (Analyst + Hunter + Weaver). | **Declared, not adopted.** `crewai>=1.14.0` is in `backend/pyproject.toml`, but `grep -rl "crewai" backend/law_ai` finds no imports. The shipped classes in `agents_runtime/crews/` (`LegalAnalyst`, `PrecedentHunter`, `TestSynthesizer`, `LSATContentAuthor` — no `Crew` suffix) are hand-written Pydantic-output classes that call `law_ai.core.llm` directly, not CrewAI primitives. |
+| [langchain-ai/langgraph](https://github.com/langchain-ai/langgraph) | Stateful, graph-based agent workflows with checkpointing, time-travel, and human-in-the-loop | For Law AI's `Orchestrator` (state machines + HITL gates + audit trails). | **Adopted — the actual orchestration engine.** `LegalWorkflow` (`agents_runtime/graphs/legal_workflow.py`) is a `StateGraph` with an `AsyncPostgresSaver` checkpointer reading `settings.POSTGRES_URL`. Spec 035 added `ChatProviderChain` (`core/llm/langchain.py`), a real `BaseChatModel` wrapping the [product-runtime provider chain](../AGENTS.md), as its default LLM. |
+| [microsoft/autogen](https://github.com/microsoft/autogen) | Conversational multi-agent framework with dynamic group chat | Proposed for "debate-style" legal reasoning (Analyst vs. opposing counsel). | **Not adopted.** No debate/adversarial agent mode has shipped. |
+| [Eigenwise/atomic-agents](https://github.com/Eigenwise/atomic-agents) (renamed from `brainblend-ai/atomic-agents`) | Lightweight, structured, developer-centric agent framework, typed I/O | Proposed alternative if CrewAI/LangGraph felt too heavy. | **Not adopted.** The typed-Pydantic-output pattern it would have supplied was built by hand instead (see the crews row above). |
 
-**Recommendation**: Stick with **CrewAI + LangGraph hybrid** (already chosen in the architecture). These two repos alone cover 80% of Law AI's orchestration needs.
+**What actually happened**: LangGraph became the real engine, as planned. CrewAI did not — the crews ended up as plain classes on top of `law_ai.core.llm` because that gave direct control over provenance logging (constitution §4: `core.llm` is "the sole sanctioned choke point for model calls") without a second framework's abstractions in the way. If a future spec wants CrewAI-native features (task delegation, crew-level memory), evaluate then against the cost of unwinding the current pattern — don't assume the original recommendation still holds.
 
 ---
 
@@ -29,15 +31,15 @@ These are the foundation for Law AI's agent crews (Ingestion Scout, Legal Analys
 
 Critical for the Ingestion Scout and entity/relation extraction into Neo4j.
 
-| Repository | Description | Relevance to Law AI | Integration Points |
+| Repository | Description | Relevance to Law AI | Status (2026-08) |
 |------------|-------------|-----------------------|--------------------|
-| [freelawproject/eyecite](https://github.com/freelawproject/eyecite) | State-of-the-art open-source legal citation parser (used by CourtListener) | **Must-use**. Handles Bluebook citations, parallel citations, and court abbreviations perfectly. | Drop-in replacement for custom citation logic in `IngestionScout`. Already in the tech stack. |
-| [ICLRandD/Blackstone](https://github.com/ICLRandD/Blackstone) | spaCy pipeline + model trained on UK legal text (NER, sentence segmentation, etc.) | Excellent for legal entity recognition (parties, courts, judges, holdings). | Integrate into ingestion pipeline alongside Eyecite. Fine-tune further on US case law. |
-| [HazyResearch/pile-of-law](https://github.com/HazyResearch/pile-of-law) | 256GB curated legal corpus (opinions, regulations, contracts) for domain adaptation | Perfect for continued pre-training or fine-tuning of legal LLMs (Llama-3.1 legal variant). | Use to train/fine-tune a "Law AI-Legal" model on top of Llama 3.1. |
-| [atticusproject/cuad](https://github.com/atticusproject/cuad) | Expert-annotated contract understanding dataset (13 clause types, 500+ contracts) | Gold standard for contract clause extraction & risk assessment agents. | Power a future `ContractRiskAssessor` agent. Use for LegalBench-style eval. |
-| [lexpredict/lexpredict-lexnlp](https://github.com/lexpredict/lexpredict-lexnlp) | Older but still useful legal NLP library (feature extraction, contract parsing) | Good reference implementation and feature ideas. | Use for inspiration or specific extractors (dates, monetary amounts, etc.). |
+| [freelawproject/eyecite](https://github.com/freelawproject/eyecite) | Open-source legal citation parser (used by CourtListener) | Bluebook citations, parallel citations, court abbreviations. | **Adopted.** Live in `ingestionapp/services/scout.py`. |
+| [ICLRandD/Blackstone](https://github.com/ICLRandD/Blackstone) | spaCy pipeline + model trained on UK legal text (NER, sentence segmentation) | Legal entity recognition (parties, courts, judges, holdings). | **Not wired in.** Available as the optional `nlp` extra (`pip install -e ".[nlp]"`) in `backend/pyproject.toml`, pinned out of core deps because it requires `spacy==2.1.8` against this project's `spacy>=3.8.0`. `scout.py`'s `_extract_entities` still does a lightweight pull from structured fields only, with the code comment "Blackstone NER is a follow-up." Upstream `ICLRandD/Blackstone` itself last pushed 2024-07-16 — treat as likely unmaintained rather than assume a future fix lands upstream. |
+| [Breakend/PileOfLaw](https://github.com/Breakend/PileOfLaw) (moved from `HazyResearch/pile-of-law`) | 256GB curated legal corpus for domain adaptation | Proposed for continued pre-training / fine-tuning a legal LLM. | **Not adopted.** Law AI does not fine-tune a base model; the [product-runtime LLM policy](../AGENTS.md) uses an ordered chain of hosted Claude and local Ollama models as-is. |
+| [atticusproject/cuad](https://github.com/atticusproject/cuad) | Expert-annotated contract clause dataset | Proposed gold standard for contract clause extraction. | **Not adopted, and the link is dead** — the `atticusproject` GitHub org no longer exists. CUAD is now distributed as a dataset on Hugging Face if this is revisited. No contract-clause agent has shipped. |
+| [LexPredict/lexpredict-lexnlp](https://github.com/LexPredict/lexpredict-lexnlp) | Legal NLP library (feature extraction, contract parsing) | Reference implementation for extractors (dates, monetary amounts). | Reference only — not adopted, not currently needed. |
 
-**Recommendation**: Prioritize **Eyecite + Blackstone** for MVP ingestion. Add CUAD for contract features in Phase 2.
+**What actually happened**: Eyecite shipped as planned. Blackstone stalled on a real dependency conflict (spaCy major-version pin) rather than a priority call, so it's still open if a spec wants to solve the conflict (e.g. vendoring a patched Blackstone, or waiting for an upstream fork) — see [BACKLOG.md](../BACKLOG.md) for whether this has been filed.
 
 ---
 
@@ -45,102 +47,93 @@ Critical for the Ingestion Scout and entity/relation extraction into Neo4j.
 
 Essential for grounding Law AI in real legal data and measuring reasoning quality.
 
-| Repository | Description | Relevance to Law AI | Integration Points |
+| Repository | Description | Relevance to Law AI | Status (2026-08) |
 |------------|-------------|-----------------------|--------------------|
-| [HazyResearch/legalbench](https://github.com/HazyResearch/legalbench) | 162-task collaborative benchmark for legal reasoning in LLMs (Rule QA, Issue Spotting, etc.) | **Core evaluation harness**. Already referenced throughout Law AI design. | Run nightly in CI (`scripts/eval-legalbench.sh`). Use as few-shot examples and regression tests for every new agent. |
-| [zeroentropy-ai/legalbenchrag](https://github.com/zeroentropy-ai/legalbenchrag) | First open retrieval benchmark specifically for legal contracts and documents | Complements LegalBench with RAG-focused tasks (retrieval quality over legal text). | Extend LegalBench eval pipeline with LegalBench-RAG tasks for GraphRAG validation. |
-| [openlegaldata/awesome-legal-data](https://github.com/openlegaldata/awesome-legal-data) | Curated list of 100+ legal datasets, corpora, benchmarks, and tools | The "bible" of open legal data. Includes CourtListener, CAP, legislation.gov.uk, EUR-Lex, SCDB, etc. | Primary reference when adding new data sources. Already heavily used in Law AI design. |
-| [freelawproject/courtlistener](https://github.com/freelawproject/courtlistener) | The actual CourtListener platform + RECAP archive (99%+ of US precedential opinions) | **Primary data source** for Law AI. | Use their API client and bulk replication tools directly. They also maintain Eyecite. |
-| [caselawaccessproject/caselaw-access-project](https://github.com/caselawaccessproject) (or case.law) | Harvard's 6.9M case corpus with bulk downloads | Excellent bulk training / graph population data. | One-time bulk import into Neo4j for seed graph (already planned). |
-
-**Recommendation**: Make **LegalBench** the mandatory regression suite. Every new agent or retrieval improvement must show non-negative delta on relevant tasks.
+| [HazyResearch/legalbench](https://github.com/HazyResearch/legalbench) | 162-task collaborative benchmark for legal reasoning in LLMs | Core evaluation harness. | **Adopted, but not as a pip dependency.** `backend/law_ai/eval/legalbench.py` + `loaders.py` resolve task items from a local `backend/var/legalbench/<subset>/` JSONL cache (falling back to synthetic stubs when a cache file is absent) — the harness never installs the `legalbench` package. Runs nightly (`.github/workflows/nightly-tests.yml`, `make test-legalbench-gate`) and stays pinned to Ollama regardless of the product-runtime provider chain, so scores remain comparable across runs (constitution §1). |
+| [zeroentropy-ai/legalbenchrag](https://github.com/zeroentropy-ai/legalbenchrag) | Open retrieval benchmark for legal contracts and documents | Proposed to complement LegalBench with RAG-focused tasks. | **Not adopted.** No retrieval-specific eval tasks beyond LegalBench have shipped. |
+| [openlegaldata/awesome-legal-data](https://github.com/openlegaldata/awesome-legal-data) | Curated list of 100+ legal datasets, corpora, benchmarks, tools | Reference when adding new data sources. | Reference only, still actively maintained upstream — useful starting point if a new jurisdiction or source is added. |
+| [freelawproject/courtlistener](https://github.com/freelawproject/courtlistener) | The CourtListener platform + RECAP archive (US precedential opinions) | Primary data source. | **Adopted.** `ingestionapp/sources/courtlistener.py` (spec 001, spec 018) is a live `SOURCE_REGISTRY` adapter; `COURTLISTENER_API_KEY` is a configured setting. Two other adapters exist alongside it: `colorado_statutes.py` and `statute_scout.py`. |
+| ~~`caselawaccessproject/caselaw-access-project`~~ | — | Bulk case corpus for graph seeding. | **Link was never valid** — that GitHub path does not resolve and doesn't appear to have ever existed under that name. The real project is Harvard LIL's Caselaw Access Project: code at [harvard-lil/capstone](https://github.com/harvard-lil/capstone) (archived 2024-09, read-only), bulk data at [case.law](https://case.law). **Not adopted** — no bulk CAP import exists in `ingestionapp/`; ingestion is incremental via the three live source adapters above, not a one-time bulk seed. |
 
 ---
 
 ## 4. Knowledge Graphs, GraphRAG & Legal Graph Examples
 
-Neo4j + GraphRAG is a cornerstone of Law AI's architecture.
+Neo4j is a cornerstone of Law AI's architecture; GraphRAG was originally planned as a fork of an existing example.
 
-| Repository | Description | Relevance to Law AI | Integration Points |
+| Repository | Description | Relevance to Law AI | Status (2026-08) |
 |------------|-------------|-----------------------|--------------------|
-| [neo4j-product-examples/graphrag-contract-review](https://github.com/neo4j-product-examples/graphrag-contract-review) | End-to-end GraphRAG demo on commercial contracts using Neo4j + LLM entity extraction | Almost identical to Law AI's contract + case analysis workflow. | Fork and adapt the entity extraction + Cypher ingestion pipeline for legal opinions. |
-| [tomasonjo/blogs](https://github.com/tomasonjo/blogs) (multiple GraphRAG posts) | Tomaz Bratanic's excellent GraphRAG tutorials (including legal/contract examples) | Best practical guidance on building production GraphRAG with Neo4j. | Follow his patterns for "From Local to Global GraphRAG", community summaries, and hybrid retrievers. |
-| [microsoft/graphrag](https://github.com/microsoft/graphrag) | Official Microsoft GraphRAG library (entity extraction, community detection, global search) | Mature implementation of the "GraphRAG" paper. Can complement Neo4j. | Use for advanced summarization layers on top of Neo4j graph (hybrid approach). |
-| [neo4j/neo4j-graphrag](https://github.com/neo4j/neo4j-graphrag) (or langchain integrations) | Official Neo4j GraphRAG Python package + LangChain integration | Simplifies building retrievers that combine vector + Cypher. | Primary library for Law AI's `GraphRAG` tool. |
-| [cboulanger/ltkg-tools](https://github.com/cboulanger/ltkg-tools) | Legal Theory Knowledge Graph tools + Neo4j integration | Early example of legal doctrine graphs. | Inspiration for `LegalConcept` nodes and doctrine evolution tracking. |
+| [neo4j-product-examples/graphrag-contract-review](https://github.com/neo4j-product-examples/graphrag-contract-review) | End-to-end GraphRAG demo on commercial contracts (Neo4j + LLM entity extraction) | Originally planned as the fork target for Law AI's GraphRAG tool. | **Not adopted; superseded by a native implementation.** The shipped tool (`agents_runtime/tools/graph_rag.py`, spec 028 / BL-20260810-01) is a from-scratch lexical-search-plus-graph-expansion retriever: Neo4j fulltext indexes (`007_fulltext_indexes.cypher`) for top-K lexical hits, then `CITES`-edge traversal for graph expansion, with constitution §13 attribution and §4 provenance logging on every round-trip. It has zero dependency on this repo — nothing was forked. Vector similarity is explicitly deferred (no embedding column exists on `:Case` yet), noted in the tool's own module docstring. |
+| [tomasonjo/blogs](https://github.com/tomasonjo/blogs) | Tomaz Bratanic's GraphRAG tutorials (Neo4j) | Practical guidance for building production GraphRAG with Neo4j. | Reference only — useful reading if the vector-similarity leg of GraphRAG gets built. |
+| [microsoft/graphrag](https://github.com/microsoft/graphrag) | Microsoft's GraphRAG library (entity extraction, community detection, global search) | Proposed for advanced summarization layers atop Neo4j. | **Not adopted.** No community-detection or global-search layer exists in `agents_runtime/tools/`. |
+| [neo4j/neo4j-graphrag-python](https://github.com/neo4j/neo4j-graphrag-python) (corrected from the now-dead `neo4j/neo4j-graphrag`) | Official Neo4j GraphRAG Python package + LangChain integration | Proposed as the primary library for the `GraphRAG` tool. | **Not adopted.** Not in `backend/pyproject.toml`; the native tool above does the same job without it. |
+| [cboulanger/ltkg-tools](https://github.com/cboulanger/ltkg-tools) | Legal Theory Knowledge Graph tools + Neo4j integration | Inspiration for doctrine-evolution graph modeling. | Reference only, not adopted. Repo is still active upstream (pushed 2025-07) if doctrine-level graph modeling becomes a priority. |
 
-**Recommendation**: Start with **neo4j-product-examples/graphrag-contract-review** + Tomaz's tutorials. They solve 60-70% of the GraphRAG engineering problems Law AI faces.
+**What actually happened**: the same pattern as CrewAI — the team judged that a small, purpose-built retriever against the exact schema (`:Case`, `CITES`) was less work than adapting a generic contract-review example, and the audit trail / attribution requirements (constitution §4, §13) were easier to guarantee in code the team wrote than in a fork. If GraphRAG grows a vector-similarity leg, `tomasonjo/blogs` and `neo4j/neo4j-graphrag-python` remain the most relevant references to revisit.
 
 ---
 
-## 5. Full-Stack Legal AI / RAG Applications & Examples
+## 5. Full-Stack Legal AI / RAG Applications & Examples (Reference Only)
 
-Real-world projects that combine several of the above capabilities.
+External projects that combine several of the above capabilities. None of these were forked or integrated — they're listed here as prior art worth a skim, not as dependencies or status subjects like the tables above.
 
-| Repository | Description | Relevance to Law AI | Integration Points |
-|------------|-------------|-----------------------|--------------------|
-| [thomasbln/graphrag-legal-demo](https://github.com/thomasbln/graphrag-legal-demo) | Live demo + code for GraphRAG on legal contracts with Neo4j + GPT-4 | Very close to Law AI's Analysis Studio + Knowledge Graph vision. | Study the frontend (graph visualization) and backend (retrieval + agent) patterns. |
-| [HazyResearch/legalbenchrag](https://github.com/HazyResearch/legalbenchrag) (already listed) | Retrieval benchmark + example pipelines | Shows how to evaluate legal RAG systems rigorously. | Adopt their evaluation methodology. |
-| [alaingilbert/legal-ai](https://github.com/alaingilbert/legal-ai) (example) | Various legal AI experiments (search, summarization, Q&A) | Good collection of smaller legal NLP scripts. | Borrow specific components (e.g., statute parsing). |
-| [UKPLab/legal-reasoning](https://github.com/UKPLab) (various repos) | UKP Lab's legal reasoning and argument mining work | Strong academic baselines for argument mining and fallacy detection (`Logic Weaver` agent). | Use their models/datasets for the Logic Weaver agent. |
+| Repository | Description | Relevance to Law AI |
+|------------|-------------|-----------------------|
+| [thomasbln/graphrag-legal-demo](https://github.com/thomasbln/graphrag-legal-demo) | GraphRAG on legal contracts with Neo4j + an LLM | Frontend graph-visualization and backend retrieval/agent patterns worth comparing against `GraphViewer.tsx` and `graph_rag.py`. |
+| [zeroentropy-ai/legalbenchrag](https://github.com/zeroentropy-ai/legalbenchrag) | Retrieval benchmark + example pipelines (also listed in §3) | Evaluation methodology for legal RAG systems. |
+| [UKPLab](https://github.com/UKPLab) (org, various repos — no single `legal-reasoning` repo exists there) | Argument mining and legal-reasoning research | Academic baselines if a "Logic Weaver" argument-mining agent is ever built (no such agent exists today). |
+
+Dropped from this section: `alaingilbert/legal-ai`, which the original author had already tagged "(example)" as an uncertain reference — the repo does not exist under that name and never resolved.
 
 ---
 
 ## 6. Visualization & Interactive Graph Components
 
-For Law AI's Cytoscape.js / React Flow knowledge graph explorer.
+For Law AI's knowledge graph explorer.
 
-| Repository | Description | Relevance to Law AI | Integration Points |
+| Repository | Description | Relevance to Law AI | Status (2026-08) |
 |------------|-------------|-----------------------|--------------------|
-| [cytoscape/cytoscape.js](https://github.com/cytoscape/cytoscape.js) | Industry-standard graph visualization library (used by many legal tech tools) | **Primary choice** for Law AI's interactive knowledge graph. | Already in the tech stack. Look at legal-tech examples (e.g., citation networks). |
-| [wbkd/react-flow](https://github.com/wbkd/react-flow) | React component for node-based UIs and graphs | Excellent complement or alternative to Cytoscape for the Analysis Studio canvas. | Use for agent workflow visualization or editable argument maps. |
-| [neo4j/neo4j-browser](https://github.com/neo4j/neo4j-browser) + visualization plugins | Official Neo4j graph explorer | Great reference for how to expose Cypher results interactively. | Steal UX patterns for Law AI's graph explorer. |
+| [cytoscape/cytoscape.js](https://github.com/cytoscape/cytoscape.js) | Industry-standard graph visualization library | Primary choice for the interactive knowledge graph. | **Adopted.** `cytoscape` is a `frontend/package.json` dependency, live in `components/GraphViewer.tsx`. |
+| [xyflow/xyflow](https://github.com/xyflow/xyflow) (rebranded from `wbkd/react-flow`; npm package now `@xyflow/react`, `reactflow` is deprecated) | React component for node-based UIs and graphs | Proposed complement/alternative to Cytoscape for an editable Analysis Studio canvas. | **Declared, not used.** `@xyflow/react` is a `frontend/package.json` dependency, but no `.tsx`/`.ts` file under `frontend/components` or `frontend/app` imports it — the same declared-but-unwired pattern as CrewAI on the backend. |
+| [neo4j/neo4j-browser](https://github.com/neo4j/neo4j-browser) | Official Neo4j graph explorer + visualization plugins | UX reference for exposing Cypher results interactively. | Reference only, not adopted as a dependency. |
 
 ---
 
-## 7. How to Leverage These Repos in Law AI (Action Plan)
+## 7. Original Action Plan (2026-05) vs. What Shipped
 
-### Phase 1 (MVP – Months 1-3)
-1. **Ingestion** — Integrate `eyecite` + `Blackstone` immediately (already in stack).
-2. **Orchestration** — Adopt `crewAI` + `langgraph` (already chosen).
-3. **Evaluation** — Set up `legalbench` as the CI regression suite on day 1.
-4. **GraphRAG** — Fork `neo4j-product-examples/graphrag-contract-review` and adapt to case law.
+The phased plan below is kept verbatim from the first commit for historical context. It predates specs 001–035; read it as a snapshot of Month-1 intent, not a live roadmap.
 
-### Phase 2 (v1.0)
-1. Add `pile-of-law` for domain-adaptive fine-tuning.
-2. Incorporate `CUAD` for contract features.
-3. Use `microsoft/graphrag` for advanced global summarization on top of Neo4j.
-4. Add `legalbenchrag` tasks to the evaluation harness.
+### Phase 1 (as planned)
+1. Ingestion — integrate `eyecite` + `Blackstone` immediately.
+2. Orchestration — adopt `crewAI` + `langgraph`.
+3. Evaluation — set up `legalbench` as the CI regression suite on day 1.
+4. GraphRAG — fork `neo4j-product-examples/graphrag-contract-review` and adapt to case law.
 
-### Phase 3 (Expansion)
-1. Explore `autogen` for multi-agent debate features.
-2. Use academic repos (UKPLab) for advanced `Logic Weaver` capabilities.
-3. Build on `awesome-legal-data` when adding UK/EU sources.
+**What shipped**: 1 and 3 landed close to plan (`eyecite` live, LegalBench nightly in CI — though against a local cache, not the pip package; Blackstone stalled on the spaCy conflict in §2). 2 and 4 did not — LangGraph shipped alone as the engine, and GraphRAG shipped as a native tool, both without the paired/forked dependency originally planned. See §1 and §4 above for why.
+
+### Phase 2 / Phase 3 (as planned, not evaluated here)
+Domain-adaptive fine-tuning on `pile-of-law`, CUAD contract features, `microsoft/graphrag` global summarization, `legalbenchrag` tasks, `autogen` debate agents, and UKPLab argument-mining baselines were all proposed for later phases. None have shipped as of 2026-08; see [BACKLOG.md](../BACKLOG.md) for whether any are currently planned.
 
 ---
 
-## 8. Quick Wins – Repos You Can Start Using Today
+## 8. What's Actually Running Today
 
-| Repo | One-Line Win |
+Superseding the original "Quick Wins" list, which mixed shipped and never-attempted items without distinguishing them:
+
+| Repo | Actual role |
 |------|--------------|
-| `eyecite` | Replace any custom citation regex with production-grade parser |
-| `legalbench` | Add 5 lines of code to run nightly regression on all agents |
-| `crewAI` | Create your first `LegalAnalystCrew` in < 30 minutes |
-| `neo4j-product-examples/graphrag-contract-review` | Copy the entity extraction + Neo4j ingestion pattern |
-| `pile-of-law` | Start continued pre-training of a legal Llama-3.1 variant |
+| `eyecite` | Citation parsing in `ingestionapp/services/scout.py`. |
+| `langgraph` | Default orchestration engine (`LegalWorkflow`), with `ChatProviderChain` as its LLM. |
+| `legalbench` | Nightly CI regression, resolved from a local cache — no pip dependency. |
+| `cytoscape.js` | Knowledge graph explorer (`GraphViewer.tsx`). |
+| `courtlistener` (API, not the listed GitHub repo) | Primary case-law ingestion source. |
+
+Declared as a dependency but not actually wired into any code path: `crewai` (backend), `@xyflow/react` (frontend). Available but gated out of core deps pending a real fix: `blackstone` (spaCy version conflict). Anyone picking this doc back up should treat those three as the highest-signal "either finish the integration or drop the dependency" candidates.
 
 ---
 
 ## Summary
 
-Law AI does **not** need to be built from scratch. The open-source ecosystem already provides:
+The original claim that Law AI could avoid building most of its stack from scratch was **partly right**: citation parsing (`eyecite`), the workflow engine (`langgraph`), the regression harness (`legalbench`), the graph UI (`cytoscape.js`), and the primary data source (`courtlistener`) all came from the open-source ecosystem roughly as planned. The orchestration-crew layer and the GraphRAG retrieval layer did not — both ended up as small, purpose-built implementations on top of the chosen primitives (`law_ai.core.llm`, native Neo4j Cypher) rather than forks of the repos originally scouted here, because the audit/provenance requirements in [constitution.md](constitution.md) §4 were easier to guarantee in first-party code than to retrofit onto someone else's abstraction.
 
-- **~80% of the agent orchestration layer** (CrewAI + LangGraph)
-- **~70% of the legal NLP layer** (Eyecite + Blackstone + Pile-of-Law)
-- **~60% of the GraphRAG + knowledge graph layer** (Neo4j examples + Microsoft GraphRAG)
-- **100% of the evaluation layer** (LegalBench + LegalBench-RAG)
-- **Primary data sources** (CourtListener + CAP via awesome-legal-data)
-
-**Next Step**: Create a `libs/` or `vendor/` directory in the Law AI workspace and begin forking/integrating the highest-priority repos listed above, starting with `eyecite`, `legalbench`, and the Neo4j GraphRAG contract example.
-
-This approach will dramatically reduce time-to-MVP while ensuring Law AI stands on the shoulders of the best legal + AI open-source work available.
+**If you're extending this doc**: keep the Status column current per section rather than letting the whole file drift silently again — this version replaced one that had gone stale for the entire life of the project (first commit to 2026-08, 30+ specs, zero content updates).

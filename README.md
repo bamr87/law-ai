@@ -1,12 +1,17 @@
 # Law AI — VS Code Workspace
 
-**✅ FINALIZED — Ready for Development**
-
 **AI-Native Development Environment for Building the Open Legal Intelligence Platform**
 
-This workspace is configured for **GitHub Copilot and Claude Code** as the sanctioned AI development orchestrators (Copilot Chat / Copilot Edits / the GitHub Copilot coding agent, and the Claude Code CLI / IDE extensions). The product runtime LLM is still local-first via Ollama — see [docs/constitution.md](docs/constitution.md) §1.
+This workspace is configured for **GitHub Copilot and Claude Code** as the sanctioned AI development orchestrators (Copilot Chat / Copilot Edits / the GitHub Copilot coding agent, and the Claude Code CLI / IDE extensions). That dev-orchestration layer is independent of the **product runtime** — the LLM that actually answers end users. The runtime is an ordered provider chain (`LLM_PROVIDER_CHAIN`), implemented in `backend/law_ai/core/llm/`: Anthropic Claude is the default (subscription OAuth token, then `ANTHROPIC_API_KEY`), with local Ollama as the last-tier fallback. Pin `LLM_PROVIDER_CHAIN=ollama` for local-only operation — required for any data under a confidentiality obligation that forbids third-party processing. See [docs/constitution.md](docs/constitution.md) §1 for the full policy.
 
-> **Status**: Core scaffolding, testing framework, agent stubs, API layer, and frontend dashboard are complete. Run `docker compose up` to start developing immediately.
+## Stack
+
+- **Backend** — Django 5 (ASGI via daphne), DRF, Channels (WebSocket agent streaming), Celery/Redis (async ingestion), Neo4j (knowledge graph) + Postgres + Redis.
+- **Agents** — CrewAI crews and LangGraph state graphs (`backend/law_ai/agents_runtime/`), running on `ChatProviderChain`, a LangChain `BaseChatModel` wrapping the provider chain above.
+- **Frontend** — Next.js App Router, TypeScript strict, Tailwind, shadcn/ui, Cytoscape.js graph viewer.
+- **Infra** — Docker Compose locally, GitHub Actions in CI.
+
+This is a quick orientation, not the authoritative reference — see [AGENTS.md](AGENTS.md) for the locked tech-stack table and standards.
 
 ## Quick Start (5 minutes to running)
 
@@ -22,15 +27,14 @@ cp .env.example .env
 make dev
 # or: docker compose up --build
 
-# 4. Open http://localhost:3000 (frontend) and http://localhost:8000/docs (API)
+# 4. Open http://localhost:3000 (frontend) and http://localhost:8000 (API — see below)
 ```
 
-**Alternative (local without Docker)**:
-```bash
-make setup
-make dev-backend   # in one terminal
-make dev-frontend  # in another
-```
+Without Claude credentials in `.env`, the provider chain falls through to the local Ollama tier automatically — you'll still get answers, just from the local model. Add `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) or `ANTHROPIC_API_KEY` to `.env` to use Claude instead.
+
+There's no interactive API schema/docs UI yet — `http://localhost:8000/` returns a root status JSON, and the real routes are under `/api/agents`, `/api/analysis`, `/api/graph`, `/api/lsat` (see `backend/law_ai/urls.py`).
+
+**Editing without a local Python/Node toolchain**: every dev/test/lint command is sanctioned only via `make …` / `docker compose …` (see [AGENTS.md](AGENTS.md)'s Docker-First Workflow) — there is no supported host-native alternative. If you want your editor's language server wired to the same environment CI uses, open this repo in the provided [Dev Container](.devcontainer/devcontainer.json) ("Dev Containers: Reopen in Container").
 
 ## How to Work with AI Agents Here (Copilot or Claude Code)
 
@@ -59,39 +63,42 @@ Copilot Chat (Agent mode) auto-loads [.github/copilot-instructions.md](.github/c
 - **AGENTS.md** — The constitution for all AI agents working on this project
 - **`.vscode/tasks.json`** — One-click tasks for Docker, testing, LegalBench eval, ingestion
 - **`.vscode/settings.json`** — Strict formatting + type checking enforced on save
-- **`prompts/`** — Reusable prompt templates (`new-agent.md`, `implement-feature.md`)
-- **`docs/`** — Architecture, data model, and agent specifications (Mermaid diagrams included)
-- **Pre-configured Docker stack** — Postgres + Neo4j + Ollama + Redis + Backend + Frontend
+- **`prompts/`** — Reusable prompt templates for the AO-SDLC chain (`specify`, `plan`, `tasks`, `implement`, `evolve`, `new-agent`)
+- **`docs/`** — [architecture.md](docs/architecture.md), [data-model.md](docs/data-model.md), and [agent-roles.md](docs/agent-roles.md), plus the [constitution](docs/constitution.md) (Mermaid diagrams included)
+- **`lsat-static/`** — A separate, independently-built Next.js static export of the LSAT practice module (deployed to GitHub Pages, zero server). It reads a `content.json` snapshot produced from the Dockerized backend via `make lsat-export`; it's not part of the `make dev` stack.
+- **Pre-configured Docker stack** — `backend` + `worker` (Celery) + `frontend` + `postgres` + `neo4j` + `ollama` + `redis` + `phoenix` (OTEL tracing) — see `docker-compose.yml`
 
 ## Common Workflows
 
 | Goal                              | Command / Task |
 |-----------------------------------|----------------|
-| Full local environment            | `Start Full Stack (Docker)` task |
-| Implement new agent role          | Use `prompts/new-agent.md` |
-| Add new feature                   | Use `prompts/implement-feature.md` |
-| **Run all tests + coverage**      | `Run All Tests` or `Run Coverage Report` task |
-| Run legal reasoning eval          | `Run LegalBench Eval` task |
-| Ingest 500 sample cases           | `Ingest Sample Data` task |
-| Reset everything (fresh start)    | `Reset Local DBs (Dangerous)` task |
+| Full local environment            | `make dev` (task: `Docker: Start Full Stack`) |
+| Implement new agent role          | `/new-agent` (see [prompts/new-agent.md](prompts/new-agent.md)) |
+| Add new feature                   | AO-SDLC chain — `/specify` → `/clarify` → `/plan` → `/tasks` → `/implement` |
+| **Run all tests + coverage**      | `make test` / `make test-coverage` (task: `Docker: Run All Tests` / `Docker: Coverage Report`) |
+| Run legal reasoning eval          | `make test-legalbench` (task: `Docker: LegalBench Eval`) |
+| Ingest sample data                | task: `Docker: Ingest Sample Data` |
+| Reset everything (fresh start)    | task: `Docker: Reset Local DBs (Dangerous)` |
 
-**Testing Philosophy**: Every PR must pass unit + integration + LegalBench tests with ≥75% coverage.
+**Testing Philosophy**: every PR must pass unit tests with ≥75% coverage. Integration tests (real Neo4j/Postgres) and the full LegalBench suite run nightly ([.github/workflows/nightly-tests.yml](.github/workflows/nightly-tests.yml)), or on-demand on a PR carrying the `reasoning-change` label.
 
-## Project Status (as of April 2026)
+## Project Status
 
-- **Current Phase**: MVP development (ingestion + core agent crews + basic graph UI)
-- **LegalBench Baseline**: TBD (we will establish after first agents are implemented)
-- **Target for v0.1**: 5 working agent roles + interactive Cytoscape graph + basic LSAT module
+Law AI is under active spec-driven development — there is no fixed roadmap snapshot maintained here, because it drifts. For what's shipped, in flight, and planned:
+
+- **Shipped features**: numbered spec packages under [`specs/`](specs/) (each `spec.md` + `plan.md` + `tasks.md`), the actual source of truth for what exists.
+- **What's next**: the `## Open` section of [BACKLOG.md](BACKLOG.md).
+- **LegalBench regression gate**: `backend/law_ai/eval/legalbench.py`, run via `make test-legalbench` / `make legalbench-baseline`.
 
 ## Contributing
 
 All contributions (human or AI-generated) must pass:
-1. `ruff + black + mypy` checks
-2. **Full test suite** (`Run All Tests` task) with ≥75% coverage
-3. Relevant LegalBench tasks
+1. `ruff + black + mypy` checks (`make lint` / `make typecheck`)
+2. **Full test suite** (`make test`, task: `Docker: Run All Tests`) with ≥75% coverage
+3. Relevant LegalBench tasks — required on PRs labeled `reasoning-change`, nightly otherwise
 4. Manual review of agent traces for auditability
 
-See `AGENTS.md` → "Quality Gates" and "Testing Standards" sections.
+See [AGENTS.md](AGENTS.md) → "Evaluation & Quality Gates (Mandatory)" and "Testing Standards (Mandatory)" sections.
 
 ---
 

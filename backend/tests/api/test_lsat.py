@@ -213,18 +213,17 @@ async def test_concepts_unknown_returns_404(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_tutor_falls_back_when_ollama_unreachable(
+async def test_tutor_falls_back_when_no_provider_is_reachable(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Tutor never hard-fails when Ollama is offline (constitution §1)."""
-    import httpx
-
+    """Tutor never hard-fails when the whole provider chain is down."""
+    from law_ai.core import llm as llm_mod
     from law_ai.lsat.services import tutor as tutor_mod
 
-    async def boom(prompt: str, *, model: str) -> str:
-        raise httpx.ConnectError("offline")
+    async def boom(*args: object, **kwargs: object) -> object:
+        raise llm_mod.LLMUnavailableError("every provider failed")
 
-    monkeypatch.setattr(tutor_mod, "_ollama_generate", boom)
+    monkeypatch.setattr(tutor_mod.llm, "agenerate", boom)
 
     bank = load_bank()
     qid, q = next(iter(bank.items()))
@@ -245,16 +244,22 @@ async def test_tutor_falls_back_when_ollama_unreachable(
 async def test_tutor_uses_llm_when_available(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """When Ollama returns a parseable payload, it surfaces in the response."""
+    """A parseable payload from the chain surfaces in the response."""
+    from law_ai.core.llm.base import LLMResult
     from law_ai.lsat.services import tutor as tutor_mod
 
-    async def fake_generate(prompt: str, *, model: str) -> str:
-        return (
-            '{"coaching": "Walkthrough: think contrapositive then re-check.", '
-            '"next_steps": ["Diagram conditionals", "Review modus tollens"]}'
+    async def fake_generate(*args: object, **kwargs: object) -> LLMResult:
+        return LLMResult(
+            text=(
+                '{"coaching": "Walkthrough: think contrapositive then re-check.", '
+                '"next_steps": ["Diagram conditionals", "Review modus tollens"]}'
+            ),
+            provider="claude_code",
+            model="claude-opus-5",
+            latency_ms=1.0,
         )
 
-    monkeypatch.setattr(tutor_mod, "_ollama_generate", fake_generate)
+    monkeypatch.setattr(tutor_mod.llm, "agenerate", fake_generate)
 
     bank = load_bank()
     qid = next(iter(bank))
@@ -267,26 +272,29 @@ async def test_tutor_uses_llm_when_available(
     assert body["used_llm"] is True
     assert "Walkthrough" in body["coaching"]
     assert len(body["next_steps"]) == 2
-    assert body["model"] == settings.OLLAMA_DEFAULT_MODEL
+    assert body["model"] == "claude_code/claude-opus-5"
 
 
 @pytest.mark.asyncio
-async def test_tutor_routes_to_claude_code_when_active(
+async def test_tutor_reports_the_serving_provider(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Dev-time opt-in: when Claude Code is active the tutor uses it, not Ollama."""
-    from law_ai.core import claude_code as cc_mod
+    """The response reports the tier the chain actually used."""
+    from law_ai.core.llm.base import LLMResult
+    from law_ai.lsat.services import tutor as tutor_mod
 
-    async def fake_generate(prompt: str, *, system: str | None = None) -> str:
-        return (
-            '{"coaching": "Claude Code walkthrough of the contrapositive.", '
-            '"next_steps": ["Diagram conditionals", "Recheck modus tollens"]}'
+    async def fake_generate(*args: object, **kwargs: object) -> LLMResult:
+        return LLMResult(
+            text=(
+                '{"coaching": "Claude Code walkthrough of the contrapositive.", '
+                '"next_steps": ["Diagram conditionals", "Recheck modus tollens"]}'
+            ),
+            provider="claude_code",
+            model="claude-opus-5",
+            latency_ms=1.0,
         )
 
-    # Force the dev-only gate on without depending on the test environment.
-    monkeypatch.setattr(cc_mod, "is_active", lambda: True)
-    monkeypatch.setattr(cc_mod, "generate", fake_generate)
-    monkeypatch.setattr(cc_mod, "model", lambda: "claude-opus-4-8")
+    monkeypatch.setattr(tutor_mod.llm, "agenerate", fake_generate)
 
     bank = load_bank()
     qid = next(iter(bank))
@@ -296,27 +304,32 @@ async def test_tutor_routes_to_claude_code_when_active(
     assert res.status_code == 200
     body = res.json()
     assert body["used_llm"] is True
-    assert body["model"] == "claude_code/claude-opus-4-8"
+    assert body["model"] == "claude_code/claude-opus-5"
     assert "Claude Code walkthrough" in body["coaching"]
     assert len(body["next_steps"]) == 2
 
 
 @pytest.mark.asyncio
-async def test_tutor_claude_code_strips_markdown_fence(
+async def test_tutor_strips_markdown_fence(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A fenced ```json block from Claude still parses into structured coaching."""
-    from law_ai.core import claude_code as cc_mod
+    """A fenced ```json block still parses into structured coaching."""
+    from law_ai.core.llm.base import LLMResult
+    from law_ai.lsat.services import tutor as tutor_mod
 
-    async def fenced(prompt: str, *, system: str | None = None) -> str:
-        return (
-            "```json\n"
-            '{"coaching": "Fenced but valid.", "next_steps": ["Step one"]}\n'
-            "```"
+    async def fenced(*args: object, **kwargs: object) -> LLMResult:
+        return LLMResult(
+            text=(
+                "```json\n"
+                '{"coaching": "Fenced but valid.", "next_steps": ["Step one"]}\n'
+                "```"
+            ),
+            provider="claude_code",
+            model="claude-opus-5",
+            latency_ms=1.0,
         )
 
-    monkeypatch.setattr(cc_mod, "is_active", lambda: True)
-    monkeypatch.setattr(cc_mod, "generate", fenced)
+    monkeypatch.setattr(tutor_mod.llm, "agenerate", fenced)
 
     bank = load_bank()
     qid = next(iter(bank))
@@ -329,19 +342,18 @@ async def test_tutor_claude_code_strips_markdown_fence(
 
 
 @pytest.mark.asyncio
-async def test_tutor_falls_back_when_claude_code_errors(
+async def test_tutor_falls_back_when_the_provider_errors(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Claude Code transport failure degrades to the offline path, never 500s."""
+    """A transport failure degrades to the offline path, never 500s."""
     import httpx
 
-    from law_ai.core import claude_code as cc_mod
+    from law_ai.lsat.services import tutor as tutor_mod
 
-    async def boom(prompt: str, *, system: str | None = None) -> str:
-        raise httpx.ConnectError("oauth endpoint unreachable")
+    async def boom(*args: object, **kwargs: object) -> object:
+        raise httpx.ConnectError("provider unreachable")
 
-    monkeypatch.setattr(cc_mod, "is_active", lambda: True)
-    monkeypatch.setattr(cc_mod, "generate", boom)
+    monkeypatch.setattr(tutor_mod.llm, "agenerate", boom)
 
     bank = load_bank()
     qid, q = next(iter(bank.items()))

@@ -26,16 +26,26 @@ env = environ.Env(
     FALLBACK_MODEL=(str, "mistral:7b-instruct-q4_K_M"),
     OLLAMA_DEFAULT_MODEL=(str, "mistral:7b-instruct-q4_K_M"),
     OLLAMA_REQUEST_TIMEOUT_S=(float, 120.0),
-    # LSAT LLM provider selector. Default "ollama" (product runtime, local-first
-    # per constitution §1). "claude_code" is a dev-time-only opt-in that routes
-    # the LSAT tutor through a local Claude Code OAuth subscription; it is
-    # ignored outside development (see law_ai.core.claude_code).
-    LSAT_LLM_PROVIDER=(str, "ollama"),
-    # Claude Code OAuth (dev-time only). Token comes from `claude setup-token`.
+    # Ordered LLM provider chain (spec 034). Tried left to right; the first
+    # provider that is configured and answers serves the request. Claude is the
+    # product-runtime default (constitution §1, amended 2026-08-11) with the
+    # Anthropic API key and then local Ollama as fallbacks.
+    LLM_PROVIDER_CHAIN=(str, "claude_code,anthropic_api,ollama"),
+    # Legacy single-provider pin for the LSAT surface; the chain above is the
+    # real selector. Empty = follow the chain.
+    LSAT_LLM_PROVIDER=(str, ""),
+    # Claude credentials. OAuth token comes from `claude setup-token`; the API
+    # key is the standard ANTHROPIC_API_KEY used as the second-tier fallback.
     ANTHROPIC_BASE_URL=(str, "https://api.anthropic.com"),
+    ANTHROPIC_API_KEY=(str, ""),
+    ANTHROPIC_MODEL=(str, ""),
     CLAUDE_CODE_OAUTH_TOKEN=(str, ""),
-    CLAUDE_CODE_MODEL=(str, "claude-opus-4-8"),
-    CLAUDE_CODE_MAX_TOKENS=(int, 2048),
+    CLAUDE_CODE_MODEL=(str, "claude-opus-5"),
+    # Thinking is on by default on Claude Opus 5 and max_tokens caps thinking
+    # *plus* response text, so the old 2048 truncates real answers mid-document.
+    CLAUDE_CODE_MAX_TOKENS=(int, 8192),
+    # Reasoning depth: low | medium | high | xhigh | max. Empty = API default.
+    CLAUDE_EFFORT=(str, ""),
     CLAUDE_CODE_REQUEST_TIMEOUT_S=(float, 60.0),
     # Retry attempts for transient Anthropic errors (429/5xx/529 overloaded).
     CLAUDE_CODE_MAX_RETRIES=(int, 3),
@@ -113,13 +123,17 @@ FALLBACK_MODEL: str = env("FALLBACK_MODEL")
 OLLAMA_DEFAULT_MODEL: str = env("OLLAMA_DEFAULT_MODEL")
 OLLAMA_REQUEST_TIMEOUT_S: float = env.float("OLLAMA_REQUEST_TIMEOUT_S")
 
-# LSAT LLM provider + Claude Code OAuth (dev-time only — see
-# law_ai.core.claude_code; Ollama stays the product runtime per constitution §1).
+# LLM provider chain — Claude first, Anthropic API key second, Ollama last
+# (constitution §1 as amended; see law_ai.core.llm.router).
+LLM_PROVIDER_CHAIN: str = env("LLM_PROVIDER_CHAIN")
 LSAT_LLM_PROVIDER: str = env("LSAT_LLM_PROVIDER")
 ANTHROPIC_BASE_URL: str = env("ANTHROPIC_BASE_URL")
+ANTHROPIC_API_KEY: str = env("ANTHROPIC_API_KEY")
+ANTHROPIC_MODEL: str = env("ANTHROPIC_MODEL")
 CLAUDE_CODE_OAUTH_TOKEN: str = env("CLAUDE_CODE_OAUTH_TOKEN")
 CLAUDE_CODE_MODEL: str = env("CLAUDE_CODE_MODEL")
 CLAUDE_CODE_MAX_TOKENS: int = env.int("CLAUDE_CODE_MAX_TOKENS")
+CLAUDE_EFFORT: str = env("CLAUDE_EFFORT")
 CLAUDE_CODE_REQUEST_TIMEOUT_S: float = env.float("CLAUDE_CODE_REQUEST_TIMEOUT_S")
 CLAUDE_CODE_MAX_RETRIES: int = env.int("CLAUDE_CODE_MAX_RETRIES")
 

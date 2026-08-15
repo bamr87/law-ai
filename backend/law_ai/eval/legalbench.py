@@ -95,6 +95,13 @@ class LegalBenchConfig:
 def _call_ollama(prompt: str, *, model: str, base_url: str, timeout: int = 120) -> str:
     """Send a generate request to the local Ollama HTTP API.
 
+    **Deliberately not routed through the provider chain** (spec 034). The
+    harness measures one named model against a fixed benchmark, so a silent
+    fallback to a different provider would silently change what is being
+    measured and make scores non-comparable across runs — the 1 pp regression
+    policy would then be enforcing noise. Point this at a different model by
+    configuration, never by letting the chain choose.
+
     Deliberately avoids importing ``langchain_ollama`` so the eval harness
     works even when the ``local-ai`` extras aren't installed.
 

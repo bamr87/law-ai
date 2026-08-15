@@ -71,7 +71,9 @@ async def test_dispatched_cases_carry_agent_version() -> None:
 
         tf = TopicFrontier(
             neo4j_session_factory=_real_session,
-            ollama_caller=lambda *_, **__: '[{"query": "integration test", "jurisdiction": "*", "reason": "test", "priority": 1}]',
+            llm_caller=lambda *_, **__: (
+                '[{"query": "integration test", "jurisdiction": "*", "reason": "test", "priority": 1}]'
+            ),
             registry={"courtlistener": adapter},
             scout_factory=lambda: scout,
         )

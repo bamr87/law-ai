@@ -192,10 +192,23 @@ export function fetchSpecs() {
   return getJson<{ specs: SpecInfo[]; count: number }>('/api/agents/specs')
 }
 
+/** One provider tier in LLM_PROVIDER_CHAIN, in the order it is tried. */
+export interface LLMProviderStatus {
+  provider: string
+  position: number
+  configured: boolean
+  reachable?: boolean
+  model?: string
+  reason?: string
+  error?: string
+}
+
 export interface LocalAIHealth {
   ollama: { reachable: boolean; models: string[]; error?: string }
   checkpointer: { kind: string; reachable: boolean; error?: string }
   phoenix: { reachable: boolean; ui_url: string; enabled: boolean; error?: string }
+  /** Ordered provider chain; the first configured + reachable tier serves. */
+  llm_chain?: LLMProviderStatus[]
 }
 
 export function fetchLocalAIHealth() {

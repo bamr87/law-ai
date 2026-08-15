@@ -198,7 +198,12 @@ async def test_generate_persists_and_lists(client: AsyncClient) -> None:
             ]
         }
     )
-    with patch.object(mod, "_ollama_generate", new=AsyncMock(return_value=payload)):
+    from law_ai.core.llm.base import LLMResult
+
+    result = LLMResult(
+        text=payload, provider="claude_code", model="claude-opus-5", latency_ms=1.0
+    )
+    with patch.object(mod.llm, "agenerate", new=AsyncMock(return_value=result)):
         res = await client.post(
             "/api/lsat/proposals/generate",
             json={"section": "LR", "difficulty": "med", "count": 1},

@@ -25,7 +25,7 @@ Open, machine-readable corpora used by Law AI.
 - Endpoint: `GET /opinions/{id}/` and `GET /opinions/?cursor=...`
 - Client: [backend/law_ai/ingestionapp/services/courtlistener.py](../backend/law_ai/ingestionapp/services/courtlistener.py)
 - Configuration:
-  - `COURTLISTENER_API_KEY` — env var read by `core.config.settings`. Optional but recommended.
+  - `COURTLISTENER_API_KEY` — env var defined in [backend/law_ai/settings/base.py](../backend/law_ai/settings/base.py), read via `law_ai.core.settings_proxy`. Optional but recommended.
 - Retry policy: 3 attempts, exponential backoff on 429 / 5xx / transport errors (`tenacity.AsyncRetrying`).
 - Sample command: `make ingest` (defaults to `--limit 500 --source courtlistener`).
 
@@ -42,11 +42,14 @@ Open, machine-readable corpora used by Law AI.
   - **Underlying CRS text** is uncopyrightable U.S. state-government work; redistributable.
   - **Justia commentary / page chrome** is CC-BY 4.0; we do not store commentary, only the section body text we extract.
   - Cached source HTML is provenance-tracked (`source_url` on every node). Any future public dataset export will exclude raw cached HTML.
-- Sample command:
+- Sample command (Docker-first — see [CLAUDE.md](../CLAUDE.md); never run this bare on the host):
   ```bash
-  cd backend
-  python scripts/ingest_sample.py --source colorado_statutes --titles 18 --dry-run
-  python scripts/ingest_sample.py --source colorado_statutes --titles 18,42  # commits to Neo4j
+  docker compose run --rm backend python scripts/ingest_sample.py --source colorado_statutes --titles 18 --dry-run
+  docker compose run --rm backend python scripts/ingest_sample.py --source colorado_statutes --titles 18,42  # commits to Neo4j
   ```
 - v1 scope: Colorado Title 18 (Criminal Code), Article 3 (Offenses Against the Person). Additional titles are a one-line `--titles` change.
 - Follow-ups: live-network nightly smoke (BL-20260509-04), Denver Municipal Code (BL-20260509-05), PDF fallback (BL-20260509-06), `:CITES_STATUTE` edges from existing case law (BL-20260509-07).
+
+## Autonomy source adapters
+
+The autonomy orchestrator (`make autonomy-run KIND=… SOURCE=…`) does not call the `services/` clients above directly — it goes through a thin adapter layer at [backend/law_ai/ingestionapp/sources/](../backend/law_ai/ingestionapp/sources/) (`SourceAdapter`, `RawDoc`, `SOURCE_REGISTRY`, spec 018), which wraps `services/courtlistener.py` and `services/colorado_statutes.py` for scheduled/autonomous runs. The `services/` clients documented above remain the real HTTP clients; the adapter layer only normalizes their output for the autonomy loop.
