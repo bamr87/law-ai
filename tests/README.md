@@ -27,9 +27,7 @@ pytest -m "smoke or specs or backend or frontend"
 
 ## Running from the Makefile
 
-The `make` targets below wrap `docker compose run --rm <service>` (or, for
-`lint-specs`, run the two linter scripts directly on the host) — they call
-into the per-stack suites, **not** through this root orchestrator's markers:
+The `make` targets below wrap `docker compose run --rm <service>` (or, for `lint-specs`, run the two linter scripts directly on the host) — they call into the per-stack suites, **not** through this root orchestrator's markers:
 
 ```bash
 make test-backend    # backend pytest suite only (excludes integration + legalbench)
@@ -38,14 +36,7 @@ make test            # test-backend + test-frontend
 make lint-specs      # scripts/spec_validator.py + scripts/backlog_lint.py (host, stdlib-only)
 ```
 
-`make test-smoke` currently also shells into the backend container and runs
-the same suite as `make test-backend` — it does not invoke this root
-`tests/` package's `smoke`/`specs` tier or the lint scripts, despite the
-name. To run this package's own `smoke`/`specs` markers (or the full
-`smoke or specs or backend or frontend` combination) directly, use the
-`pytest` invocations under "Common invocations" above from the repo root —
-they're deliberately dependency-light (stdlib + pytest only) and are what
-CI's `repo-structural` job runs on the bare GitHub runner, outside Docker.
+`make test-smoke` currently also shells into the backend container and runs the same suite as `make test-backend` — it does not invoke this root `tests/` package's `smoke`/`specs` tier or the lint scripts, despite the name. To run this package's own `smoke`/`specs` markers (or the full `smoke or specs or backend or frontend` combination) directly, use the `pytest` invocations under "Common invocations" above from the repo root — they're deliberately dependency-light (stdlib + pytest only) and are what CI's `repo-structural` job runs on the bare GitHub runner, outside Docker.
 
 ## Design notes
 

@@ -9,21 +9,14 @@
 
 ## 1. Problem & Motivation
 
-Three loose ends from the audit, all about surfacing what the backend
-already knows:
+Three loose ends from the audit, all about surfacing what the backend already knows:
 
 1. **The live trace had no consumer.** Spec 032 made agent events genuinely
-   deliverable and shipped the client primitive, but Analysis Studio still
-   showed an undifferentiated spinner for the whole run (BL-20260811-13).
+deliverable and shipped the client primitive, but Analysis Studio still showed an undifferentiated spinner for the whole run (BL-20260811-13).
 2. **Citation verification was invisible.** Since spec 026 the backend has
-   returned `verified` per source — the very flag that distinguishes an
-   authority resolved against the knowledge graph from one the model
-   asserted — and the UI rendered every citation identically
-   (BL-20260810-02 remainder).
+returned `verified` per source — the very flag that distinguishes an authority resolved against the knowledge graph from one the model asserted — and the UI rendered every citation identically (BL-20260810-02 remainder).
 3. **Editor tooling contradicted Docker-first.** AGENTS.md forbids host
-   `pytest`/`ruff`/`mypy`/`npm`, but Pylance and ESLint need an interpreter
-   and a `node_modules` to work at all, so IntelliSense and test discovery
-   were either broken or quietly violating the rule (BL-20260810-09).
+`pytest`/`ruff`/`mypy`/`npm`, but Pylance and ESLint need an interpreter and a `node_modules` to work at all, so IntelliSense and test discovery were either broken or quietly violating the rule (BL-20260810-09).
 
 ## 2. Goals
 
@@ -57,20 +50,13 @@ already knows:
 - **FR-2**: Each `agent_step` renders immediately in a `LiveTrace` panel
   (agent name, latency, and a `degraded` marker when no engine ran).
 - **FR-3**: Streaming is strictly an enhancement: if the socket fails to
-  open, the request proceeds **without** `stream_id` and the REST response
-  remains authoritative. The live panel renders nothing rather than showing
-  an empty "live" box that never fills.
+open, the request proceeds **without** `stream_id` and the REST response remains authoritative. The live panel renders nothing rather than showing an empty "live" box that never fills.
 - **FR-4**: The socket is closed in `finally`, so neither success nor
   failure leaks a connection.
 - **FR-5**: Sources render a `verified in graph` badge when
-  `verified === true` and an `unverified` badge (with an explanatory
-  tooltip) when `verified === false`; when the field is absent — an older
-  path that never ran the check — no badge is shown rather than guessing.
+`verified === true` and an `unverified` badge (with an explanatory tooltip) when `verified === false`; when the field is absent — an older path that never ran the check — no badge is shown rather than guessing.
 - **FR-6**: `.devcontainer/devcontainer.json` attaches VS Code to the
-  existing compose `backend` service with `overrideCommand` (so daphne does
-  not own the container lifecycle), the sanctioned extension set, pytest
-  discovery enabled, and `PHOENIX_COLLECTOR_ENDPOINT=""` so in-editor test
-  runs never hit the tracing collector.
+existing compose `backend` service with `overrideCommand` (so daphne does not own the container lifecycle), the sanctioned extension set, pytest discovery enabled, and `PHOENIX_COLLECTOR_ENDPOINT=""` so in-editor test runs never hit the tracing collector.
 
 ## 6. Non-Functional Requirements
 
@@ -85,8 +71,7 @@ None.
 
 ## 8. API Surface
 
-None — consumes the `stream_id` and `verified` fields shipped by specs
-032 and 026.
+None — consumes the `stream_id` and `verified` fields shipped by specs 032 and 026.
 
 ## 9. Agent / Crew Impact
 
@@ -110,15 +95,10 @@ None.
 ## 12. Risks & Open Questions
 
 - **R-1**: jsdom has no WebSocket, so component tests exercise the
-  *fallback* path. The streaming path is covered by the backend end-to-end
-  test (spec 032) plus the `lib/agentStream` unit tests; a browser-level
-  test of the two together needs the Playwright e2e harness that does not
-  exist yet.
+*fallback* path. The streaming path is covered by the backend end-to-end test (spec 032) plus the `lib/agentStream` unit tests; a browser-level test of the two together needs the Playwright e2e harness that does not exist yet.
 - **R-2**: A `verified` badge reflects resolution against *our* corpus, not
-  correctness of the proposition — the tooltip says so explicitly to avoid
-  the §13 "authority ≠ correctness" trap.
+correctness of the proposition — the tooltip says so explicitly to avoid the §13 "authority ≠ correctness" trap.
 
 ## 13. Out of Scope / Follow-ups
 
-See `tasks.md` → `## Follow-ups Discovered` (mirrored into BACKLOG.md as
-BL-20260811-16 … BL-20260811-18).
+See `tasks.md` → `## Follow-ups Discovered` (mirrored into BACKLOG.md as BL-20260811-16 … BL-20260811-18).

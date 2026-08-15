@@ -56,18 +56,15 @@ Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md)
 ## Follow-ups Discovered
 
 - Real Neo4j GraphRAG retriever as `LegalWorkflow`'s default, logged via
-  `log_graph_query`, replacing the `[]` stub (extends BL-20260502-04; the
-  coverage envelope from FR-4 is ready to carry real counts).
+`log_graph_query`, replacing the `[]` stub (extends BL-20260502-04; the coverage envelope from FR-4 is ready to carry real counts).
 - Render the coverage envelope + `verified` citation flags in Analysis Studio
   (frontend half of BL-20260803-02/03; backend now ships the data).
 - Close the ingestion HITL loop: `PendingReview.approved` has no consumer — an
-  approval must commit quarantined knowledge to Neo4j; `ENABLE_HUMAN_APPROVAL_GATES`
-  is currently a dead flag.
+approval must commit quarantined knowledge to Neo4j; `ENABLE_HUMAN_APPROVAL_GATES` is currently a dead flag.
 - LegalBench: real task data + persisted baseline + CI regression gate (today
   runs score 3–7 synthetic stubs and reports land in CWD-relative paths).
 - Unified resilient Ollama client (retry/backoff/timeout) shared by tutor,
-  content author, factory, TopicFrontier, TestSynthesizer — reconcile with the
-  PR #19 `LLMClient` rebase (BL-20260716-01).
+content author, factory, TopicFrontier, TestSynthesizer — reconcile with the PR #19 `LLMClient` rebase (BL-20260716-01).
 - WS streaming rework: emit `agent_step` events DURING the run (not post-hoc)
   and authenticate the consumer; frontend subscriber.
 - UPL guardrail: "not legal advice" disclaimer + review-status banner across
