@@ -38,15 +38,10 @@ Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md)
 ## Follow-ups Discovered
 
 - Durable LangGraph checkpointer threads on the default `/api/analysis` path
-  (resume by `thread_id`), managing the AsyncPostgresSaver lifecycle
-  per-request or via a pooled saver.
+(resume by `thread_id`), managing the AsyncPostgresSaver lifecycle per-request or via a pooled saver.
 - Migrate the LSAT tutor, LSATContentAuthor, and factory executors onto
-  `agents_runtime.llm` so the dual-provider (claude_code/Ollama) agents share
-  the retry-wrapped transport; reconcile with the PR #19 `LLMClient` rebase
-  (BL-20260716-01).
+`agents_runtime.llm` so the dual-provider (claude_code/Ollama) agents share the retry-wrapped transport; reconcile with the PR #19 `LLMClient` rebase (BL-20260716-01).
 - Share the Ollama availability-probe verdict across workers (Redis key with
   the same TTL) so multi-process deployments don't probe independently.
 - Surface engine state in the Analysis Studio UI: distinguish "engine
-  unavailable (degraded)" responses from real LangGraph runs using
-  `irac.degraded` + `irac.rule` markers, so users know Ollama is down rather
-  than reading an empty-looking analysis.
+unavailable (degraded)" responses from real LangGraph runs using `irac.degraded` + `irac.rule` markers, so users know Ollama is down rather than reading an empty-looking analysis.

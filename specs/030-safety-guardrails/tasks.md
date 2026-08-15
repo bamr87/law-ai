@@ -33,14 +33,10 @@ Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md)
 ## Follow-ups Discovered
 
 - Have counsel review the disclaimer wording and decide whether a
-  jurisdiction-specific or first-run acknowledgement (click-through) is
-  warranted; the current text is engineering-authored.
+jurisdiction-specific or first-run acknowledgement (click-through) is warranted; the current text is engineering-authored.
 - Per-user/API-key quotas instead of per-IP throttling: behind a shared
-  proxy the current `llm` scope under-serves legitimate users, and real
-  quotas need the user accounts that do not exist yet.
+proxy the current `llm` scope under-serves legitimate users, and real quotas need the user accounts that do not exist yet.
 - `AuditEvent` rows are not written under async+eager (tests/dev) — JSONL is
-  the record there. If dev parity matters, run the DB leg in a worker thread
-  with `close_old_connections()` rather than skipping it.
+the record there. If dev parity matters, run the DB leg in a worker thread with `close_old_connections()` rather than skipping it.
 - Surface a "local LLM offline" state in Analysis Studio distinct from the
-  generic degraded banner (pairs with BL-20260810-16), so users know to
-  start Ollama rather than assuming an empty corpus.
+generic degraded banner (pairs with BL-20260810-16), so users know to start Ollama rather than assuming an empty corpus.
