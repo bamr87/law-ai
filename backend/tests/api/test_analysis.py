@@ -334,10 +334,16 @@ async def test_agent_ws_events_emitted(
 
     # Each call: group_send(group_name, {"type": "agent_event", "payload": {...}})
     payloads = [c.args[1]["payload"] for c in calls]
-    assert payloads[0]["type"] == "agent_step"
-    assert payloads[0]["agent"] == "LegalAnalyst"
-    assert payloads[1]["type"] == "agent_step"
-    assert payloads[1]["agent"] == "PrecedentHunter"
+
+    # Both agent_step events are emitted from *inside* the asyncio.gather in
+    # _run_analysis (law_ai/analysis/urls.py) — emitting there is deliberate so
+    # each step streams as its agent finishes. Whichever agent finishes first
+    # therefore emits first, so the relative order of the two steps is
+    # non-deterministic; assert on the set, not on the index. The `complete`
+    # event is awaited after the gather, so it is deterministically last.
+    steps = payloads[:2]
+    assert [p["type"] for p in steps] == ["agent_step", "agent_step"]
+    assert {p["agent"] for p in steps} == {"LegalAnalyst", "PrecedentHunter"}
     assert payloads[2]["type"] == "complete"
     assert payloads[2]["analysis_id"] == res.json()["id"]
 
