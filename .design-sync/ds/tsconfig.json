@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2021",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "jsx": "react-jsx",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noEmit": true,
+    "baseUrl": "../..",
+    "paths": {
+      "@/*": ["frontend/*", "lsat-static/*"],
+      "next/link": [".design-sync/ds/shims/next-link.tsx"],
+      "next/navigation": [".design-sync/ds/shims/next-navigation.tsx"]
+    }
+  }
+}
