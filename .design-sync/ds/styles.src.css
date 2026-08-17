@@ -1,0 +1,60 @@
+/* Combined stylesheet source for the design-sync bundle.
+ *
+ * Law AI has two styling idioms and this file compiles both into one entry:
+ *
+ *   1. frontend/  styles entirely with Tailwind v4 utility classes, so the
+ *      utilities its components actually use must be compiled into static CSS
+ *      for previews (and designs built with this DS) to render. `@source`
+ *      points the v4 scanner at the real component/page sources.
+ *   2. lsat-static/ ships a hand-written CSS design system (tokens + semantic
+ *      classes). It is imported here verbatim so it stays in lockstep with the
+ *      app's own globals.css rather than being duplicated.
+ *
+ * Tailwind is imported first so lsat-static's semantic rules win wherever the
+ * two overlap (notably preflight's element resets).
+ *
+ * Regenerate with the command in .design-sync/NOTES.md whenever frontend
+ * components gain new utility classes or lsat-static's globals.css changes.
+ */
+@import "tailwindcss";
+@import "../../lsat-static/app/globals.css";
+
+@source "../../frontend/components";
+@source "../../frontend/app";
+@source "../previews";
+
+/* Tailwind v4 emits only the utilities it finds in the scanned sources. That is
+ * correct for the app, but this stylesheet is also what designs BUILT with this
+ * DS receive — and an agent composing new layouts will reach for utilities the
+ * Law AI apps happen not to use yet. Without them those designs render
+ * unstyled, silently.
+ *
+ * The safelist below pre-generates the common surface across the palette the DS
+ * actually uses (slate/blue/emerald/amber/red/indigo), plus the spacing,
+ * radius, typography and layout utilities that any new composition needs.
+ * Keep the palette list in sync with the families named in conventions.md. */
+@source inline("{hover:,focus:,md:,lg:,}{bg,text,border,ring,from,via,to}-{slate,blue,emerald,amber,red,indigo}-{50,100,200,300,400,500,600,700,800,900,950}");
+@source inline("{bg,text,border}-{slate,blue,emerald,amber,red,indigo}-{500,600,700,800,900}/{5,10,15,20,25,30,40,50,60,70,75,80,90}");
+@source inline("{p,px,py,pt,pr,pb,pl,m,mx,my,mt,mr,mb,ml,gap,gap-x,gap-y,space-x,space-y}-{0,0.5,1,1.5,2,2.5,3,3.5,4,5,6,8,10,12,16,20,24}");
+@source inline("{sm:,md:,lg:,}{w,h,min-w,min-h,max-w,max-h}-{0,1,2,3,4,5,6,8,10,12,16,20,24,32,40,48,56,64,72,80,96,full,screen,min,max,fit,auto}");
+@source inline("max-w-{xs,sm,md,lg,xl,2xl,3xl,4xl,5xl,6xl,7xl,prose,none}");
+@source inline("{sm:,md:,lg:,}{grid-cols,col-span}-{1,2,3,4,5,6,12}");
+@source inline("text-{xs,sm,base,lg,xl,2xl,3xl,4xl,5xl}");
+@source inline("font-{thin,light,normal,medium,semibold,bold,extrabold}");
+@source inline("rounded{,-none,-sm,-md,-lg,-xl,-2xl,-3xl,-full}");
+@source inline("shadow{,-sm,-md,-lg,-xl,-2xl,-none,-inner}");
+@source inline("{sm:,md:,lg:,}{flex,grid,block,inline-block,inline-flex,hidden,contents}");
+@source inline("{items,justify,self,content}-{start,end,center,between,around,evenly,stretch,baseline}");
+@source inline("{flex-row,flex-col,flex-wrap,flex-nowrap,flex-1,flex-auto,flex-none,shrink,shrink-0,grow,grow-0}");
+@source inline("{absolute,relative,fixed,sticky,static}");
+@source inline("{overflow,overflow-x,overflow-y}-{auto,hidden,visible,scroll}");
+@source inline("{opacity,z}-{0,10,20,30,40,50,60,70,75,80,90,100}");
+@source inline("{uppercase,lowercase,capitalize,truncate,tabular-nums,antialiased,italic,underline,tracking-tight,tracking-wide,leading-tight,leading-snug,leading-normal,leading-relaxed,whitespace-nowrap,backdrop-blur,transition,cursor-pointer}");
+@source inline("text-{left,center,right,justify}");
+@source inline("border{,-0,-2,-4,-8,-t,-r,-b,-l}");
+
+/* Mirrors frontend/app/globals.css — the platform app's own root tokens. */
+:root {
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+}
