@@ -8,15 +8,18 @@ set +e
 payload="$(cat)"
 f="$(printf '%s' "$payload" | python3 -c 'import json,sys;d=json.load(sys.stdin);ti=d.get("tool_input") or {};tr=d.get("tool_response") or {};print(ti.get("file_path") or tr.get("filePath") or "")' 2>/dev/null)"
 
+# Anchor on THIS project's root, not the shell cwd: in cross-repo sessions the
+# cwd can be a sibling checkout whose specs/ would otherwise match below and
+# get gated with this repo's script paths (spec 038, backported from gitorio).
+root="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+
 # PostToolUse fires only on successful Write/Edit calls, whose file_path is
-# always absolute — no relative-path case needed.
+# always absolute. Gate only files inside THIS repo — sibling repos run their
+# own gates.
 case "$f" in
-  *BACKLOG.md | */specs/*) ;;
+  "$root"/BACKLOG.md | "$root"/specs/*) ;;
   *) exit 0 ;;
 esac
-
-# Locate repo root (hook cwd is normally the project root, but be defensive).
-root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 sv_out="$(cd "$root" && python3 scripts/spec_validator.py 2>&1)"; sv=$?
 bl_out="$(cd "$root" && python3 scripts/backlog_lint.py 2>&1)"; bl=$?
 out="$(printf '%s\n---\n%s' "$sv_out" "$bl_out")"

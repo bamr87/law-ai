@@ -43,7 +43,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 2  # backlog_lint.py compares against HEAD~1
+          # In CI the checked-out worktree IS HEAD, so the append-only diff
+          # must run against the parent (BACKLOG_LINT_BASE below); depth 2
+          # makes HEAD^1 available (previous commit on push; base-branch tip
+          # on a PR merge commit).
+          fetch-depth: 2
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -51,6 +55,8 @@ jobs:
         run: python scripts/spec_validator.py
       - name: Validate BACKLOG.md
         run: python scripts/backlog_lint.py
+        env:
+          BACKLOG_LINT_BASE: HEAD^1
 
   repo-structural:
     name: Repo Structural Tests (docs / specs / configs)
