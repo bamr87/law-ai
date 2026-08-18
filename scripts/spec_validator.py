@@ -8,8 +8,9 @@ Enforces that every spec under ``specs/NNN-*`` is internally consistent:
 * Every ``FR-*``, ``NFR-*``, and ``AC-*`` ID defined in ``spec.md`` is
   referenced by at least one task in ``tasks.md``.
 * ``tasks.md`` contains a ``## Follow-ups Discovered`` section so every
-  implementation cycle is forced to record next-step work — even if the
-  list is explicitly empty (the section must literally say ``_none_``).
+  implementation cycle is forced to record next-step work (the *content*
+  of the section is reviewed by humans/PR, not validated here; an
+  explicitly-empty list records ``_none — justified: <reason>_``).
 
 Exit code is non-zero if any spec fails. Used as a CI gate.
 
@@ -17,6 +18,13 @@ Usage::
 
     python scripts/spec_validator.py            # validate all specs/
     python scripts/spec_validator.py specs/001-foo
+
+Hardened 2026-08-17 (spec 038, backported from the gitorio port's adversarial
+review): template-identical files are exempt from the placeholder check so the
+documented /specify → /clarify → /plan lifecycle can actually pass; the
+requirement-coverage check is stage-aware (tasks.md is only filled by /tasks);
+explicit targets that don't exist and misnamed spec dirs fail loudly instead of
+being silently skipped; out-of-repo targets no longer crash the CLI.
 """
 from __future__ import annotations
 
@@ -40,10 +48,13 @@ TASK_STATUS_BLOCK_RE = re.compile(
 TASK_STATUS_INLINE_RE = re.compile(
     r"^- \[([ x~])\]\s+\*\*T-\d", re.MULTILINE
 )
-# Statuses that may legitimately still contain OPEN QUESTION blocks and
-# requirement IDs not yet mirrored into tasks.md. The spec workflow expects
-# `/clarify` to resolve OQs before the spec advances to `clarified`+.
+# Statuses that may legitimately still contain OPEN QUESTION blocks. The spec
+# workflow expects `/clarify` to resolve OQs before the spec advances to
+# `clarified`+.
 PRE_CLARIFY_STATUSES = {"draft"}
+# Statuses at which tasks.md is legitimately not yet filled (it is written by
+# /tasks), so requirement-coverage cannot be demanded before then.
+PRE_TASKS_STATUSES = {"draft", "clarified", "planned"}
 # Statuses that assert "all task work is complete". Validator rejects these
 # when tasks.md still contains any `[ ]` or `[~]` task. Conversely, leaving
 # unchecked tasks while declaring a not-shipped status is fine — that's the
@@ -65,18 +76,35 @@ TEMPLATE_MARKERS = (
 )
 
 
-def _iter_spec_dirs(targets: list[str]) -> Iterable[Path]:
+def _rel(p: Path) -> str:
+    try:
+        return str(p.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(p)
+
+
+def _iter_spec_dirs(targets: list[str], bad_targets: list[str]) -> Iterable[Path]:
     if targets:
         for t in targets:
             p = (REPO_ROOT / t).resolve()
             if p.is_dir():
                 yield p
+            else:
+                # A typo'd explicit target must fail loudly, not skip silently.
+                bad_targets.append(t)
         return
     if not SPECS_DIR.is_dir():
         return
     for child in sorted(SPECS_DIR.iterdir()):
-        if child.is_dir() and SPEC_DIR_RE.match(child.name):
+        if not child.is_dir() or child.name.startswith(("_", ".")):
+            continue
+        if SPEC_DIR_RE.match(child.name):
             yield child
+        else:
+            # A misnamed spec dir would otherwise get zero validation.
+            bad_targets.append(
+                f"{_rel(child)} (directory name must match NNN-kebab-slug)"
+            )
 
 
 def _extract_ids(text: str) -> set[str]:
@@ -88,12 +116,6 @@ def validate_spec(spec_dir: Path) -> list[str]:
     spec = spec_dir / "spec.md"
     plan = spec_dir / "plan.md"
     tasks = spec_dir / "tasks.md"
-
-    def _rel(p: Path) -> str:
-        try:
-            return str(p.relative_to(REPO_ROOT))
-        except ValueError:
-            return str(p)
 
     for required in (spec, plan, tasks):
         if not required.is_file():
@@ -119,7 +141,7 @@ def validate_spec(spec_dir: Path) -> list[str]:
     task_ids = _extract_ids(tasks_text)
 
     missing = sorted(spec_ids - task_ids)
-    if missing and not is_pre_clarify:
+    if missing and status not in PRE_TASKS_STATUSES:
         errors.append(
             f"{_rel(tasks)}: requirement(s) not referenced by any task: "
             + ", ".join(missing)
@@ -159,9 +181,18 @@ def validate_spec(spec_dir: Path) -> list[str]:
         )
 
     # Leftover-template-placeholder check: catches the "I copied _template/
-    # and forgot to fill it in" failure mode (PR #1, findings #5/#6).
+    # and forgot to fill it in" failure mode (PR #1, findings #5/#6). A file
+    # that is still BYTE-IDENTICAL to its _template/ counterpart is exempt —
+    # that is the documented intermediate state of the /specify → /clarify →
+    # /plan chain (plan.md and tasks.md are untouched copies until their stage
+    # runs). A file that was MODIFIED but still carries a placeholder is
+    # always an error.
+    template_dir = SPECS_DIR / "_template"
     for path in (spec, plan, tasks):
         text = path.read_text(encoding="utf-8")
+        tpl = template_dir / path.name
+        if tpl.is_file() and text == tpl.read_text(encoding="utf-8"):
+            continue
         for marker in TEMPLATE_MARKERS:
             if marker in text:
                 errors.append(
@@ -173,15 +204,20 @@ def validate_spec(spec_dir: Path) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    spec_dirs = list(_iter_spec_dirs(argv[1:]))
+    bad_targets: list[str] = []
+    spec_dirs = list(_iter_spec_dirs(argv[1:], bad_targets))
+    for bad in bad_targets:
+        print(f"FAIL {bad}: not a valid spec directory")
     if not spec_dirs:
+        if bad_targets:
+            return 1
         print("spec_validator: no specs to validate (this is fine)")
         return 0
 
-    failed = 0
+    failed = len(bad_targets)
     for d in spec_dirs:
         errs = validate_spec(d)
-        rel = d.relative_to(REPO_ROOT)
+        rel = _rel(d)
         if errs:
             failed += 1
             print(f"FAIL {rel}")

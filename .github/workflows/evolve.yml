@@ -35,7 +35,17 @@ jobs:
       - name: Run discovery audit
         id: audit
         run: |
+          # Default runner shell is `bash -e` WITHOUT pipefail, so tee's exit 0
+          # would mask an audit crash into an eternally-green weekly run.
+          set -o pipefail
           python scripts/evolve_audit.py | tee audit.out
+          # Capture the log as a real step output — the PR body interpolates
+          # steps.audit.outputs.audit, which was never set before (spec 038).
+          {
+            echo 'audit<<AUDIT_EOF'
+            cat audit.out
+            echo 'AUDIT_EOF'
+          } >> "$GITHUB_OUTPUT"
           if git diff --quiet BACKLOG.md; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else

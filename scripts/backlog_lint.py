@@ -8,14 +8,20 @@ Enforces:
 * Every bullet under ``## Open`` / ``## Claimed`` / ``## Done`` matches
   ``- **BL-YYYYMMDD-NN** — *<kind>, <severity>* — <text>``.
 * IDs are unique.
-* Items are never silently *removed* between commits: the previous
-  committed BACKLOG.md (if available via ``git show HEAD:BACKLOG.md``)
-  must be a strict subset of the current one.
+* Items are never silently *removed* against a baseline revision: the
+  committed BACKLOG.md at ``$BACKLOG_LINT_BASE`` (default ``HEAD``) must
+  be a strict subset of the current one. Locally (and via the edit hook)
+  the ``HEAD`` default catches uncommitted deletions; in CI the checked-out
+  worktree IS HEAD, so ci.yml sets ``BACKLOG_LINT_BASE: HEAD^1`` (with
+  fetch-depth 2) to compare against the previous commit / PR base —
+  otherwise the append-only check is a self-comparison no-op there
+  (spec 038, backported from the gitorio port's adversarial review).
 
 Exit code is non-zero on any violation. Used as a CI gate.
 """
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -42,9 +48,10 @@ def _ids(text: str) -> list[str]:
 
 
 def _previous_backlog() -> str | None:
+    base = os.environ.get("BACKLOG_LINT_BASE", "HEAD")
     try:
         result = subprocess.run(
-            ["git", "show", "HEAD:BACKLOG.md"],
+            ["git", "show", f"{base}:BACKLOG.md"],
             cwd=REPO_ROOT,
             check=True,
             capture_output=True,
