@@ -48,7 +48,7 @@ jobs:
         run: |-
           COUNT=$(gh run list --workflow "$GITHUB_WORKFLOW" --created "$(date -u +%Y-%m-%d)" --json databaseId --jq 'length')
           if [ "$COUNT" -ge "$LIMIT" ]; then echo "rate limit ($LIMIT/day) reached — stopping"; exit 1; fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: ⚙ agent.claude (ea)
         uses: anthropics/claude-code-action@v1
         with:
