@@ -38,9 +38,13 @@ class Candidate:
     severity: str  # low | med | high
     title: str
     rationale: str
+    surfaced: str = "weekly evolve audit"  # provenance tail, per the house bullet format
 
     def render(self, bl_id: str) -> str:
-        return f"- **{bl_id}** — *{self.kind}, {self.severity}* — {self.title}. {self.rationale}"
+        return (
+            f"- **{bl_id}** — *{self.kind}, {self.severity}* — {self.title}. "
+            f"{self.rationale} _Surfaced in:_ {self.surfaced}."
+        )
 
 
 def _iter_files() -> Iterable[Path]:
@@ -74,6 +78,7 @@ def _scan_todos() -> list[Candidate]:
                     severity=sev,
                     title=f"Resolve {tag} in {path.relative_to(REPO)}",
                     rationale=f'Comment: "{msg}"',
+                    surfaced="weekly evolve audit (TODO scan)",
                 )
             )
     return out
@@ -100,6 +105,7 @@ def _scan_missing_docs() -> list[Candidate]:
             severity="low",
             title=f"Author missing doc {doc}",
             rationale="Referenced by AGENTS.md but file does not exist.",
+            surfaced="weekly evolve audit (missing-docs scan)",
         )
         for doc in referenced
         if doc.split("/", 1)[1].lower() not in existing_lower
@@ -149,6 +155,7 @@ def _scan_coverage() -> list[Candidate]:
             severity="high" if total < 65.0 else "med",
             title=f"Backend coverage at {total:.0f}% (gate 65%, target 75%)",
             rationale=f"Lowest-coverage modules: {details}. Add unit tests.",
+            surfaced="weekly evolve audit (coverage scan)",
         )
     ]
 
@@ -192,6 +199,7 @@ def _scan_legalbench() -> list[Candidate]:
             severity="high",
             title=f"LegalBench regression detected in {len(regressions)} subset(s)",
             rationale=f"Deltas vs baseline: {details}. Review scoring and prompt changes.",
+            surfaced="weekly evolve audit (LegalBench scan)",
         )
     ]
 
@@ -202,10 +210,14 @@ def _existing_titles() -> set[str]:
     titles: set[str] = set()
     for line in BACKLOG.read_text(encoding="utf-8").splitlines():
         if line.startswith("- **BL-"):
-            # Title is between the second em-dash and the next period.
+            # Title is between the second em-dash and the first sentence end.
+            # Split on '. ' (period + space), NOT a bare '.': generated titles
+            # embed file paths whose extension dot would otherwise truncate the
+            # key and break dedup forever — the audit re-appended the same
+            # items with fresh ids on every run (spec 038 backport).
             parts = line.split(" — ", 2)
             if len(parts) == 3:
-                titles.add(parts[2].split(".")[0].strip().lower())
+                titles.add(parts[2].split(". ", 1)[0].strip().lower())
     return titles
 
 
@@ -220,14 +232,18 @@ def _next_id_seed() -> tuple[str, int]:
 
 def _insert_under_open(new_bullets: list[str]) -> None:
     text = BACKLOG.read_text(encoding="utf-8")
-    if "## Open" not in text:
+    # Anchor on the heading LINE, not a bare substring — a prose mention of
+    # "## Open" earlier in the file must not become the insertion point.
+    m = re.search(r"^## Open[ \t]*$", text, re.MULTILINE)
+    if m is None:
         raise SystemExit("BACKLOG.md missing '## Open' section")
-    head, _, rest = text.partition("## Open")
-    # Insert immediately after the '## Open' heading line.
-    lines = rest.splitlines(keepends=True)
+    eol = text.find("\n", m.end())
+    # Heading at EOF without a trailing newline: normalize so the bullets
+    # still land on their own lines instead of crashing (spec 038 backport).
+    insert_at = len(text) if eol == -1 else eol + 1
+    prefix = text[:insert_at] if eol != -1 else text[:insert_at] + "\n"
     insertion = "\n" + "\n".join(new_bullets) + "\n"
-    new_rest = lines[0] + insertion + "".join(lines[1:])
-    BACKLOG.write_text(head + "## Open" + new_rest, encoding="utf-8")
+    BACKLOG.write_text(prefix + insertion + text[insert_at:], encoding="utf-8")
 
 
 def main() -> int:
