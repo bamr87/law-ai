@@ -1,6 +1,6 @@
 # Spec: Interactive LSAT solving aids — progressive hints + incremental diagrams
 
-- **ID**: 041-lsat-solving-aids
+- **ID**: 045-lsat-solving-aids
 - **Status**: shipped
 - **Owner**: @bamr87
 - **Created**: 2026-08-30
@@ -99,7 +99,7 @@ Pydantic models by name: `SolveGuide`, `SolveStep`, `SequenceRep`, `GridRep`, `N
 - **AC-4**: In the Lab, clicking "Hint" reveals exactly one more step per click; spoiler steps render as locked stubs until the question is graded; after grading, "Show final step" reveals them (RTL test).
 - **AC-5**: Each of the five renderers displays its FR-2 payload: `SequenceBoard` shows ordered slots with placed/excluded entities; `RuleNotation` shows symbol strings with a legend; `ArgumentMap` draws premise→conclusion arrows; `GroupGrid` renders the board as an accessible table; `PassageMap` lists paragraph roles (RTL tests, one per renderer).
 - **AC-6**: `LSATSolveGuideAuthor.run({"question_id": …})` returns a dict whose `guide` validates as `SolveGuide`; the draft appears in `GET /api/lsat/proposals` with `proposal_kind: "guide"` and never appears on the FR-4 endpoint until approved (agent test + API test).
-- **AC-7**: `make lint`, `make typecheck`, `make test` green; `python3 scripts/spec_validator.py specs/041-lsat-solving-aids` exits 0.
+- **AC-7**: `make lint`, `make typecheck`, `make test` green; `python3 scripts/spec_validator.py specs/045-lsat-solving-aids` exits 0.
 - **AC-9**: After grading a question in the Lab, the DOM contains no "Author rationale" text, no rendered `question.references` anchors, and no external links in the answer area; a "Derived from" block lists the question's concepts with catalog-resolved name/summary/examples (RTL tests on `ConceptRefs` and the Lab grade flow).
 - **AC-10**: Two identical tutor requests produce exactly one LLM call; the second response has `cached: true` with identical coaching; `refresh: true` forces a second call; an offline-fallback response is not cached and the next request retries the chain (endpoint tests assert mock call counts).
 - **AC-11**: Cross-checking a question whose blind solve matches the key returns `agree: true` / no review flag; a mismatched solve returns `agree: false` + `requires_human_review: true` and an `lsat_cross_check` audit event; repeat checks serve the cached verdict; offline returns `model_choice: null`, `agree: null`, and an explicit "unavailable" rationale.

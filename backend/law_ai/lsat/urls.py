@@ -40,7 +40,7 @@ logger = logging.getLogger("law_ai.lsat")
 class GradeRequest(BaseModel):
     question_id: str
     choice: ChoiceLabel
-    # Spec 041 FR-5: how many solve-guide steps the client revealed before
+    # Spec 045 FR-5: how many solve-guide steps the client revealed before
     # answering. None = client predates the hint system.
     hints_used: int | None = Field(default=None, ge=0, le=20)
 
@@ -205,7 +205,7 @@ class QuestionDetailView(_Base):
 class GuideView(_Base):
     """``GET /api/lsat/questions/<id>/guide`` — progressive solve guide.
 
-    Spec 041 FR-4. Spoiler-step content is withheld unless ``?spoilers=1``
+    Spec 045 FR-4. Spoiler-step content is withheld unless ``?spoilers=1``
     (the client asks only after grading — same soft protection level as the
     grade endpoint itself). 404 carries ``has_tutor`` so the UI can fall
     back to the AI tutor for guide-less questions.
@@ -348,7 +348,7 @@ class _CrossCheckRequest(BaseModel):
 
 
 class CrossCheckView(_Base):
-    """``POST /api/lsat/questions/<id>/cross-check`` — spec 041 FR-14.
+    """``POST /api/lsat/questions/<id>/cross-check`` — spec 045 FR-14.
 
     Solves the question blind through the provider chain and compares the
     pick against the answer key. Verdicts are cached; ``refresh`` re-solves.
@@ -374,7 +374,7 @@ class CrossCheckView(_Base):
 
 
 class ValidationView(_Base):
-    """``GET /api/lsat/validation`` — spec 041 FR-15 accuracy report.
+    """``GET /api/lsat/validation`` — spec 045 FR-15 accuracy report.
 
     Deterministic (no model calls): per-question integrity issues, answer-key
     distribution, and a roll-up of stored cross-check verdicts.
@@ -470,9 +470,9 @@ class _GenerateGuideRequest(BaseModel):
 
 
 class GuideGenerateView(_Base):
-    """``POST /api/lsat/guides/generate`` — draft one solve guide (spec 041 FR-9).
+    """``POST /api/lsat/guides/generate`` — draft one solve guide (spec 045 FR-9).
 
-    Single-question by design (spec 041 resolved OQ-2). The draft lands in
+    Single-question by design (spec 045 resolved OQ-2). The draft lands in
     the HITL proposal queue as ``proposal_kind="guide"``; it never serves on
     the guide endpoint until a reviewer approves it.
     """
@@ -543,7 +543,7 @@ class ProposalApproveView(_Base):
         existing = proposals_store.get_proposal(proposal_id)
         if existing is None:
             raise Http404("proposal not found")
-        # Spec 041 FR-9: guide drafts promote into guides.json, not the banks.
+        # Spec 045 FR-9: guide drafts promote into guides.json, not the banks.
         promote = (
             proposals_store.promote_guide_to_bank
             if existing.get("proposal_kind") == "guide"

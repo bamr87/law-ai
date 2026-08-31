@@ -11,7 +11,7 @@ import {
 import Representation from '@/components/lsat/diagrams/Representation'
 
 /**
- * Progressive solve-guide reveal, rendered as a carousel (spec 041 FR-6,
+ * Progressive solve-guide reveal, rendered as a carousel (spec 045 FR-6,
  * T-012): one step on screen at a time with back/next navigation and step
  * dots, instead of a growing stack.
  *

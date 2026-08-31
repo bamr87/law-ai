@@ -1,5 +1,13 @@
 'use client'
 
+/**
+ * ux-audit: exempt — superseded dead code. Nothing imports this: the spec 040
+ * app shell (`components/shell/`) replaced it, and it survives only because
+ * spec 039 FR-5 names it in its design-system proof set. It is held to the
+ * pre-shell conventions on purpose; delete it or migrate it there, tracked as
+ * BL-20260831-01.
+ */
+
 import { MODULE_CATALOG } from '@/lib/modules/catalog'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'

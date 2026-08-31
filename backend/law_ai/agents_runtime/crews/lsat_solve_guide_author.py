@@ -1,6 +1,6 @@
 """LSATSolveGuideAuthor — drafts solve guides for existing LSAT questions.
 
-Spec 041 (FR-9). Given one bank question, drafts a :class:`SolveGuide` —
+Spec 045 (FR-9). Given one bank question, drafts a :class:`SolveGuide` —
 an ordered hint walkthrough with typed diagram payloads — for HITL review.
 Mirrors :mod:`lsat_content_author`: provider chain via ``law_ai.core.llm``
 (never a direct transport), deterministic offline fallback with confidence
@@ -110,7 +110,7 @@ def _parse_guide(raw: str, *, question: Question) -> SolveGuide:
     guide = SolveGuide.model_validate(guide_obj)
     if len(guide.steps) < 2:
         raise ValueError("guide must have at least two steps")
-    # Content-level validation (spec 041 FR-11): answer-leak, elimination
+    # Content-level validation (spec 045 FR-11): answer-leak, elimination
     # completeness, board consistency. A draft that fails degrades to the
     # offline fallback instead of entering the queue looking plausible.
     problems = validate_guide_quality(guide, question)
@@ -151,7 +151,7 @@ def _fallback_guide(q: Question) -> SolveGuide:
 
 
 class LSATSolveGuideAuthor:
-    """Drafts a progressive solve guide for one bank question (spec 041 FR-9)."""
+    """Drafts a progressive solve guide for one bank question (spec 045 FR-9)."""
 
     name = "LSATSolveGuideAuthor"
     description = (

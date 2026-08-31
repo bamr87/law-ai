@@ -1,4 +1,4 @@
-"""LSAT solve-guide store (spec 041 FR-1..FR-4).
+"""LSAT solve-guide store (spec 045 FR-1..FR-4).
 
 A *solve guide* is an ordered, machine-renderable walkthrough of one bank
 question: each step carries prose plus an optional typed representation
@@ -27,7 +27,7 @@ StepKind = Literal[
 ]
 
 # ---------------------------------------------------------------------------
-# Typed representations (spec 041 FR-2)
+# Typed representations (spec 045 FR-2)
 # ---------------------------------------------------------------------------
 
 
@@ -126,7 +126,7 @@ Representation = Annotated[
 
 
 # ---------------------------------------------------------------------------
-# Guide + step models (spec 041 FR-1)
+# Guide + step models (spec 045 FR-1)
 # ---------------------------------------------------------------------------
 
 
@@ -200,7 +200,7 @@ def reset_guide_cache() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Quality validation (spec 041 FR-11)
+# Quality validation (spec 045 FR-11)
 # ---------------------------------------------------------------------------
 
 _CHOICE_LABELS = ("A", "B", "C", "D", "E")
@@ -269,7 +269,7 @@ def _lint_grid_rep(rep: GridRep, i: int, problems: list[str]) -> None:
 
 
 def validate_guide_quality(guide: SolveGuide, question: Any) -> list[str]:
-    """Content-level lint beyond the Pydantic schema (spec 041 FR-11).
+    """Content-level lint beyond the Pydantic schema (spec 045 FR-11).
 
     Runs at every choke point a guide passes through — LLM draft parsing
     (``LSATSolveGuideAuthor``), HITL promotion (``promote_guide_to_bank``)
@@ -300,7 +300,7 @@ def validate_guide_quality(guide: SolveGuide, question: Any) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Public view (spoiler stripping, spec 041 FR-4)
+# Public view (spoiler stripping, spec 045 FR-4)
 # ---------------------------------------------------------------------------
 
 

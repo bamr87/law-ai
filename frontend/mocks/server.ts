@@ -1,7 +1,7 @@
 import { setupServer } from 'msw/node'
 import { http, HttpResponse } from 'msw'
 
-// --- LSAT solve-guide fixtures (spec 041) ---
+// --- LSAT solve-guide fixtures (spec 045) ---
 
 /** Full guide as the backend stores it; spoiler steps stripped per request. */
 export const lsatGuideFixture = {
@@ -62,7 +62,7 @@ function publicGuideView(spoilers: boolean) {
   }
 }
 
-/** Concept catalog fixture (spec 041 FR-12): note the external reference —
+/** Concept catalog fixture (spec 045 FR-12): note the external reference —
  *  the UI must resolve concepts WITHOUT ever rendering that link. */
 export const lsatConceptsFixture = {
   count: 1,
@@ -80,7 +80,7 @@ export const lsatConceptsFixture = {
   ],
 }
 
-/** Validation report fixture (spec 041 FR-15). */
+/** Validation report fixture (spec 045 FR-15). */
 export const lsatValidationFixture = {
   generated_at: '2026-08-31T00:00:00Z',
   section: null,
@@ -114,7 +114,7 @@ export const lsatValidationFixture = {
 }
 
 export const handlers = [
-  // Mock LSAT cross-check (spec 041 FR-14): lg-001 agrees with the key,
+  // Mock LSAT cross-check (spec 045 FR-14): lg-001 agrees with the key,
   // lr-001 disagrees, anything else is offline/unavailable.
   http.post(
     'http://localhost:8000/api/lsat/questions/:questionId/cross-check',
@@ -163,17 +163,17 @@ export const handlers = [
     },
   ),
 
-  // Mock LSAT validation report (spec 041 FR-15).
+  // Mock LSAT validation report (spec 045 FR-15).
   http.get('http://localhost:8000/api/lsat/validation', () =>
     HttpResponse.json(lsatValidationFixture),
   ),
 
-  // Mock LSAT concept catalog (spec 041 FR-12 references).
+  // Mock LSAT concept catalog (spec 045 FR-12 references).
   http.get('http://localhost:8000/api/lsat/concepts', () =>
     HttpResponse.json(lsatConceptsFixture),
   ),
 
-  // Mock LSAT solve-guide endpoint (spec 041): lg-001 has a guide, every
+  // Mock LSAT solve-guide endpoint (spec 045): lg-001 has a guide, every
   // other question 404s with the tutor fallback flag.
   http.get(
     'http://localhost:8000/api/lsat/questions/:questionId/guide',

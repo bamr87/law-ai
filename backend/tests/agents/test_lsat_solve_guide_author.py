@@ -1,4 +1,4 @@
-"""Tests for the LSATSolveGuideAuthor crew (spec 041 T-005, AC-6)."""
+"""Tests for the LSATSolveGuideAuthor crew (spec 045 T-005, AC-6)."""
 
 from __future__ import annotations
 

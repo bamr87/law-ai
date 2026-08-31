@@ -10,6 +10,8 @@
  * the learner across tabs.
  */
 
+import { useRovingTabIndex } from '@/components/shell/useRovingTabIndex'
+import { StickyToolbar } from '@/components/shell/PageLayout'
 import {
     approveLsatProposal,
     askLsatTutor,
@@ -37,7 +39,9 @@ import {
     type LsatStats,
     type LsatTutorResponse,
 } from '@/lib/api'
-import LsatTimer, { QuestionElapsed } from '@/components/LsatTimer'
+import { QuestionElapsed } from '@/components/LsatTimer'
+import SectionTimerWidget from '@/components/lsat/SectionTimerWidget'
+import { recordAnswer } from '@/lib/lsat/timerStore'
 import ConceptRefs from '@/components/lsat/ConceptRefs'
 import CrossCheckPanel from '@/components/lsat/CrossCheckPanel'
 import SolveAssist from '@/components/lsat/SolveAssist'
@@ -99,10 +103,9 @@ export default function LsatLab() {
         correct: s.correct + (correct ? 1 : 0),
         assisted: s.assisted + (hintsUsed > 0 ? 1 : 0),
       }))
-      setPace((p) => ({
-        answered: p.answered + 1,
-        totalSeconds: p.totalSeconds + elapsedSeconds,
-      }))
+      // Pace lives in the timer store, not here: the timer can be docked in a
+      // side panel, which is a different React subtree from this page.
+      recordAnswer(elapsedSeconds)
       void refreshStats()
     },
     [refreshStats],
@@ -112,7 +115,15 @@ export default function LsatLab() {
     <div className="space-y-6">
       <Header session={session} globalStats={globalStats} pace={pace} />
       <TabBar tab={tab} onChange={setTab} />
-      <div>
+      {/* tabIndex 0: the panel is scrollable content, so it has to be
+        * reachable by keyboard once the tab bar hands focus on. */}
+      <div
+        role="tabpanel"
+        id={tabPanelId(tab)}
+        aria-labelledby={tabId(tab)}
+        tabIndex={0}
+        className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
+      >
         {tab === 'overview' && <OverviewPanel onJump={setTab} />}
         {tab === 'LR' && <LrPanel onAttempt={onAttempt} />}
         {tab === 'RC' && <PassagePanel section="RC" onAttempt={onAttempt} />}
@@ -144,9 +155,13 @@ function Header({
       : null
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 text-sm backdrop-blur">
-      <LsatTimer
-        answeredCount={pace.answered}
-        answeredSeconds={pace.totalSeconds}
+      {/* The timer is dockable (spec 043). It renders here only when the user
+        * has chosen the "In page" dock; otherwise it lives in a side panel and
+        * this slot collapses. */}
+      <SectionTimerWidget
+        dock="inline"
+        onOwnRoute
+        openDocks={['sidebar', 'inspector']}
       />
       <div className="flex flex-wrap items-center justify-end gap-4">
         <Stat
@@ -177,34 +192,56 @@ function Header({
   )
 }
 
+export const tabId = (t: Tab) => `lsat-tab-${t}`
+export const tabPanelId = (t: Tab) => `lsat-panel-${t}`
+
 function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
+  // Pinned under the page header: the section switcher is the control a
+  // student reaches for most, and hunting for it after scrolling through a
+  // reading-comprehension passage is the difference between a drill and a
+  // chore.
+  //
+  // One tab stop, arrows move within it (WAI-ARIA tabs pattern). Before this
+  // the bar was seven separate tab stops with dead arrow keys, so a keyboard
+  // user had to page through the whole switcher to reach the questions.
+  const roving = useRovingTabIndex({
+    count: TABS.length,
+    activeIndex: TABS.findIndex((t) => t.id === tab),
+    onActivate: (i) => onChange(TABS[i].id),
+  })
+
   return (
-    <div
-      role="tablist"
-      aria-label="LSAT Lab sections"
-      className="flex flex-wrap gap-1 rounded-xl border border-slate-800 bg-slate-900/40 p-1 backdrop-blur"
-    >
-      {TABS.map((t) => {
-        const active = t.id === tab
-        return (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={active}
-            title={t.hint}
-            onClick={() => onChange(t.id)}
-            className={
-              'flex-1 min-w-[120px] rounded-lg px-3 py-2 text-sm font-medium transition ' +
-              (active
-                ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-300 hover:bg-slate-800/60 hover:text-white')
-            }
-          >
-            {t.label}
-          </button>
-        )
-      })}
-    </div>
+    <StickyToolbar>
+      <div
+        role="tablist"
+        aria-label="LSAT Lab sections"
+        className="flex flex-wrap gap-1"
+      >
+        {TABS.map((t, i) => {
+          const active = t.id === tab
+          return (
+            <button
+              key={t.id}
+              {...roving.itemProps(i)}
+              id={tabId(t.id)}
+              role="tab"
+              aria-selected={active}
+              aria-controls={tabPanelId(t.id)}
+              title={t.hint}
+              onClick={() => onChange(t.id)}
+              className={
+                'min-w-[120px] flex-1 rounded-lg px-3 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 ' +
+                (active
+                  ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white')
+              }
+            >
+              {t.label}
+            </button>
+          )
+        })}
+      </div>
+    </StickyToolbar>
   )
 }
 
@@ -464,7 +501,7 @@ function PassagePanel({
               id="passage-select"
               value={activeId ?? ''}
               onChange={(e) => setActiveId(e.target.value)}
-              className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-blue-500 focus:outline-none"
+              className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-blue-500 focus-ring"
             >
               {passages.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -514,7 +551,7 @@ function PassagePanel({
 
 function PassageReader({ passage }: { passage: LsatPassage }) {
   return (
-    <article className="sticky top-4 max-h-[80vh] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900/40 p-5 backdrop-blur">
+    <article className="shell-sticky-aside shell-panel-scroll max-h-[calc(100dvh-var(--shell-masthead-h)-var(--shell-pageheader-h)-var(--shell-toolbar-h)-3rem)] rounded-2xl border border-slate-800 bg-slate-900/40 p-5 backdrop-blur">
       <div className="text-[11px] uppercase tracking-wider text-amber-400">
         {passage.section === 'LG' ? 'Game setup' : 'Reading passage'}
       </div>
@@ -581,6 +618,21 @@ function QuestionCard({
   const [walkthrough, setWalkthrough] = useState(false)
   const elapsedRef = useRef(0)
   const hintsUsedRef = useRef(0)
+
+  // One tab stop for the whole choice list, arrows move and select within it —
+  // the same pattern `lsat-static/components/QuestionCard.tsx` has always had.
+  // Under exam-style time pressure, tabbing through five choices to reach the
+  // submit button is a real cost, and it was the platform's alone to pay.
+  const choiceRoving = useRovingTabIndex({
+    count: question.choices.length,
+    activeIndex: selected
+      ? question.choices.findIndex((c) => c.label === selected)
+      : -1,
+    orientation: 'vertical',
+    onActivate: (i) => {
+      if (result === null) setSelected(question.choices[i].label)
+    },
+  })
 
   // Reset when the question changes.
   useEffect(() => {
@@ -682,8 +734,12 @@ function QuestionCard({
         {question.stem}
       </p>
 
-      <ul className="mt-5 space-y-2" role="radiogroup">
-        {question.choices.map((c) => {
+      <ul
+        className="mt-5 space-y-2"
+        role="radiogroup"
+        aria-label="Answer choices"
+      >
+        {question.choices.map((c, i) => {
           const isSelected = selected === c.label
           const showResult = result !== null
           const isCorrect = showResult && c.label === result.correct_choice
@@ -707,12 +763,17 @@ function QuestionCard({
             <li key={c.label}>
               <button
                 type="button"
+                {...choiceRoving.itemProps(i)}
                 role="radio"
                 aria-checked={isSelected}
                 disabled={showResult}
                 onClick={() => setSelected(c.label)}
                 className={cls}
               >
+                {/* The letter stays in the accessible name on purpose. The
+                  * static site hides it, but in a drill the letter *is* the
+                  * answer's identity — it is what a student records and what
+                  * the tutor refers back to. "Alpha" alone loses that. */}
                 <span
                   className={
                     'mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ' +
@@ -748,7 +809,7 @@ function QuestionCard({
         </p>
       )}
 
-      {/* Spec 041 FR-6: progressive solve guide (hints + diagrams). */}
+      {/* Spec 045 FR-6: progressive solve guide (hints + diagrams). */}
       <SolveAssist
         key={question.id}
         questionId={question.id}
@@ -815,7 +876,7 @@ function QuestionCard({
 
       {/* Post-grade references point only at the in-app concept catalog —
           the author-rationale block with external source links was removed
-          deliberately (spec 041 FR-12). Method teaching lives in SolveAssist
+          deliberately (spec 045 FR-12). Method teaching lives in SolveAssist
           and the AI tutor. */}
       {result && (
         <ConceptRefs
@@ -825,7 +886,7 @@ function QuestionCard({
         />
       )}
 
-      {/* Spec 041 FR-14: independent blind solve vs. the answer key. */}
+      {/* Spec 045 FR-14: independent blind solve vs. the answer key. */}
       {result && <CrossCheckPanel questionId={question.id} />}
 
       {showTutor && result && (
@@ -849,7 +910,7 @@ function TutorPane({
 }: {
   questionId: string
   userChoice: LsatChoiceLabel | null
-  /** Spec 041 FR-8: canned opener, e.g. a no-spoiler walkthrough request. */
+  /** Spec 045 FR-8: canned opener, e.g. a no-spoiler walkthrough request. */
   initialQuestion?: string
 }) {
   const [followUp, setFollowUp] = useState('')
@@ -866,7 +927,7 @@ function TutorPane({
           question_id: questionId,
           user_choice: userChoice,
           user_question: overrideQuestion ?? followUp ?? null,
-          // Spec 041 FR-13: identical requests serve the saved walkthrough;
+          // Spec 045 FR-13: identical requests serve the saved walkthrough;
           // refresh forces a fresh model call.
           refresh,
         })
@@ -980,10 +1041,11 @@ function TutorPane({
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <input
           type="text"
+          aria-label="Ask the tutor a follow-up question"
           value={followUp}
           onChange={(e) => setFollowUp(e.target.value)}
           placeholder="Ask a follow-up — e.g. 'Why is C wrong?'"
-          className="min-w-[260px] flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:border-amber-500 focus:outline-none"
+          className="min-w-[260px] flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:border-amber-500 focus-ring-practice"
         />
         <button
           onClick={() => void ask()}
@@ -1057,7 +1119,7 @@ function ConceptsPanel() {
             onChange={(e) =>
               setSection(e.target.value as LsatSection | 'any')
             }
-            className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-blue-500 focus:outline-none"
+            className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-blue-500 focus-ring"
           >
             <option value="any">All sections</option>
             <option value="LR">Logical Reasoning</option>
@@ -1261,7 +1323,7 @@ function Toolbar({
           onChange={(e) =>
             onDifficulty(e.target.value as LsatDifficulty | 'any')
           }
-          className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-blue-500 focus:outline-none"
+          className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-blue-500 focus-ring"
         >
           {DIFFICULTIES.map((d) => (
             <option key={d.value} value={d.value}>
@@ -1453,7 +1515,7 @@ function AuthoringPanel() {
 
   return (
     <section className="space-y-6">
-      {/* Spec 041 FR-15: question-set accuracy review. */}
+      {/* Spec 045 FR-15: question-set accuracy review. */}
       <ValidationReport />
 
       <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur">
@@ -1610,7 +1672,7 @@ function ProposalCard({
   onApprove: () => void
   onReject: () => void
 }) {
-  // Spec 041: guide drafts share the queue but have a different shape.
+  // Spec 045: guide drafts share the queue but have a different shape.
   if (proposal.proposal_kind === 'guide') {
     const g = proposal.draft as import('@/lib/api').LsatGuideProposalDraft
     return (

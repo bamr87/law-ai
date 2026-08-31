@@ -1,4 +1,4 @@
-"""Tests for the solve-guide store (spec 041 T-001/T-002, AC-1)."""
+"""Tests for the solve-guide store (spec 045 T-001/T-002, AC-1)."""
 
 from __future__ import annotations
 

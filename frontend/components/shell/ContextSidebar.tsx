@@ -4,13 +4,18 @@ import { moduleForPath } from '@/lib/modules/catalog'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
+/**
+ * Contextual navigation for the active module. Scrolls independently of the
+ * page: a long link list must not drag the reader's content with it, and a
+ * short one must not scroll at all.
+ */
 export default function ContextSidebar() {
   const pathname = usePathname() || '/'
   const mod = moduleForPath(pathname)
   const links = mod.sidebar ?? []
 
   return (
-    <div className="flex h-full flex-col px-3 py-4">
+    <div className="shell-panel-scroll flex h-full flex-col px-3 py-4">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
         {mod.nav.label}
       </p>

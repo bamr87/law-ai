@@ -282,7 +282,7 @@ export interface LsatStatsBucket {
   attempts: number
   correct: number
   accuracy: number
-  /** Attempts graded with hints_used > 0 (spec 041 FR-5). */
+  /** Attempts graded with hints_used > 0 (spec 045 FR-5). */
   assisted?: number
   unassisted?: number
 }
@@ -337,7 +337,7 @@ export interface LsatTutorRequest {
   question_id: string
   user_choice?: LsatChoiceLabel | null
   user_question?: string | null
-  /** Bypass the server-side walkthrough cache (spec 041 FR-13). */
+  /** Bypass the server-side walkthrough cache (spec 045 FR-13). */
   refresh?: boolean
 }
 
@@ -356,11 +356,11 @@ export interface LsatTutorResponse {
   confidence: number
   requires_human_review: boolean
   latency_ms: number
-  /** True when served from the stored walkthrough cache (spec 041 FR-13). */
+  /** True when served from the stored walkthrough cache (spec 045 FR-13). */
   cached?: boolean
 }
 
-// --- LSAT cross-check + validation (spec 041 FR-14/FR-15) ---
+// --- LSAT cross-check + validation (spec 045 FR-14/FR-15) ---
 
 export interface LsatCrossCheck {
   question_id: string
@@ -523,7 +523,7 @@ export async function askLsatTutor(
   return (await res.json()) as LsatTutorResponse
 }
 
-// --- LSAT solve guides (spec 041) ---
+// --- LSAT solve guides (spec 045) ---
 
 export type LsatStepKind =
   | 'orient'
@@ -669,7 +669,7 @@ export interface LsatProposalDraft {
   confidence: number
 }
 
-/** Solve-guide draft in the proposal queue (spec 041 FR-9). */
+/** Solve-guide draft in the proposal queue (spec 045 FR-9). */
 export interface LsatGuideProposalDraft {
   question_id: string
   method: string
@@ -689,7 +689,7 @@ export interface LsatProposal {
   status: LsatProposalStatus
   created_at: string
   updated_at: string
-  /** "question" (default, legacy rows) or "guide" (spec 041). */
+  /** "question" (default, legacy rows) or "guide" (spec 045). */
   proposal_kind?: 'question' | 'guide'
   section: LsatSection | null
   difficulty: LsatDifficulty | null

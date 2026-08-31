@@ -120,7 +120,7 @@ def record_proposal(
     content factory's manifest/job/archetype/tier — verbatim onto the create
     event so it survives into the HITL queue and audit replay.
 
-    ``proposal_kind`` (spec 041 FR-9) distinguishes question drafts from
+    ``proposal_kind`` (spec 045 FR-9) distinguishes question drafts from
     solve-guide drafts; legacy rows without the field replay as "question".
     """
     proposal_id = f"prop-{uuid4().hex[:12]}"
@@ -155,7 +155,7 @@ def _replay(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
         kind = ev.get("type")
         if kind == "lsat_proposal.create":
             state[pid] = dict(ev)
-            # Legacy rows predate spec 041's guide drafts.
+            # Legacy rows predate spec 045's guide drafts.
             state[pid].setdefault("proposal_kind", "question")
         elif kind == "lsat_proposal.transition" and pid in state:
             state[pid]["status"] = ev.get("status", state[pid].get("status"))
@@ -322,7 +322,7 @@ def promote_guide_to_bank(
     reviewer: str = "anonymous",
     note: str | None = None,
 ) -> dict[str, Any]:
-    """Append an approved solve-guide draft to ``guides.json`` (spec 041 FR-9).
+    """Append an approved solve-guide draft to ``guides.json`` (spec 045 FR-9).
 
     Mirrors :func:`promote_to_bank` for ``proposal_kind == "guide"`` rows: the
     draft is re-validated against the :class:`SolveGuide` schema, written into

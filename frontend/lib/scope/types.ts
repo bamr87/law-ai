@@ -16,6 +16,11 @@ export interface SettingValue {
   locked: boolean
 }
 
+export interface SettingOption<T> {
+  value: T
+  label: string
+}
+
 export interface SettingDefinition<T> {
   key: string
   label: string
@@ -24,6 +29,12 @@ export interface SettingDefinition<T> {
   settableAt: ScopeType[]
   lockable: boolean
   parse: (raw: unknown) => T | undefined
+  /**
+   * Present for enum settings. `SettingField` renders a select from these
+   * instead of inferring a control from the default's type, which only ever
+   * covered boolean and number.
+   */
+  options?: SettingOption<T>[]
 }
 
 export type EffectiveSource =

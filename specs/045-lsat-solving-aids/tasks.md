@@ -135,7 +135,7 @@
   3. Full gates: `make lint`, `make typecheck`, `make test` (AC-7).
 - **Verify**:
   - `make test-frontend` green — reveal-one-per-click, locked-until-graded, unlock-after-grade, tutor-fallback cases.
-  - `make lint && make typecheck && make test` green; `python3 scripts/spec_validator.py specs/041-lsat-solving-aids` exits 0.
+  - `make lint && make typecheck && make test` green; `python3 scripts/spec_validator.py specs/045-lsat-solving-aids` exits 0.
 
 ## T-009 — Guide quality validator wired into all three choke points
 
@@ -248,5 +248,5 @@
 - **BL-20260830-12** — feature, low — Port `SolveAssist` + the diagram renderers into `lsat-static` so the serverless drill gets the same hint system (natural companion to the BL-20260830-04 timer unification).
 - **BL-20260830-13** — feature, low — Per-reveal hint audit events (`lsat_hint`): today only grade-time `hints_used` is recorded, so analytics cannot distinguish a 1-hint from a 5-hint assist or hints on questions never submitted.
 - **BL-20260830-14** — test-gap, low — The guide-proposal review card in `AuthoringPanel` (added because question-shaped `ProposalCard` crashed on guide drafts) has no dedicated Vitest coverage; the approve→serve path is tested only at the API layer.
-- **BL-20260831-01** — feature, med — Batch cross-check sweep: a budget-capped management command (mirroring `lsat_guide_backfill`) that runs the FR-14 blind solve across guide-less/unchecked questions section by section, so the validation report's cross-check coverage can grow without manual per-question clicks; disagreements should additionally land as reviewable rows in the HITL queue, not just in the report.
+- **BL-20260831-21** — feature, med — Batch cross-check sweep: a budget-capped management command (mirroring `lsat_guide_backfill`) that runs the FR-14 blind solve across guide-less/unchecked questions section by section, so the validation report's cross-check coverage can grow without manual per-question clicks; disagreements should additionally land as reviewable rows in the HITL queue, not just in the report.
 - **BL-20260830-15** — feature, med — LLM judge tier for guide drafts: `validate_guide_quality` (FR-11) is deterministic lint; a `LSATGuideReviewer` agent should additionally judge pedagogical soundness (does each step follow? is the symbolization faithful?) before a human sees the draft — companion to the question-side judge tier (BL-20260702-02) and reviewer crew (BL-20260527-04).

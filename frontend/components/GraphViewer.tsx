@@ -100,10 +100,22 @@ export default function GraphViewer({ elements, height = 600 }: GraphViewerProps
     }
   }, [elements])
 
+  // Cytoscape paints into bare <canvas> children, which reach a screen reader
+  // as three anonymous graphics. Name the region for what it actually shows
+  // and point at the case list, which is the equivalent accessible interface.
+  const nodes = elements.nodes.length
+  const edges = elements.edges.length
+
   return (
     <div
       ref={containerRef}
       data-testid="graph-canvas"
+      role="img"
+      aria-label={
+        `Citation neighborhood: ${nodes} case${nodes === 1 ? '' : 's'}, ` +
+        `${edges} citation edge${edges === 1 ? '' : 's'}. ` +
+        'The case list beside this canvas is the equivalent accessible view.'
+      }
       className="w-full rounded-2xl border border-slate-800 bg-slate-950"
       style={{ height }}
     />

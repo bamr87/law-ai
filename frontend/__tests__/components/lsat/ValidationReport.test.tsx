@@ -1,4 +1,4 @@
-/** Tests for the question-set review panel (spec 041 FR-15). */
+/** Tests for the question-set review panel (spec 045 FR-15). */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 

@@ -1,0 +1,70 @@
+/**
+ * Law AI — cross-product UI primitives.
+ *
+ * The rules both front ends must agree on: the z-index scale, the focus
+ * indicator, and the motion opt-out. Consumed by `frontend/ui/layout.css`
+ * (the platform shell) and directly by `lsat-static/app/globals.css`.
+ *
+ * Keep this file **plain CSS**. `lsat-static` is a Tailwind-free static export
+ * (spec 039 NFR-PERF-1), so anything here that needed a build step would break
+ * it. No `@apply`, no `@theme`, no utilities.
+ *
+ * What does NOT belong here: shell metrics, `.shell-scroll`/`.shell-panel-scroll`,
+ * and the sticky stack — those describe a chrome the static site does not have.
+ * They stay in `layout.css`.
+ */
+
+:root {
+  /* --- z-scale ---------------------------------------------------------
+   * Never hand-write a z-index. `scripts/ux_audit.py` R4 fails the build on a
+   * literal, in both apps.
+   *
+   * The lower rungs are named for what they do rather than for shell parts, so
+   * the static site can use them without pretending it has a masthead: its
+   * sticky site header sits at `--z-sticky-header`, its drill toolbar at
+   * `--z-sticky-sub`, its passage column at `--z-content`.
+   */
+  --z-content: 0;
+  --z-sticky-sub: 20;
+  --z-sticky-header: 30;
+  --z-popover: 35;
+  --z-masthead: 40;
+  --z-scrim: 50;
+  --z-drawer: 60;
+  --z-palette: 70;
+
+  /* --- Focus -----------------------------------------------------------
+   * Blue on the platform, amber in practice contexts. The static site is
+   * entirely a practice context, so it points the default at the practice
+   * colour rather than carrying two.
+   */
+  --focus-ring: rgb(96 165 250);
+  --focus-ring-practice: rgb(251 191 36);
+}
+
+/**
+ * One focus indicator for both products.
+ *
+ * `:focus-visible`, so a mouse click does not paint a ring but a keyboard tab
+ * always does. This exists because `focus:outline-none` paired with a 1px
+ * `focus:border-*` was the platform's house pattern: a border tint is not a
+ * focus indicator anyone can find, and this product is used by keyboard under
+ * exam-style time pressure.
+ */
+.focus-ring:focus-visible,
+.focus-ring-practice:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.focus-ring-practice:focus-visible {
+  outline-color: var(--focus-ring-practice);
+}
+
+/* Smooth scrolling and chrome transitions are a preference, not a default. */
+@media (prefers-reduced-motion: reduce) {
+  .shell-motion {
+    transition: none !important;
+    animation: none !important;
+  }
+}

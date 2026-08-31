@@ -98,3 +98,46 @@ export function moduleForPath(pathname: string): AppModule {
   )
   return nested ?? homeModule
 }
+
+export interface Crumb {
+  label: string
+  href: string
+  /** The trailing crumb — rendered as text, not a link. */
+  current: boolean
+}
+
+/**
+ * Breadcrumb trail for the masthead. Derived from the catalog so a new module
+ * gets a trail for free; `AppShell` never learns a route name.
+ *
+ * Home is always the root crumb — a user who has drilled into a module needs
+ * one click back to the top, and "where am I" is the question the masthead is
+ * there to answer.
+ */
+export function breadcrumbsForPath(pathname: string): Crumb[] {
+  const mod = moduleForPath(pathname)
+  if (mod.nav.href === '/' && pathname === '/') {
+    return [{ label: homeModule.nav.label, href: '/', current: true }]
+  }
+
+  const crumbs: Crumb[] = [
+    { label: homeModule.nav.label, href: '/', current: false },
+    {
+      label: mod.nav.label,
+      href: mod.nav.href,
+      current: pathname === mod.nav.href,
+    },
+  ]
+
+  const leaf = (mod.sidebar ?? []).find(
+    (l) => l.href === pathname && l.href !== mod.nav.href,
+  )
+  if (leaf) {
+    crumbs.push({ label: leaf.label, href: leaf.href, current: true })
+  } else if (pathname !== mod.nav.href) {
+    // A nested route the catalog doesn't name: keep the module crumb as the
+    // current one rather than inventing a label from the URL segment.
+    crumbs[crumbs.length - 1].current = true
+  }
+  return crumbs
+}
