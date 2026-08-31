@@ -12,8 +12,8 @@ type View = 'overview' | SectionCode | 'concepts' | 'stats'
 
 const NAV: { id: View; label: string }[] = [
   { id: 'overview', label: 'Overview' },
-  { id: 'LR', label: 'LR Drill' },
-  { id: 'RC', label: 'Reading Comp' },
+  { id: 'LR', label: 'Logical Reasoning' },
+  { id: 'RC', label: 'Reading Comprehension' },
   { id: 'LG', label: 'Logic Games' },
   { id: 'concepts', label: 'Concepts' },
   { id: 'stats', label: 'Stats' },

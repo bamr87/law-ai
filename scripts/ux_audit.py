@@ -23,6 +23,8 @@ spec 041 shell rework removed and must not get back:
                            no panel association
   R11 control names      — a form control whose only name is a placeholder
   R12 shared-CSS drift   — the two copies of base.css have diverged
+  R13 LSAT parity drift  — a platform LSAT component with no static
+                           counterpart and no stated reason
 
 **Two surfaces, one contract.** `frontend/` is the platform shell;
 `lsat-static/` is a Tailwind-free static export with no shell at all. The
@@ -399,6 +401,43 @@ def rule_static_single_main(paths: list[Path], audit: Audit) -> None:
     )
 
 
+PLATFORM_LSAT = FRONTEND / "components" / "lsat"
+STATIC_SOLVE = LSAT_STATIC / "components" / "solve"
+STATIC_PARITY_RE = re.compile(r"static-parity:\s*none\s*[—-]\s*\S")
+
+
+def rule_lsat_parity(audit: Audit) -> None:
+    """R13 — the two LSAT products drift only on purpose.
+
+    Spec 045 shipped a hint carousel and five diagram types to the platform and
+    nothing to the published static site, and no gate noticed for a week. The
+    static export is the surface a prospective student reaches first, so a
+    feature landing on only one side has to be a decision, not an oversight.
+
+    A platform component under `frontend/components/lsat/` passes when either a
+    same-named file exists under `lsat-static/components/solve/`, or it carries
+    `static-parity: none — <reason>`. Plenty of them legitimately cannot port —
+    anything needing the provider chain or an API cannot run serverless — and
+    saying so in one line is the whole ask.
+    """
+    if not PLATFORM_LSAT.is_dir():
+        return
+    ported = {p.name for p in STATIC_SOLVE.rglob("*.tsx")} if STATIC_SOLVE.is_dir() else set()
+    for path in sorted(PLATFORM_LSAT.rglob("*.tsx")):
+        if path.name in ported:
+            continue
+        text = path.read_text(encoding="utf-8")
+        if STATIC_PARITY_RE.search(text):
+            audit.exempted.append((path, "static-parity: none (declared)"))
+            continue
+        audit.add(
+            path,
+            1,
+            "R13",
+            "no lsat-static counterpart and no `static-parity: none — <reason>`",
+        )
+
+
 BASE_CSS = FRONTEND / "ui" / "base.css"
 BASE_CSS_MIRROR = LSAT_STATIC / "app" / "base.css"
 
@@ -463,6 +502,7 @@ RULES = [
     ("R10", "composite widgets are named and tabs point at panels"),
     ("R11", "no form control is named only by its placeholder"),
     ("R12", "the mirrored base.css copies are identical"),
+    ("R13", "every platform LSAT component is ported or explains why not"),
 ]
 
 
@@ -514,6 +554,7 @@ def main(argv: list[str]) -> int:
         rule_css_layout(sheet, sheet.read_text(encoding="utf-8"), audit)
 
     rule_shared_css_mirror(audit)
+    rule_lsat_parity(audit)
     rule_static_single_main([p for p, _ in static], audit)
     rule_page_frame(audit)
     rule_route_states(audit)

@@ -13,10 +13,13 @@ on:
   push:
     branches: [main]
     paths:
+      # The published site is built entirely from lsat-static/ — content.json
+      # included. Source-bank paths are deliberately NOT listed: a change under
+      # backend/law_ai/lsat/services/data/ does not reach the site until
+      # `make lsat-export` refreshes lsat-static/content.json, and listing them
+      # produced no-op deploys that looked like the site had been updated when
+      # it had not (spec 046).
       - "lsat-static/**"
-      # Redeploy when the LSAT source bank changes (belt-and-braces: a bank
-      # merge should refresh content.json via `make lsat-export` and land here).
-      - "backend/law_ai/lsat/services/data/**"
       - ".github/workflows/deploy-lsat-pages.yml"
   workflow_dispatch:
 

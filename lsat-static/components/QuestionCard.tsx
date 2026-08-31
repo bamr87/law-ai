@@ -1,5 +1,7 @@
 'use client'
 
+import ConceptRefs from './solve/ConceptRefs'
+import SolveAssist from './solve/SolveAssist'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Question } from '@/lib/types'
 import { recordAttempt } from '@/lib/progress'
@@ -151,6 +153,10 @@ export default function QuestionCard({
         })}
       </div>
 
+      {/* Progressive hints, same guide data the API-backed lab serves
+          (spec 046). Keyed on the question so revealed depth resets with it. */}
+      <SolveAssist key={question.id} questionId={question.id} graded={submitted} />
+
       {!submitted ? (
         <button type="button" className="btn btn-primary" disabled={!selected} onClick={submit}>
           Check answer
@@ -163,6 +169,7 @@ export default function QuestionCard({
               : `Incorrect — the answer is ${question.correct}`}
           </p>
           <p className="explain-body">{question.explanation}</p>
+          <ConceptRefs conceptIds={question.concepts ?? []} />
           {question.references && question.references.length > 0 && (
             <ul className="refs">
               {question.references.map((r) => (

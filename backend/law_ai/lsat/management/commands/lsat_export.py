@@ -5,6 +5,12 @@ LSAT content module (sections, concepts, passages, questions **including
 answer keys and explanations**) — for the serverless practice app under
 ``frontend/public/lsat-practice/``.
 
+Spec 046 adds ``guides``: the spec 045 solve guides are hand-authored static
+data, so the static export can render the same hint carousel and diagrams the
+API-backed lab does. Spoiler steps ship too — the site already carries answer
+keys in order to grade offline — and the *client* keeps them locked until the
+question is graded, mirroring ``public_guide_view``.
+
 Everything is loaded through the canonical Pydantic loaders in
 :mod:`law_ai.lsat.services.bank`, so only loader-valid content can ship.
 Ordering is stable (sections LR/RC/LG; everything else by id) so re-exports
@@ -30,6 +36,7 @@ from law_ai.lsat.services.bank import (
     load_passages,
     load_sections,
 )
+from law_ai.lsat.services.guides import load_guides
 
 SCHEMA_VERSION = 1
 
@@ -56,10 +63,23 @@ def build_content() -> dict[str, Any]:
     for q in bank.values():
         counts[q.section] = counts.get(q.section, 0) + 1
 
+    # Only guides whose question actually shipped, sorted for byte-stable
+    # re-exports (the tests/test_lsat_site.py drift gate depends on it).
+    guides = load_guides()
+    guide_payload = [
+        guides[qid].model_dump(mode="json", by_alias=True)
+        for qid in sorted(guides)
+        if qid in bank
+    ]
+
     return {
         "schema_version": SCHEMA_VERSION,
         "generated_at": datetime.now(UTC).isoformat(),
-        "counts": {"total": len(questions), **counts},
+        "counts": {
+            "total": len(questions),
+            **counts,
+            "guides": len(guide_payload),
+        },
         "sections": [
             sections[code].model_dump(mode="json")
             for code in _SECTION_ORDER
@@ -68,6 +88,7 @@ def build_content() -> dict[str, Any]:
         "concepts": [concepts[cid].model_dump(mode="json") for cid in sorted(concepts)],
         "passages": [passages[pid].model_dump(mode="json") for pid in sorted(passages)],
         "questions": questions,
+        "guides": guide_payload,
     }
 
 

@@ -30,6 +30,8 @@ This file is the source of truth for **what the UI is today**. The spec is the s
 
 The document does not scroll. `AppShell` is `h-dvh overflow-hidden`, so the masthead, rail, sidebar, inspector, and compact tab bar are flex children of a viewport-height row and are structurally incapable of scrolling away. Exactly one element scrolls page content — `<main class="shell-scroll">` — and panels that need to scroll use `.shell-panel-scroll`. Inside main, `PageLayout` pins a page header that condenses once the region scrolls, and `StickyToolbar` parks control bars directly beneath it against `--shell-pageheader-h`. Scroll position is remembered per route in `sessionStorage`, because a locked viewport means the browser's own restoration has nothing to restore. Below `md`, the sidebar and inspector become focus-trapped drawers and the rail becomes a bottom tab bar.
 
+**Feature parity (spec 046).** The published site renders the same solve guides, hint carousel, five diagram types, and post-grade concept references as the lab — the guides are hand-authored static data, so they ship in `content.json` and are locked client-side until a question is graded. What it will never have, because a serverless site cannot: the AI tutor, answer cross-check, HITL authoring, the validation report, and server-side stats. `ux_audit.py` R13 fails the build when a `frontend/components/lsat/` component gains no counterpart and no `static-parity: none — <reason>`.
+
 `lsat-static/` is a single-page tab router (`Overview`, `LR`, `RC`, `LG`, `Concepts`, `Stats`) driven by a HITL-approved `content.json`. It is **not** on the `make dev` compose network.
 
 ---

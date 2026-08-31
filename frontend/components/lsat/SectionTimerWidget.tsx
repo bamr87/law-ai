@@ -40,6 +40,11 @@ export function useLsatTimer() {
  * `dock` is the zone asking to render it; the widget draws only if that zone
  * matches the user's preference, which is what lets one component serve three
  * mount points without the shell knowing where it belongs.
+ *
+ * static-parity: none — the static export has its own section clock at
+ * `lsat-static/components/SectionTimer.tsx`. Docking is meaningless there:
+ * it has no sidebar or inspector to move between, so spec 046 pinned its
+ * drill head instead (BL-20260830-04 still tracks unifying the two).
  */
 export default function SectionTimerWidget({
   dock,
