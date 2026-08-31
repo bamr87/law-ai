@@ -78,6 +78,30 @@ function Control<T>({
   disabled: boolean
   onChange: (value: T) => void
 }) {
+  // Enum settings declare their options; everything else infers a control from
+  // the default's type.
+  if (def.options && def.options.length > 0) {
+    return (
+      <select
+        aria-label={def.label}
+        disabled={disabled}
+        value={String(value)}
+        onChange={(e) => {
+          const picked = def.options?.find(
+            (o) => String(o.value) === e.target.value,
+          )
+          if (picked) onChange(picked.value)
+        }}
+        className="shrink-0 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {def.options.map((o) => (
+          <option key={String(o.value)} value={String(o.value)}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    )
+  }
   if (typeof def.default === 'boolean') {
     const on = Boolean(value)
     return (

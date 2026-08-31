@@ -22,11 +22,23 @@ describe('MODULE_CATALOG', () => {
 })
 
 describe('SETTING_CATALOG', () => {
-  it('ships the three instance keys from spec 040', () => {
+  it('ships every instance-scoped key', () => {
+    // Exact equality on purpose: a setting added without a deliberate test
+    // change is a setting nobody decided to ship.
     expect(SETTING_CATALOG.map((s) => s.key)).toEqual([
       'analysis.hitl_threshold',
       'graph.show_citation_counts',
       'ui.inspector.default_open',
+      'lsat.timer.dock',
     ])
+  })
+
+  it('gives every enum setting options its parser accepts', () => {
+    for (const def of SETTING_CATALOG) {
+      if (!def.options) continue
+      expect(def.options.length).toBeGreaterThan(1)
+      for (const o of def.options) expect(def.parse(o.value)).toBe(o.value)
+      expect(def.parse(def.default)).toBe(def.default)
+    }
   })
 })

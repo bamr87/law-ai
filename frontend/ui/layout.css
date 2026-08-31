@@ -47,6 +47,10 @@
   --z-content: 0;
   --z-sticky-sub: 20;
   --z-sticky-header: 30;
+  /* Popovers anchored to in-panel controls (a dock menu, a filter dropdown):
+   * above their own panel's sticky chrome, below the masthead and any layer
+   * that dims the page. */
+  --z-popover: 35;
   --z-masthead: 40;
   --z-scrim: 50;
   --z-drawer: 60;

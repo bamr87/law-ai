@@ -31,7 +31,7 @@ A page with no sticky header sets `--shell-pageheader-h: 0px` on its own root.
 
 ### The z-scale
 
-`--z-content` `0` · `--z-sticky-sub` `20` · `--z-sticky-header` `30` · `--z-masthead` `40` · `--z-scrim` `50` · `--z-drawer` `60` · `--z-palette` `70`.
+`--z-content` `0` · `--z-sticky-sub` `20` · `--z-sticky-header` `30` · `--z-popover` `35` · `--z-masthead` `40` · `--z-scrim` `50` · `--z-drawer` `60` · `--z-palette` `70`.
 
 Never hand-write a z-index. `scripts/ux_audit.py` R4 fails the build on a literal, because a literal has no idea the drawer sits at 60.
 
@@ -59,6 +59,8 @@ Under [`../components/shell/`](../components/shell/) until spec 039 gives `front
 | `useFocusTrap` | The same behaviour for any new overlay. Use it rather than writing a fourth focus trap. |
 | `useShellScroll` | Read the main region's scroll offset. `window.scrollY` is always 0 — the shell locks the viewport. |
 | `useMediaQuery` | Only for layout decisions that change *markup* (docked column vs drawer). Everything else is a CSS breakpoint. |
+| `DockZone` / `resolveDock` | Persistent module widgets that live in the shell's chrome. A zone renders every registered widget; each widget decides whether it belongs in the asking dock and on the current route, so `AppShell` never learns what a module is. `resolveDock` honours the user's preference and falls back to an open zone rather than hiding the widget when a panel is collapsed. |
+| `useSetting` | Read one setting, live. `useSyncExternalStore` over the settings store — safe through hydration and reactive when the value changes anywhere on the page. Never read `listSettingValues()` during render. |
 | `useRovingTabIndex` | Any composite widget — tab bar, radiogroup, listbox, toolbar. Makes the group **one** tab stop with arrow-key movement inside it, selection following focus. Never hand-roll this: `ux_audit.py` R10 checks the ARIA attributes and `__tests__/shell/rovingFocus.test.tsx` checks the behaviour. |
 
 ## Adding a surface

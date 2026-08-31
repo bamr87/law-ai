@@ -86,7 +86,8 @@ Shared hex coincidence: both canvases are `#0f172a` / `#e2e8f0`. That is the ent
 | `KnowledgeGraph.tsx` | Screen | Case search + neighborhood fetch. |
 | `GraphViewer.tsx` | Widget | Cytoscape canvas. Open: [BL-20260803-03](../BACKLOG.md) (do not label centrality as correctness). |
 | `LsatLab.tsx` | Screen (~1611 lines) | God component: overview, LR/RC/LG drills, concepts, stats, HITL authoring. Parallel to `lsat-static/`, not shared. |
-| `LsatTimer.tsx` | Primitive | Section clock + per-question elapsed. Parallel to `lsat-static/components/SectionTimer.tsx`. |
+| `lsat/SectionTimerWidget.tsx` | Docked widget | The section clock. Docks in the sidebar (default), inspector, or in page — moved from its own menu or `/settings`, persisted per instance. A view over `lib/lsat/timerStore.ts`, so moving it never resets a running section; it follows you to other modules while a section is in progress and survives a reload with the elapsed time counted (spec 043). |
+| `LsatTimer.tsx` | Primitive | Now only `QuestionElapsed` (per-question clock). Section timing moved to the docked widget above; the file is a leftover name (BL-20260831-15). |
 
 `frontend/app/(app)/page.tsx` still inlines its own `Card` and `SectionHeading` instead of extracting them (spec 039's job). Spec 041 fixed its two content bugs: the marketing footer became a labelled `<nav>`, so the page no longer renders two `contentinfo` landmarks alongside the shell's `LegalDisclaimerFooter` (BL-20260830-06), and the STACK blurb now names the real stack — Django 5 / Next 16, and the Claude→Ollama provider chain rather than Ollama-as-the-runtime (BL-20260830-03). It is the one route deliberately exempt from `PageLayout` (`ux-audit: bare-page`), because a condensing header would sit on top of its full-bleed hero.
 

@@ -14,6 +14,7 @@ import {
 } from '@/lib/shell/panels'
 import { isTypingTarget, matchShortcut } from '@/lib/shell/shortcuts'
 import type { ShellCommand } from '@/lib/shell/commands'
+import type { Dock as DockName } from '@/lib/settings/catalog'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   Suspense,
@@ -23,6 +24,7 @@ import {
   type ReactNode,
 } from 'react'
 import BackToTop from './BackToTop'
+import DockZone from './DockZone'
 import CommandPalette from './CommandPalette'
 import Masthead from './Masthead'
 import MobileTabBar from './MobileTabBar'
@@ -147,6 +149,14 @@ function ShellInner({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [helpOpen, paletteOpen, toggleInspector, toggleSidebar])
 
+  // Which dock zones are actually on screen. A widget whose preferred panel is
+  // collapsed falls back to one that is open rather than vanishing.
+  const openDocks: DockName[] = [
+    ...(sidebarOpen ? (['sidebar'] as const) : []),
+    ...(inspectorOpen ? (['inspector'] as const) : []),
+  ]
+  const onLsatRoute = pathname.startsWith('/lsat')
+
   const sidebarDocked = sidebarOpen && !compact
   const sidebarDrawer = sidebarOpen && compact
   const inspectorDocked = inspectorOpen && !narrow
@@ -183,6 +193,13 @@ function ShellInner({
               className="hidden w-[var(--shell-sidebar-w)] shrink-0 border-r border-slate-800 bg-slate-950/60 md:block"
               aria-label="Contextual navigation"
             >
+              <div className="border-b border-slate-800 p-3">
+                <DockZone
+                  dock="sidebar"
+                  onOwnRoute={onLsatRoute}
+                  openDocks={openDocks}
+                />
+              </div>
               {sidebar}
             </aside>
           )}
@@ -208,6 +225,13 @@ function ShellInner({
               className="hidden w-[var(--shell-inspector-w)] shrink-0 border-l border-slate-800 bg-slate-950/80 lg:block"
               aria-label="Inspector"
             >
+              <div className="border-b border-slate-800 p-3">
+                <DockZone
+                  dock="inspector"
+                  onOwnRoute={onLsatRoute}
+                  openDocks={openDocks}
+                />
+              </div>
               {inspector}
             </aside>
           )}
@@ -221,6 +245,13 @@ function ShellInner({
           label="Contextual navigation"
           onClose={() => setPanel('sidebar', false)}
         >
+          <div className="border-b border-slate-800 p-3">
+            <DockZone
+              dock="sidebar"
+              onOwnRoute={onLsatRoute}
+              openDocks={openDocks}
+            />
+          </div>
           {sidebar}
         </Drawer>
         <Drawer
@@ -229,6 +260,13 @@ function ShellInner({
           label="Inspector"
           onClose={() => setPanel('inspector', false)}
         >
+          <div className="border-b border-slate-800 p-3">
+            <DockZone
+              dock="inspector"
+              onOwnRoute={onLsatRoute}
+              openDocks={openDocks}
+            />
+          </div>
           {inspector}
         </Drawer>
 

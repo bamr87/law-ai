@@ -39,7 +39,9 @@ import {
     type LsatStats,
     type LsatTutorResponse,
 } from '@/lib/api'
-import LsatTimer, { QuestionElapsed } from '@/components/LsatTimer'
+import { QuestionElapsed } from '@/components/LsatTimer'
+import SectionTimerWidget from '@/components/lsat/SectionTimerWidget'
+import { recordAnswer } from '@/lib/lsat/timerStore'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type Tab = 'overview' | 'LR' | 'RC' | 'LG' | 'concepts' | 'stats' | 'authoring'
@@ -90,10 +92,9 @@ export default function LsatLab() {
         attempts: s.attempts + 1,
         correct: s.correct + (correct ? 1 : 0),
       }))
-      setPace((p) => ({
-        answered: p.answered + 1,
-        totalSeconds: p.totalSeconds + elapsedSeconds,
-      }))
+      // Pace lives in the timer store, not here: the timer can be docked in a
+      // side panel, which is a different React subtree from this page.
+      recordAnswer(elapsedSeconds)
       void refreshStats()
     },
     [refreshStats],
@@ -143,9 +144,13 @@ function Header({
       : null
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 text-sm backdrop-blur">
-      <LsatTimer
-        answeredCount={pace.answered}
-        answeredSeconds={pace.totalSeconds}
+      {/* The timer is dockable (spec 043). It renders here only when the user
+        * has chosen the "In page" dock; otherwise it lives in a side panel and
+        * this slot collapses. */}
+      <SectionTimerWidget
+        dock="inline"
+        onOwnRoute
+        openDocks={['sidebar', 'inspector']}
       />
       <div className="flex flex-wrap items-center justify-end gap-4">
         <Stat
