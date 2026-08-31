@@ -282,6 +282,9 @@ export interface LsatStatsBucket {
   attempts: number
   correct: number
   accuracy: number
+  /** Attempts graded with hints_used > 0 (spec 045 FR-5). */
+  assisted?: number
+  unassisted?: number
 }
 
 export interface LsatStats extends LsatStatsBucket {
@@ -334,6 +337,8 @@ export interface LsatTutorRequest {
   question_id: string
   user_choice?: LsatChoiceLabel | null
   user_question?: string | null
+  /** Bypass the server-side walkthrough cache (spec 045 FR-13). */
+  refresh?: boolean
 }
 
 export interface LsatTutorResponse {
@@ -351,6 +356,71 @@ export interface LsatTutorResponse {
   confidence: number
   requires_human_review: boolean
   latency_ms: number
+  /** True when served from the stored walkthrough cache (spec 045 FR-13). */
+  cached?: boolean
+}
+
+// --- LSAT cross-check + validation (spec 045 FR-14/FR-15) ---
+
+export interface LsatCrossCheck {
+  question_id: string
+  bank_choice: LsatChoiceLabel
+  model_choice: LsatChoiceLabel | null
+  /** null when no provider was reachable. */
+  agree: boolean | null
+  rationale: string
+  model: string
+  used_llm: boolean
+  cached: boolean
+  requires_human_review: boolean
+  latency_ms: number
+}
+
+export async function crossCheckLsat(
+  questionId: string,
+  opts?: { refresh?: boolean },
+): Promise<LsatCrossCheck> {
+  const res = await apiFetch(
+    `/api/lsat/questions/${encodeURIComponent(questionId)}/cross-check`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(opts?.refresh ? { refresh: true } : {}),
+    },
+  )
+  if (!res.ok) throw new Error(`Cross-check failed (${res.status})`)
+  return (await res.json()) as LsatCrossCheck
+}
+
+export interface LsatValidationIssue {
+  question_id: string
+  kind: string
+  detail: string
+}
+
+export interface LsatValidationReport {
+  generated_at: string
+  section: LsatSection | null
+  question_count: number
+  guide_count: number
+  issue_count: number
+  issues: LsatValidationIssue[]
+  answer_distribution: Record<string, Record<string, number>>
+  cross_checks: {
+    checked: number
+    agreements: number
+    disagreements: {
+      question_id: string
+      bank_choice: LsatChoiceLabel
+      model_choice: LsatChoiceLabel | null
+      model: string
+    }[]
+  }
+}
+
+export function fetchLsatValidation(section?: LsatSection) {
+  const qs = section ? `?section=${section}` : ''
+  return getJson<LsatValidationReport>(`/api/lsat/validation${qs}`)
 }
 
 export interface LsatQuestionFilters {
@@ -380,11 +450,16 @@ export function fetchLsatQuestions(
 export async function gradeLsat(
   question_id: string,
   choice: LsatChoiceLabel,
+  hintsUsed?: number,
 ): Promise<LsatGradeResponse> {
+  const body: Record<string, unknown> = { question_id, choice }
+  if (typeof hintsUsed === 'number' && hintsUsed > 0) {
+    body.hints_used = hintsUsed
+  }
   const res = await apiFetch(`/api/lsat/grade`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question_id, choice }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`Grade failed (${res.status})`)
   return (await res.json()) as LsatGradeResponse
@@ -448,6 +523,136 @@ export async function askLsatTutor(
   return (await res.json()) as LsatTutorResponse
 }
 
+// --- LSAT solve guides (spec 045) ---
+
+export type LsatStepKind =
+  | 'orient'
+  | 'inventory'
+  | 'symbolize'
+  | 'diagram'
+  | 'infer'
+  | 'eliminate'
+  | 'answer'
+
+export interface LsatSequenceRep {
+  rep_type: 'sequence'
+  /** Slot labels, rendered left-to-right (first-to-last). */
+  slots: string[]
+  entities: string[]
+  /** slot label -> entity fixed there. */
+  placements: Record<string, string>
+  /** slot label -> entities barred from it. */
+  exclusions: Record<string, string[]>
+  note?: string | null
+}
+
+export interface LsatGridCell {
+  row: string
+  column: string
+  mark: 'yes' | 'no' | 'maybe'
+  note?: string | null
+}
+
+export interface LsatGridRep {
+  rep_type: 'grid'
+  rows: string[]
+  columns: string[]
+  cells: LsatGridCell[]
+  note?: string | null
+}
+
+export interface LsatNotationRule {
+  rule_text: string
+  symbols: string
+  note?: string | null
+}
+
+export interface LsatNotationRep {
+  rep_type: 'notation'
+  rules: LsatNotationRule[]
+}
+
+export interface LsatArgumentNode {
+  id: string
+  role: 'premise' | 'conclusion' | 'assumption' | 'objection'
+  text: string
+}
+
+export interface LsatArgumentEdge {
+  from: string
+  to: string
+  relation: 'supports' | 'opposes'
+}
+
+export interface LsatArgumentMapRep {
+  rep_type: 'argument_map'
+  nodes: LsatArgumentNode[]
+  edges: LsatArgumentEdge[]
+}
+
+export interface LsatPassageParagraph {
+  paragraph: number
+  role: string
+  gist: string
+}
+
+export interface LsatPassageMapRep {
+  rep_type: 'passage_map'
+  paragraphs: LsatPassageParagraph[]
+}
+
+export type LsatRepresentation =
+  | LsatSequenceRep
+  | LsatGridRep
+  | LsatNotationRep
+  | LsatArgumentMapRep
+  | LsatPassageMapRep
+
+export interface LsatSolveStep {
+  kind: LsatStepKind
+  title: string
+  spoiler: boolean
+  /** True when the server withheld this step's content (spoiler not yet unlocked). */
+  locked: boolean
+  text?: string
+  representation?: LsatRepresentation | null
+}
+
+export interface LsatSolveGuide {
+  question_id: string
+  method: string
+  version: number
+  source: string
+  step_count: number
+  steps: LsatSolveStep[]
+}
+
+/** 404 from the guide endpoint — carries whether the tutor can stand in. */
+export class LsatGuideNotFoundError extends Error {
+  hasTutor: boolean
+  constructor(hasTutor: boolean) {
+    super('no solve guide for this question')
+    this.name = 'LsatGuideNotFoundError'
+    this.hasTutor = hasTutor
+  }
+}
+
+export async function fetchLsatGuide(
+  questionId: string,
+  opts?: { spoilers?: boolean },
+): Promise<LsatSolveGuide> {
+  const suffix = opts?.spoilers ? '?spoilers=1' : ''
+  const res = await apiFetch(
+    `/api/lsat/questions/${encodeURIComponent(questionId)}/guide${suffix}`,
+  )
+  if (res.status === 404) {
+    const body = (await res.json().catch(() => ({}))) as { has_tutor?: boolean }
+    throw new LsatGuideNotFoundError(Boolean(body.has_tutor))
+  }
+  if (!res.ok) throw new Error(`Guide fetch failed (${res.status})`)
+  return (await res.json()) as LsatSolveGuide
+}
+
 // --- LSAT Content Authoring (spec 019) ---
 
 export type LsatProposalStatus = 'pending' | 'approved' | 'rejected'
@@ -464,18 +669,35 @@ export interface LsatProposalDraft {
   confidence: number
 }
 
+/** Solve-guide draft in the proposal queue (spec 045 FR-9). */
+export interface LsatGuideProposalDraft {
+  question_id: string
+  method: string
+  version: number
+  source: string
+  steps: {
+    kind: LsatStepKind
+    title: string
+    text: string
+    spoiler: boolean
+    representation?: LsatRepresentation | null
+  }[]
+}
+
 export interface LsatProposal {
   id: string
   status: LsatProposalStatus
   created_at: string
   updated_at: string
-  section: LsatSection
-  difficulty: LsatDifficulty
+  /** "question" (default, legacy rows) or "guide" (spec 045). */
+  proposal_kind?: 'question' | 'guide'
+  section: LsatSection | null
+  difficulty: LsatDifficulty | null
   agent_trace_id: string
   model: string
   confidence: number
   source_concept_ids: string[]
-  draft: LsatProposalDraft
+  draft: LsatProposalDraft | LsatGuideProposalDraft
   reviewer?: string | null
   note?: string | null
   question_id?: string | null

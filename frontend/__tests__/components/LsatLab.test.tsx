@@ -218,9 +218,22 @@ describe('LsatLab', () => {
         screen.getByText(/Incorrect — answer was C/),
       ).toBeInTheDocument()
     })
-    expect(screen.getByText(/Hasty generalisation/)).toBeInTheDocument()
+    // Spec 045 FR-12: the author-rationale block with external source links
+    // is gone — post-grade references resolve only to the concept catalog.
+    // This supersedes the earlier assertion that the rationale text renders.
+    expect(screen.queryByText(/Author rationale/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Hasty generalisation/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: /LSAC LR overview/i }),
+    ).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText(/Derived from/i)).toBeInTheDocument()
+    })
+    expect(
+      (await screen.findAllByText('flaw-in-reasoning')).length,
+    ).toBeGreaterThan(1)
     // Pace now lives in the timer store, because the timer can be docked in a
-    // side panel — a different React subtree from this page.
+    // side panel — a different React subtree from this page (spec 043).
     expect(getTimerSnapshot().answered).toBe(1)
   })
 

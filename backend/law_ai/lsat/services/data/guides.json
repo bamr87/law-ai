@@ -1,0 +1,3259 @@
+{
+    "items": [
+        {
+            "question_id": "lg-001",
+            "method": "Rule-by-rule elimination on an ordering game",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the game",
+                    "text": "Five entities, five slots, one each — a pure ordering (sequencing) game. For a 'could be the order' question, you never need a full solve: each rule eliminates the answer choices that break it.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "inventory",
+                    "title": "Write out the elements",
+                    "text": "List the roster and the board before touching the rules: associates F, G, H, J, K into slots 1–5. Writing the inventory first is what lets you see leftovers later.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5"
+                        ],
+                        "entities": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K"
+                        ],
+                        "placements": {},
+                        "exclusions": {},
+                        "note": "Empty board — inventory only. Slots run left to right, first to last."
+                    }
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Symbolize each rule",
+                    "text": "Turn every rule into notation you can scan in one glance. An 'immediately before' rule is a block; a fixed slot is an equation; a forbidden slot is a strike-out.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "F argues immediately before H.",
+                                "symbols": "[F H]",
+                                "note": "A block: F and H are adjacent, F on the left. They move together."
+                            },
+                            {
+                                "rule_text": "J argues fourth.",
+                                "symbols": "J = 4",
+                                "note": "Fixed placement — write J straight onto the board."
+                            },
+                            {
+                                "rule_text": "K does not argue first.",
+                                "symbols": "K ≠ 1",
+                                "note": "An exclusion — mark slot 1 with ~K."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Sketch the board",
+                    "text": "Put the fixed and forbidden marks on the board. J owns slot 4; slot 1 bars K. The [F H] block floats — it needs two adjacent open slots, so it must fit in 1–2, 2–3, or… not 4–5 (J blocks 4).",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5"
+                        ],
+                        "entities": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K"
+                        ],
+                        "placements": {
+                            "4": "J"
+                        },
+                        "exclusions": {
+                            "1": [
+                                "K"
+                            ]
+                        },
+                        "note": "The [F H] block can only occupy slots 1–2 or 2–3."
+                    }
+                },
+                {
+                    "kind": "eliminate",
+                    "title": "Run each rule against the choices",
+                    "text": "Take one rule at a time and cross off violators. Rule 1 [F H]: choice A splits F and H (F first, H third) and choice E reverses them — gone. Rule 2 J = 4: choice B puts J fifth — gone. Rule 3 K ≠ 1: choice C opens with K — gone. An elimination grid makes the sweep mechanical.",
+                    "spoiler": true,
+                    "representation": {
+                        "rep_type": "grid",
+                        "rows": [
+                            "A",
+                            "B",
+                            "C",
+                            "D",
+                            "E"
+                        ],
+                        "columns": [
+                            "[F H]",
+                            "J = 4",
+                            "K ≠ 1"
+                        ],
+                        "cells": [
+                            {
+                                "row": "A",
+                                "column": "[F H]",
+                                "mark": "no",
+                                "note": "F and H are not adjacent."
+                            },
+                            {
+                                "row": "B",
+                                "column": "J = 4",
+                                "mark": "no",
+                                "note": "J is fifth."
+                            },
+                            {
+                                "row": "C",
+                                "column": "K ≠ 1",
+                                "mark": "no",
+                                "note": "K opens the order."
+                            },
+                            {
+                                "row": "D",
+                                "column": "[F H]",
+                                "mark": "yes",
+                                "note": null
+                            },
+                            {
+                                "row": "D",
+                                "column": "J = 4",
+                                "mark": "yes",
+                                "note": null
+                            },
+                            {
+                                "row": "D",
+                                "column": "K ≠ 1",
+                                "mark": "yes",
+                                "note": null
+                            },
+                            {
+                                "row": "E",
+                                "column": "[F H]",
+                                "mark": "no",
+                                "note": "H comes before F."
+                            }
+                        ],
+                        "note": "Rows are answer choices; columns are rules. One 'no' kills a row."
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "One choice survives",
+                    "text": "Only D remains: F, H, K, J, G. Check it once — F immediately before H (slots 1–2), J fourth, K second (not first). Every rule holds, so D is correct.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-002",
+            "method": "Chain forced placements from a local condition",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "'If H argues third…' is a local question: it adds a temporary condition. Redraw the board with the new fact and chase every consequence before reading a single answer choice.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Recall the symbolized rules",
+                    "text": "Same game, same notation. Keep the three rules in view — the new condition will interact with all of them.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "F argues immediately before H.",
+                                "symbols": "[F H]",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "J argues fourth.",
+                                "symbols": "J = 4",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "K does not argue first.",
+                                "symbols": "K ≠ 1",
+                                "note": null
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Place the condition",
+                    "text": "Drop H into slot 3. The block [F H] instantly forces F into slot 2 — that is the whole point of symbolizing adjacency as a block. J was already fixed in slot 4.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5"
+                        ],
+                        "entities": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K"
+                        ],
+                        "placements": {
+                            "2": "F",
+                            "3": "H",
+                            "4": "J"
+                        },
+                        "exclusions": {
+                            "1": [
+                                "K"
+                            ]
+                        },
+                        "note": "H = 3 (given) drags F to 2 via the [F H] block."
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Chase the leftovers",
+                    "text": "Only G and K remain, and only slots 1 and 5 are open. K ≠ 1 forbids K from slot 1, so K takes 5 and G takes 1. The entire order is forced: G, F, H, J, K.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5"
+                        ],
+                        "entities": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K"
+                        ],
+                        "placements": {
+                            "1": "G",
+                            "2": "F",
+                            "3": "H",
+                            "4": "J",
+                            "5": "K"
+                        },
+                        "exclusions": {},
+                        "note": "Fully determined — a must-be-true question with one possible world."
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the forced board to the choices",
+                    "text": "G argues first, so E must be true. The wrong answers contradict the forced board: F is second (not first, killing A), K is fifth (killing B and D), and J is fourth (killing C).",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-006",
+            "method": "Block-and-order elimination on a six-slot sequence",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "inventory",
+                    "title": "Write out the elements",
+                    "text": "Six students — F, G, H, J, K, M — into slots 1 through 6, one each. Bigger board, same discipline: inventory first.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6"
+                        ],
+                        "entities": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K",
+                            "M"
+                        ],
+                        "placements": {},
+                        "exclusions": {},
+                        "note": "Empty six-slot board."
+                    }
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Symbolize: two blocks, two orderings",
+                    "text": "Two adjacency blocks and two loose before/after rules. Note the difference in notation — a dash (K … M) allows any gap; a block [F G] allows none. Rule 4 chains the blocks: the [F G] block sits somewhere before the [H J] block.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "F argues immediately before G.",
+                                "symbols": "[F G]",
+                                "note": "Adjacent, F left."
+                            },
+                            {
+                                "rule_text": "H argues immediately before J.",
+                                "symbols": "[H J]",
+                                "note": "Adjacent, H left."
+                            },
+                            {
+                                "rule_text": "K argues at some time before M.",
+                                "symbols": "K — M",
+                                "note": "Any gap allowed."
+                            },
+                            {
+                                "rule_text": "F argues at some time before H.",
+                                "symbols": "F — H  ⇒  [F G] — [H J]",
+                                "note": "Combining with the blocks: the F-G pair precedes the H-J pair."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "eliminate",
+                    "title": "One rule at a time across the choices",
+                    "text": "Rule 4 (F before H): choice A opens with H, J — dead. Rule 1 [F G]: choice C wedges K between F and G — dead. Rule 2 [H J]: choice D separates H (slot 3) from J (slot 5) — dead. Rule 3 K — M: choice E puts K sixth, after M — dead.",
+                    "spoiler": true
+                },
+                {
+                    "kind": "answer",
+                    "title": "Verify the survivor",
+                    "text": "B — F, G, K, H, J, M — passes every rule: [F G] in 1–2, [H J] in 4–5, K (3) before M (6), F (1) before H (4). B is correct.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-001",
+            "method": "Abstract the argument's form, then match it",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "'Most similar in its reasoning' is a parallel-reasoning question. The content (law firms, supreme courts) is a distraction — only the argument's skeleton matters. Extract the form before reading any choice.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Map the argument",
+                    "text": "Two premises feed one conclusion: a universal rule about a group, plus a membership claim placing Maria in the group.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "argument_map",
+                        "nodes": [
+                            {
+                                "id": "p1",
+                                "role": "premise",
+                                "text": "Every senior partner has argued before the state supreme court."
+                            },
+                            {
+                                "id": "p2",
+                                "role": "premise",
+                                "text": "Maria is a senior partner."
+                            },
+                            {
+                                "id": "c",
+                                "role": "conclusion",
+                                "text": "Maria has argued before the state supreme court."
+                            }
+                        ],
+                        "edges": [
+                            {
+                                "from": "p1",
+                                "to": "c",
+                                "relation": "supports"
+                            },
+                            {
+                                "from": "p2",
+                                "to": "c",
+                                "relation": "supports"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Reduce to symbols",
+                    "text": "Strip the content away entirely. This is universal instantiation — a valid form. Your job is now to find the choice with exactly this notation, and to reject choices whose notation differs.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "Every senior partner has argued at the supreme court.",
+                                "symbols": "All P → Q",
+                                "note": "P = senior partner, Q = has argued there."
+                            },
+                            {
+                                "rule_text": "Maria is a senior partner.",
+                                "symbols": "m is P",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "Therefore Maria has argued there.",
+                                "symbols": "∴ m is Q",
+                                "note": "Valid: universal instantiation."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "eliminate",
+                    "title": "Match forms, not topics",
+                    "text": "B swaps 'all' for 'most' — probabilistic, not universal. C runs the conditional backward (affirming the consequent: Q, therefore P). D does the same trick with an if-then. E reasons from a negative universal to a 'might' — no instantiation at all. Each fails on form, not subject matter.",
+                    "spoiler": true
+                },
+                {
+                    "kind": "answer",
+                    "title": "The matching skeleton",
+                    "text": "A — all birds have feathers; a penguin is a bird; so a penguin has feathers — is 'All P are Q; x is P; ∴ x is Q' exactly. A is correct.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-002",
+            "method": "Find the causal leap, then supply the alternative cause",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "A weaken question. First isolate the conclusion and the evidence; the gap between them is where the correct answer will strike.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Map the argument",
+                    "text": "The planner's evidence is a correlation across other cities; the conclusion is a causal prediction about this one. Notice the unstated assumption doing the real work.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "argument_map",
+                        "nodes": [
+                            {
+                                "id": "p1",
+                                "role": "premise",
+                                "text": "Every comparable city that built light rail saw congestion fall within five years."
+                            },
+                            {
+                                "id": "a1",
+                                "role": "assumption",
+                                "text": "(Unstated) The rail line itself caused those congestion drops."
+                            },
+                            {
+                                "id": "c",
+                                "role": "conclusion",
+                                "text": "Building light rail here will reduce downtown congestion."
+                            }
+                        ],
+                        "edges": [
+                            {
+                                "from": "p1",
+                                "to": "c",
+                                "relation": "supports"
+                            },
+                            {
+                                "from": "a1",
+                                "to": "c",
+                                "relation": "supports"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Attack the assumption",
+                    "text": "Correlation-to-causation arguments break when something else could explain the observed effect. To weaken, look for an answer that supplies a rival cause for the congestion drop in those comparable cities — not one that quibbles about cost, popularity, or engineering.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "eliminate",
+                    "title": "Discard the off-point choices",
+                    "text": "A (cost) changes the price, not the congestion logic. B (construction noise) is irrelevant to whether rail reduces traffic. C (rider satisfaction) mildly supports the planner. E (underground routing) says nothing about the causal claim. None touches the assumption.",
+                    "spoiler": true
+                },
+                {
+                    "kind": "answer",
+                    "title": "The rival cause",
+                    "text": "D reveals that every comparable city also enacted congestion-pricing tolls — a confound that could explain the entire congestion drop without the rail line. That severs evidence from conclusion, so D most weakens the argument.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-003",
+            "method": "Symbolize the conditional, apply the contrapositive",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Spot the conditional",
+                    "text": "One if-then plus one fact. Any 'properly concluded' question over a conditional is asking whether you can run modus ponens or modus tollens — and only those. Symbolize before judging any choice.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Write the rule and its contrapositive",
+                    "text": "Translate the sentence into arrow notation, then write the contrapositive immediately — on the LSAT the contrapositive is usually the version you will actually use.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "If the contract is enforceable, then it was signed by both parties.",
+                                "symbols": "E → S",
+                                "note": "E = enforceable, S = signed by both."
+                            },
+                            {
+                                "rule_text": "Contrapositive (always valid to infer).",
+                                "symbols": "¬S → ¬E",
+                                "note": "Flip and negate both sides."
+                            },
+                            {
+                                "rule_text": "The contract was not signed by both parties.",
+                                "symbols": "¬S",
+                                "note": "The given fact — it matches the contrapositive's trigger."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Fire the contrapositive",
+                    "text": "¬S is exactly the left side of ¬S → ¬E, so ¬E follows: the contract is not enforceable. This is modus tollens. Note what you may NOT do: from E → S alone, knowing S would prove nothing about E (that would be affirming the consequent).",
+                    "spoiler": false
+                },
+                {
+                    "kind": "eliminate",
+                    "title": "Test each choice against ¬E",
+                    "text": "A asserts E — the direct opposite of the valid inference. C invents 'partially enforceable', a category the stimulus never defines. D adds facts about intent that appear nowhere. E denies that a conclusion exists when modus tollens plainly yields one.",
+                    "spoiler": true
+                },
+                {
+                    "kind": "answer",
+                    "title": "The valid conclusion",
+                    "text": "B — the contract is not enforceable — is exactly ¬E, the modus tollens conclusion. B is correct.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "rc-001",
+            "method": "Map the passage's structure, then match the thesis",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "Main-point questions reward structure over detail. Before evaluating choices, reconstruct what each paragraph does — the thesis is usually the through-line, not any single sentence.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Map the paragraphs",
+                    "text": "Four paragraphs, one arc: problem → failed fix → deliberate solution → modern contest. The load-bearing move is in paragraph 3: the drafters knowingly traded predictability for access.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "passage_map",
+                        "paragraphs": [
+                            {
+                                "paragraph": 1,
+                                "role": "Problem",
+                                "gist": "Writ-system pleading punished procedural missteps; the Field Code was a partial remedy."
+                            },
+                            {
+                                "paragraph": 2,
+                                "role": "Failed fix → new idea",
+                                "gist": "Fact pleading bred its own pathologies; Clark's generation urged mere fair notice."
+                            },
+                            {
+                                "paragraph": 3,
+                                "role": "Thesis carrier",
+                                "gist": "The 1938 Rules deliberately traded doctrinal predictability for procedural access; Conley cemented it."
+                            },
+                            {
+                                "paragraph": 4,
+                                "role": "Modern complication",
+                                "gist": "Twombly/Iqbal's plausibility threshold — defenders and critics contest whether the bargain is being unwound."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "State the main point in your own words",
+                    "text": "Something like: the move from rigid pleading to notice pleading was a conscious trade — predictability sacrificed for access — and that bargain is still contested. Now hunt for the choice that captures BOTH halves of the trade.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "eliminate",
+                    "title": "Discard the overreaches",
+                    "text": "A says courts 'always' preferred bright-line rules — extreme and unsupported. B claims all barriers were eliminated — paragraph 4 contradicts it. C says drafters 'rejected' the common-law tradition — too strong; they were informed by it. D equates Twombly/Iqbal with full nineteenth-century restoration — the passage says only 'partial'.",
+                    "spoiler": true
+                },
+                {
+                    "kind": "answer",
+                    "title": "The choice with both halves",
+                    "text": "E — the shift reflected a deliberate trade of doctrinal predictability for procedural access — matches the paragraph-3 thesis and the arc of the whole map. E is correct.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "rc-003",
+            "method": "Locate, verify, and beware neighboring dates",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "'According to the passage' plus a specific fact = a detail question. Do not answer from memory — locate the line, because detail questions bait you with other numbers that appear nearby in the text.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Know where facts live",
+                    "text": "Your paragraph map says dates and rule history live in paragraph 3 (adoption era) and paragraph 4 (modern cases). Go to paragraph 3 for the Rules' effective date.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "passage_map",
+                        "paragraphs": [
+                            {
+                                "paragraph": 1,
+                                "role": "Problem era",
+                                "gist": "Writ pleading; Field Code of 1848."
+                            },
+                            {
+                                "paragraph": 2,
+                                "role": "Reform argument",
+                                "gist": "Fact pleading's pathologies; Clark's notice-pleading idea."
+                            },
+                            {
+                                "paragraph": 3,
+                                "role": "Target paragraph",
+                                "gist": "Original Federal Rules take effect; Rule 8(a)(2); Conley v. Gibson (1957)."
+                            },
+                            {
+                                "paragraph": 4,
+                                "role": "Modern cases",
+                                "gist": "Twombly (2007), Iqbal (2009)."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "eliminate",
+                    "title": "Disarm the decoys",
+                    "text": "1848 belongs to the Field Code (paragraph 1) — and 1948 echoes it. 1957 is Conley v. Gibson, the case that later cemented the standard. 1966 and 1975 appear nowhere in the passage. Every decoy is a real number from the wrong sentence.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "answer",
+                    "title": "Read the line itself",
+                    "text": "Paragraph 3 states the original Federal Rules 'took effect in 1938.' A is correct.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "rc-004",
+            "method": "Ask what work the detail does for the author",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "'Primarily in order to' asks for the detail's FUNCTION, not its content. The answer describes what the mention accomplishes in the author's structure — so the structure map, not the sentence alone, decides it.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Place the detail in the arc",
+                    "text": "The Field Code appears at the hinge between paragraph 1 (problem) and paragraph 2 (the fix's own failure). It is introduced as a 'partial remedy' — and the very next paragraph opens with fact pleading generating 'its own pathologies'.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "passage_map",
+                        "paragraphs": [
+                            {
+                                "paragraph": 1,
+                                "role": "Problem + the detail",
+                                "gist": "Writ system punishes missteps; Field Code of 1848 offered a partial remedy (fact pleading)."
+                            },
+                            {
+                                "paragraph": 2,
+                                "role": "The remedy's failure",
+                                "gist": "Fact pleading generated its own pathologies — setting up the notice-pleading idea."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Phrase the function yourself",
+                    "text": "The Field Code's job in the passage: show an early reform that fixed part of the problem but created new ones — a stepping stone that motivates the next reform. Look for a choice saying exactly that, at that temperature.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "eliminate",
+                    "title": "Discard the wrong temperatures",
+                    "text": "A reverses the author's stance (nothing says fact pleading beat notice pleading). C inflates one example into a leadership claim. D contradicts the passage — the writ system WAS replaced. E turns one bumpy reform into 'reform inevitably fails', far beyond the author's measured tone.",
+                    "spoiler": true
+                },
+                {
+                    "kind": "answer",
+                    "title": "The matching function",
+                    "text": "B — illustrate an early reform effort that solved some problems but introduced new ones — is precisely the stepping-stone role the map shows. B is correct.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-003",
+            "method": "Chain forced placements from a local condition",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "'If G argues fifth…' is a local question. Redraw the board with G in slot 5 and chase every consequence before touching the choices.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Recall the symbolized rules",
+                    "text": "Same game, same notation — keep all three rules in view.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "F argues immediately before H.",
+                                "symbols": "[F H]",
+                                "note": "Adjacent block, F left."
+                            },
+                            {
+                                "rule_text": "J argues fourth.",
+                                "symbols": "J = 4",
+                                "note": "Fixed — write it on the board."
+                            },
+                            {
+                                "rule_text": "K does not argue first.",
+                                "symbols": "K ≠ 1",
+                                "note": "Mark slot 1 with ~K."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Place the condition",
+                    "text": "Put G in slot 5. J was already fixed in slot 4. That leaves slots 1, 2, and 3 for F, H, and K — and the [F H] block needs two of them, adjacent.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5"
+                        ],
+                        "entities": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K"
+                        ],
+                        "placements": {
+                            "4": "J",
+                            "5": "G"
+                        },
+                        "exclusions": {
+                            "1": [
+                                "K"
+                            ]
+                        },
+                        "note": "Only slots 1–3 remain open, and [F H] must fit inside them."
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Chase the leftovers",
+                    "text": "The [F H] block can sit in 1–2 or 2–3. If it took 2–3, K would be forced into slot 1 — forbidden by K ≠ 1. So the block takes 1–2, and K takes the only seat left, slot 3. The whole order is forced: F, H, K, J, G.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5"
+                        ],
+                        "entities": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K"
+                        ],
+                        "placements": {
+                            "1": "F",
+                            "2": "H",
+                            "3": "K",
+                            "4": "J",
+                            "5": "G"
+                        },
+                        "exclusions": {},
+                        "note": "One possible world — a must-be-true question with a fully forced board."
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the forced board",
+                    "text": "K argues third, so A must be true. The wrong answers contradict the forced order: H is second, F is first, J is fourth, and K ≠ 1 already barred K from opening.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-004",
+            "method": "Enumerate the valid worlds, then test the extremes",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "'CANNOT be true' is a global question: the right answer fails in every valid order, and each wrong answer succeeds in at least one. When a game is small, listing the valid orders outright is the fastest weapon.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Recall the symbolized rules",
+                    "text": "Three rules, five slots — this game is tightly constrained, so a full enumeration will be short.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "F argues immediately before H.",
+                                "symbols": "[F H]",
+                                "note": "Adjacent block, F left."
+                            },
+                            {
+                                "rule_text": "J argues fourth.",
+                                "symbols": "J = 4",
+                                "note": "Fixed — write it on the board."
+                            },
+                            {
+                                "rule_text": "K does not argue first.",
+                                "symbols": "K ≠ 1",
+                                "note": "Mark slot 1 with ~K."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Where can the [F H] block go?",
+                    "text": "J owns slot 4, so the block cannot use 3–4 or 4–5. That leaves [F H] in slots 1–2 or 2–3. Everything else follows from that split.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5"
+                        ],
+                        "entities": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K"
+                        ],
+                        "placements": {
+                            "4": "J"
+                        },
+                        "exclusions": {
+                            "1": [
+                                "K"
+                            ]
+                        },
+                        "note": "Block windows: 1–2 or 2–3. Note what that does to H — it can only ever sit in slot 2 or slot 3."
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "List every valid order",
+                    "text": "Block in 1–2: G and K fill 3 and 5 in either order — two worlds. Block in 2–3: K ≠ 1 forces G into slot 1 and K into slot 5 — one world. Three valid orders total.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "Block 1–2, K third.",
+                                "symbols": "F H K J G",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "Block 1–2, G third.",
+                                "symbols": "F H G J K",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "Block 2–3 (G must lead).",
+                                "symbols": "G F H J K",
+                                "note": null
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "Test the choices against the three worlds",
+                    "text": "H sits in slot 2 or 3 in every world, so 'H argues first' can never happen — B cannot be true. Each other choice occurs somewhere: K fifth (world 1), G third (world 2), F second (world 3), K third (world 1).",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-005",
+            "method": "Chain forced placements from a local condition",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "'If K argues third…' is a local question: add the condition to the board and push the rules until nothing else moves.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Recall the symbolized rules",
+                    "text": "Keep the three rules in front of you — the block is the engine here.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "F argues immediately before H.",
+                                "symbols": "[F H]",
+                                "note": "Adjacent block, F left."
+                            },
+                            {
+                                "rule_text": "J argues fourth.",
+                                "symbols": "J = 4",
+                                "note": "Fixed — write it on the board."
+                            },
+                            {
+                                "rule_text": "K does not argue first.",
+                                "symbols": "K ≠ 1",
+                                "note": "Mark slot 1 with ~K."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Place the condition",
+                    "text": "K takes slot 3 and J was already fixed in slot 4. Now ask: where can the [F H] block still fit? It needs two adjacent open slots.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5"
+                        ],
+                        "entities": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K"
+                        ],
+                        "placements": {
+                            "3": "K",
+                            "4": "J"
+                        },
+                        "exclusions": {
+                            "1": [
+                                "K"
+                            ]
+                        },
+                        "note": "Open slots: 1, 2, 5. The only adjacent pair is 1–2."
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "The block has one home",
+                    "text": "Slots 1–2 are the only adjacent open pair, so F takes 1 and H takes 2. G inherits the last seat, slot 5. The order is fully forced: F, H, K, J, G.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5"
+                        ],
+                        "entities": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K"
+                        ],
+                        "placements": {
+                            "1": "F",
+                            "2": "H",
+                            "3": "K",
+                            "4": "J",
+                            "5": "G"
+                        },
+                        "exclusions": {},
+                        "note": "Fully determined — exactly one world satisfies the condition."
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the forced board",
+                    "text": "G argues fifth, so C must be true. Against the forced order the others fail: H is second (not first, not fourth), F is first (not second), and G is fifth (not first).",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-008",
+            "method": "Find the hidden parity constraint",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "'Each could be true EXCEPT' means four choices happen in some valid order and one never does. Look for a structural constraint — often a slot an entity can never occupy.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Recall the symbolized rules",
+                    "text": "Two adjacency blocks plus two ordering rules. Blocks eat pairs of consecutive slots — that geometry is the key.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "F argues immediately before G.",
+                                "symbols": "[F G]",
+                                "note": "Adjacent, F left."
+                            },
+                            {
+                                "rule_text": "H argues immediately before J.",
+                                "symbols": "[H J]",
+                                "note": "Adjacent, H left."
+                            },
+                            {
+                                "rule_text": "K argues at some time before M.",
+                                "symbols": "K — M",
+                                "note": "Any gap allowed."
+                            },
+                            {
+                                "rule_text": "F argues at some time before H.",
+                                "symbols": "F — H  ⇒  [F G] — [H J]",
+                                "note": "The F-G block sits somewhere before the H-J block."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Watch what the blocks do to M",
+                    "text": "The two blocks [F G] and [H J] occupy two disjoint pairs of consecutive slots, and K precedes M. Try to build any valid order and track where M lands: the blocks tile the row so tightly that K and M are forced into the leftover pair of slots, with M after K.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6"
+                        ],
+                        "entities": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K",
+                            "M"
+                        ],
+                        "placements": {},
+                        "exclusions": {},
+                        "note": "Six slots, two 2-slot blocks, and the K–M pair: three 'units' of width 2 filling the row."
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "M's possible seats",
+                    "text": "Treat [F G], [H J], and (K…M) as three width-2 units. However you arrange them, M sits at the right edge of its unit — an even slot. Enumerate: M can testify second, fourth, or sixth, never in an odd slot.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "K-M unit first.",
+                                "symbols": "K M | F G | H J  →  M = 2",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "K-M unit in the middle.",
+                                "symbols": "F G | K M | H J  →  M = 4",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "K-M unit last.",
+                                "symbols": "F G | H J | K M  →  M = 6",
+                                "note": null
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "Apply the parity fact",
+                    "text": "M can never argue third — an odd slot — so D is the exception. The rest all occur: F first and G second in most worlds, H fourth in F-G-K-H-J-M, K fifth in F-G-H-J-K-M.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-009",
+            "method": "Chain forced placements from a local condition",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "'If K argues fifth…' is a local question. Place K, then let the ordering rules squeeze everything else.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Recall the symbolized rules",
+                    "text": "Two blocks and two ordering rules — note the derived rule: the F-G block precedes the H-J block.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "F argues immediately before G.",
+                                "symbols": "[F G]",
+                                "note": "Adjacent, F left."
+                            },
+                            {
+                                "rule_text": "H argues immediately before J.",
+                                "symbols": "[H J]",
+                                "note": "Adjacent, H left."
+                            },
+                            {
+                                "rule_text": "K argues at some time before M.",
+                                "symbols": "K — M",
+                                "note": "Any gap allowed."
+                            },
+                            {
+                                "rule_text": "F argues at some time before H.",
+                                "symbols": "F — H  ⇒  [F G] — [H J]",
+                                "note": "The F-G block sits somewhere before the H-J block."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Place the condition and push K — M",
+                    "text": "K in slot 5 leaves only slot 6 after it, so M must be sixth. Slots 1–4 are now exactly four seats for the two blocks.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6"
+                        ],
+                        "entities": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K",
+                            "M"
+                        ],
+                        "placements": {
+                            "5": "K",
+                            "6": "M"
+                        },
+                        "exclusions": {},
+                        "note": "Blocks [F G] and [H J] must tile slots 1–4."
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Order the blocks",
+                    "text": "F argues before H, so the F-G block takes 1–2 and the H-J block takes 3–4. The full order is forced: F, G, H, J, K, M.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6"
+                        ],
+                        "entities": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K",
+                            "M"
+                        ],
+                        "placements": {
+                            "1": "F",
+                            "2": "G",
+                            "3": "H",
+                            "4": "J",
+                            "5": "K",
+                            "6": "M"
+                        },
+                        "exclusions": {},
+                        "note": "One world — every seat is decided."
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the forced board",
+                    "text": "H argues third, so C must be true. Against the forced order: F is first, G is second, J is fourth, and M is sixth — each wrong choice contradicts a forced seat.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-014",
+            "method": "Test the block's remaining windows",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "'If K argues third…' is a local question. K in slot 3 splits the row and shrinks the windows where each block can fit — test them.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Recall the symbolized rules",
+                    "text": "The derived rule matters again: [F G] must finish before [H J] begins.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "F argues immediately before G.",
+                                "symbols": "[F G]",
+                                "note": "Adjacent, F left."
+                            },
+                            {
+                                "rule_text": "H argues immediately before J.",
+                                "symbols": "[H J]",
+                                "note": "Adjacent, H left."
+                            },
+                            {
+                                "rule_text": "K argues at some time before M.",
+                                "symbols": "K — M",
+                                "note": "Any gap allowed."
+                            },
+                            {
+                                "rule_text": "F argues at some time before H.",
+                                "symbols": "F — H  ⇒  [F G] — [H J]",
+                                "note": "The F-G block sits somewhere before the H-J block."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Place the condition",
+                    "text": "K takes slot 3. The [F G] block now needs two adjacent open slots: the candidates are 1–2, 4–5, and 5–6.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6"
+                        ],
+                        "entities": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K",
+                            "M"
+                        ],
+                        "placements": {
+                            "3": "K"
+                        },
+                        "exclusions": {},
+                        "note": "Where can [F G] still fit? Test each window against F — H."
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Kill the late windows",
+                    "text": "If [F G] sat in 4–5 or 5–6, then H — which must come after F with the whole [H J] block behind it — would have at most one slot left. Impossible. So [F G] takes 1–2: F first, G second. The two survivors are F-G-K-H-J-M and F-G-K-M-H-J.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6"
+                        ],
+                        "entities": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K",
+                            "M"
+                        ],
+                        "placements": {
+                            "1": "F",
+                            "2": "G",
+                            "3": "K"
+                        },
+                        "exclusions": {},
+                        "note": "Slots 4–6 hold [H J] and M, in either arrangement that keeps K before M."
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "Find what holds in both worlds",
+                    "text": "F argues first in both surviving orders, so E must be true. The other placements each hold in only one of the two worlds — H fourth, M sixth, and J fifth only in the first; H fifth only in the second.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-018",
+            "method": "Derive a relational fact from the blocks",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "A global 'must be true' with relational choices (X before Y). Don't enumerate every order — derive the relationship directly from the rules.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Recall the symbolized rules",
+                    "text": "Focus on how [F G] interacts with F — H.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "F argues immediately before G.",
+                                "symbols": "[F G]",
+                                "note": "Adjacent, F left."
+                            },
+                            {
+                                "rule_text": "H argues immediately before J.",
+                                "symbols": "[H J]",
+                                "note": "Adjacent, H left."
+                            },
+                            {
+                                "rule_text": "K argues at some time before M.",
+                                "symbols": "K — M",
+                                "note": "Any gap allowed."
+                            },
+                            {
+                                "rule_text": "F argues at some time before H.",
+                                "symbols": "F — H  ⇒  [F G] — [H J]",
+                                "note": "The F-G block sits somewhere before the H-J block."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Chain the two rules",
+                    "text": "G sits in the slot immediately after F. H comes after F too — but H cannot take G's slot (G is there). So H is at least two slots after F, which puts H after G in every valid order.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "G's seat is pinned to F's.",
+                                "symbols": "G = F + 1",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "H follows F…",
+                                "symbols": "H > F",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "…but G occupies F + 1.",
+                                "symbols": "H ≥ F + 2  ⇒  G — H",
+                                "note": "G always testifies before H — a derived rule the choices will probe."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "Apply the derived rule",
+                    "text": "G argues before H in every valid order, so B must be true. Each other relational claim fails somewhere: K can follow F (F-G-H-J-K-M), H can follow K (F-G-K-H-J-M), K can lead (K-F-G-H-J-M puts K before F), and M can precede J (F-G-K-M-H-J).",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-007",
+            "method": "Rule-by-rule elimination on an ordering game",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "An 'acceptable order' question: no solving needed. Take one rule at a time and cross off every choice that breaks it — exactly one will survive.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "inventory",
+                    "title": "Write out the elements",
+                    "text": "Six witnesses — L, M, N, P, R, T — into sessions 1 through 6. T is already pinned to session 4 and L is restricted to the edges.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6"
+                        ],
+                        "entities": [
+                            "L",
+                            "M",
+                            "N",
+                            "P",
+                            "R",
+                            "T"
+                        ],
+                        "placements": {
+                            "4": "T"
+                        },
+                        "exclusions": {
+                            "2": [
+                                "L"
+                            ],
+                            "3": [
+                                "L"
+                            ],
+                            "5": [
+                                "L"
+                            ]
+                        },
+                        "note": "L may only take session 1 or 6."
+                    }
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Symbolize each rule",
+                    "text": "Four rules: a block, a loose ordering, a fixed seat, and an either/or edge rule.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "M testifies immediately before P.",
+                                "symbols": "[M P]",
+                                "note": "Adjacent block, M left."
+                            },
+                            {
+                                "rule_text": "N testifies at some time before R.",
+                                "symbols": "N — R",
+                                "note": "Any gap allowed."
+                            },
+                            {
+                                "rule_text": "T testifies fourth.",
+                                "symbols": "T = 4",
+                                "note": "Fixed — the board's anchor."
+                            },
+                            {
+                                "rule_text": "L testifies first or sixth.",
+                                "symbols": "L = 1 ∨ L = 6",
+                                "note": "L brackets the schedule — split into two worlds."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "eliminate",
+                    "title": "Sweep the choices one rule at a time",
+                    "text": "Apply [M P] first, then N — R, then T = 4, then the L edge rule. Each rule knocks out at least one listed order; keep a tally rather than re-checking whole orders.",
+                    "spoiler": true
+                },
+                {
+                    "kind": "answer",
+                    "title": "The survivor",
+                    "text": "N, M, P, T, R, L passes every rule — M immediately before P (sessions 2–3), N (1) before R (5), T fourth, L sixth — so C is correct. The others each break exactly one rule: a split M/P pair, R before N, T in the wrong session, or L stuck in the middle.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-012",
+            "method": "Enumerate the worlds, then test the negative claim",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "A global 'must be true'. With T fixed and L restricted to the edges, this game has very few valid orders — enumerate them once and answer every global question from the list.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Recall the symbolized rules",
+                    "text": "T = 4 anchors the middle; L = 1 ∨ 6 splits the game into two worlds to explore.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "M testifies immediately before P.",
+                                "symbols": "[M P]",
+                                "note": "Adjacent block, M left."
+                            },
+                            {
+                                "rule_text": "N testifies at some time before R.",
+                                "symbols": "N — R",
+                                "note": "Any gap allowed."
+                            },
+                            {
+                                "rule_text": "T testifies fourth.",
+                                "symbols": "T = 4",
+                                "note": "Fixed — the board's anchor."
+                            },
+                            {
+                                "rule_text": "L testifies first or sixth.",
+                                "symbols": "L = 1 ∨ L = 6",
+                                "note": "L brackets the schedule — split into two worlds."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Build the four valid orders",
+                    "text": "In each L-world, the [M P] block has exactly two homes, and N — R fills what remains. That yields four orders in total.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "L sixth, block early.",
+                                "symbols": "M P N T R L",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "L sixth, block late.",
+                                "symbols": "N M P T R L",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "L first, block early.",
+                                "symbols": "L M P T N R",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "L first, block late.",
+                                "symbols": "L N R T M P",
+                                "note": null
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Look at session 1 across all four",
+                    "text": "The first session is always M, N, or L. R never leads — it always needs N somewhere before it, and the surviving layouts put R in session 3, 5, or 6.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6"
+                        ],
+                        "entities": [
+                            "L",
+                            "M",
+                            "N",
+                            "P",
+                            "R",
+                            "T"
+                        ],
+                        "placements": {
+                            "4": "T"
+                        },
+                        "exclusions": {
+                            "1": [
+                                "R"
+                            ]
+                        },
+                        "note": "R is barred from session 1 in every valid world."
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match against the choices",
+                    "text": "R never testifies first, so A must be true. Every other claim fails in at least one order: L sixth (not first) in two worlds, N floats between sessions 1, 2, 3 and 5, P can land second or third, and M leads only one world.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-017",
+            "method": "Split into the two surviving worlds",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "'If L testifies first…' is a local question that halves the game. Build both surviving worlds fully — the answer must hold in each.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Recall the symbolized rules",
+                    "text": "With L pinned to session 1, only the [M P] block placement still varies.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "M testifies immediately before P.",
+                                "symbols": "[M P]",
+                                "note": "Adjacent block, M left."
+                            },
+                            {
+                                "rule_text": "N testifies at some time before R.",
+                                "symbols": "N — R",
+                                "note": "Any gap allowed."
+                            },
+                            {
+                                "rule_text": "T testifies fourth.",
+                                "symbols": "T = 4",
+                                "note": "Fixed — the board's anchor."
+                            },
+                            {
+                                "rule_text": "L testifies first or sixth.",
+                                "symbols": "L = 1 ∨ L = 6",
+                                "note": "L brackets the schedule — split into two worlds."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Place the condition",
+                    "text": "L first, T fourth. The open seats are 2, 3, 5, 6, and the [M P] block needs an adjacent pair: 2–3 or 5–6.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "sequence",
+                        "slots": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6"
+                        ],
+                        "entities": [
+                            "L",
+                            "M",
+                            "N",
+                            "P",
+                            "R",
+                            "T"
+                        ],
+                        "placements": {
+                            "1": "L",
+                            "4": "T"
+                        },
+                        "exclusions": {},
+                        "note": "Two block windows → two worlds to build."
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Build both worlds",
+                    "text": "Block in 2–3: N and R take 5 and 6 with N first → L, M, P, T, N, R. Block in 5–6: N and R take 2 and 3 with N first → L, N, R, T, M, P. Compare the two: in both, N sits in the session immediately before R.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "Block early.",
+                                "symbols": "L M P T N R",
+                                "note": "N fifth, R sixth — adjacent."
+                            },
+                            {
+                                "rule_text": "Block late.",
+                                "symbols": "L N R T M P",
+                                "note": "N second, R third — adjacent."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "Find the invariant",
+                    "text": "N testifies immediately before R in both worlds, so E must be true. The other claims each hold in only one world — M second, P third, R sixth in the first; and M before N fails outright in the second, where N is second and M fifth.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-019",
+            "method": "Test a disjunctive claim across every world",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "A global 'must be true' whose choices include an either/or. Disjunctions are weaker claims — easier to make true everywhere — so expect the credited answer to be one. Enumerate the worlds first.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Recall the symbolized rules",
+                    "text": "Same anchors: T = 4, L on an edge, [M P] block, N — R.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "M testifies immediately before P.",
+                                "symbols": "[M P]",
+                                "note": "Adjacent block, M left."
+                            },
+                            {
+                                "rule_text": "N testifies at some time before R.",
+                                "symbols": "N — R",
+                                "note": "Any gap allowed."
+                            },
+                            {
+                                "rule_text": "T testifies fourth.",
+                                "symbols": "T = 4",
+                                "note": "Fixed — the board's anchor."
+                            },
+                            {
+                                "rule_text": "L testifies first or sixth.",
+                                "symbols": "L = 1 ∨ L = 6",
+                                "note": "L brackets the schedule — split into two worlds."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "The four valid orders",
+                    "text": "Two L-worlds times two block windows gives four orders. Write them down once.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "L sixth, block early.",
+                                "symbols": "M P N T R L",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "L sixth, block late.",
+                                "symbols": "N M P T R L",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "L first, block early.",
+                                "symbols": "L M P T N R",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "L first, block late.",
+                                "symbols": "L N R T M P",
+                                "note": null
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Track R's predecessors",
+                    "text": "In the first three orders M testifies before R. The fourth order (L, N, R, T, M, P) breaks that — M comes after R — but there L leads, so L precedes R instead. In every world, at least one of M and L is before R.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the disjunction",
+                    "text": "'M before R, or L before R' survives all four orders, so C must be true. The stronger single claims each die in the fourth order — M and P both follow R there — while the remaining choices fail elsewhere: N can follow T, and T can follow R.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-010",
+            "method": "Rule-by-rule elimination on a selection game",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "An 'acceptable list' question on an in/out selection game. No deductions needed — run each conditional rule against the five listed rosters and cross off violators.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Symbolize each conditional with its contrapositive",
+                    "text": "Selection games live and die on conditionals. Write each rule as an arrow AND flip it — the contrapositive is what usually does the eliminating.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "If F is displayed, then H is displayed.",
+                                "symbols": "F → H   (¬H → ¬F)",
+                                "note": "Write every conditional with its contrapositive."
+                            },
+                            {
+                                "rule_text": "If G is displayed, then K is not displayed.",
+                                "symbols": "G → ¬K   (K → ¬G)",
+                                "note": "G and K can never both be in."
+                            },
+                            {
+                                "rule_text": "If H is displayed, then J is not displayed.",
+                                "symbols": "H → ¬J   (J → ¬H)",
+                                "note": "H and J can never both be in."
+                            },
+                            {
+                                "rule_text": "Exactly three of the six are displayed.",
+                                "symbols": "in: 3   out: 3",
+                                "note": "A selection (in/out) game, not an ordering game."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "eliminate",
+                    "title": "Sweep the choices one rule at a time",
+                    "text": "Rule 1 (F → H): cross off any roster showing F without H. Rule 2 (G → ¬K): cross off any roster with both G and K. Rule 3 (H → ¬J): cross off any roster with both H and J. Count what falls to each.",
+                    "spoiler": true
+                },
+                {
+                    "kind": "answer",
+                    "title": "The survivor",
+                    "text": "G, H, and L is the only roster that violates nothing: no F (Rule 1 idle), G in with K out, H in with J out — so B is correct. Two choices pair F without H, one pairs G with K, and one pairs H with J.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-011",
+            "method": "Read incompatibility straight off a conditional",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "'CANNOT both be displayed' asks for a forbidden pair. A rule of the form X → ¬Y bans the pair {X, Y} outright — check the rules before testing anything by hand.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Symbolize each conditional with its contrapositive",
+                    "text": "Two of the three rules are direct incompatibilities; the F rule is a requirement, not a ban.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "If F is displayed, then H is displayed.",
+                                "symbols": "F → H   (¬H → ¬F)",
+                                "note": "Write every conditional with its contrapositive."
+                            },
+                            {
+                                "rule_text": "If G is displayed, then K is not displayed.",
+                                "symbols": "G → ¬K   (K → ¬G)",
+                                "note": "G and K can never both be in."
+                            },
+                            {
+                                "rule_text": "If H is displayed, then J is not displayed.",
+                                "symbols": "H → ¬J   (J → ¬H)",
+                                "note": "H and J can never both be in."
+                            },
+                            {
+                                "rule_text": "Exactly three of the six are displayed.",
+                                "symbols": "in: 3   out: 3",
+                                "note": "A selection (in/out) game, not an ordering game."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Which pairs do the rules actually forbid?",
+                    "text": "G → ¬K bans {G, K}. H → ¬J bans {H, J}. Nothing else is banned by a single rule — F → H permits F and H together (in fact it demands H when F is in). Any pair not on the banned list can usually be realized in some legal roster.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "grid",
+                        "rows": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K",
+                            "L"
+                        ],
+                        "columns": [
+                            "display"
+                        ],
+                        "cells": [
+                            {
+                                "row": "G",
+                                "column": "display",
+                                "mark": "maybe",
+                                "note": "Banned only alongside K."
+                            },
+                            {
+                                "row": "K",
+                                "column": "display",
+                                "mark": "maybe",
+                                "note": "Banned only alongside G."
+                            },
+                            {
+                                "row": "H",
+                                "column": "display",
+                                "mark": "maybe",
+                                "note": "Banned only alongside J."
+                            },
+                            {
+                                "row": "J",
+                                "column": "display",
+                                "mark": "maybe",
+                                "note": "Banned only alongside H."
+                            },
+                            {
+                                "row": "F",
+                                "column": "display",
+                                "mark": "maybe",
+                                "note": "Needs H with it."
+                            },
+                            {
+                                "row": "L",
+                                "column": "display",
+                                "mark": "maybe",
+                                "note": "Free agent — no rule touches L."
+                            }
+                        ],
+                        "note": "Forbidden pairs from the arrows: {G,K} and {H,J}."
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the banned pair to the choices",
+                    "text": "G and K can never both hang — Rule 2 says so directly — making D the credited pair. Each other pair co-exists in a legal roster: F with H in {F,G,H}, H with L in {F,H,L}, J with L in {G,J,L}, K with L in {H,K,L}.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-013",
+            "method": "Fire the contrapositives, then count the seats",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "'If J is displayed…' is a local question on a selection game. Fire every contrapositive the condition triggers, then check who is left to fill the remaining seats.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Symbolize each conditional with its contrapositive",
+                    "text": "You will use the flipped forms here, not the originals.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "If F is displayed, then H is displayed.",
+                                "symbols": "F → H   (¬H → ¬F)",
+                                "note": "Write every conditional with its contrapositive."
+                            },
+                            {
+                                "rule_text": "If G is displayed, then K is not displayed.",
+                                "symbols": "G → ¬K   (K → ¬G)",
+                                "note": "G and K can never both be in."
+                            },
+                            {
+                                "rule_text": "If H is displayed, then J is not displayed.",
+                                "symbols": "H → ¬J   (J → ¬H)",
+                                "note": "H and J can never both be in."
+                            },
+                            {
+                                "rule_text": "Exactly three of the six are displayed.",
+                                "symbols": "in: 3   out: 3",
+                                "note": "A selection (in/out) game, not an ordering game."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Chain from J in",
+                    "text": "J in fires J → ¬H: H is out. H out fires ¬H → ¬F: F is out. Two of the three display seats remain, and only G, K, and L are still eligible.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "grid",
+                        "rows": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K",
+                            "L"
+                        ],
+                        "columns": [
+                            "display"
+                        ],
+                        "cells": [
+                            {
+                                "row": "J",
+                                "column": "display",
+                                "mark": "yes",
+                                "note": "Given by the condition."
+                            },
+                            {
+                                "row": "H",
+                                "column": "display",
+                                "mark": "no",
+                                "note": "J → ¬H (contrapositive of Rule 3)."
+                            },
+                            {
+                                "row": "F",
+                                "column": "display",
+                                "mark": "no",
+                                "note": "¬H → ¬F (contrapositive of Rule 1)."
+                            },
+                            {
+                                "row": "G",
+                                "column": "display",
+                                "mark": "maybe",
+                                "note": "Eligible."
+                            },
+                            {
+                                "row": "K",
+                                "column": "display",
+                                "mark": "maybe",
+                                "note": "Eligible."
+                            },
+                            {
+                                "row": "L",
+                                "column": "display",
+                                "mark": "maybe",
+                                "note": "Eligible."
+                            }
+                        ],
+                        "note": "Two open seats, three candidates — and one pair of them is banned."
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Count the ways to fill two seats",
+                    "text": "The two remaining seats come from {G, K, L}, but G and K cannot sit together (Rule 2). The only legal pairs are {G, L} and {K, L}. Notice what both have in common.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "answer",
+                    "title": "The common member",
+                    "text": "Both legal completions include L, so 'L is displayed' — choice A — must be true. G and K each appear in only one completion, and F and H were knocked out by the contrapositive chain before the seats were even counted.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-015",
+            "method": "Follow the forced chain from the supposition",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "'Assuming F is displayed, each could also be displayed EXCEPT' — fire F's consequences first; the exception will be whoever those consequences lock out.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Symbolize each conditional with its contrapositive",
+                    "text": "F is the trigger of Rule 1 — start the chain there.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "If F is displayed, then H is displayed.",
+                                "symbols": "F → H   (¬H → ¬F)",
+                                "note": "Write every conditional with its contrapositive."
+                            },
+                            {
+                                "rule_text": "If G is displayed, then K is not displayed.",
+                                "symbols": "G → ¬K   (K → ¬G)",
+                                "note": "G and K can never both be in."
+                            },
+                            {
+                                "rule_text": "If H is displayed, then J is not displayed.",
+                                "symbols": "H → ¬J   (J → ¬H)",
+                                "note": "H and J can never both be in."
+                            },
+                            {
+                                "rule_text": "Exactly three of the six are displayed.",
+                                "symbols": "in: 3   out: 3",
+                                "note": "A selection (in/out) game, not an ordering game."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Chain from F in",
+                    "text": "F in fires F → H: H is displayed. H in fires H → ¬J: J is out. One display seat remains for G, K, or L (G and K still cannot pair, but only one seat is open anyway).",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "grid",
+                        "rows": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K",
+                            "L"
+                        ],
+                        "columns": [
+                            "display"
+                        ],
+                        "cells": [
+                            {
+                                "row": "F",
+                                "column": "display",
+                                "mark": "yes",
+                                "note": "Given by the supposition."
+                            },
+                            {
+                                "row": "H",
+                                "column": "display",
+                                "mark": "yes",
+                                "note": "F → H (Rule 1)."
+                            },
+                            {
+                                "row": "J",
+                                "column": "display",
+                                "mark": "no",
+                                "note": "H → ¬J (Rule 3)."
+                            },
+                            {
+                                "row": "G",
+                                "column": "display",
+                                "mark": "maybe",
+                                "note": "Could take the last seat."
+                            },
+                            {
+                                "row": "K",
+                                "column": "display",
+                                "mark": "maybe",
+                                "note": "Could take the last seat."
+                            },
+                            {
+                                "row": "L",
+                                "column": "display",
+                                "mark": "maybe",
+                                "note": "Could take the last seat."
+                            }
+                        ],
+                        "note": "The chain F ⇒ H ⇒ ¬J runs before any choice is read."
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "The locked-out painting",
+                    "text": "J can never join F — the chain F → H → ¬J bars it — so C is the exception. Each remaining painting fills the third seat in some legal roster: G in {F,G,H}, K in {F,H,K}, L in {F,H,L}, and H is displayed in all of them.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lg-016",
+            "method": "Prove a disjunction by contradiction",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Read the question type",
+                    "text": "'If K is not displayed…' is a local question, and one choice is a disjunction ('at least one of…'). The standard proof: suppose the disjunction fails and show the rules collapse.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Symbolize each conditional with its contrapositive",
+                    "text": "Keep the contrapositive of Rule 1 in view — it delivers the contradiction.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "If F is displayed, then H is displayed.",
+                                "symbols": "F → H   (¬H → ¬F)",
+                                "note": "Write every conditional with its contrapositive."
+                            },
+                            {
+                                "rule_text": "If G is displayed, then K is not displayed.",
+                                "symbols": "G → ¬K   (K → ¬G)",
+                                "note": "G and K can never both be in."
+                            },
+                            {
+                                "rule_text": "If H is displayed, then J is not displayed.",
+                                "symbols": "H → ¬J   (J → ¬H)",
+                                "note": "H and J can never both be in."
+                            },
+                            {
+                                "rule_text": "Exactly three of the six are displayed.",
+                                "symbols": "in: 3   out: 3",
+                                "note": "A selection (in/out) game, not an ordering game."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Suppose H and J are BOTH out",
+                    "text": "With K also out, three of the six paintings are gone, so the display would have to be exactly the remaining three: F, G, and L. But F displayed fires F → H, and H is out — contradiction. The supposition dies.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "grid",
+                        "rows": [
+                            "F",
+                            "G",
+                            "H",
+                            "J",
+                            "K",
+                            "L"
+                        ],
+                        "columns": [
+                            "display"
+                        ],
+                        "cells": [
+                            {
+                                "row": "K",
+                                "column": "display",
+                                "mark": "no",
+                                "note": "Given by the condition."
+                            },
+                            {
+                                "row": "H",
+                                "column": "display",
+                                "mark": "no",
+                                "note": "Supposed out — for contradiction."
+                            },
+                            {
+                                "row": "J",
+                                "column": "display",
+                                "mark": "no",
+                                "note": "Supposed out — for contradiction."
+                            },
+                            {
+                                "row": "F",
+                                "column": "display",
+                                "mark": "yes",
+                                "note": "Forced in… but F → H fails!"
+                            },
+                            {
+                                "row": "G",
+                                "column": "display",
+                                "mark": "yes",
+                                "note": "Forced in."
+                            },
+                            {
+                                "row": "L",
+                                "column": "display",
+                                "mark": "yes",
+                                "note": "Forced in."
+                            }
+                        ],
+                        "note": "Three exclusions force the other three in — and the forced roster breaks Rule 1."
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "State what the contradiction proves",
+                    "text": "H and J cannot both sit out when K is out, so at least one of them is displayed — D must be true. The single-painting claims all fail in some legal world: no F in {G,H,L}, no G in {F,H,L}, no L in {F,G,H}, and no H in {G,J,L}, where J carries the disjunct.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-004",
+            "method": "Name the term-shift between evidence and conclusion",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "A flaw question ('most vulnerable to the criticism'). Before reading the choices, pin down exactly what the critics claimed and exactly what the editor's evidence measures — flaw answers usually live in the gap between two near-synonyms.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Map the exchange",
+                    "text": "The critics' claim and the editor's rebuttal are talking past each other. Put each on the board and label what each one is actually about.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "argument_map",
+                        "nodes": [
+                            {
+                                "id": "obj",
+                                "role": "objection",
+                                "text": "Critics: the policy will reduce the DIVERSITY OF VIEWPOINTS we publish."
+                            },
+                            {
+                                "id": "p1",
+                                "role": "premise",
+                                "text": "Editor: the SUBMISSION RATE has not dropped since the policy took effect."
+                            },
+                            {
+                                "id": "c",
+                                "role": "conclusion",
+                                "text": "Editor: so the critics are mistaken."
+                            }
+                        ],
+                        "edges": [
+                            {
+                                "from": "p1",
+                                "to": "c",
+                                "relation": "supports"
+                            },
+                            {
+                                "from": "obj",
+                                "to": "c",
+                                "relation": "opposes"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Spot the switched measure",
+                    "text": "The critics predicted a drop in one quantity (variety of viewpoints); the editor rebuts with a different quantity (number of submissions). The same pile of submissions could shrink in variety while holding steady in volume — the rebuttal never touches the critics' actual claim. That mismatch of terms is the flaw to find in the choices.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "Critics' claim is about…",
+                                "symbols": "diversity(viewpoints) ↓",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "Editor's evidence is about…",
+                                "symbols": "count(submissions) →",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "The leap.",
+                                "symbols": "count ≠ diversity",
+                                "note": "Equivocation between two different measures."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the flaw",
+                    "text": "E states it exactly: the editor confuses the volume of submissions with the diversity of viewpoints within them. A and D describe conditional and sampling errors the argument never makes, B overstates the critics' premise, and C is a harmless side fact.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-005",
+            "method": "Find the causal leap, then name it",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "A flaw question over a causal claim. When the evidence is a comparison between two groups and the conclusion says 'X causes Y', ask what ELSE could differ between the groups.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Map the argument",
+                    "text": "One correlational premise carries the whole causal conclusion — with an unstated assumption doing the real work.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "argument_map",
+                        "nodes": [
+                            {
+                                "id": "p1",
+                                "role": "premise",
+                                "text": "Breakfast-eaters outperform breakfast-skippers on morning cognitive tests."
+                            },
+                            {
+                                "id": "a1",
+                                "role": "assumption",
+                                "text": "(Unstated) Nothing else about breakfast-eaters explains their scores."
+                            },
+                            {
+                                "id": "c",
+                                "role": "conclusion",
+                                "text": "Eating breakfast CAUSES improved cognitive performance."
+                            }
+                        ],
+                        "edges": [
+                            {
+                                "from": "p1",
+                                "to": "c",
+                                "relation": "supports"
+                            },
+                            {
+                                "from": "a1",
+                                "to": "c",
+                                "relation": "supports"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Generate rival explanations",
+                    "text": "People who eat breakfast may also sleep more regularly, exercise, or differ in a dozen other ways — any of which could drive the test scores. The argument moves from 'correlated' to 'causes' without ruling any of these out. Look for the choice that names that move, not a peripheral quibble.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the flaw",
+                    "text": "C says it directly: the argument infers causation from correlation without ruling out alternative explanations. A, B, D, and E each poke at side issues — representativeness, definitions, test variety, exceptions — none of which is the load-bearing error.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-006",
+            "method": "Absence of evidence vs. evidence of absence",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "A flaw question. Watch what the columnist's premise actually establishes: not that the supporters are wrong — only that they haven't documented their claim.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Map the argument",
+                    "text": "Notice the strength mismatch between premise and conclusion.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "argument_map",
+                        "nodes": [
+                            {
+                                "id": "p1",
+                                "role": "premise",
+                                "text": "Supporters have produced NO architectural surveys backing their preservation claim."
+                            },
+                            {
+                                "id": "c",
+                                "role": "conclusion",
+                                "text": "Therefore the ordinance WILL NOT preserve the historic character."
+                            }
+                        ],
+                        "edges": [
+                            {
+                                "from": "p1",
+                                "to": "c",
+                                "relation": "supports"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Name the pattern",
+                    "text": "From 'the claim is unproven' the columnist concludes 'the claim is false.' But an undocumented claim can still be true — the ordinance's actual effect is untouched by whether anyone filed a survey. Arguing from a lack of evidence to the falsity of a claim is the appeal-to-ignorance pattern.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "What the premise shows.",
+                                "symbols": "¬proven(preserve)",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "What the conclusion asserts.",
+                                "symbols": "¬preserve",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "The illicit move.",
+                                "symbols": "¬proven(X) ⇏ ¬X",
+                                "note": "Absence of evidence is not evidence of absence."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the flaw",
+                    "text": "D — treating absence of evidence as evidence of absence — is exactly the move. A (circularity), B (small sample), C (division), and E (popularity) describe fallacies the columnist never commits.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-007",
+            "method": "Find what makes an elimination argument airtight",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "'Depends on which assumption' is a NECESSARY-assumption question: the credited answer is something the argument cannot live without. Test candidates by negating them — if the negation wrecks the argument, you've found it.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Symbolize the lawyer's logic",
+                    "text": "The lawyer lists two routes to a win, eliminates one, and concludes the other must be the route.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "To win, show misapplication or improper instruction.",
+                                "symbols": "win → (M ∨ I)",
+                                "note": "M = statute misapplied, I = jury improperly instructed."
+                            },
+                            {
+                                "rule_text": "The statute was not misapplied.",
+                                "symbols": "¬M",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "Conclusion.",
+                                "symbols": "win → I",
+                                "note": "Eliminate M from the disjunction… if the list was complete."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Probe the hidden premise",
+                    "text": "The elimination only goes through if M and I were the ONLY grounds for winning. Negate that: suppose some third ground existed — then a win would no longer guarantee improper instructions, and the conclusion collapses. That exhaustiveness is what the argument depends on.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the assumption",
+                    "text": "A — there are no other grounds on which the appeal could be won — is the necessary assumption. B and D assert outcomes the argument never needs, C confuses sufficiency with the stated necessity, and E is idle commentary about which ground was stronger.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-008",
+            "method": "Strengthen a causal claim by protecting the comparison",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "A strengthen question. First find the argument's weakest joint; the credited answer will brace exactly that joint, not add applause.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Map the argument",
+                    "text": "A group comparison feeding a causal conclusion — the classic setup where group comparability is the hidden load-bearing wall.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "argument_map",
+                        "nodes": [
+                            {
+                                "id": "p1",
+                                "role": "premise",
+                                "text": "Patients on the new therapy recovered faster than patients on the standard treatment."
+                            },
+                            {
+                                "id": "a1",
+                                "role": "assumption",
+                                "text": "(Unstated) The two groups were alike apart from the therapy."
+                            },
+                            {
+                                "id": "c",
+                                "role": "conclusion",
+                                "text": "The new therapy is more effective."
+                            }
+                        ],
+                        "edges": [
+                            {
+                                "from": "p1",
+                                "to": "c",
+                                "relation": "supports"
+                            },
+                            {
+                                "from": "a1",
+                                "to": "c",
+                                "relation": "supports"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Attack yourself, then defend",
+                    "text": "The obvious rival story: the new-therapy patients were simply younger or healthier to begin with. A strengthener that closes THAT door — showing the groups matched on age, health, and severity — converts the raw comparison into real evidence of effectiveness. Cost, seniority, and side effects don't touch the causal joint.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the strengthener",
+                    "text": "C — the groups were similar in age, overall health, and severity — rules out the selection story and most strengthens the argument. A and E are about cost and side effects, D is an appeal to the researcher's résumé, and B if anything muddies the comparison.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-009",
+            "method": "Translate 'only', then chain the contrapositive",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "A must-be-true question over two quantified statements. 'Only X may do Y' is the classic trap wording — translate it into an arrow before judging anything.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Translate both statements",
+                    "text": "'Only employees who completed the course may operate' makes completion a REQUIREMENT of operating — the arrow starts at 'operate'.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "Only course-completers may operate.",
+                                "symbols": "operate → completed",
+                                "note": "'Only' introduces the necessary condition."
+                            },
+                            {
+                                "rule_text": "Contrapositive.",
+                                "symbols": "¬completed → ¬operate",
+                                "note": "Always write it — it's usually the working form."
+                            },
+                            {
+                                "rule_text": "No temporary worker completed the course.",
+                                "symbols": "temp → ¬completed",
+                                "note": null
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Chain the arrows",
+                    "text": "Link the second premise into the contrapositive: temp → ¬completed → ¬operate. Every temporary worker is barred from the forklift. Note what you may NOT infer: completion being necessary doesn't make it sufficient, so nothing follows about who DOES operate.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "The chain.",
+                                "symbols": "temp → ¬completed → ¬operate",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "Derived rule.",
+                                "symbols": "temp → ¬operate",
+                                "note": null
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the conclusion",
+                    "text": "E — no temporary worker may operate the forklift — is the chained result. A contradicts it, B and D read the necessary condition as sufficient, and C reverses the first conditional.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-010",
+            "method": "Check which way the arrow was fired",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "A flaw question over a conditional. Symbolize the rule, then check whether the critic argued WITH the arrow (valid) or AGAINST it (flaw).",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Symbolize the critic's argument",
+                    "text": "Lay the rule and the observation side by side and watch the direction of inference.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "If a film is a commercial success, it will be widely imitated.",
+                                "symbols": "success → imitated",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "The comedy has spawned a dozen imitators.",
+                                "symbols": "imitated",
+                                "note": "The CONSEQUENT is what was observed."
+                            },
+                            {
+                                "rule_text": "Conclusion.",
+                                "symbols": "∴ success",
+                                "note": "The critic drove backwards up the arrow."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Name the pattern",
+                    "text": "From success → imitated plus 'imitated', nothing follows — imitation could have other causes (a striking style, a cheap formula). Concluding 'success' from the consequent is affirming the consequent. Contrast the valid forms: modus ponens fires on the ANTECEDENT; modus tollens fires on the NEGATED consequent.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the flaw",
+                    "text": "B captures it: the critic treats a result that success would produce as if it established success. A describes the necessary/sufficient confusion run the other way, and C, D, and E raise sampling, generalization, and merit issues that aren't the operative error.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-011",
+            "method": "Build the bridge premise",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "'Follows logically if assumed' is a SUFFICIENT-assumption question: find the missing premise that makes the argument deductively valid. Mechanically: symbolize the rule and the conclusion, and see what bridges them.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Lay out what's given and what's wanted",
+                    "text": "One universal rule, one conclusion about Dana — the gap is glaring once symbolized.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "Anyone who understands the proof will pass.",
+                                "symbols": "understand → pass",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "Conclusion to be guaranteed.",
+                                "symbols": "∴ pass(Dana)",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "The missing bridge.",
+                                "symbols": "?",
+                                "note": "What single fact would let the rule fire on Dana?"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Fire the rule on Dana",
+                    "text": "The rule fires only when its antecedent holds. Feed it 'Dana understands the proof' and modus ponens delivers the conclusion outright. Anything probabilistic ('most'), reversed (pass → understand), or off-trigger (study habits) fails to guarantee it.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the bridge",
+                    "text": "A — Dana understands the proof — completes the deduction. B is off-trigger, D is merely probable, and C and E reverse the conditional, which never licenses the inference.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-012",
+            "method": "Chain the conditionals, then fire modus ponens",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "A must-be-true question with two linked conditionals and one fact. Chain first, fire second.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Symbolize and link",
+                    "text": "The consequent of the first rule is the antecedent of the second — they weld into one long arrow.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "If the witness is credible, the alibi holds.",
+                                "symbols": "C → A",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "If the alibi holds, the defendant was not at the scene.",
+                                "symbols": "A → ¬S",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "Welded chain.",
+                                "symbols": "C → A → ¬S",
+                                "note": "One arrow from credibility to absence from the scene."
+                            },
+                            {
+                                "rule_text": "Given fact.",
+                                "symbols": "C",
+                                "note": "The witness is credible."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Fire the chain",
+                    "text": "The given fact is the chain's trigger: C fires C → A (the alibi holds), which fires A → ¬S. Both intermediate and final links are now established — the defendant was not at the scene.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the conclusion",
+                    "text": "A — the defendant was not at the scene — is the chained modus ponens result. B and C contradict premises, E contradicts the valid conclusion, and D reverses the chain, which is never licensed.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-013",
+            "method": "Symbolize the rule, then fire modus ponens",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "A 'properly concluded' question over one conditional and one fact. The only valid moves are modus ponens (the fact matches the antecedent) and modus tollens (the fact negates the consequent) — symbolize and check which applies.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Translate the rule and the fact",
+                    "text": "Write the arrow, its contrapositive, and the given fact — then compare the fact against the arrow's left side.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "Impeachment with a prior inconsistent statement calls credibility into question.",
+                                "symbols": "impeached → credibility questioned   (P → Q)",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "Contrapositive.",
+                                "symbols": "¬Q → ¬P",
+                                "note": "Valid to infer; the converse (Q → P) and inverse (¬P → ¬Q) are NOT."
+                            },
+                            {
+                                "rule_text": "Officer Reyes was impeached with a prior inconsistent statement.",
+                                "symbols": "P",
+                                "note": "This matches the antecedent — modus ponens territory."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Fire the rule",
+                    "text": "The fact satisfies the antecedent exactly, so the consequent follows with certainty: Officer Reyes's credibility has been called into question. Watch the standard traps in the choices: the converse (treating the consequent as proof of the antecedent), the inverse (denying the antecedent), and out-of-scope add-ons the stimulus never mentions.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the conclusion",
+                    "text": "B is the modus ponens conclusion. A adds evidentiary exclusion the stimulus never mentions, C is the converse, D is the inverse, and E denies a conclusion the rule settles outright.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-014",
+            "method": "Symbolize the rule, then fire modus ponens",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "A 'properly concluded' question over one conditional and one fact. The only valid moves are modus ponens (the fact matches the antecedent) and modus tollens (the fact negates the consequent) — symbolize and check which applies.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Translate the rule and the fact",
+                    "text": "Write the arrow, its contrapositive, and the given fact — then compare the fact against the arrow's left side.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "A brief exceeding the page limit will be rejected by the clerk.",
+                                "symbols": "over limit → rejected   (P → Q)",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "Contrapositive.",
+                                "symbols": "¬Q → ¬P",
+                                "note": "Valid to infer; the converse (Q → P) and inverse (¬P → ¬Q) are NOT."
+                            },
+                            {
+                                "rule_text": "The defendant's brief exceeds the page limit.",
+                                "symbols": "P",
+                                "note": "This matches the antecedent — modus ponens territory."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Fire the rule",
+                    "text": "The fact satisfies the antecedent exactly, so the consequent follows with certainty: the clerk will reject the defendant's brief. Watch the standard traps in the choices: the converse (treating the consequent as proof of the antecedent), the inverse (denying the antecedent), and out-of-scope add-ons the stimulus never mentions.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the conclusion",
+                    "text": "D is the modus ponens conclusion. A is the converse (rejection proves an oversized brief), B is the inverse, C wrongly claims indeterminacy, and E imports formatting facts from nowhere.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-015",
+            "method": "Symbolize the rule, then fire modus ponens",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "A 'properly concluded' question over one conditional and one fact. The only valid moves are modus ponens (the fact matches the antecedent) and modus tollens (the fact negates the consequent) — symbolize and check which applies.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Translate the rule and the fact",
+                    "text": "Write the arrow, its contrapositive, and the given fact — then compare the fact against the arrow's left side.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "Failing to record within thirty days costs the buyer's claim its priority.",
+                                "symbols": "late recording → loses priority   (P → Q)",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "Contrapositive.",
+                                "symbols": "¬Q → ¬P",
+                                "note": "Valid to infer; the converse (Q → P) and inverse (¬P → ¬Q) are NOT."
+                            },
+                            {
+                                "rule_text": "Ms. Alvarez's title company failed to record within thirty days.",
+                                "symbols": "P",
+                                "note": "This matches the antecedent — modus ponens territory."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Fire the rule",
+                    "text": "The fact satisfies the antecedent exactly, so the consequent follows with certainty: Ms. Alvarez's claim loses priority over later recorded claims. Watch the standard traps in the choices: the converse (treating the consequent as proof of the antecedent), the inverse (denying the antecedent), and out-of-scope add-ons the stimulus never mentions.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the conclusion",
+                    "text": "A is the modus ponens conclusion. B is the converse (assuming late recording is the only route to lost priority), C is the inverse dressed up as a guarantee, D wrongly claims indeterminacy, and E invents a damages entitlement the stimulus never grants.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "lr-016",
+            "method": "Symbolize the rule, then fire modus ponens",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "A 'properly concluded' question over one conditional and one fact. The only valid moves are modus ponens (the fact matches the antecedent) and modus tollens (the fact negates the consequent) — symbolize and check which applies.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "symbolize",
+                    "title": "Translate the rule and the fact",
+                    "text": "Write the arrow, its contrapositive, and the given fact — then compare the fact against the arrow's left side.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "notation",
+                        "rules": [
+                            {
+                                "rule_text": "Disclosing a trade secret to a competitor breaches the confidentiality agreement.",
+                                "symbols": "disclosed → breached   (P → Q)",
+                                "note": null
+                            },
+                            {
+                                "rule_text": "Contrapositive.",
+                                "symbols": "¬Q → ¬P",
+                                "note": "Valid to infer; the converse (Q → P) and inverse (¬P → ¬Q) are NOT."
+                            },
+                            {
+                                "rule_text": "Deshawn disclosed a trade secret to a competitor.",
+                                "symbols": "P",
+                                "note": "This matches the antecedent — modus ponens territory."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Fire the rule",
+                    "text": "The fact satisfies the antecedent exactly, so the consequent follows with certainty: Deshawn breached the confidentiality agreement. Watch the standard traps in the choices: the converse (treating the consequent as proof of the antecedent), the inverse (denying the antecedent), and out-of-scope add-ons the stimulus never mentions.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the conclusion",
+                    "text": "E is the modus ponens conclusion. A is the converse (breach proves disclosure), B is the inverse, C wrongly claims the matter cannot be determined, and D predicts termination — an outcome the stimulus never addresses.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "rc-002",
+            "method": "Read tone from the hedges, not the topic",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "An author-attitude question. Attitude lives in evaluative language — concessions, hedges, worry words — not in the subject matter. Collect the author's actual verbs about Twombly and Iqbal before rating the temperature.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Locate the attitude paragraph",
+                    "text": "Your structure map says the modern cases live in the final paragraph — that's where the author's stance shows.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "passage_map",
+                        "paragraphs": [
+                            {
+                                "paragraph": 4,
+                                "role": "Target paragraph",
+                                "gist": "Presents defenders' rationale (unforeseen discovery abuses) AND critics' fear ('risk reintroducing the very access barrier…'), with the author airing both."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Weigh the hedges",
+                    "text": "The author grants the cases responded to real problems, yet chooses loaded framing for the downside — 'risk reintroducing the very access barrier the 1938 drafters set out to dismantle.' That is neither cheerleading nor hostility: it's a measured worry with concessions attached. Calibrate the temperature: moderate, negative-leaning, hedged.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the temperature",
+                    "text": "C — qualified concern — matches a concession-plus-worry stance. A and B are the extremes the hedging rules out, D is contradicted by the author caring enough to flag the risk, and E invents confusion the passage never displays.",
+                    "spoiler": true
+                }
+            ]
+        },
+        {
+            "question_id": "rc-005",
+            "method": "Attribute the view to the right speaker",
+            "version": 1,
+            "source": "original (CC0)",
+            "steps": [
+                {
+                    "kind": "orient",
+                    "title": "Name the task",
+                    "text": "An inference question about what DEFENDERS of the cases believe — not the author, not the critics. Misattribution is the trap: find the one sentence the passage puts in the defenders' mouths and stay inside it.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "diagram",
+                    "title": "Locate the defenders' sentence",
+                    "text": "Paragraph 4 assigns each camp exactly one position — keep them separate on your map.",
+                    "spoiler": false,
+                    "representation": {
+                        "rep_type": "passage_map",
+                        "paragraphs": [
+                            {
+                                "paragraph": 4,
+                                "role": "Two attributed views",
+                                "gist": "Defenders: mass-tort and antitrust complaints created discovery abuses the 1938 drafters could not have foreseen. Critics: the new standard risks restoring the old access barrier."
+                            }
+                        ]
+                    }
+                },
+                {
+                    "kind": "infer",
+                    "title": "Paraphrase the defenders' logic",
+                    "text": "Their point: litigation changed after 1938 in ways that produced abuse, so the old permissive standard no longer fits — newer conditions justify a tougher threshold. The right answer will restate that modest claim; wrong answers will overshoot it (abolish notice pleading, condemn Conley) or smuggle in claims about litigants the defenders never made.",
+                    "spoiler": false
+                },
+                {
+                    "kind": "answer",
+                    "title": "Match the inference",
+                    "text": "D — changes in litigation since 1938 justify a more demanding pleading standard — is the direct paraphrase. A and C overshoot into abolition and retroactive error, B smears pro se litigants without textual basis, and E resurrects the Field Code, which nobody in paragraph 4 endorses.",
+                    "spoiler": true
+                }
+            ]
+        }
+    ]
+}
