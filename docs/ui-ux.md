@@ -130,14 +130,15 @@ Keep both as *named* tokens (`--accent-brand`, `--accent-practice`); do not sile
 
 ### Accessibility
 
+8b. **Placeholder-only controls** — ~~three inputs were named only by their placeholder~~ (graph case search, Agent Ops run filter, LSAT tutor follow-up); **fixed in spec 042** and gated by `ux_audit.py` R11. The Cytoscape canvas is now a named `role="img"` region pointing at the case list as its accessible equivalent, instead of three anonymous `<canvas>` elements.
 9. ~~**Focus rings exist only on the static site**~~ — **fixed in spec 041.**
 `.focus-ring` / `.focus-ring-practice` in [layout.css](../frontend/ui/layout.css) are the app-wide `:focus-visible` indicator; the twelve controls that paired `focus:outline-none` with a 1px `focus:border-*` were migrated onto them, and `ux_audit.py` R5 fails the build on a regression.
 10. ~~**No skip link**~~ — the platform shell has had one since spec 040;
 `lsat-static` still does not.
 11. **`prefers-reduced-motion` is partial.** Spec 041 gated smooth scrolling
 and added `.shell-motion` for shell transitions, but the homepage pulses and the Cytoscape layout still ignore the preference.
-12. **QuestionCard keyboard pattern is the gold standard** — port it into
-    the shared `Choice` primitive; do not regress it when unifying styles.
+12. ~~**QuestionCard keyboard pattern is the gold standard**~~ — **ported in
+spec 042.** The platform LSAT Lab had a `role="tablist"` with dead arrow keys, seven tab stops, and no `aria-controls`/`tabpanel`, plus a `role="radiogroup"` with no name and no roving tabindex — strictly worse keyboard access than the static export of the same widget. Both now compose `useRovingTabIndex` (one tab stop, arrows move and select). `ux_audit.py` R10 gates the ARIA half; `__tests__/shell/rovingFocus.test.tsx` gates the keyboard half. A shared `Choice` *component* is still spec 039's.
 
 ### Maintainability
 

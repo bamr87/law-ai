@@ -229,6 +229,7 @@ export default function AgentDashboard() {
             <div className="flex items-center gap-2">
               <input
                 type="text"
+                aria-label="Filter runs"
                 placeholder="Filter…"
                 value={runFilter}
                 onChange={(e) => setRunFilter(e.target.value)}

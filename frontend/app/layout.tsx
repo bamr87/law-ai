@@ -4,9 +4,9 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Law AI',
   description: 'Open-source agent-orchestrated legal intelligence platform',
-  icons: {
-    icon: '/favicon.ico',
-  },
+  // The icon comes from `app/icon.svg` (App Router convention). The previous
+  // `/favicon.ico` reference pointed at a file that was never added, so every
+  // page load logged a 404.
 }
 
 export const viewport = {

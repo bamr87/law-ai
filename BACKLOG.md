@@ -24,6 +24,11 @@
 
 ## Open
 
+- **BL-20260831-08** — *feature, med* — Port `lsat-static/components/QuestionCard.tsx` onto the shared roving-focus mechanism (`frontend/lib/shell/rovingFocus.ts`) so the two products stop maintaining the same keyboard pattern twice; today only the platform side is gated by `ux_audit.py` R10. _Surfaced in:_ specs/042-composite-widget-a11y.
+- **BL-20260831-09** — *test-gap, med* — The UX review's browser half is manual. Wire a Playwright a11y smoke (axe-core or equivalent) over the six routes into CI so contrast, name-role-value, and focus order are checked on every PR rather than once per review pass. _Surfaced in:_ specs/042-composite-widget-a11y.
+- **BL-20260831-10** — *feature, low* — `AnalysisStudio.tsx` silently truncates pasted input at 20,000 characters (`value.slice(0, MAX_LEN)`); warn on truncation instead of dropping a user's text without telling them. _Surfaced in:_ specs/042-composite-widget-a11y.
+- **BL-20260831-11** — *refactor, low* — 27 interactive targets are under 44x44 CSS px at a 390px viewport (all clear the 24px WCAG 2.5.8 AA floor); raise the masthead controls and LSAT tabs toward the 44px AAA/HIG guideline. _Surfaced in:_ specs/042-composite-widget-a11y.
+- **BL-20260831-12** — *feature, low* — The graph canvas is now a named region but still has no keyboard-operable equivalent for node selection; the case list covers reading, not traversal of `CITES` edges. _Surfaced in:_ specs/042-composite-widget-a11y.
 - **BL-20260831-01** — *refactor, low* — Delete `frontend/components/NavBar.tsx` — dead since the spec 040 app shell landed (zero imports) — and drop it from spec 039 FR-5's design-system proof set. Currently held out of the UX audit with a `ux-audit: exempt` marker. _Surfaced in:_ specs/041-shell-navigation-scroll.
 - **BL-20260831-02** — *feature, med* — Deep-link feature view state (LSAT Lab tab, Agent Ops run filters, Knowledge Graph selection) into the URL so Back and sharing work inside a screen the way spec 041 made them work across the shell. _Surfaced in:_ specs/041-shell-navigation-scroll.
 - **BL-20260831-03** — *feature, low* — `prefers-reduced-motion` is still ignored by the homepage pulse animations and the Cytoscape graph layout; spec 041 only gated smooth scrolling and shell transitions. _Surfaced in:_ specs/041-shell-navigation-scroll.

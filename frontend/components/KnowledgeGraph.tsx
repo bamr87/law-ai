@@ -146,8 +146,11 @@ export default function KnowledgeGraph() {
               {cases.length} loaded
             </span>
           </header>
+          {/* A placeholder is not a label: it vanishes the moment the user
+            * types, and it is the only thing that named this control. */}
           <input
             type="search"
+            aria-label="Search cases by title or id"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search title or id…"

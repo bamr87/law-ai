@@ -19,6 +19,9 @@ spec 041 shell rework removed and must not get back:
   R7  page frame         — a route not using PageLayout without saying why
   R8  route states       — a route group with no loading/error/not-found
   R9  sticky offsets     — a magic `top-<n>` instead of the sticky stack
+  R10 composite widgets  — a tablist/radiogroup with no name, or tabs with
+                           no panel association
+  R11 control names      — a form control whose only name is a placeholder
 
 Opt out of *all* rules for one file by putting `ux-audit: exempt — <reason>`
 in a comment in it; opt one page out of R7 with `ux-audit: bare-page —
@@ -185,6 +188,107 @@ def rule_sticky_offsets(path: Path, lines: list[str], audit: Audit) -> None:
             )
 
 
+COMPOSITE_GROUPS = ("tablist", "radiogroup", "listbox", "menu", "tree")
+
+CONTROL_TAGS = ("input", "textarea", "select")
+
+
+def _jsx_tags(text: str, names: tuple[str, ...]) -> list[tuple[int, str]]:
+    """Yield (offset, attribute-text) for each opening JSX tag in `names`.
+
+    Brace-aware on purpose. A naive ``<input[^>]*>`` regex truncates at the
+    ``>`` inside ``onChange={(e) => ...}``, so it reports controls as unlabeled
+    whenever an arrow function precedes their ``aria-label`` — the exact false
+    positive that would get this rule deleted.
+    """
+    out: list[tuple[int, str]] = []
+    for name in names:
+        needle = "<" + name
+        i = 0
+        while True:
+            i = text.find(needle, i)
+            if i == -1:
+                break
+            nxt = text[i + len(needle) : i + len(needle) + 1]
+            if nxt and (nxt.isalnum() or nxt in "_-"):
+                i += len(needle)
+                continue
+            j, depth, quote = i + len(needle), 0, ""
+            while j < len(text):
+                c = text[j]
+                if quote:
+                    if c == quote:
+                        quote = ""
+                elif c in "\"'":
+                    quote = c
+                elif c == "{":
+                    depth += 1
+                elif c == "}":
+                    depth -= 1
+                elif c == ">" and depth == 0:
+                    break
+                j += 1
+            out.append((i, text[i + len(needle) : j]))
+            i = j if j > i else i + len(needle)
+    return out
+
+
+def rule_control_names(path: Path, text: str, audit: Audit) -> None:
+    """R11 — a placeholder is not a label.
+
+    It disappears the moment the user types, is not reliably announced, and
+    fails WCAG 3.3.2. A control needs `aria-label`, `aria-labelledby`, or an
+    `id` a `<label htmlFor>` in the same file points at. An implicit
+    `<label>` wrapper also counts, which is why a wrapped control with no
+    attributes at all is left alone — only `placeholder`-bearing controls are
+    flagged, and those are never the wrapped-label idiom in this codebase.
+    """
+    for offset, attrs in _jsx_tags(text, CONTROL_TAGS):
+        if "placeholder" not in attrs:
+            continue
+        if "aria-label" in attrs or "aria-labelledby" in attrs:
+            continue
+        m = re.search(r'id="([^"]+)"', attrs)
+        if m and f'htmlFor="{m.group(1)}"' in text:
+            continue
+        line = text.count("\n", 0, offset) + 1
+        audit.add(path, line, "R11", "control named only by its placeholder")
+
+
+def rule_composite_widgets(path: Path, text: str, audit: Audit) -> None:
+    """R10 — a composite widget announces itself or it is noise.
+
+    A `role="tablist"` with no accessible name is "tab list" to a screen
+    reader, and three of them on a page are indistinguishable. A `role="tab"`
+    with no `aria-controls` never tells the user what it switches.
+
+    The keyboard half of the pattern (one tab stop, arrows move within) is
+    behavioural and is covered by `frontend/__tests__/shell/` instead — a
+    static check cannot see whether a handler actually moves focus.
+    """
+    for m in re.finditer(r'role="(%s)"' % "|".join(COMPOSITE_GROUPS), text):
+        role = m.group(1)
+        line = text.count("\n", 0, m.start()) + 1
+        # The element's own attributes: scan the tag this role sits in.
+        start = text.rfind("<", 0, m.start())
+        end = text.find(">", m.end())
+        tag = text[start : end + 1] if start != -1 and end != -1 else ""
+        if "aria-label" not in tag and "aria-labelledby" not in tag:
+            audit.add(
+                path, line, "R10", f'role="{role}" has no accessible name'
+            )
+
+    for m in re.finditer(r'role="tab"', text):
+        line = text.count("\n", 0, m.start()) + 1
+        start = text.rfind("<", 0, m.start())
+        end = text.find(">", m.end())
+        tag = text[start : end + 1] if start != -1 and end != -1 else ""
+        if "aria-controls" not in tag:
+            audit.add(
+                path, line, "R10", 'role="tab" has no aria-controls panel'
+            )
+
+
 def rule_page_frame(audit: Audit) -> None:
     """R7 — every route uses PageLayout so the sticky header, gutters, and
     reading width are the same everywhere."""
@@ -221,6 +325,8 @@ RULES = [
     ("R7", "every route uses PageLayout"),
     ("R8", "route group ships loading/error/not-found"),
     ("R9", "sticky offsets use the shell stack"),
+    ("R10", "composite widgets are named and tabs point at panels"),
+    ("R11", "no form control is named only by its placeholder"),
 ]
 
 
@@ -251,6 +357,8 @@ def main(argv: list[str]) -> int:
         rule_focus_indicator(path, lines, audit)
         rule_landmark_labels(path, text, audit)
         rule_sticky_offsets(path, lines, audit)
+        rule_composite_widgets(path, text, audit)
+        rule_control_names(path, text, audit)
 
     rule_page_frame(audit)
     rule_route_states(audit)

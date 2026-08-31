@@ -115,8 +115,12 @@ Ask each pass: **who does this design advantage?** A more confident-looking UI a
 | R7 | A route not using `PageLayout` — the sticky header and gutters are the frame, not a suggestion. |
 | R8 | A route group with no `loading.tsx` / `error.tsx` / `not-found.tsx`. |
 | R9 | A magic sticky `top-<n>` instead of the shell's sticky stack. |
+| R10 | A `tablist`/`radiogroup` with no accessible name, or a `role="tab"` that names no panel. |
+| R11 | A form control whose only name is its placeholder — it vanishes on the first keystroke. |
 
 **Opting out.** Put `ux-audit: exempt — <reason>` in a comment to exempt a whole file, or `ux-audit: bare-page — <reason>` to exempt one route from R7. A reason is required on the same line, so every exemption explains itself to the next reader. Two exist today: `components/NavBar.tsx` (superseded dead code) and the dashboard route (full-bleed hero).
+
+The keyboard half of a composite widget (one tab stop, arrows move within it) is behavioural and cannot be seen statically — `frontend/__tests__/shell/rovingFocus.test.tsx` covers that half.
 
 **Adding a rule** is the normal outcome of a pass. Keep them zero-false-positive — a gate that cries wolf gets `--no-verify`'d and then deleted.
 
@@ -141,3 +145,4 @@ Append one row per pass. Keep it short; the diff is the detail.
 | Date | Pass | Lowest dimension | Shipped | Promoted to the floor |
 |------|------|------------------|---------|-----------------------|
 | 2026-08-31 | 1 | D2 — persistence and scroll (0: chrome scrolled away with content) | specs/041 — viewport-locked shell, sticky page-header stack, per-route scroll memory, drawers, ⌘K palette, route states | `scripts/ux_audit.py` R1–R9 + `make ux-audit` in CI; 40 shell tests |
+| 2026-08-31 | 2 | D6 — accessibility (1: composite widgets had no keyboard pattern) | LSAT tab bar and answer choices onto the WAI-ARIA roving-tabindex pattern via `useRovingTabIndex`; graph canvas + 3 placeholder-only controls named; favicon 404 fixed | `ux_audit.py` R10 + R11 (brace-aware JSX scanner) + 10 roving-focus tests |

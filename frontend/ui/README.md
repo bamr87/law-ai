@@ -59,6 +59,7 @@ Under [`../components/shell/`](../components/shell/) until spec 039 gives `front
 | `useFocusTrap` | The same behaviour for any new overlay. Use it rather than writing a fourth focus trap. |
 | `useShellScroll` | Read the main region's scroll offset. `window.scrollY` is always 0 — the shell locks the viewport. |
 | `useMediaQuery` | Only for layout decisions that change *markup* (docked column vs drawer). Everything else is a CSS breakpoint. |
+| `useRovingTabIndex` | Any composite widget — tab bar, radiogroup, listbox, toolbar. Makes the group **one** tab stop with arrow-key movement inside it, selection following focus. Never hand-roll this: `ux_audit.py` R10 checks the ARIA attributes and `__tests__/shell/rovingFocus.test.tsx` checks the behaviour. |
 
 ## Adding a surface
 
