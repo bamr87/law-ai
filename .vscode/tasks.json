@@ -49,6 +49,20 @@
       "problemMatcher": []
     },
     {
+      "label": "Docker: Build & Start Frontend",
+      "detail": "Builds images and starts the debug stack detached until the frontend healthcheck passes (port 3000). Used as preLaunchTask by launch.json.",
+      "type": "shell",
+      "command": "make debug-frontend",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "panel": "shared",
+        "showReuseMessage": false
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Docker: Stop Stack",
       "type": "shell",
       "command": "make down",

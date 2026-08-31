@@ -22,6 +22,10 @@ def test_backend_pyproject_parses(backend_dir: Path) -> None:
     deps = " ".join(data["project"]["dependencies"])
     for required in ("django", "djangorestframework", "pydantic", "neo4j", "crewai", "langgraph"):
         assert required in deps, f"backend missing required dep: {required}"
+    dev = " ".join(data["project"]["optional-dependencies"]["dev"])
+    assert "debugpy" in dev, (
+        "dev extra must include debugpy (docker-compose.debug.yml runs python -m debugpy)"
+    )
 
 
 def test_frontend_package_json_parses(frontend_dir: Path) -> None:
