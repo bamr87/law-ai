@@ -129,3 +129,15 @@ No §2 deviations → no ADR needed.
 - Agent + prompt + tests: ~0.5 agent-day.
 - Frontend (5 renderers + SolveAssist + Lab wiring + tests): ~1.5 agent-days.
 - Human pairing: PR review of `guides.json` content (subject-matter check) — flag for a reviewer comfortable with LSAT method.
+
+## 11. Shipped UI (captured from the running stack)
+
+Screenshots taken against `make dev` on 2026-08-30/31, stored under [docs/images/](../../docs/images/).
+
+| Screenshot | Shows |
+|---|---|
+| [Solve-assist carousel](../../docs/images/lsat-solve-assist-carousel.png) | The shipped presentation (T-012): one step per slide with ‹ Back / step dots / 💡 Next hint, here on lg-001 step 4 with its sequence board. |
+| [Full guide walkthrough](../../docs/images/lsat-solve-guide-full-walkthrough.png) | All six steps of the lg-001 guide end-to-end — inventory board, symbolized rules with legend, partial board, elimination grid, answer. Useful as a content reference for what a guide contains; **captured before T-012**, so it shows the earlier stacked layout rather than the carousel. |
+| [Steps revealed](../../docs/images/lsat-solve-assist-steps-revealed.png) | In-card view of a partially-revealed guide with the spoiler step still locked. Also **pre-T-012 stacked layout**. |
+| [Cross-check agreement](../../docs/images/lsat-cross-check-agreement.png) | FR-14 live on lr-051: a real blind solve via `claude_code/claude-opus-5` agreeing with the answer key, labelled "corroboration, not proof" (§13). |
+| [Validation report](../../docs/images/lsat-validation-report.png) | FR-15 on the Authoring tab: 126 questions · 40 guides · 4 integrity issues found (four explanations that never name their answer key), answer-key distribution as counts, cross-check roll-up. |
