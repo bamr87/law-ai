@@ -112,12 +112,16 @@ def record_proposal(
     confidence: float,
     source_concept_ids: Iterable[str] | None = None,
     meta: dict[str, Any] | None = None,
+    proposal_kind: str = "question",
 ) -> str:
     """Persist one draft as ``pending`` and return the proposal id.
 
     ``meta`` (optional, spec 024 FR-9) carries producer lineage — e.g. the
     content factory's manifest/job/archetype/tier — verbatim onto the create
     event so it survives into the HITL queue and audit replay.
+
+    ``proposal_kind`` (spec 041 FR-9) distinguishes question drafts from
+    solve-guide drafts; legacy rows without the field replay as "question".
     """
     proposal_id = f"prop-{uuid4().hex[:12]}"
     event = {
@@ -125,6 +129,7 @@ def record_proposal(
         "id": proposal_id,
         "created_at": datetime.now(UTC).isoformat(),
         "status": "pending",
+        "proposal_kind": proposal_kind,
         "section": draft.get("section"),
         "difficulty": draft.get("difficulty"),
         "draft": draft,
@@ -150,6 +155,8 @@ def _replay(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
         kind = ev.get("type")
         if kind == "lsat_proposal.create":
             state[pid] = dict(ev)
+            # Legacy rows predate spec 041's guide drafts.
+            state[pid].setdefault("proposal_kind", "question")
         elif kind == "lsat_proposal.transition" and pid in state:
             state[pid]["status"] = ev.get("status", state[pid].get("status"))
             state[pid]["updated_at"] = ev.get("timestamp")
@@ -233,6 +240,11 @@ def promote_to_bank(
             f"proposal {proposal_id!r} cannot be promoted from status "
             f"{row.get('status')!r}"
         )
+    if row.get("proposal_kind", "question") != "question":
+        raise ValueError(
+            f"proposal {proposal_id!r} is a {row.get('proposal_kind')!r} draft — "
+            "use promote_guide_to_bank"
+        )
 
     draft = dict(row.get("draft") or {})
     section = draft.get("section")
@@ -293,6 +305,103 @@ def promote_to_bank(
                 "proposal_id": proposal_id,
                 "question_id": question_id,
                 "section": section,
+                "reviewer": reviewer,
+                "trace_id": row.get("agent_trace_id"),
+            }
+        )
+    except Exception:  # pragma: no cover - audit failures must not block UX
+        logger.warning(
+            "audit_store.record failed for lsat_proposal.approved", exc_info=True
+        )
+    return updated
+
+
+def promote_guide_to_bank(
+    proposal_id: str,
+    *,
+    reviewer: str = "anonymous",
+    note: str | None = None,
+) -> dict[str, Any]:
+    """Append an approved solve-guide draft to ``guides.json`` (spec 041 FR-9).
+
+    Mirrors :func:`promote_to_bank` for ``proposal_kind == "guide"`` rows: the
+    draft is re-validated against the :class:`SolveGuide` schema, written into
+    the guide store, and the cached loader invalidated so the guide serves
+    immediately. Raises ``KeyError`` for unknown proposals and ``ValueError``
+    when the row is not a pending guide draft, fails validation, or a guide
+    already exists for the target question.
+    """
+    from law_ai.lsat.services.guides import (
+        SolveGuide,
+        load_guides,
+        reset_guide_cache,
+        validate_guide_quality,
+    )
+
+    state = _replay(_tail())
+    row = state.get(proposal_id)
+    if row is None:
+        raise KeyError(f"unknown proposal {proposal_id!r}")
+    if row.get("status") != "pending":
+        raise ValueError(
+            f"proposal {proposal_id!r} cannot be promoted from status "
+            f"{row.get('status')!r}"
+        )
+    if row.get("proposal_kind", "question") != "guide":
+        raise ValueError(
+            f"proposal {proposal_id!r} is a {row.get('proposal_kind')!r} draft — "
+            "use promote_to_bank"
+        )
+
+    draft = dict(row.get("draft") or {})
+    draft["source"] = (
+        f"LSATSolveGuideAuthor (approved {datetime.now(UTC).date().isoformat()})"
+    )
+    guide = SolveGuide.model_validate(draft)
+    if guide.question_id in load_guides():
+        raise ValueError(
+            f"question {guide.question_id!r} already has a solve guide — "
+            "reject this draft or retire the existing guide first"
+        )
+    question = load_bank().get(guide.question_id)
+    if question is None:
+        raise ValueError(f"guide targets unknown question {guide.question_id!r}")
+    problems = validate_guide_quality(guide, question)
+    if problems:
+        raise ValueError("guide failed quality checks: " + "; ".join(problems))
+
+    guides_path = _bank.DATA_DIR / "guides.json"
+    blob: dict[str, Any] = {"items": []}
+    if guides_path.is_file():
+        try:
+            blob = json.loads(guides_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"guide file {guides_path} is malformed: {exc}") from exc
+    blob.setdefault("items", []).append(
+        json.loads(guide.model_dump_json(by_alias=True))
+    )
+
+    with _LOCK:
+        guides_path.write_text(
+            json.dumps(blob, indent=4, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        reset_guide_cache()
+
+    updated = set_status(
+        proposal_id,
+        "approved",
+        reviewer=reviewer,
+        note=note,
+        question_id=guide.question_id,
+    )
+    try:
+        audit_store.record(
+            {
+                "type": "lsat_proposal.approved",
+                "proposal_id": proposal_id,
+                "proposal_kind": "guide",
+                "question_id": guide.question_id,
                 "reviewer": reviewer,
                 "trace_id": row.get("agent_trace_id"),
             }

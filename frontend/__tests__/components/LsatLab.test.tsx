@@ -209,7 +209,19 @@ describe('LsatLab', () => {
         screen.getByText(/Incorrect — answer was C/),
       ).toBeInTheDocument()
     })
-    expect(screen.getByText(/Hasty generalisation/)).toBeInTheDocument()
+    // Spec 041 FR-12: the author-rationale block with external source links
+    // is gone — post-grade references resolve only to the concept catalog.
+    expect(screen.queryByText(/Author rationale/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Hasty generalisation/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: /LSAC LR overview/i }),
+    ).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText(/Derived from/i)).toBeInTheDocument()
+    })
+    expect(
+      (await screen.findAllByText('flaw-in-reasoning')).length,
+    ).toBeGreaterThan(1)
     expect(screen.getByLabelText(/average time per question/i)).toHaveTextContent(
       /avg 0:00 \/ q/,
     )

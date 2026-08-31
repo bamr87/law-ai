@@ -9,7 +9,7 @@ from typing import Any
 from asgiref.sync import async_to_sync
 from django.http import Http404
 from django.urls import path
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from rest_framework import status
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
@@ -29,7 +29,10 @@ from law_ai.lsat.services.bank import (
     public_view,
 )
 from law_ai.lsat.services import proposals as proposals_store
+from law_ai.lsat.services.crosscheck import CrossCheckResult, cross_check
+from law_ai.lsat.services.guides import load_guides, public_guide_view
 from law_ai.lsat.services.tutor import TutorRequest, TutorResponse, tutor
+from law_ai.lsat.services.validation import validate_question_set
 
 logger = logging.getLogger("law_ai.lsat")
 
@@ -37,6 +40,9 @@ logger = logging.getLogger("law_ai.lsat")
 class GradeRequest(BaseModel):
     question_id: str
     choice: ChoiceLabel
+    # Spec 041 FR-5: how many solve-guide steps the client revealed before
+    # answering. None = client predates the hint system.
+    hints_used: int | None = Field(default=None, ge=0, le=20)
 
 
 class GradeResponse(BaseModel):
@@ -196,6 +202,45 @@ class QuestionDetailView(_Base):
         return Response(public_view(q).model_dump())
 
 
+class GuideView(_Base):
+    """``GET /api/lsat/questions/<id>/guide`` — progressive solve guide.
+
+    Spec 041 FR-4. Spoiler-step content is withheld unless ``?spoilers=1``
+    (the client asks only after grading — same soft protection level as the
+    grade endpoint itself). 404 carries ``has_tutor`` so the UI can fall
+    back to the AI tutor for guide-less questions.
+    """
+
+    def get(
+        self, request: Any, question_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        q = load_bank().get(question_id)
+        guide = load_guides().get(question_id)
+        if q is None or guide is None:
+            return Response(
+                {
+                    "detail": "no solve guide for this question",
+                    "has_tutor": q is not None,
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        include_spoilers = request.query_params.get("spoilers") in ("1", "true")
+        body = public_guide_view(guide, include_spoilers=include_spoilers)
+        try:
+            audit_store.record(
+                {
+                    "type": "lsat_guide",
+                    "question_id": q.id,
+                    "section": q.section,
+                    "spoilers": include_spoilers,
+                    "step_count": body["step_count"],
+                }
+            )
+        except Exception:
+            logger.warning("audit_store.record failed for lsat_guide", exc_info=True)
+        return Response(body)
+
+
 class GradeView(_Base):
     def post(self, request, *args, **kwargs):
         try:
@@ -227,6 +272,7 @@ class GradeView(_Base):
                     "correct": is_correct,
                     "difficulty": q.difficulty,
                     "concepts": list(q.concepts),
+                    "hints_used": req.hints_used,
                 }
             )
         except Exception:
@@ -244,21 +290,34 @@ class StatsView(_Base):
         attempts = len(grades)
         correct = sum(1 for e in grades if e.get("correct") is True)
         accuracy = (correct / attempts) if attempts else 0.0
+
+        def _assisted(e: dict[str, Any]) -> bool:
+            hints = e.get("hints_used")
+            return isinstance(hints, int) and hints > 0
+
+        assisted = sum(1 for e in grades if _assisted(e))
         by_section: dict[str, dict[str, Any]] = {}
         for e in grades:
             sec = str(e.get("section") or "?")
-            bucket = by_section.setdefault(sec, {"attempts": 0, "correct": 0})
+            bucket = by_section.setdefault(
+                sec, {"attempts": 0, "correct": 0, "assisted": 0}
+            )
             bucket["attempts"] += 1
             if e.get("correct"):
                 bucket["correct"] += 1
+            if _assisted(e):
+                bucket["assisted"] += 1
         for bucket in by_section.values():
             a = bucket["attempts"] or 1
             bucket["accuracy"] = round(bucket["correct"] / a, 4)
+            bucket["unassisted"] = bucket["attempts"] - bucket["assisted"]
         return Response(
             {
                 "attempts": attempts,
                 "correct": correct,
                 "accuracy": round(accuracy, 4),
+                "assisted": assisted,
+                "unassisted": attempts - assisted,
                 "by_section": by_section,
             }
         )
@@ -282,6 +341,53 @@ class TutorView(_Base):
             raise Http404("question not found")
         body: TutorResponse = async_to_sync(tutor)(req, q)
         return Response(body.model_dump())
+
+
+class _CrossCheckRequest(BaseModel):
+    refresh: bool = False
+
+
+class CrossCheckView(_Base):
+    """``POST /api/lsat/questions/<id>/cross-check`` — spec 041 FR-14.
+
+    Solves the question blind through the provider chain and compares the
+    pick against the answer key. Verdicts are cached; ``refresh`` re-solves.
+    """
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "llm"
+
+    def post(
+        self, request: Any, question_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        try:
+            req = _CrossCheckRequest.model_validate(request.data or {})
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        q = load_bank().get(question_id)
+        if q is None:
+            raise Http404("question not found")
+        body: CrossCheckResult = async_to_sync(cross_check)(q, refresh=req.refresh)
+        return Response(body.model_dump())
+
+
+class ValidationView(_Base):
+    """``GET /api/lsat/validation`` — spec 041 FR-15 accuracy report.
+
+    Deterministic (no model calls): per-question integrity issues, answer-key
+    distribution, and a roll-up of stored cross-check verdicts.
+    """
+
+    def get(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        section = request.query_params.get("section")
+        if section is not None and section not in ("LR", "RC", "LG"):
+            return Response(
+                {"detail": {"section": "must be LR, RC, or LG"}},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        return Response(validate_question_set(section))
 
 
 # ---------------------------------------------------------------------------
@@ -359,6 +465,66 @@ class ProposalGenerateView(_Base):
         )
 
 
+class _GenerateGuideRequest(BaseModel):
+    question_id: str
+
+
+class GuideGenerateView(_Base):
+    """``POST /api/lsat/guides/generate`` — draft one solve guide (spec 041 FR-9).
+
+    Single-question by design (spec 041 resolved OQ-2). The draft lands in
+    the HITL proposal queue as ``proposal_kind="guide"``; it never serves on
+    the guide endpoint until a reviewer approves it.
+    """
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "llm"
+
+    def post(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        try:
+            req = _GenerateGuideRequest.model_validate(request.data)
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        if req.question_id not in load_bank():
+            raise Http404("question not found")
+        if req.question_id in load_guides():
+            return Response(
+                {"detail": "question already has a solve guide"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        from law_ai.agents_runtime.crews.lsat_solve_guide_author import (
+            LSATSolveGuideAuthor,
+        )
+
+        agent = LSATSolveGuideAuthor()
+        try:
+            output = async_to_sync(agent.run)({"question_id": req.question_id})
+        except Exception as exc:
+            logger.exception("LSATSolveGuideAuthor.run failed: %s", exc)
+            return Response(
+                {"detail": f"guide generation failed: {type(exc).__name__}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        pid = proposals_store.record_proposal(
+            output.guide.model_dump(by_alias=True),
+            agent_trace_id=output.trace_id or "",
+            model=output.model,
+            confidence=output.confidence,
+            proposal_kind="guide",
+        )
+        return Response(
+            {
+                "proposal": proposals_store.get_proposal(pid),
+                "trace_id": output.trace_id,
+                "model": output.model,
+                "degraded": output.degraded,
+            }
+        )
+
+
 class _StatusUpdateRequest(BaseModel):
     note: str | None = None
     reviewer: str | None = None
@@ -374,8 +540,17 @@ class ProposalApproveView(_Base):
             return Response(
                 {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
             )
+        existing = proposals_store.get_proposal(proposal_id)
+        if existing is None:
+            raise Http404("proposal not found")
+        # Spec 041 FR-9: guide drafts promote into guides.json, not the banks.
+        promote = (
+            proposals_store.promote_guide_to_bank
+            if existing.get("proposal_kind") == "guide"
+            else proposals_store.promote_to_bank
+        )
         try:
-            row = proposals_store.promote_to_bank(
+            row = promote(
                 proposal_id,
                 reviewer=req.reviewer or "anonymous",
                 note=req.note,
@@ -448,6 +623,17 @@ urlpatterns = [
         QuestionDetailView.as_view(),
         name="lsat-question-detail",
     ),
+    path(
+        "questions/<str:question_id>/guide",
+        GuideView.as_view(),
+        name="lsat-question-guide",
+    ),
+    path(
+        "questions/<str:question_id>/cross-check",
+        CrossCheckView.as_view(),
+        name="lsat-question-cross-check",
+    ),
+    path("validation", ValidationView.as_view(), name="lsat-validation"),
     path("grade", GradeView.as_view(), name="lsat-grade"),
     path("stats", StatsView.as_view(), name="lsat-stats"),
     path("tutor", TutorView.as_view(), name="lsat-tutor"),
@@ -457,6 +643,11 @@ urlpatterns = [
         "proposals/generate",
         ProposalGenerateView.as_view(),
         name="lsat-proposals-generate",
+    ),
+    path(
+        "guides/generate",
+        GuideGenerateView.as_view(),
+        name="lsat-guides-generate",
     ),
     path(
         "proposals/<str:proposal_id>/approve",

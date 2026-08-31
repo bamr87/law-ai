@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 
 from law_ai.core import audit_jsonl as audit_store
 from law_ai.core import claude_code, llm
+from law_ai.lsat.services import llm_cache
 from law_ai.lsat.services.bank import (
     ChoiceLabel,
     Concept,
@@ -49,6 +50,11 @@ class TutorRequest(BaseModel):
         default=None,
         max_length=2_000,
         description="Free-form follow-up the learner wants the tutor to address.",
+    )
+    refresh: bool = Field(
+        default=False,
+        description="Bypass the walkthrough cache and force a fresh model call "
+        "(spec 041 FR-13).",
     )
 
 
@@ -82,6 +88,11 @@ class TutorResponse(BaseModel):
     confidence: float = Field(0.0, ge=0.0, le=1.0)
     requires_human_review: bool = Field(default=False)
     latency_ms: float = 0.0
+    cached: bool = Field(
+        default=False,
+        description="True when this walkthrough was served from the response "
+        "cache instead of a fresh model call (spec 041 FR-13).",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -223,6 +234,35 @@ def _fallback_coaching(
 # ---------------------------------------------------------------------------
 
 
+def _cache_lookup(req: TutorRequest, q: Question) -> tuple[str, TutorResponse | None]:
+    """Spec 041 FR-13: key this request shape and return any stored walkthrough.
+
+    The key embeds PROMPT_VERSION so prompt bumps invalidate naturally;
+    ``req.refresh`` skips the read (the key is still returned for the write).
+    A malformed stored row (old schema) reads as a miss and is regenerated.
+    """
+    key = llm_cache.cache_key(
+        "tutor",
+        {
+            "question_id": q.id,
+            "user_choice": req.user_choice,
+            "user_question": req.user_question or "",
+            "prompt_version": PROMPT_VERSION,
+        },
+    )
+    if req.refresh:
+        return key, None
+    hit = llm_cache.get(key)
+    if hit is None:
+        return key, None
+    try:
+        return key, TutorResponse.model_validate(
+            {**hit, "cached": True, "latency_ms": 0.0}
+        )
+    except Exception:
+        return key, None
+
+
 async def tutor(req: TutorRequest, q: Question) -> TutorResponse:
     """Produce a tutor response for ``q``, mixed with optional learner input.
 
@@ -232,6 +272,11 @@ async def tutor(req: TutorRequest, q: Question) -> TutorResponse:
     import time
 
     started = time.perf_counter()
+
+    key, cached_response = _cache_lookup(req, q)
+    if cached_response is not None:
+        _audit_event(req, q, cached_response)
+        return cached_response
 
     passages = load_passages()
     concepts_by_id = load_concepts()
@@ -307,6 +352,15 @@ async def tutor(req: TutorRequest, q: Question) -> TutorResponse:
         latency_ms=round(latency_ms, 2),
     )
 
+    # Persist LLM-produced walkthroughs so the next identical request is a
+    # cache hit; offline fallbacks are deterministic and cheap, so they are
+    # never cached (a later request should retry the chain).
+    if used_llm:
+        try:
+            llm_cache.put(key, response.model_dump())
+        except Exception:  # pragma: no cover - cache failure must not block UX
+            logger.warning("llm_cache.put failed for lsat_tutor", exc_info=True)
+
     _audit_event(req, q, response)
     return response
 
@@ -326,5 +380,6 @@ def _audit_event(req: TutorRequest, q: Question, resp: TutorResponse) -> None:
         "confidence": resp.confidence,
         "latency_ms": resp.latency_ms,
         "requires_human_review": resp.requires_human_review,
+        "cached": resp.cached,
     }
     audit_store.record(event)

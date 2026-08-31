@@ -38,6 +38,10 @@ import {
     type LsatTutorResponse,
 } from '@/lib/api'
 import LsatTimer, { QuestionElapsed } from '@/components/LsatTimer'
+import ConceptRefs from '@/components/lsat/ConceptRefs'
+import CrossCheckPanel from '@/components/lsat/CrossCheckPanel'
+import SolveAssist from '@/components/lsat/SolveAssist'
+import ValidationReport from '@/components/lsat/ValidationReport'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type Tab = 'overview' | 'LR' | 'RC' | 'LG' | 'concepts' | 'stats' | 'authoring'
@@ -62,12 +66,18 @@ const DIFFICULTIES: { label: string; value: LsatDifficulty | 'any' }[] = [
 interface SessionScore {
   attempts: number
   correct: number
+  /** Attempts answered after revealing at least one solve-guide hint. */
+  assisted: number
 }
 
 export default function LsatLab() {
   const [tab, setTab] = useState<Tab>('overview')
   const [globalStats, setGlobalStats] = useState<LsatStats | null>(null)
-  const [session, setSession] = useState<SessionScore>({ attempts: 0, correct: 0 })
+  const [session, setSession] = useState<SessionScore>({
+    attempts: 0,
+    correct: 0,
+    assisted: 0,
+  })
   const [pace, setPace] = useState({ answered: 0, totalSeconds: 0 })
 
   const refreshStats = useCallback(async () => {
@@ -83,10 +93,11 @@ export default function LsatLab() {
   }, [refreshStats])
 
   const onAttempt = useCallback(
-    (correct: boolean, elapsedSeconds = 0) => {
+    (correct: boolean, elapsedSeconds = 0, hintsUsed = 0) => {
       setSession((s) => ({
         attempts: s.attempts + 1,
         correct: s.correct + (correct ? 1 : 0),
+        assisted: s.assisted + (hintsUsed > 0 ? 1 : 0),
       }))
       setPace((p) => ({
         answered: p.answered + 1,
@@ -141,7 +152,13 @@ function Header({
         <Stat
           label="Session"
           value={`${session.correct}/${session.attempts}`}
-          sub={accuracy != null ? `${accuracy}%` : '—'}
+          sub={
+            accuracy != null
+              ? session.assisted > 0
+                ? `${accuracy}% · ${session.assisted} assisted`
+                : `${accuracy}%`
+              : '—'
+          }
         />
         <span className="h-6 w-px bg-slate-800" />
         <Stat
@@ -313,7 +330,11 @@ function Detail({ label, value }: { label: string; value: string }) {
 function LrPanel({
   onAttempt,
 }: {
-  onAttempt: (correct: boolean, elapsedSeconds: number) => void
+  onAttempt: (
+    correct: boolean,
+    elapsedSeconds: number,
+    hintsUsed?: number,
+  ) => void
 }) {
   const [difficulty, setDifficulty] = useState<LsatDifficulty | 'any'>('any')
   const [question, setQuestion] = useState<LsatQuestion | null>(null)
@@ -353,7 +374,7 @@ function LrPanel({
       {!loading && !error && question && (
         <QuestionCard
           question={question}
-          onResolved={(r, elapsed) => onAttempt(r.correct, elapsed)}
+          onResolved={(r, elapsed, hints) => onAttempt(r.correct, elapsed, hints)}
           onNext={load}
         />
       )}
@@ -370,7 +391,11 @@ function PassagePanel({
   onAttempt,
 }: {
   section: 'RC' | 'LG'
-  onAttempt: (correct: boolean, elapsedSeconds: number) => void
+  onAttempt: (
+    correct: boolean,
+    elapsedSeconds: number,
+    hintsUsed?: number,
+  ) => void
 }) {
   const [passages, setPassages] = useState<LsatPassage[] | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -469,7 +494,7 @@ function PassagePanel({
                 <QuestionCard
                   key={q.id}
                   question={q}
-                  onResolved={(r, elapsed) => onAttempt(r.correct, elapsed)}
+                  onResolved={(r, elapsed, hints) => onAttempt(r.correct, elapsed, hints)}
                   compact
                   elapsedEnabled={elapsedQuestionId === q.id}
                   onActivate={() => setElapsedQuestionId(q.id)}
@@ -538,7 +563,11 @@ function QuestionCard({
   onActivate,
 }: {
   question: LsatQuestion
-  onResolved: (r: LsatGradeResponse, elapsedSeconds: number) => void
+  onResolved: (
+    r: LsatGradeResponse,
+    elapsedSeconds: number,
+    hintsUsed?: number,
+  ) => void
   onNext?: () => void
   compact?: boolean
   elapsedEnabled?: boolean
@@ -549,26 +578,36 @@ function QuestionCard({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showTutor, setShowTutor] = useState(false)
+  const [walkthrough, setWalkthrough] = useState(false)
   const elapsedRef = useRef(0)
+  const hintsUsedRef = useRef(0)
 
   // Reset when the question changes.
   useEffect(() => {
     setSelected(null)
     setResult(null)
     setShowTutor(false)
+    setWalkthrough(false)
     setError(null)
     elapsedRef.current = 0
+    hintsUsedRef.current = 0
   }, [question.id])
+
+  const onHintsUsedChange = useCallback((n: number) => {
+    hintsUsedRef.current = n
+  }, [])
+  const openWalkthrough = useCallback(() => setWalkthrough(true), [])
 
   const submit = async () => {
     if (!selected || submitting) return
     const elapsed = elapsedRef.current
+    const hintsUsed = hintsUsedRef.current
     setSubmitting(true)
     setError(null)
     try {
-      const r = await gradeLsat(question.id, selected)
+      const r = await gradeLsat(question.id, selected, hintsUsed)
       setResult(r)
-      onResolved(r, elapsed)
+      onResolved(r, elapsed, hintsUsed)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Grade failed')
     } finally {
@@ -709,6 +748,23 @@ function QuestionCard({
         </p>
       )}
 
+      {/* Spec 041 FR-6: progressive solve guide (hints + diagrams). */}
+      <SolveAssist
+        key={question.id}
+        questionId={question.id}
+        graded={result !== null}
+        onHintsUsedChange={onHintsUsedChange}
+        onAskTutor={openWalkthrough}
+      />
+
+      {walkthrough && !result && (
+        <TutorPane
+          questionId={question.id}
+          userChoice={selected}
+          initialQuestion="Walk me through the setup step by step without revealing the answer."
+        />
+      )}
+
       {error && (
         <p className="mt-3 text-sm text-red-300" role="alert">
           {error}
@@ -757,40 +813,20 @@ function QuestionCard({
         )}
       </div>
 
+      {/* Post-grade references point only at the in-app concept catalog —
+          the author-rationale block with external source links was removed
+          deliberately (spec 041 FR-12). Method teaching lives in SolveAssist
+          and the AI tutor. */}
       {result && (
-        <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950/60 p-4">
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">
-            Author rationale
-          </div>
-          <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-300">
-            {result.explanation}
-          </p>
-          {question.references && question.references.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {question.references.map((r) =>
-                r.url ? (
-                  <a
-                    key={r.url + r.title}
-                    href={r.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-slate-400 underline hover:text-slate-200"
-                  >
-                    ↗ {r.title}
-                  </a>
-                ) : (
-                  <span
-                    key={r.title}
-                    className="text-xs italic text-slate-500"
-                  >
-                    {r.note ?? r.title}
-                  </span>
-                ),
-              )}
-            </div>
+        <ConceptRefs
+          conceptIds={Array.from(
+            new Set([...(result.concepts ?? []), ...(question.concepts ?? [])]),
           )}
-        </div>
+        />
       )}
+
+      {/* Spec 041 FR-14: independent blind solve vs. the answer key. */}
+      {result && <CrossCheckPanel questionId={question.id} />}
 
       {showTutor && result && (
         <TutorPane
@@ -809,9 +845,12 @@ function QuestionCard({
 function TutorPane({
   questionId,
   userChoice,
+  initialQuestion,
 }: {
   questionId: string
   userChoice: LsatChoiceLabel | null
+  /** Spec 041 FR-8: canned opener, e.g. a no-spoiler walkthrough request. */
+  initialQuestion?: string
 }) {
   const [followUp, setFollowUp] = useState('')
   const [loading, setLoading] = useState(false)
@@ -819,7 +858,7 @@ function TutorPane({
   const [response, setResponse] = useState<LsatTutorResponse | null>(null)
 
   const ask = useCallback(
-    async (overrideQuestion?: string) => {
+    async (overrideQuestion?: string, refresh = false) => {
       setLoading(true)
       setError(null)
       try {
@@ -827,6 +866,9 @@ function TutorPane({
           question_id: questionId,
           user_choice: userChoice,
           user_question: overrideQuestion ?? followUp ?? null,
+          // Spec 041 FR-13: identical requests serve the saved walkthrough;
+          // refresh forces a fresh model call.
+          refresh,
         })
         setResponse(r)
       } catch (e) {
@@ -841,7 +883,7 @@ function TutorPane({
   // Auto-fire the first call when the pane opens with no follow-up so the
   // learner sees coaching immediately.
   useEffect(() => {
-    if (!response && !loading) void ask('')
+    if (!response && !loading) void ask(initialQuestion ?? '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -852,9 +894,27 @@ function TutorPane({
           AI Tutor
         </div>
         {response && (
-          <div className="text-[10px] uppercase tracking-wider text-slate-500">
-            {response.used_llm ? response.model : 'offline fallback'} ·{' '}
-            {Math.round(response.confidence * 100)}% conf · {Math.round(response.latency_ms)}ms
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-slate-500">
+            {response.cached && (
+              <span className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-300">
+                saved walkthrough
+              </span>
+            )}
+            <span>
+              {response.used_llm ? response.model : 'offline fallback'} ·{' '}
+              {Math.round(response.confidence * 100)}% conf
+              {!response.cached && <> · {Math.round(response.latency_ms)}ms</>}
+            </span>
+            {response.cached && (
+              <button
+                type="button"
+                onClick={() => void ask(undefined, true)}
+                disabled={loading}
+                className="underline hover:text-slate-300 disabled:opacity-40"
+              >
+                Regenerate
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1393,6 +1453,9 @@ function AuthoringPanel() {
 
   return (
     <section className="space-y-6">
+      {/* Spec 041 FR-15: question-set accuracy review. */}
+      <ValidationReport />
+
       <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur">
         <div className="text-xs uppercase tracking-wider text-amber-400">
           Human-in-the-loop
@@ -1547,7 +1610,66 @@ function ProposalCard({
   onApprove: () => void
   onReject: () => void
 }) {
-  const d = proposal.draft
+  // Spec 041: guide drafts share the queue but have a different shape.
+  if (proposal.proposal_kind === 'guide') {
+    const g = proposal.draft as import('@/lib/api').LsatGuideProposalDraft
+    return (
+      <article className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+        <header className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="rounded-md bg-sky-900/60 px-2 py-0.5 font-mono text-sky-300">
+            solve guide
+          </span>
+          <span className="rounded-md bg-slate-800 px-2 py-0.5 font-mono text-slate-300">
+            {g.question_id}
+          </span>
+          <span className="text-slate-500">
+            confidence {(proposal.confidence * 100).toFixed(0)}%
+          </span>
+          <span className="text-slate-600">·</span>
+          <span className="text-slate-500">{proposal.model}</span>
+          <span className="ml-auto font-mono text-slate-600">{proposal.id}</span>
+        </header>
+        <p className="mt-3 text-sm font-medium text-slate-200">{g.method}</p>
+        <ol className="mt-2 space-y-2 text-sm">
+          {g.steps.map((s, i) => (
+            <li key={i} className="text-slate-400">
+              <span className="font-mono text-slate-500">{i + 1}.</span>{' '}
+              <span className="uppercase text-[10px] tracking-wider text-sky-300">
+                {s.kind}
+              </span>{' '}
+              <span className="text-slate-300">{s.title}</span>
+              {s.spoiler && (
+                <span className="ml-1 text-[10px] uppercase text-amber-400">
+                  spoiler
+                </span>
+              )}
+              <p className="mt-0.5 whitespace-pre-wrap text-xs text-slate-500">
+                {s.text}
+              </p>
+            </li>
+          ))}
+        </ol>
+        <footer className="mt-4 flex items-center justify-end gap-2">
+          <button
+            onClick={onReject}
+            disabled={busy}
+            className="rounded-md border border-red-700/60 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-900/40 disabled:opacity-50"
+          >
+            Reject
+          </button>
+          <button
+            onClick={onApprove}
+            disabled={busy}
+            className="rounded-md border border-emerald-700/60 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-900/40 disabled:opacity-50"
+          >
+            Approve → guides
+          </button>
+        </footer>
+      </article>
+    )
+  }
+
+  const d = proposal.draft as import('@/lib/api').LsatProposalDraft
   return (
     <article className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
       <header className="flex flex-wrap items-center gap-2 text-xs">

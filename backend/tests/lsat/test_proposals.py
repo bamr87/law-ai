@@ -36,6 +36,7 @@ def _isolate_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         "concepts.json",
         "passages.json",
         "sections.json",
+        "guides.json",
     ):
         src = real_data_dir / name
         if src.is_file():
@@ -43,15 +44,19 @@ def _isolate_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
                 src.read_text(encoding="utf-8"), encoding="utf-8"
             )
     monkeypatch.setattr(bank_mod, "DATA_DIR", sandbox)
-    bank_mod.load_bank.cache_clear()
-    bank_mod.load_concepts.cache_clear()
-    bank_mod.load_passages.cache_clear()
-    bank_mod.load_sections.cache_clear()
+
+    from law_ai.lsat.services import guides as guides_mod
+
+    def _clear() -> None:
+        bank_mod.load_bank.cache_clear()
+        bank_mod.load_concepts.cache_clear()
+        bank_mod.load_passages.cache_clear()
+        bank_mod.load_sections.cache_clear()
+        guides_mod.reset_guide_cache()
+
+    _clear()
     yield
-    bank_mod.load_bank.cache_clear()
-    bank_mod.load_concepts.cache_clear()
-    bank_mod.load_passages.cache_clear()
-    bank_mod.load_sections.cache_clear()
+    _clear()
 
 
 def _draft(section: str = "LR") -> dict[str, Any]:
@@ -253,3 +258,133 @@ async def test_gaps_endpoint_returns_empty_initially(client: AsyncClient) -> Non
     body = res.json()
     assert body["gaps"] == []
     assert "limit" in body
+
+
+# ---------------------------------------------------------------------------
+# Spec 041 — guide drafts in the proposal queue (T-004, AC-6)
+# ---------------------------------------------------------------------------
+
+
+def _guide_draft(question_id: str) -> dict[str, Any]:
+    from law_ai.lsat.services.bank import load_bank
+
+    bank = load_bank()
+    correct = bank[question_id].correct if question_id in bank else "B"
+    return {
+        "question_id": question_id,
+        "method": "test walkthrough",
+        "steps": [
+            {"kind": "orient", "title": "Read", "text": "Read the stem."},
+            {"kind": "symbolize", "title": "Notate", "text": "Symbolize the rule."},
+            {"kind": "infer", "title": "Chain", "text": "Chain the inference."},
+            {
+                "kind": "answer",
+                "title": "Answer",
+                "text": f"Pick {correct}.",
+                "spoiler": True,
+            },
+        ],
+    }
+
+
+class TestGuideProposals:
+    def _guideless_qid(self) -> str:
+        from law_ai.lsat.services.bank import load_bank
+        from law_ai.lsat.services.guides import load_guides
+
+        guides = load_guides()
+        return next(q for q in load_bank() if q not in guides)
+
+    def test_record_and_replay_carries_kind(self) -> None:
+        from law_ai.lsat.services import proposals
+
+        pid = proposals.record_proposal(
+            _guide_draft(self._guideless_qid()),
+            agent_trace_id="t-g",
+            model="m",
+            confidence=0.7,
+            proposal_kind="guide",
+        )
+        row = proposals.get_proposal(pid)
+        assert row is not None and row["proposal_kind"] == "guide"
+
+        # Legacy question drafts backfill as kind "question".
+        qpid = proposals.record_proposal(
+            _draft("LR"), agent_trace_id="t-q", model="m", confidence=0.7
+        )
+        qrow = proposals.get_proposal(qpid)
+        assert qrow is not None and qrow["proposal_kind"] == "question"
+
+    def test_question_promotion_rejects_guide_drafts(self) -> None:
+        from law_ai.lsat.services import proposals
+
+        pid = proposals.record_proposal(
+            _guide_draft(self._guideless_qid()),
+            agent_trace_id="t-g",
+            model="m",
+            confidence=0.7,
+            proposal_kind="guide",
+        )
+        with pytest.raises(ValueError, match="promote_guide_to_bank"):
+            proposals.promote_to_bank(pid)
+
+    def test_guide_promotion_rejects_question_drafts(self) -> None:
+        from law_ai.lsat.services import proposals
+
+        pid = proposals.record_proposal(
+            _draft("LR"), agent_trace_id="t-q", model="m", confidence=0.7
+        )
+        with pytest.raises(ValueError, match="promote_to_bank"):
+            proposals.promote_guide_to_bank(pid)
+
+    def test_promote_guide_serves_via_loader(self) -> None:
+        from law_ai.lsat.services import proposals
+        from law_ai.lsat.services.guides import load_guides
+
+        qid = self._guideless_qid()
+        pid = proposals.record_proposal(
+            _guide_draft(qid),
+            agent_trace_id="t-g",
+            model="m",
+            confidence=0.7,
+            proposal_kind="guide",
+        )
+        row = proposals.promote_guide_to_bank(pid, reviewer="rev", note="ok")
+        assert row["status"] == "approved"
+        assert row["question_id"] == qid
+
+        guides = load_guides()
+        assert qid in guides
+        assert guides[qid].source.startswith("LSATSolveGuideAuthor (approved")
+
+    def test_promote_guide_rejects_duplicate_question(self) -> None:
+        from law_ai.lsat.services import proposals
+        from law_ai.lsat.services.guides import load_guides
+
+        existing_qid = next(iter(load_guides()))
+        pid = proposals.record_proposal(
+            _guide_draft(existing_qid),
+            agent_trace_id="t-g",
+            model="m",
+            confidence=0.7,
+            proposal_kind="guide",
+        )
+        with pytest.raises(ValueError, match="already has a solve guide"):
+            proposals.promote_guide_to_bank(pid)
+
+    def test_promote_guide_rejects_invalid_draft(self) -> None:
+        from law_ai.lsat.services import proposals
+
+        bad = _guide_draft(self._guideless_qid())
+        bad["steps"] = []
+        pid = proposals.record_proposal(
+            bad,
+            agent_trace_id="t-g",
+            model="m",
+            confidence=0.7,
+            proposal_kind="guide",
+        )
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            proposals.promote_guide_to_bank(pid)

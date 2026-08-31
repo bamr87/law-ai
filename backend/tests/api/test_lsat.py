@@ -21,6 +21,13 @@ from law_ai.asgi import application as app
 @pytest.fixture(autouse=True)
 def _isolate_audit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "AUDIT_PATH", str(tmp_path / "audit.jsonl"))
+    # Spec 041 FR-13: tutor responses are cached; isolate per test.
+    monkeypatch.setattr(
+        settings,
+        "LSAT_RESPONSE_CACHE_DIR",
+        str(tmp_path / "response_cache"),
+        raising=False,
+    )
 
 
 @pytest_asyncio.fixture
