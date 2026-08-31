@@ -102,7 +102,9 @@ Ask each pass: **who does this design advantage?** A more confident-looking UI a
 
 ## The mechanical contract
 
-`scripts/ux_audit.py` enforces the structural rules — stdlib only, no container, runs in CI's Spec Drift Gate and in `make lint-specs`.
+`scripts/ux_audit.py` enforces the structural rules — stdlib only, no container, runs in CI's Spec Drift Gate (which has no path filter, so it covers static-site-only changes too) and in `make lint-specs`.
+
+**It audits both front ends.** The universal rules (R3–R6, R9–R11) hold everywhere: a landmark needs a name and a control needs a label in either app. The shell rules (R1, R2, R7, R8) describe chrome `lsat-static` does not have and are checked on `frontend/` only — holding a surface to rules it structurally cannot satisfy teaches everyone to ignore the audit. R4 and R9 additionally read stylesheets, because the static site writes its whole layout in CSS rather than in class strings.
 
 | Rule | What it prevents |
 |------|------------------|
@@ -117,6 +119,7 @@ Ask each pass: **who does this design advantage?** A more confident-looking UI a
 | R9 | A magic sticky `top-<n>` instead of the shell's sticky stack. |
 | R10 | A `tablist`/`radiogroup` with no accessible name, or a `role="tab"` that names no panel. |
 | R11 | A form control whose only name is its placeholder — it vanishes on the first keystroke. |
+| R12 | The two copies of `frontend/ui/base.css` have drifted. Run `make ui-sync`. |
 
 **Opting out.** Put `ux-audit: exempt — <reason>` in a comment to exempt a whole file, or `ux-audit: bare-page — <reason>` to exempt one route from R7. A reason is required on the same line, so every exemption explains itself to the next reader. Two exist today: `components/NavBar.tsx` (superseded dead code) and the dashboard route (full-bleed hero).
 
@@ -146,3 +149,4 @@ Append one row per pass. Keep it short; the diff is the detail.
 |------|------|------------------|---------|-----------------------|
 | 2026-08-31 | 1 | D2 — persistence and scroll (0: chrome scrolled away with content) | specs/041 — viewport-locked shell, sticky page-header stack, per-route scroll memory, drawers, ⌘K palette, route states | `scripts/ux_audit.py` R1–R9 + `make ux-audit` in CI; 40 shell tests |
 | 2026-08-31 | 2 | D6 — accessibility (1: composite widgets had no keyboard pattern) | LSAT tab bar and answer choices onto the WAI-ARIA roving-tabindex pattern via `useRovingTabIndex`; graph canvas + 3 placeholder-only controls named; favicon 404 fixed | `ux_audit.py` R10 + R11 (brace-aware JSX scanner) + 10 roving-focus tests |
+| 2026-08-31 | 3 | Cross-surface drift — the audit covered `frontend/` only, so specs 041-043 never reached the published static site | specs/044 — shared `base.css` mirrored into `lsat-static`, skip link, one `contentinfo`, tokenised sticky stack that pins the section clock at ≥820px only | `ux_audit.py` R12 + both surfaces + stylesheet scanning; R3/R11 false positives fixed |

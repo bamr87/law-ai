@@ -2,7 +2,7 @@
 	test test-backend test-frontend test-coverage test-smoke test-specs \
 	test-integration test-legalbench test-legalbench-gate legalbench-baseline \
 	lint format typecheck migrate ingest \
-	evolve-audit lint-specs ux-audit \
+	evolve-audit lint-specs ux-audit ui-sync \
 	autonomy-run autonomy-status autonomy-stop \
 	local-ai-up local-ai-down local-ai-pull local-ai-verify local-ai-health validate-claude-code \
 	lsat-author-demo lsat-export legal-analyst-demo host-setup host-test clean
@@ -55,7 +55,8 @@ help:
 	@echo "  make format            - black + ruff fix + prettier (in containers)"
 	@echo "  make typecheck         - mypy --strict + tsc --noEmit (in containers)"
 	@echo "  make lint-specs        - spec drift + BACKLOG + UI/UX contract (host stdlib)"
-	@echo "  make ux-audit          - UI/UX shell contract only (see docs/ui-ux-review.md)"
+	@echo "  make ux-audit          - UI/UX contract, both front ends (docs/ui-ux-review.md)"
+	@echo "  make ui-sync           - mirror frontend/ui/base.css into lsat-static"
 	@echo ""
 	@echo "Local AI stack (Spec 010):"
 	@echo "  make local-ai-up       - Start postgres/redis/neo4j/ollama/phoenix"
@@ -204,6 +205,14 @@ lint-specs:
 # The mechanical half of the /ux-review loop. `--list` prints the rules.
 ux-audit:
 	python3 scripts/ux_audit.py
+
+# Mirror the shared UI primitives into the static export. Next cannot resolve
+# a CSS @import outside an app root, so the copy is committed and ux_audit
+# R12 fails the build when the two drift.
+ui-sync:
+	cp frontend/ui/base.css lsat-static/app/base.css
+	@echo "frontend/ui/base.css -> lsat-static/app/base.css"
+
 
 evolve-audit:
 	python3 scripts/evolve_audit.py

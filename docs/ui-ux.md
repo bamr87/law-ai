@@ -22,6 +22,8 @@ This file is the source of truth for **what the UI is today**. The spec is the s
 | LSAT practice (static) | `lsat-static/` | GitHub Pages, `make lsat-export` | Next 16 static export, **no Tailwind** | 7 files under `lsat-static/components/` |
 | Design-sync snapshot | `.design-sync/` | converter bundle only | Synthetic `law-ai-ui` package | Re-exports the 16 above |
 
+**Both front ends share one UI contract as of spec 044.** `frontend/ui/base.css` (z-scale, focus ring, motion opt-out) is mirrored byte-for-byte into `lsat-static/app/base.css` — Next refuses to resolve a CSS `@import` outside an app root, so `make ui-sync` copies it and `ux_audit.py` R12 fails the build on drift. The audit itself now covers both apps and their stylesheets.
+
 `frontend/` pages: `/` (home), `/agents`, `/analysis`, `/graph`, `/lsat`, `/settings`, plus route-level `loading` / `error` / `not-found` states. Chrome is the spec 040 **app shell** (`frontend/components/shell/`), reworked by spec 041 into a **viewport-locked** shell: masthead, nav rail, contextual sidebar, inspector, compact tab bar, and a ⌘K command palette. Modules register in `frontend/lib/modules/catalog.ts` — adding a surface must not edit `AppShell.tsx`. Settings resolve through `frontend/lib/scope/resolver.ts` (instance-only live scope; org/team wait on spec 036). There is no Case Library UI despite [docs/architecture.md](architecture.md) naming one.
 
 ### The layout contract (spec 041)
@@ -134,8 +136,8 @@ Keep both as *named* tokens (`--accent-brand`, `--accent-practice`); do not sile
 8b. **Placeholder-only controls** — ~~three inputs were named only by their placeholder~~ (graph case search, Agent Ops run filter, LSAT tutor follow-up); **fixed in spec 042** and gated by `ux_audit.py` R11. The Cytoscape canvas is now a named `role="img"` region pointing at the case list as its accessible equivalent, instead of three anonymous `<canvas>` elements.
 9. ~~**Focus rings exist only on the static site**~~ — **fixed in spec 041.**
 `.focus-ring` / `.focus-ring-practice` in [layout.css](../frontend/ui/layout.css) are the app-wide `:focus-visible` indicator; the twelve controls that paired `focus:outline-none` with a 1px `focus:border-*` were migrated onto them, and `ux_audit.py` R5 fails the build on a regression.
-10. ~~**No skip link**~~ — the platform shell has had one since spec 040;
-`lsat-static` still does not.
+10. ~~**No skip link**~~ — **both apps have one.** The platform shell since
+spec 040, `lsat-static` since spec 044 (first tab stop, revealed on focus, targeting the `main#view` that had always been a ready focus target with nothing pointing at it). Spec 044 also gave the static site a single `contentinfo` landmark and a tokenised sticky stack that keeps the section clock visible during a drill at ≥820px — pinning it on a phone would have cost 37% of the viewport.
 11. **`prefers-reduced-motion` is partial.** Spec 041 gated smooth scrolling
 and added `.shell-motion` for shell transitions, but the homepage pulses and the Cytoscape layout still ignore the preference.
 12. ~~**QuestionCard keyboard pattern is the gold standard**~~ — **ported in

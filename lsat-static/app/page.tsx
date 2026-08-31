@@ -60,7 +60,11 @@ export default function Page() {
         {announcement}
       </p>
 
-      <footer className="site-footer">
+      {/* Deliberately NOT a <footer>: the root layout renders the UPL
+          disclaimer as this page's one contentinfo landmark, and a bare
+          <footer> here would make a second. Same defect the platform homepage
+          had (BL-20260830-06). */}
+      <div className="site-footer">
         <div className="wrap">
           <span>
             {content.counts.total} items · updated{' '}
@@ -73,7 +77,7 @@ export default function Page() {
             </a>
           </span>
         </div>
-      </footer>
+      </div>
     </>
   )
 }

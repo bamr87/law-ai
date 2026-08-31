@@ -18,6 +18,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        {/* First tab stop. `main#view` has always been a focus target; nothing
+            pointed at it until now. */}
+        <a className="skip-link" href="#view">
+          Skip to main content
+        </a>
         {children}
         {/* UPL guardrail (BL-20260810-07). This site is aimed at prospective
             law students — laypeople — so the disclaimer ships on every page. */}

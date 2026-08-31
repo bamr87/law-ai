@@ -9,6 +9,16 @@ Two halves, landing in two specs:
 
 Do not add colours to `layout.css` beyond the two scrollbar hooks and the two focus-ring hooks already there; those exist so spec 039 can re-point them at real palette tokens in one edit. `layout.css` is imported by [`app/globals.css`](../app/globals.css) and is the only place any of these values are defined.
 
+## Sharing with the static site
+
+`base.css` holds the primitives both front ends need — the z-scale, the focus ring, the motion opt-out. `layout.css` imports it; `lsat-static` cannot, because Next refuses to resolve a CSS `@import` outside an app's own root (Turbopack: "Module not found"). So it is **mirrored** to `lsat-static/app/base.css`:
+
+- Edit `frontend/ui/base.css`, never the mirror.
+- Run `make ui-sync`.
+- `scripts/ux_audit.py` R12 fails the build if the two ever differ.
+
+Keep `base.css` plain CSS — no `@apply`, no `@theme`, no utilities. The static export is Tailwind-free (spec 039 NFR-PERF-1) and anything needing a build step would break it. Shell metrics and `.shell-*` classes stay in `layout.css`, because a site with no shell should not inherit tokens describing one.
+
 ## Tokens
 
 ### Shell metrics

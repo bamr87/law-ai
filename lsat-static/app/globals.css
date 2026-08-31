@@ -1,4 +1,18 @@
+@import './base.css';
+
 :root {
+  /* Sticky stack. The site header pins, the drill head (which carries the
+   * section clock) pins beneath it, and the passage column pins beneath both —
+   * the same three-rung idea as the platform shell, keyed off tokens so a
+   * header height change moves everything with it instead of desynchronising
+   * a hand-written `top: 5rem`. */
+  /* Measured, not guessed: the site header is 61px and the drill head 78px in
+   * the two-column layout. `--site-header-h` is deliberately a hair under the
+   * real height so the rung below tucks by a pixel rather than leaving a gap
+   * for content to scroll through. */
+  --site-header-h: 3.75rem;
+  --drill-head-h: 4.875rem;
+
   --bg: #0f172a;
   --bg-elev: #1e293b;
   --bg-elev-2: #273449;
@@ -54,9 +68,29 @@ a {
   border: 0;
 }
 
+/* Global rather than opt-in: every focusable element gets a ring, which is
+ * stronger than the platform's `.focus-ring` class and is why this site was
+ * the reference implementation. The colour now comes from the shared token. */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring-practice);
   outline-offset: 2px;
+}
+
+/* Keyboard users land here first; it is invisible until focused. */
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: -3rem;
+  z-index: var(--z-drawer);
+  background: var(--accent);
+  color: #1a1206;
+  font-weight: 700;
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius);
+  transition: top 0.15s ease;
+}
+.skip-link:focus-visible {
+  top: 0.5rem;
 }
 
 /* ---- Header / nav ---- */
@@ -65,7 +99,7 @@ a {
   background: linear-gradient(180deg, #111c33, var(--bg));
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: var(--z-sticky-header);
 }
 .site-header .wrap {
   display: flex;
@@ -338,8 +372,31 @@ main#view {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.1rem 1.25rem;
-  position: sticky;
-  top: 5rem;
+}
+
+/* ---- Sticky stack (wide viewports only) ----
+ * Three rungs: site header, drill head (which carries the section clock), then
+ * the passage column. Deliberately NOT applied on a phone: there the header
+ * wraps to 136px and the drill head to 180px, so pinning both would spend 37%
+ * of the viewport on chrome. Narrow screens pin the site header alone.
+ */
+@media (min-width: 820px) {
+  .drill-head {
+    position: sticky;
+    top: var(--site-header-h);
+    z-index: var(--z-sticky-sub);
+    background: var(--bg);
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .passage {
+    position: sticky;
+    top: calc(var(--site-header-h) + var(--drill-head-h) + 0.75rem);
+    /* Load-bearing: a grid item defaults to `align-self: stretch`, which makes
+     * it exactly as tall as its row and leaves sticky nowhere to travel. The
+     * platform's graph case picker had the same latent bug. */
+    align-self: start;
+  }
 }
 .passage-title {
   margin: 0 0 0.4rem;

@@ -1,8 +1,12 @@
+@import './base.css';
+
 /**
  * Law AI — shell layout & scroll contract.
  *
  * This is the *layout* half of the first-party design system: shell metrics,
- * the z-index scale, and the scroll primitives every surface composes. The
+ * the sticky stack, and the scroll primitives every surface composes. The
+ * z-scale, focus ring, and motion opt-out are cross-product and live in
+ * `base.css`, which this file imports and `lsat-static` imports directly. The
  * colour palette is spec 039's job (`frontend/ui/tokens.css`) — do not add
  * colours here beyond the two scrollbar hooks below, which exist only so the
  * dark scrollbars are re-pointable at real tokens when 039 lands.
@@ -10,7 +14,7 @@
  * Rules this file exists to enforce:
  *   1. Exactly one element scrolls page content: `.shell-scroll` on <main>.
  *      Everything else that scrolls is a *panel* (`.shell-panel-scroll`).
- *   2. Nobody hand-writes a z-index. Pick a rung off the scale below.
+ *   2. Nobody hand-writes a z-index. Pick a rung off the scale in base.css.
  *   3. Sticky things park against `--shell-pageheader-h`, never a magic px.
  */
 
@@ -40,45 +44,9 @@
   /* Height of a `StickyToolbar` — the second rung of the stack. */
   --shell-toolbar-h: 2.75rem;
 
-  /* --- z-scale ----------------------------------------------------------
-   * Never hand-write a z-index outside this block. `scripts/ux_audit.py`
-   * fails the build on raw `z-<number>` utilities in shell code.
-   */
-  --z-content: 0;
-  --z-sticky-sub: 20;
-  --z-sticky-header: 30;
-  /* Popovers anchored to in-panel controls (a dock menu, a filter dropdown):
-   * above their own panel's sticky chrome, below the masthead and any layer
-   * that dims the page. */
-  --z-popover: 35;
-  --z-masthead: 40;
-  --z-scrim: 50;
-  --z-drawer: 60;
-  --z-palette: 70;
-
   /* Re-point at palette tokens when spec 039 lands. */
   --shell-scrollbar-thumb: rgb(51 65 85);
   --shell-scrollbar-track: transparent;
-  --shell-focus-ring: rgb(96 165 250);
-  --shell-focus-ring-practice: rgb(251 191 36);
-}
-
-/* --- Focus ------------------------------------------------------------------
- * One focus indicator for the whole app. `:focus-visible`, so a mouse click
- * does not paint a ring but a keyboard tab always does.
- *
- * This exists because `focus:outline-none` paired with a 1px `focus:border-*`
- * was the house pattern: a border tint is not a focus indicator anyone can
- * find, and this product is used by keyboard under exam-style time pressure.
- */
-.focus-ring:focus-visible,
-.focus-ring-practice:focus-visible {
-  outline: 2px solid var(--shell-focus-ring);
-  outline-offset: 2px;
-}
-
-.focus-ring-practice:focus-visible {
-  outline-color: var(--shell-focus-ring-practice);
 }
 
 /* --- Scroll regions ------------------------------------------------------
@@ -167,9 +135,3 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .shell-motion {
-    transition: none !important;
-    animation: none !important;
-  }
-}
