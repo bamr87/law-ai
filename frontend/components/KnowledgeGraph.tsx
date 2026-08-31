@@ -123,9 +123,17 @@ export default function KnowledgeGraph() {
       <StatsStrip stats={stats} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
+        {/* Pinned case picker: on a wide screen the list is the navigation for
+         * the graph beside it, so it holds position and scrolls itself
+         * instead of riding the page away from the canvas.
+         *
+         * `lg:self-start` is load-bearing, not cosmetic: a grid item defaults
+         * to `align-self: stretch`, which makes it exactly as tall as its row
+         * — leaving `position: sticky` no distance to travel, so it silently
+         * does nothing. */}
         <section
           aria-labelledby="cases-heading"
-          className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4"
+          className="flex flex-col rounded-2xl border border-slate-800 bg-slate-900/40 p-4 lg:sticky lg:top-[calc(var(--shell-pageheader-h)+1rem)] lg:max-h-[calc(100dvh-var(--shell-masthead-h)-var(--shell-pageheader-h)-3rem)] lg:self-start"
         >
           <header className="mb-3 flex items-center justify-between">
             <h2
@@ -143,11 +151,11 @@ export default function KnowledgeGraph() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search title or id…"
-            className="mb-3 w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+            className="mb-3 w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-blue-500 focus-ring"
           />
           <ul
             data-testid="case-list"
-            className="max-h-[520px] space-y-1 overflow-auto pr-1"
+            className="shell-panel-scroll max-h-[520px] flex-1 space-y-1 pr-1 lg:max-h-none"
           >
             {cases.map((c) => (
               <li key={c.id}>

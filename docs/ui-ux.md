@@ -8,7 +8,9 @@
 > [ADR 0006](adr/0006-first-party-design-system.md) propose replacing that
 > lock with a first-party system owned in-repo.
 
-This file is the source of truth for **what the UI is today**. The spec is the source of truth for **what we will build**. Do not treat `.design-sync/` as either.
+This file is the source of truth for **what the UI is today**. The spec is the source of truth for **what we will build**. [docs/ui-ux-review.md](ui-ux-review.md) is the source of truth for **how we keep it good** — the repeatable `/ux-review` loop and the nine structural rules `scripts/ux_audit.py` enforces in CI. Do not treat `.design-sync/` as either.
+
+**Update, 2026-08-31 (spec 041):** the *layout* half of the first-party design system shipped as [frontend/ui/layout.css](../frontend/ui/layout.css) — shell metrics, the sticky stack, the z-scale, the scroll primitives, and the app-wide focus ring, catalogued in [frontend/ui/README.md](../frontend/ui/README.md). The *palette* half (`tokens.css`, `semantic.css`, React primitives) is still spec 039's to build.
 
 ---
 
@@ -20,7 +22,11 @@ This file is the source of truth for **what the UI is today**. The spec is the s
 | LSAT practice (static) | `lsat-static/` | GitHub Pages, `make lsat-export` | Next 16 static export, **no Tailwind** | 7 files under `lsat-static/components/` |
 | Design-sync snapshot | `.design-sync/` | converter bundle only | Synthetic `law-ai-ui` package | Re-exports the 16 above |
 
-`frontend/` pages: `/` (home), `/agents`, `/analysis`, `/graph`, `/lsat`, `/settings`. Chrome is the spec 040 **app shell** (`frontend/components/shell/`): masthead, nav rail, contextual sidebar, inspector. Modules register in `frontend/lib/modules/catalog.ts` — adding a surface must not edit `AppShell.tsx`. Settings resolve through `frontend/lib/scope/resolver.ts` (instance-only live scope; org/team wait on spec 036). There is no Case Library UI despite [docs/architecture.md](architecture.md) naming one.
+`frontend/` pages: `/` (home), `/agents`, `/analysis`, `/graph`, `/lsat`, `/settings`, plus route-level `loading` / `error` / `not-found` states. Chrome is the spec 040 **app shell** (`frontend/components/shell/`), reworked by spec 041 into a **viewport-locked** shell: masthead, nav rail, contextual sidebar, inspector, compact tab bar, and a ⌘K command palette. Modules register in `frontend/lib/modules/catalog.ts` — adding a surface must not edit `AppShell.tsx`. Settings resolve through `frontend/lib/scope/resolver.ts` (instance-only live scope; org/team wait on spec 036). There is no Case Library UI despite [docs/architecture.md](architecture.md) naming one.
+
+### The layout contract (spec 041)
+
+The document does not scroll. `AppShell` is `h-dvh overflow-hidden`, so the masthead, rail, sidebar, inspector, and compact tab bar are flex children of a viewport-height row and are structurally incapable of scrolling away. Exactly one element scrolls page content — `<main class="shell-scroll">` — and panels that need to scroll use `.shell-panel-scroll`. Inside main, `PageLayout` pins a page header that condenses once the region scrolls, and `StickyToolbar` parks control bars directly beneath it against `--shell-pageheader-h`. Scroll position is remembered per route in `sessionStorage`, because a locked viewport means the browser's own restoration has nothing to restore. Below `md`, the sidebar and inspector become focus-trapped drawers and the rail becomes a bottom tab bar.
 
 `lsat-static/` is a single-page tab router (`Overview`, `LR`, `RC`, `LG`, `Concepts`, `Stats`) driven by a HITL-approved `content.json`. It is **not** on the `make dev` compose network.
 
@@ -70,7 +76,8 @@ Shared hex coincidence: both canvases are `#0f172a` / `#e2e8f0`. That is the ent
 
 | File | Kind | Notes |
 |------|------|-------|
-| `NavBar.tsx` | Chrome | Sticky, mobile drawer. Brand mark is **"LG"**. Status pill is hardcoded `v0.1.1 · Local` and always green. |
+| `shell/` | Chrome | The app shell: `AppShell`, `Masthead`, `NavRail`, `ContextSidebar`, `InspectorPanel`, `MobileTabBar`, `PageLayout` + `StickyToolbar`, `Overlay` (`Drawer` + `useFocusTrap`), `CommandPalette`, `ShortcutsHelp`, `BackToTop`, `ShellScroll`, `useMediaQuery`. Catalogued in [frontend/ui/README.md](../frontend/ui/README.md). |
+| `NavBar.tsx` | **Dead code** | Superseded by `shell/` in spec 040; zero imports. Kept only because spec 039 FR-5 names it in its proof set. Marked `ux-audit: exempt`; deletion tracked as BL-20260831-01. |
 | `LegalDisclaimer.tsx` | Guardrail | `Banner` + `Footer`. UPL copy (BL-20260810-07). Required beside generated analysis. |
 | `HomeStats.tsx` | Widget | Fetches agent/backlog/spec counts. |
 | `AgentDashboard.tsx` | Screen (~1460 lines) | God component: registry, runs, backlog, specs, health, launch modal. |
@@ -81,7 +88,7 @@ Shared hex coincidence: both canvases are `#0f172a` / `#e2e8f0`. That is the ent
 | `LsatLab.tsx` | Screen (~1611 lines) | God component: overview, LR/RC/LG drills, concepts, stats, HITL authoring. Parallel to `lsat-static/`, not shared. |
 | `LsatTimer.tsx` | Primitive | Section clock + per-question elapsed. Parallel to `lsat-static/components/SectionTimer.tsx`. |
 
-`frontend/app/page.tsx` inlines its own `Card` and `SectionHeading` instead of extracting them. It also renders a marketing footer **in addition to** the layout's `LegalDisclaimerFooter` (double footer). The STACK blurb still says "FastAPI · Next.js 15".
+`frontend/app/(app)/page.tsx` still inlines its own `Card` and `SectionHeading` instead of extracting them (spec 039's job). Spec 041 fixed its two content bugs: the marketing footer became a labelled `<nav>`, so the page no longer renders two `contentinfo` landmarks alongside the shell's `LegalDisclaimerFooter` (BL-20260830-06), and the STACK blurb now names the real stack — Django 5 / Next 16, and the Claude→Ollama provider chain rather than Ollama-as-the-runtime (BL-20260830-03). It is the one route deliberately exempt from `PageLayout` (`ux-audit: bare-page`), because a condensing header would sit on top of its full-bleed hero.
 
 ### Static LSAT (`lsat-static/components/`)
 
@@ -107,8 +114,8 @@ additionally shows `LegalDisclaimerBanner` next to generated IRAC. Keep this as 
 it always looks online. That is a trust bug on a product that otherwise refuses to fabricate.
 3. **Confidence badges have no provenance.** `AgentTrace` paints a green
 percentage. Fine for model self-score if labelled; dangerous if a future change feeds citation counts into it ([BL-20260803-03](../BACKLOG.md)).
-4. **Homepage STACK copy is stale** (FastAPI, Next 15, Ollama-as-the-runtime).
-   Marketing pages that lie about the stack train users (and agents) wrong.
+4. ~~**Homepage STACK copy is stale**~~ — **fixed in spec 041.** It now names
+Django 5 / Next 16 and the Claude→Ollama provider chain. Marketing pages that lie about the stack train users (and agents) wrong, so this is a `/ux-review` D8 check, not a one-off.
 
 ### Consistency
 
@@ -123,11 +130,12 @@ Keep both as *named* tokens (`--accent-brand`, `--accent-practice`); do not sile
 
 ### Accessibility
 
-9. **Focus rings exist only on the static site** (`:focus-visible` → amber
-outline). Platform components rely on browser defaults and often `focus:outline-none` (e.g. KnowledgeGraph search).
-10. **No skip link** on either app.
-11. **No `prefers-reduced-motion`.** NavBar ping animation, homepage pulses,
-    and Cytoscape layout ignore it.
+9. ~~**Focus rings exist only on the static site**~~ — **fixed in spec 041.**
+`.focus-ring` / `.focus-ring-practice` in [layout.css](../frontend/ui/layout.css) are the app-wide `:focus-visible` indicator; the twelve controls that paired `focus:outline-none` with a 1px `focus:border-*` were migrated onto them, and `ux_audit.py` R5 fails the build on a regression.
+10. ~~**No skip link**~~ — the platform shell has had one since spec 040;
+`lsat-static` still does not.
+11. **`prefers-reduced-motion` is partial.** Spec 041 gated smooth scrolling
+and added `.shell-motion` for shell transitions, but the homepage pulses and the Cytoscape layout still ignore the preference.
 12. **QuestionCard keyboard pattern is the gold standard** — port it into
     the shared `Choice` primitive; do not regress it when unifying styles.
 
@@ -151,14 +159,15 @@ outline). Platform components rely on browser defaults and often `focus:outline-
 
 ## Governance target (spec 039)
 
-The maintainable shape, to be built under [specs/039-design-system](../specs/039-design-system/spec.md):
+The maintainable shape. `layout.css` and `README.md` shipped in spec 041; the rest is [specs/039-design-system](../specs/039-design-system/spec.md):
 
 ```
 frontend/ui/
-  tokens.css          # CSS custom properties — the only palette
-  semantic.css        # .btn, .card, .choice, .pill, .empty, …
-  README.md           # catalog: when to use which primitive
-  components/         # React primitives (Button, Card, Input, …)
+  layout.css          # SHIPPED (041) — shell metrics, sticky stack, z-scale, scroll + focus
+  README.md           # SHIPPED (041) — catalog: when to use which token/class/primitive
+  tokens.css          # 039 — CSS custom properties, the only palette
+  semantic.css        # 039 — .btn, .card, .choice, .pill, .empty, …
+  components/         # 039 — React primitives (Button, Card, Input, …)
 ```
 
 - **Tokens are the source of truth.** `lsat-static/app/globals.css` imports
@@ -188,3 +197,7 @@ file under `frontend/__tests__/ui/`. Do not put one-off variants in screen files
    render `LegalDisclaimerBanner`; every page keeps the footer.
 5. **Authority labelling** — if a control sizes, ranks, or colors nodes by
 citation count or centrality, the legend must say what the number measures (constitution §13). Never "importance."
+6. **Shell work** — compose `PageLayout`, `StickyToolbar`, `Drawer`, and the
+`.shell-*` classes from [frontend/ui/README.md](../frontend/ui/README.md). Register new destinations in `frontend/lib/modules/catalog.ts`; never teach `AppShell.tsx` a route name. Run `make ux-audit` before you push.
+7. **Periodic review** — run `/ux-review` (see
+[docs/ui-ux-review.md](ui-ux-review.md)) rather than waiting for someone to notice the shell has drifted. Each pass scores eight dimensions, fixes the single worst one, and promotes the fix into `scripts/ux_audit.py` or `frontend/__tests__/shell/`.

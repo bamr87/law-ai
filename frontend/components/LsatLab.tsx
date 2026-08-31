@@ -10,6 +10,7 @@
  * the learner across tabs.
  */
 
+import { StickyToolbar } from '@/components/shell/PageLayout'
 import {
     approveLsatProposal,
     askLsatTutor,
@@ -161,33 +162,39 @@ function Header({
 }
 
 function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
+  // Pinned under the page header: the section switcher is the control a
+  // student reaches for most, and hunting for it after scrolling through a
+  // reading-comprehension passage is the difference between a drill and a
+  // chore.
   return (
-    <div
-      role="tablist"
-      aria-label="LSAT Lab sections"
-      className="flex flex-wrap gap-1 rounded-xl border border-slate-800 bg-slate-900/40 p-1 backdrop-blur"
-    >
-      {TABS.map((t) => {
-        const active = t.id === tab
-        return (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={active}
-            title={t.hint}
-            onClick={() => onChange(t.id)}
-            className={
-              'flex-1 min-w-[120px] rounded-lg px-3 py-2 text-sm font-medium transition ' +
-              (active
-                ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-300 hover:bg-slate-800/60 hover:text-white')
-            }
-          >
-            {t.label}
-          </button>
-        )
-      })}
-    </div>
+    <StickyToolbar>
+      <div
+        role="tablist"
+        aria-label="LSAT Lab sections"
+        className="flex flex-wrap gap-1"
+      >
+        {TABS.map((t) => {
+          const active = t.id === tab
+          return (
+            <button
+              key={t.id}
+              role="tab"
+              aria-selected={active}
+              title={t.hint}
+              onClick={() => onChange(t.id)}
+              className={
+                'min-w-[120px] flex-1 rounded-lg px-3 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 ' +
+                (active
+                  ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white')
+              }
+            >
+              {t.label}
+            </button>
+          )
+        })}
+      </div>
+    </StickyToolbar>
   )
 }
 
@@ -439,7 +446,7 @@ function PassagePanel({
               id="passage-select"
               value={activeId ?? ''}
               onChange={(e) => setActiveId(e.target.value)}
-              className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-blue-500 focus:outline-none"
+              className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-blue-500 focus-ring"
             >
               {passages.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -489,7 +496,7 @@ function PassagePanel({
 
 function PassageReader({ passage }: { passage: LsatPassage }) {
   return (
-    <article className="sticky top-4 max-h-[80vh] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900/40 p-5 backdrop-blur">
+    <article className="shell-sticky-aside shell-panel-scroll max-h-[calc(100dvh-var(--shell-masthead-h)-var(--shell-pageheader-h)-var(--shell-toolbar-h)-3rem)] rounded-2xl border border-slate-800 bg-slate-900/40 p-5 backdrop-blur">
       <div className="text-[11px] uppercase tracking-wider text-amber-400">
         {passage.section === 'LG' ? 'Game setup' : 'Reading passage'}
       </div>
@@ -923,7 +930,7 @@ function TutorPane({
           value={followUp}
           onChange={(e) => setFollowUp(e.target.value)}
           placeholder="Ask a follow-up — e.g. 'Why is C wrong?'"
-          className="min-w-[260px] flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:border-amber-500 focus:outline-none"
+          className="min-w-[260px] flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:border-amber-500 focus-ring-practice"
         />
         <button
           onClick={() => void ask()}
@@ -997,7 +1004,7 @@ function ConceptsPanel() {
             onChange={(e) =>
               setSection(e.target.value as LsatSection | 'any')
             }
-            className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-blue-500 focus:outline-none"
+            className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-blue-500 focus-ring"
           >
             <option value="any">All sections</option>
             <option value="LR">Logical Reasoning</option>
@@ -1201,7 +1208,7 @@ function Toolbar({
           onChange={(e) =>
             onDifficulty(e.target.value as LsatDifficulty | 'any')
           }
-          className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-blue-500 focus:outline-none"
+          className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-blue-500 focus-ring"
         >
           {DIFFICULTIES.map((d) => (
             <option key={d.value} value={d.value}>

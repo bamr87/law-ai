@@ -1,0 +1,171 @@
+/**
+ * Law AI — shell layout & scroll contract.
+ *
+ * This is the *layout* half of the first-party design system: shell metrics,
+ * the z-index scale, and the scroll primitives every surface composes. The
+ * colour palette is spec 039's job (`frontend/ui/tokens.css`) — do not add
+ * colours here beyond the two scrollbar hooks below, which exist only so the
+ * dark scrollbars are re-pointable at real tokens when 039 lands.
+ *
+ * Rules this file exists to enforce:
+ *   1. Exactly one element scrolls page content: `.shell-scroll` on <main>.
+ *      Everything else that scrolls is a *panel* (`.shell-panel-scroll`).
+ *   2. Nobody hand-writes a z-index. Pick a rung off the scale below.
+ *   3. Sticky things park against `--shell-pageheader-h`, never a magic px.
+ */
+
+:root {
+  /* --- Shell metrics ----------------------------------------------------
+   * Chrome that never scrolls. Kept as custom properties so a screen can
+   * measure the shell (e.g. `max-h-[calc(100dvh-var(--shell-masthead-h))]`)
+   * without hard-coding the same number in five files.
+   */
+  --shell-masthead-h: 3.5rem;
+  --shell-rail-w: 3.5rem;
+  --shell-sidebar-w: 14rem;
+  --shell-inspector-w: 19rem;
+  --shell-tabbar-h: 3.5rem;
+
+  /* --- Sticky stack -----------------------------------------------------
+   * The page header condenses to this height once the main region scrolls,
+   * and every in-page sticky toolbar parks directly underneath it. One
+   * number, so a screen never has to guess its own offset. A page with no
+   * sticky header sets `--shell-pageheader-h: 0px` on its own root.
+   */
+  /* 44px — deliberately a hair *under* the condensed header's measured
+   * height (45px: 20px padding + a 24px title line). Erring small tucks the
+   * toolbar's first pixel behind the header, which is invisible; erring large
+   * would leave a sliver of scrolling content showing between the two. */
+  --shell-pageheader-h: 2.75rem;
+  /* Height of a `StickyToolbar` — the second rung of the stack. */
+  --shell-toolbar-h: 2.75rem;
+
+  /* --- z-scale ----------------------------------------------------------
+   * Never hand-write a z-index outside this block. `scripts/ux_audit.py`
+   * fails the build on raw `z-<number>` utilities in shell code.
+   */
+  --z-content: 0;
+  --z-sticky-sub: 20;
+  --z-sticky-header: 30;
+  --z-masthead: 40;
+  --z-scrim: 50;
+  --z-drawer: 60;
+  --z-palette: 70;
+
+  /* Re-point at palette tokens when spec 039 lands. */
+  --shell-scrollbar-thumb: rgb(51 65 85);
+  --shell-scrollbar-track: transparent;
+  --shell-focus-ring: rgb(96 165 250);
+  --shell-focus-ring-practice: rgb(251 191 36);
+}
+
+/* --- Focus ------------------------------------------------------------------
+ * One focus indicator for the whole app. `:focus-visible`, so a mouse click
+ * does not paint a ring but a keyboard tab always does.
+ *
+ * This exists because `focus:outline-none` paired with a 1px `focus:border-*`
+ * was the house pattern: a border tint is not a focus indicator anyone can
+ * find, and this product is used by keyboard under exam-style time pressure.
+ */
+.focus-ring:focus-visible,
+.focus-ring-practice:focus-visible {
+  outline: 2px solid var(--shell-focus-ring);
+  outline-offset: 2px;
+}
+
+.focus-ring-practice:focus-visible {
+  outline-color: var(--shell-focus-ring-practice);
+}
+
+/* --- Scroll regions ------------------------------------------------------
+ * `.shell-scroll` is the page-content scroller. `overscroll-behavior:
+ * contain` stops a flick at the end of the list from scroll-chaining into
+ * the document (which, in a viewport-locked shell, reads as a dead app).
+ * `scrollbar-gutter: stable` stops content shifting sideways when a route
+ * goes from short to long.
+ */
+.shell-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  /* Anchor targets and focus-scrolls land below the sticky header, not
+   * underneath it. */
+  scroll-padding-top: calc(var(--shell-pageheader-h) + 1rem);
+}
+
+/* Panels (nav rail, contextual sidebar, inspector, in-card lists) scroll
+ * independently of the page. Same containment rule, no scroll padding. */
+.shell-panel-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.shell-scroll,
+.shell-panel-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--shell-scrollbar-thumb) var(--shell-scrollbar-track);
+}
+
+.shell-scroll::-webkit-scrollbar,
+.shell-panel-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.shell-scroll::-webkit-scrollbar-thumb,
+.shell-panel-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--shell-scrollbar-thumb);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+.shell-scroll::-webkit-scrollbar-track,
+.shell-panel-scroll::-webkit-scrollbar-track {
+  background: var(--shell-scrollbar-track);
+}
+
+/* --- Sticky stack --------------------------------------------------------
+ * Two rungs, in this order down the page: the page header, then any number
+ * of in-page toolbars parked beneath it.
+ */
+.shell-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky-header);
+}
+
+.shell-sticky-sub {
+  position: sticky;
+  top: var(--shell-pageheader-h);
+  z-index: var(--z-sticky-sub);
+}
+
+/* Third rung: content that must clear the page header *and* a sticky toolbar
+ * above it — e.g. an RC passage that stays beside its question stack. It sits
+ * at content level so a real toolbar always wins the overlap. */
+.shell-sticky-aside {
+  position: sticky;
+  top: calc(var(--shell-pageheader-h) + var(--shell-toolbar-h) + 0.75rem);
+  z-index: var(--z-content);
+}
+
+/* --- Motion --------------------------------------------------------------
+ * Smooth scrolling is a preference, not a default: "back to top" jumping the
+ * viewport is disorienting for anyone who asked the OS for less motion.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .shell-scroll {
+    scroll-behavior: smooth;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-motion {
+    transition: none !important;
+    animation: none !important;
+  }
+}

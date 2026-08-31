@@ -2,7 +2,7 @@
 	test test-backend test-frontend test-coverage test-smoke test-specs \
 	test-integration test-legalbench test-legalbench-gate legalbench-baseline \
 	lint format typecheck migrate ingest \
-	evolve-audit lint-specs \
+	evolve-audit lint-specs ux-audit \
 	autonomy-run autonomy-status autonomy-stop \
 	local-ai-up local-ai-down local-ai-pull local-ai-verify local-ai-health validate-claude-code \
 	lsat-author-demo lsat-export legal-analyst-demo host-setup host-test clean
@@ -54,6 +54,8 @@ help:
 	@echo "  make lint              - ruff + black + frontend lint --fix (in containers)"
 	@echo "  make format            - black + ruff fix + prettier (in containers)"
 	@echo "  make typecheck         - mypy --strict + tsc --noEmit (in containers)"
+	@echo "  make lint-specs        - spec drift + BACKLOG + UI/UX contract (host stdlib)"
+	@echo "  make ux-audit          - UI/UX shell contract only (see docs/ui-ux-review.md)"
 	@echo ""
 	@echo "Local AI stack (Spec 010):"
 	@echo "  make local-ai-up       - Start postgres/redis/neo4j/ollama/phoenix"
@@ -191,12 +193,17 @@ typecheck:
 	$(RUN_FRONTEND) npx tsc --noEmit
 
 # ---------------------------------------------------------------------------
-# Spec/backlog validators (lightweight — host stdlib only, no container)
+# Spec/backlog/UX validators (lightweight — host stdlib only, no container)
 # ---------------------------------------------------------------------------
 
 lint-specs:
 	python3 scripts/spec_validator.py
 	python3 scripts/backlog_lint.py
+	python3 scripts/ux_audit.py
+
+# The mechanical half of the /ux-review loop. `--list` prints the rules.
+ux-audit:
+	python3 scripts/ux_audit.py
 
 evolve-audit:
 	python3 scripts/evolve_audit.py

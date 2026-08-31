@@ -195,7 +195,7 @@ export default function AnalysisStudio() {
             }
           }}
           placeholder="Paste a fact pattern, hypo, or exam prompt…"
-          className="min-h-[180px] w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm leading-relaxed text-slate-100 placeholder-slate-600 focus:border-indigo-500 focus:outline-none"
+          className="min-h-[180px] w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm leading-relaxed text-slate-100 placeholder-slate-600 focus:border-indigo-500 focus-ring"
         />
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -209,7 +209,7 @@ export default function AnalysisStudio() {
               id="analysis-jur"
               value={jurisdiction}
               onChange={(e) => setJurisdiction(e.target.value)}
-              className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none"
+              className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-indigo-500 focus-ring"
             >
               {JURISDICTIONS.map((j) => (
                 <option key={j.value} value={j.value}>

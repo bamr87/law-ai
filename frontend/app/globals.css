@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* Layout & scroll contract for the app shell — see frontend/ui/README.md.
+ * Colours still live here until spec 039 lands `frontend/ui/tokens.css`. */
+@import "../ui/layout.css";
 
 :root {
   --background: #0f172a;

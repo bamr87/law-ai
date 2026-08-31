@@ -4,12 +4,17 @@ import { LegalDisclaimerBanner } from '@/components/LegalDisclaimer'
 import { moduleForPath } from '@/lib/modules/catalog'
 import { usePathname } from 'next/navigation'
 
+/**
+ * Right-hand context panel. Owns its own scroll so the UPL banner stays
+ * reachable no matter how far down the main region the reader has gone —
+ * on a UPL route the disclaimer is the point of the panel.
+ */
 export default function InspectorPanel() {
   const pathname = usePathname() || '/'
   const mod = moduleForPath(pathname)
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-auto p-4">
+    <div className="shell-panel-scroll flex h-full flex-col gap-4 p-4">
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
           Inspector
