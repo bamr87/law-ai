@@ -24,6 +24,12 @@
 
 ## Open
 
+- **BL-20260830-01** — *tech-debt, med* — Unused frontend deps (`@tanstack/react-query`, `framer-motion`, `lucide-react`, `@xyflow/react`) declared in `frontend/package.json` with zero imports. _Surfaced in:_ specs/039-design-system.
+- **BL-20260830-02** — *refactor, med* — Decompose `LsatLab.tsx` (~1611 lines) and `AgentDashboard.tsx` (~1460 lines) onto `frontend/ui` primitives after spec 039 lands. _Surfaced in:_ specs/039-design-system.
+- **BL-20260830-03** — *doc-gap, low* — Homepage STACK copy still says FastAPI · Next.js 15; hero GitHub chip href is `https://github.com` not the repo. _Surfaced in:_ specs/039-design-system.
+- **BL-20260830-04** — *feature, low* — Unify `frontend/components/LsatTimer.tsx` and `lsat-static/components/SectionTimer.tsx` onto a shared Timer primitive. _Surfaced in:_ specs/039-design-system.
+- **BL-20260830-05** — *feature, low* — NavBar status pill is hardcoded `v0.1.1 · Local` (always green) and the brand mark reads "LG". _Surfaced in:_ specs/039-design-system.
+- **BL-20260830-06** — *tech-debt, low* — Homepage renders a marketing footer in addition to the layout `LegalDisclaimerFooter` (double footer). _Surfaced in:_ specs/039-design-system.
 - **BL-20260829-01** — *feature, low* — Wire remaining-question pacing into LSAT Lab's header timer (fetch section bank size, or remaining ungraded items in an RC/LG stack) so the `N:NN / q` readout matches the static drill. _Surfaced in:_ LSAT practice timer.
 - **BL-20260829-02** — *feature, low* — Optional shorter drill presets on the section timer (5 / 10 / 35 min) for untimed homework vs. full-section simulation. _Surfaced in:_ LSAT practice timer.
 - **BL-20260815-01** — *infra, high* — Make the CI gates required for merge on `main`. `markdown-oneline` went red on `main` when #73 merged (28 soft-wrapped files) and stayed red across four stacked PRs before anyone noticed, because nothing blocks a merge on a failing check. Mark `Backend Lint + Type-check`, `Backend Tests + Coverage`, `Spec Drift Gate`, and `oneline` as required in branch protection. _Surfaced in:_ open-PR CI sweep 2026-08-15.

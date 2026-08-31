@@ -109,10 +109,10 @@ Project status, tooling rationale, and onboarding live in [README.md](README.md)
 - Eyecite + Blackstone (spaCy) for legal NLP
 
 **Frontend**
-- Next.js 15 (App Router) + TypeScript
-- Tailwind + shadcn/ui
-- Cytoscape.js + React Flow for graphs
-- TanStack Query + WebSockets for real-time agent streaming
+- Next.js App Router + TypeScript (apps are on Next 16; constitution §2 still says 15)
+- Tailwind v4. **shadcn/ui is constitution-listed and not installed** — current surfaces, tokens, and the replacement kit are documented in [docs/ui-ux.md](docs/ui-ux.md). Spec [039](specs/039-design-system/spec.md) + [ADR 0006](docs/adr/0006-first-party-design-system.md) propose a first-party system at `frontend/ui/`.
+- Cytoscape.js for graphs (`@xyflow/react` is declared unused)
+- WebSockets for real-time agent streaming (TanStack Query is declared unused)
 
 **Infrastructure**
 - Docker Compose (full local stack)
@@ -153,10 +153,12 @@ law-ai/                                 # workspace root (GitHub slug stays `law
 │   └── tests/                          # pytest suite mirroring the package layout
 ├── frontend/
 │   ├── app/                            # Next.js App Router (agents, analysis, graph, lsat pages)
-│   ├── components/                     # Reusable UI (GraphViewer, AgentTrace, AgentDashboard, …)
+│   ├── components/                     # Screen-level UI (GraphViewer, AgentDashboard, LsatLab, …)
+│   ├── ui/                             # Spec 039 target (not landed) — tokens + primitives
 │   ├── lib/                            # Typed API client + utils
 │   ├── mocks/                          # MSW handlers for tests
 │   └── __tests__/                      # Vitest + RTL component tests
+├── lsat-static/                        # Serverless LSAT practice (GitHub Pages, no Tailwind)
 ├── docs/                               # Architecture, data model, agent roles, ADRs, runbooks
 │   └── adr/                            # Architecture Decision Records
 ├── prompts/                            # Spec-driven workflow templates (/specify, /plan, …)
@@ -183,6 +185,7 @@ law-ai/                                 # workspace root (GitHub slug stays `law
 - Strict TypeScript (`"strict": true`)
 - Prefer server components + React Server Actions where possible
 - All graph interactions must go through typed API routes (no direct Neo4j from client)
+- UI tokens and primitives live under `frontend/ui/` once spec 039 lands. Until then, do not add shadcn or a second palette — read [docs/ui-ux.md](docs/ui-ux.md) first.
 
 ### Neo4j / Graph
 - Use Cypher for all relationship-heavy queries
@@ -269,6 +272,7 @@ When starting work, read in this order:
 4. [PRD.md](PRD.md) — Full product requirements
 5. [Law_AI_Proposal.md](Law_AI_Proposal.md) — Original technical proposal with Mermaid diagrams
 6. [docs/related-github-repos.md](docs/related-github-repos.md) — Upstream OSS we integrate with
+7. [docs/ui-ux.md](docs/ui-ux.md) — Every user-facing surface, the two styling idioms, and the design-system contract
 
 `docs/data-model.md`, `docs/data-sources.md`, `docs/legalbench.md`, and [docs/django-conventions.md](docs/django-conventions.md) (Django app-layout and coding conventions) all exist — keep them current as the schema, sources, eval harness, and conventions evolve rather than skipping the documentation step.
 

@@ -8,7 +8,7 @@ This workspace is configured for **GitHub Copilot and Claude Code** as the sanct
 
 - **Backend** — Django 5 (ASGI via daphne), DRF, Channels (WebSocket agent streaming), Celery/Redis (async ingestion), Neo4j (knowledge graph) + Postgres + Redis.
 - **Agents** — CrewAI crews and LangGraph state graphs (`backend/law_ai/agents_runtime/`), running on `ChatProviderChain`, a LangChain `BaseChatModel` wrapping the provider chain above.
-- **Frontend** — Next.js App Router, TypeScript strict, Tailwind, shadcn/ui, Cytoscape.js graph viewer.
+- **Frontend** — Next.js 16 App Router, TypeScript strict, Tailwind v4, Cytoscape.js. Two UI apps (`frontend/`, `lsat-static/`); no shadcn/ui on disk — see [docs/ui-ux.md](docs/ui-ux.md) and [spec 039](specs/039-design-system/spec.md).
 - **Infra** — Docker Compose locally, GitHub Actions in CI.
 
 This is a quick orientation, not the authoritative reference — see [AGENTS.md](AGENTS.md) for the locked tech-stack table and standards.

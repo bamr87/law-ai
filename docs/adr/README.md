@@ -18,6 +18,7 @@ ADRs are the canonical place to record decisions that **deviate from or amend** 
 | 0003  | [Autonomy orchestrator](0003-autonomy-orchestrator.md) | accepted | §10 (autonomy level), new §12 (autonomy loop invariants) |
 | 0004  | [Jurisprudential stance](0004-jurisprudential-stance.md) | accepted | new §13 (jurisprudential honesty); reinforces §1, §4, §5 |
 | 0005  | [Claude-default LLM provider chain](0005-claude-default-runtime.md) | accepted | §1 (product-runtime LLM policy) |
+| 0006  | [First-party design system](0006-first-party-design-system.md) | proposed | §2 (drop shadcn/ui lock), §9 (docs/ui-ux.md) |
 
 `0002` was never assigned an ADR; the sequence intentionally jumps 0001 → 0003 rather than renumbering later entries.
 
