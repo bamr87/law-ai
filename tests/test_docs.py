@@ -23,6 +23,7 @@ REQUIRED_DOCS = [
     "docs/data-model.md",
     "docs/data-sources.md",
     "docs/related-github-repos.md",
+    "docs/ui-ux.md",
 ]
 
 REQUIRED_PROMPTS = [

@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Question } from '@/lib/types'
 import { recordAttempt } from '@/lib/progress'
+import { QuestionElapsed } from './SectionTimer'
 
 interface Props {
   question: Question
   index: number
   total: number
   onAnnounce?: (msg: string) => void
+  onAnswered?: (elapsedSeconds: number) => void
 }
 
 /**
@@ -17,10 +19,17 @@ interface Props {
  * the selected choice submits. After submitting, the key + explanation are
  * revealed and the attempt is recorded to localStorage.
  */
-export default function QuestionCard({ question, index, total, onAnnounce }: Props) {
+export default function QuestionCard({
+  question,
+  index,
+  total,
+  onAnnounce,
+  onAnswered,
+}: Props) {
   const [selected, setSelected] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const optionRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+  const elapsedRef = useRef(0)
 
   // Reset when the question changes.
   useEffect(() => {
@@ -45,6 +54,7 @@ export default function QuestionCard({ question, index, total, onAnnounce }: Pro
     if (submitted || !selected) return
     const correct = selected === question.correct
     setSubmitted(true)
+    onAnswered?.(elapsedRef.current)
     recordAttempt({
       qid: question.id,
       section: question.section,
@@ -89,6 +99,13 @@ export default function QuestionCard({ question, index, total, onAnnounce }: Pro
         <span className="qcard-count">
           {index + 1} / {total}
         </span>
+        <QuestionElapsed
+          key={question.id}
+          frozen={submitted}
+          onTick={(s) => {
+            elapsedRef.current = s
+          }}
+        />
       </div>
 
       <p className="qcard-stem">{question.stem}</p>

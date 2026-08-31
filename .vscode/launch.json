@@ -5,19 +5,40 @@
     // They do NOT spawn local Python/Node processes.
     //
     // Flow:
-    //   1. Start the debug stack: `make debug`
+    //   1. F5 "Docker: Launch frontend" runs preLaunchTask
+    //      "Docker: Build & Start Frontend" (`make debug-frontend`):
+    //      builds images, starts the debug stack detached, waits until
+    //      the frontend healthcheck on :3000 passes, then opens Chrome.
+    //   2. Or start the debug stack yourself: `make debug`
     //      (or task "Docker: Start Full Stack (Debug)") — this layers
     //      docker-compose.debug.yml over docker-compose.yml, exposing:
     //        5678 backend debugpy · 5679 worker debugpy ·
-    //        9229 frontend CLI inspector · 9230 frontend dev-server inspector
-    //   2. Attach with one of the configs below (or the compound).
+    //        9229 frontend CLI inspector · 9230 frontend dev-server inspector ·
+    //        9231 frontend extra child inspector
+    //      then attach with one of the configs below (or the compound).
     //
-    // Note: the frontend runs Next.js with NODE_OPTIONS=--inspect, so the
-    // CLI process binds 9229 and the actual dev server (App Router server
-    // components / route handlers) auto-increments to 9230 — attach to 9230
-    // for server-side breakpoints.
+    // Note: backend debugpy does not listen until collectstatic + migrate +
+    // ensure_checkpointer finish — attach timeout is 120s for that reason.
+    // The frontend runs Next.js with NODE_OPTIONS=--inspect, so the CLI
+    // process binds 9229 and the actual dev server (App Router server
+    // components / route handlers) auto-increments to 9230 (then 9231) —
+    // attach to 9230 for server-side breakpoints.
     "version": "0.2.0",
     "configurations": [
+        {
+            "name": "Docker: Launch frontend",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:3000",
+            "webRoot": "${workspaceFolder}/frontend",
+            "preLaunchTask": "Docker: Build & Start Frontend",
+            "sourceMaps": true,
+            "sourceMapPathOverrides": {
+                "webpack://_N_E/*": "${webRoot}/*",
+                "turbopack://[project]/*": "${webRoot}/*",
+                "/app/*": "${webRoot}/*"
+            }
+        },
         {
             "name": "Docker: Attach to backend (debugpy)",
             "type": "debugpy",
@@ -33,7 +54,9 @@
                 }
             ],
             "justMyCode": false,
-            "django": true
+            "django": true,
+            "subProcess": true,
+            "timeout": 120000
         },
         {
             "name": "Docker: Attach to worker (debugpy)",
@@ -49,7 +72,9 @@
                     "remoteRoot": "/app"
                 }
             ],
-            "justMyCode": false
+            "justMyCode": false,
+            "subProcess": true,
+            "timeout": 120000
         },
         {
             "name": "Docker: Attach to frontend server (node)",
@@ -59,8 +84,13 @@
             "port": 9230,
             "localRoot": "${workspaceFolder}/frontend",
             "remoteRoot": "/app",
+            "sourceMaps": true,
+            "restart": true,
+            "timeout": 60000,
+            "continueOnAttach": true,
             "skipFiles": [
-                "<node_internals>/**"
+                "<node_internals>/**",
+                "**/node_modules/**"
             ]
         },
         {
@@ -71,16 +101,31 @@
             "port": 9229,
             "localRoot": "${workspaceFolder}/frontend",
             "remoteRoot": "/app",
+            "sourceMaps": true,
+            "restart": true,
+            "timeout": 60000,
+            "continueOnAttach": true,
             "skipFiles": [
-                "<node_internals>/**"
+                "<node_internals>/**",
+                "**/node_modules/**"
             ]
         },
         {
-            "name": "Docker: Open frontend in Chrome",
-            "type": "chrome",
-            "request": "launch",
-            "url": "http://localhost:3000",
-            "webRoot": "${workspaceFolder}/frontend"
+            "name": "Docker: Attach to frontend child (node)",
+            "type": "node",
+            "request": "attach",
+            "address": "localhost",
+            "port": 9231,
+            "localRoot": "${workspaceFolder}/frontend",
+            "remoteRoot": "/app",
+            "sourceMaps": true,
+            "restart": true,
+            "timeout": 60000,
+            "continueOnAttach": true,
+            "skipFiles": [
+                "<node_internals>/**",
+                "**/node_modules/**"
+            ]
         }
     ],
     "compounds": [

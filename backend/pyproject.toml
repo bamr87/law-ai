@@ -51,6 +51,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "debugpy>=1.8.0",  # docker-compose.debug.yml: python -m debugpy
     "ruff>=0.15.0",
     "black>=26.3.0",
     "mypy>=1.20.0",

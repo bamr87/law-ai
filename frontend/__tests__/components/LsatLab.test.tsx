@@ -187,6 +187,7 @@ describe('LsatLab', () => {
     expect(screen.getByText(/four-section roadmap/i)).toBeInTheDocument()
     expect(screen.getAllByText('Reading Comprehension').length).toBeGreaterThan(0)
     expect(screen.getByText('Analytical Reasoning')).toBeInTheDocument()
+    expect(screen.getByRole('timer')).toHaveTextContent('35:00')
   })
 
   it('switches to LR practice and grades a question', async () => {
@@ -196,6 +197,9 @@ describe('LsatLab', () => {
     await waitFor(() => {
       expect(screen.getByText(/All swans observed/)).toBeInTheDocument()
     })
+    expect(screen.getByLabelText(/time on this question/i)).toHaveTextContent(
+      '0:00',
+    )
 
     fireEvent.click(screen.getByRole('radio', { name: /A.*Alpha/ }))
     fireEvent.click(screen.getByRole('button', { name: /Submit/ }))
@@ -206,6 +210,9 @@ describe('LsatLab', () => {
       ).toBeInTheDocument()
     })
     expect(screen.getByText(/Hasty generalisation/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/average time per question/i)).toHaveTextContent(
+      /avg 0:00 \/ q/,
+    )
   })
 
   it('invokes the AI tutor when requested', async () => {
@@ -216,11 +223,11 @@ describe('LsatLab', () => {
       expect(screen.getByText(/All swans observed/)).toBeInTheDocument(),
     )
     fireEvent.click(screen.getByRole('radio', { name: /A.*Alpha/ }))
-    fireEvent.click(screen.getByRole('button', { name: /Submit/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Submit$/ }))
 
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /Ask AI Tutor/ }),
+        screen.getByText(/Incorrect — answer was C/),
       ).toBeInTheDocument(),
     )
     fireEvent.click(screen.getByRole('button', { name: /Ask AI Tutor/ }))
@@ -255,6 +262,9 @@ describe('LsatLab', () => {
     // wait for the body text instead of asserting synchronously.
     await waitFor(() =>
       expect(screen.getByText(/Long passage text/)).toBeInTheDocument(),
+    )
+    expect(screen.getByLabelText(/time on this question/i)).toHaveTextContent(
+      '0:00',
     )
   })
 })

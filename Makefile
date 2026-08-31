@@ -1,4 +1,4 @@
-.PHONY: help setup dev down logs ps debug shell-backend shell-frontend manage \
+.PHONY: help setup dev down logs ps debug debug-frontend shell-backend shell-frontend manage \
 	test test-backend test-frontend test-coverage test-smoke test-specs \
 	test-integration test-legalbench test-legalbench-gate legalbench-baseline \
 	lint format typecheck migrate ingest \
@@ -31,6 +31,7 @@ help:
 	@echo "  make logs              - Tail logs from all services"
 	@echo "  make ps                - List running services"
 	@echo "  make debug             - Start stack with debugpy/inspect attach ports"
+	@echo "  make debug-frontend    - Build/start debug stack detached until frontend is healthy"
 	@echo ""
 	@echo "Shells / one-offs (in containers):"
 	@echo "  make shell-backend     - Bash shell in the backend container"
@@ -95,6 +96,9 @@ ps:
 
 debug:
 	$(DC) -f docker-compose.yml -f docker-compose.debug.yml up --build
+
+debug-frontend:
+	$(DC) -f docker-compose.yml -f docker-compose.debug.yml up --build -d --wait --wait-timeout 180 frontend
 
 # ---------------------------------------------------------------------------
 # Shells / one-offs (always in containers)

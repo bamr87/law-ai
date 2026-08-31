@@ -1,16 +1,9 @@
 'use client'
 
+import { MODULE_CATALOG } from '@/lib/modules/catalog'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-
-const LINKS = [
-  { href: '/', label: 'Dashboard', short: 'Home' },
-  { href: '/agents', label: 'Agent Ops', short: 'Agents' },
-  { href: '/analysis', label: 'Analysis Studio', short: 'Analysis' },
-  { href: '/graph', label: 'Knowledge Graph', short: 'Graph' },
-  { href: '/lsat', label: 'LSAT Lab', short: 'LSAT' },
-] as const
 
 export default function NavBar() {
   const pathname = usePathname() || '/'
@@ -33,7 +26,7 @@ export default function NavBar() {
           className="flex shrink-0 items-center gap-2 whitespace-nowrap"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/20">
-            <span className="font-bold text-white">LG</span>
+            <span className="font-bold text-white">LA</span>
           </div>
           <span className="text-lg font-semibold tracking-tight sm:text-xl">
             Law<span className="text-blue-400"> AI</span>
@@ -42,12 +35,12 @@ export default function NavBar() {
 
         {/* Desktop links — short labels at md, full labels at xl */}
         <div className="ml-2 hidden flex-1 items-center gap-0.5 text-sm md:flex">
-          {LINKS.map((link) => {
-            const active = isActive(link.href)
+          {MODULE_CATALOG.map((mod) => {
+            const active = isActive(mod.nav.href)
             return (
               <Link
-                key={link.href}
-                href={link.href}
+                key={mod.id}
+                href={mod.nav.href}
                 aria-current={active ? 'page' : undefined}
                 className={
                   'whitespace-nowrap rounded-md px-2.5 py-1.5 transition lg:px-3 ' +
@@ -56,8 +49,8 @@ export default function NavBar() {
                     : 'text-slate-300 hover:bg-slate-800/60 hover:text-white')
                 }
               >
-                <span className="lg:hidden">{link.short}</span>
-                <span className="hidden lg:inline">{link.label}</span>
+                <span className="lg:hidden">{mod.nav.short}</span>
+                <span className="hidden lg:inline">{mod.nav.label}</span>
               </Link>
             )
           })}
@@ -69,7 +62,7 @@ export default function NavBar() {
           title="Connected to local backend on :8000"
         >
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75 motion-reduce:animate-none" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
           </span>
           <span>v0.1.1</span>
@@ -111,12 +104,12 @@ export default function NavBar() {
           className="border-t border-slate-800 bg-slate-950/95 px-4 py-3 md:hidden"
         >
           <ul className="flex flex-col gap-1 text-sm">
-            {LINKS.map((link) => {
-              const active = isActive(link.href)
+            {MODULE_CATALOG.map((mod) => {
+              const active = isActive(mod.nav.href)
               return (
-                <li key={link.href}>
+                <li key={mod.id}>
                   <Link
-                    href={link.href}
+                    href={mod.nav.href}
                     aria-current={active ? 'page' : undefined}
                     className={
                       'block rounded-md px-3 py-2 transition ' +
@@ -125,7 +118,7 @@ export default function NavBar() {
                         : 'text-slate-300 hover:bg-slate-800/60 hover:text-white')
                     }
                   >
-                    {link.label}
+                    {mod.nav.label}
                   </Link>
                 </li>
               )

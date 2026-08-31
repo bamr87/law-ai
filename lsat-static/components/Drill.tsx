@@ -5,6 +5,7 @@ import type { SectionCode } from '@/lib/types'
 import { passageById, questionsFor, sectionMeta } from '@/lib/data'
 import QuestionCard from './QuestionCard'
 import PassagePanel from './PassagePanel'
+import SectionTimer from './SectionTimer'
 
 /** Question-by-question drill for one section, with prev/next navigation. */
 export default function Drill({
@@ -17,10 +18,11 @@ export default function Drill({
   const questions = useMemo(() => questionsFor(section), [section])
   const meta = sectionMeta(section)
   const [i, setI] = useState(0)
+  const [answers, setAnswers] = useState<Map<string, number>>(() => new Map())
 
-  // Reset to the first question whenever the section changes.
   useEffect(() => {
     setI(0)
+    setAnswers(new Map())
   }, [section])
 
   if (questions.length === 0) {
@@ -29,12 +31,22 @@ export default function Drill({
 
   const q = questions[Math.min(i, questions.length - 1)]
   const passage = passageById(q.passage_id)
+  const answeredCount = answers.size
+  const answeredSeconds = Array.from(answers.values()).reduce((sum, n) => sum + n, 0)
 
   return (
     <section aria-label={`${meta?.name ?? section} drill`}>
       <div className="drill-head">
-        <h2>{meta?.name ?? section}</h2>
-        {meta?.timing && <p className="drill-timing">{meta.timing}</p>}
+        <div>
+          <h2>{meta?.name ?? section}</h2>
+          {meta?.timing && <p className="drill-timing">{meta.timing}</p>}
+        </div>
+        <SectionTimer
+          key={section}
+          remainingQuestions={questions.length - answeredCount}
+          answeredCount={answeredCount}
+          answeredSeconds={answeredSeconds}
+        />
       </div>
 
       <div className="drill-grid">
@@ -46,6 +58,14 @@ export default function Drill({
             index={i}
             total={questions.length}
             onAnnounce={onAnnounce}
+            onAnswered={(elapsedSeconds) => {
+              setAnswers((prev) => {
+                if (prev.has(q.id)) return prev
+                const next = new Map(prev)
+                next.set(q.id, elapsedSeconds)
+                return next
+              })
+            }}
           />
 
           <nav className="drill-nav" aria-label="Question navigation">

@@ -2,6 +2,8 @@
 
 Repo-specific gotchas for future syncs. Read this before re-running.
 
+**Canonical UI inventory is [docs/ui-ux.md](../docs/ui-ux.md).** This directory is a preview snapshot, not the design system. Spec [039](../specs/039-design-system/spec.md) retargets `styles.src.css` at `frontend/ui/` so this bundle *consumes* tokens instead of merging two palettes.
+
 ## What this design system actually is
 
 This repo ships **no component library** — no package, no `dist/`, no Storybook. The UI lives inside two Next.js apps:

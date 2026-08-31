@@ -20,11 +20,11 @@ flowchart TB
         Redis["Redis\n(Channels layer + Celery broker)"]
     end
 
-    subgraph Frontend["Next.js Frontend"]
+    subgraph Frontend["Next.js surfaces — see docs/ui-ux.md"]
         Graph["Interactive Knowledge Graph\n(Cytoscape.js)"]
         Studio["Analysis Studio\n(Live Agent Traces)"]
-        LSAT["LSAT Learning Lab"]
-        Library["Case Library + Hybrid Search"]
+        LSAT["LSAT Lab (API) + lsat-static\n(GitHub Pages export)"]
+        Library["Case Library — named here,\nno UI yet"]
     end
 
     Public --> Ingestion
@@ -60,7 +60,8 @@ flowchart TB
 | **GraphRAG Tool** | Retrieval for `LegalWorkflow`'s `retrieve` node: lexical top-K via Neo4j fulltext indexes (`case_text_fulltext`, `statute_section_text_fulltext`), then one-hop `CITES` graph expansion so authorities the seed cases rely on surface even without a text match. Every passage carries source/date/confidence attribution; every Cypher round-trip is logged via `provenance.log_graph_query`. | `backend/law_ai/agents_runtime/tools/graph_rag.py` |
 | **Analysis Request Flow** | `POST /api/analysis` → `AnalysisView.post()` → `_run_analysis()` runs `LegalAnalyst` and `PrecedentHunter` concurrently via `asyncio.gather`, emitting a per-agent `agent_step` WebSocket event as each finishes and a terminal `complete` event after both. There is no separate orchestrator component — this function *is* the routing layer for the endpoint. | `backend/law_ai/analysis/urls.py` |
 | **API Layer** | DRF views for analysis, graph queries, ingestion, LSAT (+ Channels consumers for agent streaming) | `backend/law_ai/{analysis,graph,lsat,agentsapi,ingestionapp}/` |
-| **Frontend** | Interactive graph, real-time agent streaming, LSAT practice, library | `frontend/app/` + `components/GraphViewer.tsx` |
+| **Frontend (platform)** | Dark-only Next.js 16 app: Agent Ops, Analysis Studio, Knowledge Graph (Cytoscape), LSAT Lab, Settings. App shell (masthead / rail / sidebar / inspector) + module catalog + instance-scoped settings resolver ([spec 040](../specs/040-app-shell/spec.md)). Tailwind v4, **no shadcn/ui**. Design-system target: `frontend/ui/` ([spec 039](../specs/039-design-system/spec.md), [ADR 0006](adr/0006-first-party-design-system.md)) | `frontend/app/(app)/`, `frontend/components/shell/`, `frontend/lib/{modules,scope,settings}/` |
+| **LSAT static site** | Serverless practice export (HITL-approved `content.json`), hand-written semantic CSS tokens. Not on `make dev` | `lsat-static/` |
 | **Provenance / Audit** | Every LLM call, tool use, and retrieval logged as an `AuditEvent` row (Postgres), with a JSONL fallback (`core.audit_jsonl`) for async contexts or DB failure | `backend/law_ai/audit/models.py`, `core/provenance.py`, `core/audit_jsonl.py` |
 | **Evaluation** | LegalBench harness (pinned to Ollama regardless of the default chain, so scores stay comparable over time) + custom legal reasoning tests | `backend/law_ai/eval/` |
 | **Autonomy Loop** | Scheduled cycles (corpus growth, test synthesis, digest) controlled by `AUTONOMY_ENABLED` kill-switch; single audited entry point via `law_ai.core.autonomy.run_cycle`; every cycle emits paired provenance events | `backend/law_ai/core/autonomy.py`, `backend/law_ai/celery.py`, `agents_runtime/crews/test_synthesizer.py`, `agents_runtime/graphs/topic_frontier.py` |
@@ -110,5 +111,6 @@ The `baseline.json` for LegalBench regression tracking will be committed after t
 - **LangGraph for stateful, checkpointed workflows**: `LegalWorkflow` and `TopicFrontier` are compiled `StateGraph`s with a durable `AsyncPostgresSaver` checkpointer (spec 035 promoted `langgraph` and the Postgres/Redis checkpoint backends from an optional extra to core dependencies), giving resumable runs and an audit trail per node — essential for legal review, not available from a bare LLM call.
 - **Claude-first provider chain, Ollama as the durable local-only fallback**: `LLM_PROVIDER_CHAIN=claude_code,anthropic_api,ollama` is the default as of spec 034 ([ADR 0005](adr/0005-claude-default-runtime.md)) — answer quality on IRAC analysis, issue-spotting, and LSAT authoring was the binding constraint on a local-only model. `LLM_PROVIDER_CHAIN=ollama` remains a fully supported pin and is required, not optional, for confidentiality-bound data; the LegalBench harness stays pinned to Ollama independent of this default so benchmark scores don't drift with provider changes.
 - **Cytoscape.js**: Best-in-class performance for large interactive graphs (10k+ nodes) with excellent React integration.
+- **Two UI apps, one upcoming token file**: the platform (`frontend/`) and the static LSAT export (`lsat-static/`) currently style independently. [docs/ui-ux.md](ui-ux.md) is the inventory; spec 039 lifts tokens into `frontend/ui/` so both consume one palette without adding shadcn or Storybook.
 
-See [docs/data-model.md](data-model.md) for the full Neo4j schema and [docs/agent-roles.md](agent-roles.md) for detailed, per-agent live/planned status.
+See [docs/data-model.md](data-model.md) for the full Neo4j schema, [docs/agent-roles.md](agent-roles.md) for detailed, per-agent live/planned status, and [docs/ui-ux.md](ui-ux.md) for every user-facing surface.
