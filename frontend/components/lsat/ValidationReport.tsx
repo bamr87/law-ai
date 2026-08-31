@@ -11,6 +11,9 @@ import { fetchLsatValidation, type LsatValidationReport } from '@/lib/api'
  * integrity issues, answer-key distribution per section (reported as
  * counts, never judged), and every stored AI cross-check verdict —
  * disagreements listed by question so a reviewer can re-verify the key.
+ *
+ * static-parity: none — authoring/QA tooling behind the HITL tab, backed
+ * by /api/lsat/validation. Not student-facing and not servable offline.
  */
 export default function ValidationReport() {
   const [report, setReport] = useState<LsatValidationReport | null>(null)

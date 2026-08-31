@@ -64,12 +64,114 @@ export interface Section {
   references?: Reference[]
 }
 
+// ---------------------------------------------------------------------------
+// Solve guides (spec 045 schema, shipped to the static site by spec 046)
+// ---------------------------------------------------------------------------
+
+export type StepKind =
+  | 'orient'
+  | 'inventory'
+  | 'symbolize'
+  | 'diagram'
+  | 'infer'
+  | 'eliminate'
+  | 'answer'
+
+export interface SequenceRep {
+  rep_type: 'sequence'
+  slots: string[]
+  entities: string[]
+  placements: Record<string, string>
+  exclusions: Record<string, string[]>
+  note?: string | null
+}
+
+export interface GridCell {
+  row: string
+  column: string
+  mark: 'yes' | 'no' | 'maybe'
+  note?: string | null
+}
+
+export interface GridRep {
+  rep_type: 'grid'
+  rows: string[]
+  columns: string[]
+  cells: GridCell[]
+  note?: string | null
+}
+
+export interface NotationRule {
+  rule_text: string
+  symbols: string
+  note?: string | null
+}
+
+export interface NotationRep {
+  rep_type: 'notation'
+  rules: NotationRule[]
+}
+
+export interface ArgumentNode {
+  id: string
+  role: 'premise' | 'conclusion' | 'assumption' | 'objection'
+  text: string
+}
+
+export interface ArgumentEdge {
+  from: string
+  to: string
+  relation: 'supports' | 'opposes'
+}
+
+export interface ArgumentMapRep {
+  rep_type: 'argument_map'
+  nodes: ArgumentNode[]
+  edges: ArgumentEdge[]
+}
+
+export interface PassageParagraph {
+  paragraph: number
+  role: string
+  gist: string
+}
+
+export interface PassageMapRep {
+  rep_type: 'passage_map'
+  paragraphs: PassageParagraph[]
+}
+
+export type Representation =
+  | SequenceRep
+  | GridRep
+  | NotationRep
+  | ArgumentMapRep
+  | PassageMapRep
+
+export interface SolveStep {
+  kind: StepKind
+  title: string
+  text: string
+  representation?: Representation | null
+  spoiler: boolean
+}
+
+export interface SolveGuide {
+  question_id: string
+  method: string
+  steps: SolveStep[]
+  version?: number
+  source?: string | null
+}
+
 export interface Content {
   schema_version: number | string
   generated_at: string
-  counts: { total: number } & Record<SectionCode, number>
+  counts: { total: number; guides?: number } & Record<SectionCode, number>
   sections: Section[]
   concepts: Concept[]
   passages: Passage[]
   questions: Question[]
+  /** Present since spec 046; older artifacts predate solve guides. */
+  guides?: SolveGuide[]
 }

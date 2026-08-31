@@ -120,6 +120,7 @@ Ask each pass: **who does this design advantage?** A more confident-looking UI a
 | R10 | A `tablist`/`radiogroup` with no accessible name, or a `role="tab"` that names no panel. |
 | R11 | A form control whose only name is its placeholder — it vanishes on the first keystroke. |
 | R12 | The two copies of `frontend/ui/base.css` have drifted. Run `make ui-sync`. |
+| R13 | A platform LSAT component with no `lsat-static` counterpart and no `static-parity: none — <reason>`. |
 
 **Opting out.** Put `ux-audit: exempt — <reason>` in a comment to exempt a whole file, or `ux-audit: bare-page — <reason>` to exempt one route from R7. A reason is required on the same line, so every exemption explains itself to the next reader. Two exist today: `components/NavBar.tsx` (superseded dead code) and the dashboard route (full-bleed hero).
 
@@ -150,3 +151,4 @@ Append one row per pass. Keep it short; the diff is the detail.
 | 2026-08-31 | 1 | D2 — persistence and scroll (0: chrome scrolled away with content) | specs/041 — viewport-locked shell, sticky page-header stack, per-route scroll memory, drawers, ⌘K palette, route states | `scripts/ux_audit.py` R1–R9 + `make ux-audit` in CI; 40 shell tests |
 | 2026-08-31 | 2 | D6 — accessibility (1: composite widgets had no keyboard pattern) | LSAT tab bar and answer choices onto the WAI-ARIA roving-tabindex pattern via `useRovingTabIndex`; graph canvas + 3 placeholder-only controls named; favicon 404 fixed | `ux_audit.py` R10 + R11 (brace-aware JSX scanner) + 10 roving-focus tests |
 | 2026-08-31 | 3 | Cross-surface drift — the audit covered `frontend/` only, so specs 041-043 never reached the published static site | specs/044 — shared `base.css` mirrored into `lsat-static`, skip link, one `contentinfo`, tokenised sticky stack that pins the section clock at ≥820px only | `ux_audit.py` R12 + both surfaces + stylesheet scanning; R3/R11 false positives fixed |
+| 2026-08-31 | 4 | Feature drift — spec 045 shipped solving aids to the lab and nothing to the published site; a no-op Pages deploy made it look updated | specs/046 — guides in the export payload, hint carousel + 5 diagram renderers + concept refs ported, nav labels aligned, honest deploy filter | `ux_audit.py` R13 (ported, or declared `static-parity: none`) |

@@ -13,6 +13,10 @@ import { crossCheckLsat, type LsatCrossCheck } from '@/lib/api'
  * named model — never as proof (constitution §13); disagreement is flagged
  * for human review. Verdicts are cached server-side, so re-checking a
  * question is free after the first run.
+ *
+ * static-parity: none — re-solving a question blind needs the provider
+ * chain (law_ai.core.llm). There is no backend on the static export, so
+ * this cannot ship there at all.
  */
 export default function CrossCheckPanel({ questionId }: { questionId: string }) {
   const [result, setResult] = useState<LsatCrossCheck | null>(null)
