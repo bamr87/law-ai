@@ -37,7 +37,8 @@ import {
     type LsatStats,
     type LsatTutorResponse,
 } from '@/lib/api'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import LsatTimer, { QuestionElapsed } from '@/components/LsatTimer'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type Tab = 'overview' | 'LR' | 'RC' | 'LG' | 'concepts' | 'stats' | 'authoring'
 
@@ -67,6 +68,7 @@ export default function LsatLab() {
   const [tab, setTab] = useState<Tab>('overview')
   const [globalStats, setGlobalStats] = useState<LsatStats | null>(null)
   const [session, setSession] = useState<SessionScore>({ attempts: 0, correct: 0 })
+  const [pace, setPace] = useState({ answered: 0, totalSeconds: 0 })
 
   const refreshStats = useCallback(async () => {
     try {
@@ -81,10 +83,14 @@ export default function LsatLab() {
   }, [refreshStats])
 
   const onAttempt = useCallback(
-    (correct: boolean) => {
+    (correct: boolean, elapsedSeconds = 0) => {
       setSession((s) => ({
         attempts: s.attempts + 1,
         correct: s.correct + (correct ? 1 : 0),
+      }))
+      setPace((p) => ({
+        answered: p.answered + 1,
+        totalSeconds: p.totalSeconds + elapsedSeconds,
       }))
       void refreshStats()
     },
@@ -93,7 +99,7 @@ export default function LsatLab() {
 
   return (
     <div className="space-y-6">
-      <Header session={session} globalStats={globalStats} />
+      <Header session={session} globalStats={globalStats} pace={pace} />
       <TabBar tab={tab} onChange={setTab} />
       <div>
         {tab === 'overview' && <OverviewPanel onJump={setTab} />}
@@ -115,33 +121,41 @@ export default function LsatLab() {
 function Header({
   session,
   globalStats,
+  pace,
 }: {
   session: SessionScore
   globalStats: LsatStats | null
+  pace: { answered: number; totalSeconds: number }
 }) {
   const accuracy =
     session.attempts > 0
       ? Math.round((session.correct / session.attempts) * 100)
       : null
   return (
-    <div className="flex flex-wrap items-center justify-end gap-4 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 text-sm backdrop-blur">
-      <Stat
-        label="Session"
-        value={`${session.correct}/${session.attempts}`}
-        sub={accuracy != null ? `${accuracy}%` : '—'}
+    <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 text-sm backdrop-blur">
+      <LsatTimer
+        answeredCount={pace.answered}
+        answeredSeconds={pace.totalSeconds}
       />
-      <span className="h-6 w-px bg-slate-800" />
-      <Stat
-        label="All-time"
-        value={
-          globalStats ? `${globalStats.correct}/${globalStats.attempts}` : '—'
-        }
-        sub={
-          globalStats && globalStats.attempts > 0
-            ? `${Math.round(globalStats.accuracy * 100)}%`
-            : '—'
-        }
-      />
+      <div className="flex flex-wrap items-center justify-end gap-4">
+        <Stat
+          label="Session"
+          value={`${session.correct}/${session.attempts}`}
+          sub={accuracy != null ? `${accuracy}%` : '—'}
+        />
+        <span className="h-6 w-px bg-slate-800" />
+        <Stat
+          label="All-time"
+          value={
+            globalStats ? `${globalStats.correct}/${globalStats.attempts}` : '—'
+          }
+          sub={
+            globalStats && globalStats.attempts > 0
+              ? `${Math.round(globalStats.accuracy * 100)}%`
+              : '—'
+          }
+        />
+      </div>
     </div>
   )
 }
@@ -296,7 +310,11 @@ function Detail({ label, value }: { label: string; value: string }) {
 // Logical Reasoning panel — single isolated question at a time
 // ---------------------------------------------------------------------------
 
-function LrPanel({ onAttempt }: { onAttempt: (correct: boolean) => void }) {
+function LrPanel({
+  onAttempt,
+}: {
+  onAttempt: (correct: boolean, elapsedSeconds: number) => void
+}) {
   const [difficulty, setDifficulty] = useState<LsatDifficulty | 'any'>('any')
   const [question, setQuestion] = useState<LsatQuestion | null>(null)
   const [loading, setLoading] = useState(true)
@@ -335,7 +353,7 @@ function LrPanel({ onAttempt }: { onAttempt: (correct: boolean) => void }) {
       {!loading && !error && question && (
         <QuestionCard
           question={question}
-          onResolved={(r) => onAttempt(r.correct)}
+          onResolved={(r, elapsed) => onAttempt(r.correct, elapsed)}
           onNext={load}
         />
       )}
@@ -352,7 +370,7 @@ function PassagePanel({
   onAttempt,
 }: {
   section: 'RC' | 'LG'
-  onAttempt: (correct: boolean) => void
+  onAttempt: (correct: boolean, elapsedSeconds: number) => void
 }) {
   const [passages, setPassages] = useState<LsatPassage[] | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -361,6 +379,9 @@ function PassagePanel({
   const [error, setError] = useState<string | null>(null)
   const [loadingPassages, setLoadingPassages] = useState(true)
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [elapsedQuestionId, setElapsedQuestionId] = useState<string | null>(
+    null,
+  )
 
   useEffect(() => {
     void (async () => {
@@ -385,6 +406,7 @@ function PassagePanel({
     if (!activeId) return
     void (async () => {
       setLoadingDetail(true)
+      setElapsedQuestionId(null)
       try {
         const body = await fetchLsatPassage(activeId)
         setActivePassage(body.passage)
@@ -447,8 +469,10 @@ function PassagePanel({
                 <QuestionCard
                   key={q.id}
                   question={q}
-                  onResolved={(r) => onAttempt(r.correct)}
+                  onResolved={(r, elapsed) => onAttempt(r.correct, elapsed)}
                   compact
+                  elapsedEnabled={elapsedQuestionId === q.id}
+                  onActivate={() => setElapsedQuestionId(q.id)}
                 />
               ))}
             {!loadingDetail && questions.length === 0 && (
@@ -510,17 +534,22 @@ function QuestionCard({
   onResolved,
   onNext,
   compact,
+  elapsedEnabled = true,
+  onActivate,
 }: {
   question: LsatQuestion
-  onResolved: (r: LsatGradeResponse) => void
+  onResolved: (r: LsatGradeResponse, elapsedSeconds: number) => void
   onNext?: () => void
   compact?: boolean
+  elapsedEnabled?: boolean
+  onActivate?: () => void
 }) {
   const [selected, setSelected] = useState<LsatChoiceLabel | null>(null)
   const [result, setResult] = useState<LsatGradeResponse | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showTutor, setShowTutor] = useState(false)
+  const elapsedRef = useRef(0)
 
   // Reset when the question changes.
   useEffect(() => {
@@ -528,16 +557,18 @@ function QuestionCard({
     setResult(null)
     setShowTutor(false)
     setError(null)
+    elapsedRef.current = 0
   }, [question.id])
 
   const submit = async () => {
     if (!selected || submitting) return
+    const elapsed = elapsedRef.current
     setSubmitting(true)
     setError(null)
     try {
       const r = await gradeLsat(question.id, selected)
       setResult(r)
-      onResolved(r)
+      onResolved(r, elapsed)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Grade failed')
     } finally {
@@ -570,6 +601,8 @@ function QuestionCard({
   return (
     <div
       onKeyDown={handleKeyDown}
+      onFocusCapture={onActivate}
+      onPointerDown={onActivate}
       className={
         'rounded-2xl border border-slate-800 bg-slate-900/40 backdrop-blur ' +
         (compact ? 'p-4' : 'p-6')
@@ -597,6 +630,13 @@ function QuestionCard({
             </span>
           </>
         )}
+        <QuestionElapsed
+          key={question.id}
+          frozen={result !== null || submitting || !elapsedEnabled}
+          onTick={(s) => {
+            elapsedRef.current = s
+          }}
+        />
       </div>
 
       <p className="whitespace-pre-line text-base leading-relaxed text-slate-100">

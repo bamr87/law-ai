@@ -8,8 +8,8 @@ This replaces the earlier hand-rolled vanilla site that used to live at `fronten
 
 - **Overview** — the three LSAT sections (LR / RC / LG) with format, timing, and
   strategy tips.
-- **Drill** — question-by-question practice per section; accessible answer-choice
-radiogroup (roving tabindex, arrow selection-follows-focus, Enter submits), instant key + explanation, RC/LG passage & game context.
+- **Drill** — question-by-question practice per section; 35-minute section timer
+with per-question pacing and elapsed readout; accessible answer-choice radiogroup (roving tabindex, arrow selection-follows-focus, Enter submits), instant key + explanation, RC/LG passage & game context.
 - **Concepts** — a searchable glossary of recurring reasoning patterns.
 - **Stats** — per-section accuracy from `localStorage` (device-local, private).
 
