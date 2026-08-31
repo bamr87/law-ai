@@ -24,6 +24,9 @@
 
 ## Open
 
+- **BL-20260830-07** — *feature, med* — Persist `setting_value` in Django once spec 036 user accounts land; keep the TypeScript `resolveEffective` engine. _Surfaced in:_ specs/040-app-shell.
+- **BL-20260830-08** — *feature, low* — Bind spec 036 Matter as the `project` scope in ScopeSwitcher (slug → id resolved server-side; never trust the URL). _Surfaced in:_ specs/040-app-shell.
+- **BL-20260830-09** — *feature, low* — Command palette (⌘K) over modules + settings. _Surfaced in:_ specs/040-app-shell.
 - **BL-20260830-01** — *tech-debt, med* — Unused frontend deps (`@tanstack/react-query`, `framer-motion`, `lucide-react`, `@xyflow/react`) declared in `frontend/package.json` with zero imports. _Surfaced in:_ specs/039-design-system.
 - **BL-20260830-02** — *refactor, med* — Decompose `LsatLab.tsx` (~1611 lines) and `AgentDashboard.tsx` (~1460 lines) onto `frontend/ui` primitives after spec 039 lands. _Surfaced in:_ specs/039-design-system.
 - **BL-20260830-03** — *doc-gap, low* — Homepage STACK copy still says FastAPI · Next.js 15; hero GitHub chip href is `https://github.com` not the repo. _Surfaced in:_ specs/039-design-system.
