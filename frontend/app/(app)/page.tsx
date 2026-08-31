@@ -1,9 +1,14 @@
 import HomeStats from '@/components/HomeStats'
 import Link from 'next/link'
 
+/**
+ * ux-audit: bare-page — the dashboard opens with a full-bleed hero, which a
+ * condensing `PageLayout` header would sit on top of. Every other route uses
+ * PageLayout; see docs/ui-ux-review.md for the opt-out rule.
+ */
 export default function Home() {
   return (
-    <main className="relative">
+    <div className="relative">
       {/* Ambient gradient backdrop */}
       <div
         aria-hidden
@@ -18,7 +23,7 @@ export default function Home() {
       <section className="mx-auto max-w-7xl px-6 pb-12 pt-20">
         <div className="text-center">
           <a
-            href="https://github.com"
+            href="https://github.com/bamr87/law-ai"
             target="_blank"
             rel="noreferrer"
             className="group mx-auto inline-flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-900/60 px-3 py-1 text-xs text-slate-300 backdrop-blur transition hover:border-blue-500/50 hover:text-white"
@@ -141,8 +146,8 @@ export default function Home() {
       <section className="mx-auto max-w-7xl px-6 py-16">
         <SectionHeading
           eyebrow="Built on"
-          title="100% open-source stack"
-          subtitle="No proprietary lock-in. Local Ollama for the runtime LLM. Everything auditable."
+          title="Open-source stack, pinnable runtime"
+          subtitle="Open-source stack end to end. The runtime LLM is a provider chain — Claude by default, local Ollama when you pin it. Every call is auditable."
         />
         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {STACK.map((item) => (
@@ -160,8 +165,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/60">
+      {/* Project links. Deliberately NOT a <footer>: the shell renders the
+        * UPL disclaimer footer below this, and two contentinfo landmarks on
+        * one page is both a double footer and an a11y defect (BL-20260830-06). */}
+      <nav aria-label="Project links" className="border-t border-slate-800/60">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 py-8 text-xs text-slate-500 sm:flex-row">
           <div>© 2026 Law AI · Released under AGPL-3.0</div>
           <div className="flex items-center gap-4">
@@ -171,8 +178,8 @@ export default function Home() {
             <a href="https://github.com/bamr87/law-ai" target="_blank" rel="noopener noreferrer" className="hover:text-slate-300">GitHub</a>
           </div>
         </div>
-      </footer>
-    </main>
+      </nav>
+    </div>
   )
 }
 
@@ -272,8 +279,16 @@ const PIPELINE = [
 ] as const
 
 const STACK = [
-  { layer: 'LLM Runtime', name: 'Ollama', note: 'Llama 3.1 · Mistral · Phi-3' },
+  {
+    layer: 'LLM Runtime',
+    name: 'Claude → Ollama chain',
+    note: 'Pin LLM_PROVIDER_CHAIN=ollama to stay local',
+  },
   { layer: 'Orchestration', name: 'CrewAI + LangGraph', note: 'Crews + stateful workflows' },
   { layer: 'Knowledge Graph', name: 'Neo4j Community', note: 'Cypher + GraphRAG' },
-  { layer: 'API & UI', name: 'FastAPI · Next.js 15', note: 'Pydantic v2 · Tailwind' },
+  {
+    layer: 'API & UI',
+    name: 'Django 5 · Next.js 16',
+    note: 'DRF · Channels · Tailwind v4',
+  },
 ] as const

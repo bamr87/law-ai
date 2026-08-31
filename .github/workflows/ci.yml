@@ -57,6 +57,10 @@ jobs:
         run: python scripts/backlog_lint.py
         env:
           BACKLOG_LINT_BASE: HEAD^1
+      - name: Audit the UI/UX shell contract
+        # Static, stdlib-only, no node_modules — the mechanical half of the
+        # /ux-review loop (docs/ui-ux-review.md).
+        run: python scripts/ux_audit.py
 
   repo-structural:
     name: Repo Structural Tests (docs / specs / configs)

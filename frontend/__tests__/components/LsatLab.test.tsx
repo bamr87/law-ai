@@ -3,6 +3,10 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import LsatLab from '@/components/LsatLab'
+import {
+  __resetTimerStore,
+  getTimerSnapshot,
+} from '@/lib/lsat/timerStore'
 import { server } from '@/mocks/server'
 
 const sampleSections = {
@@ -69,6 +73,8 @@ const sampleQuestion = {
 }
 
 beforeEach(() => {
+  // The timer store is module-level, so pace would leak between cases.
+  __resetTimerStore()
   server.use(
     http.get('http://localhost:8000/api/lsat/stats', () =>
       HttpResponse.json({
@@ -187,7 +193,10 @@ describe('LsatLab', () => {
     expect(screen.getByText(/four-section roadmap/i)).toBeInTheDocument()
     expect(screen.getAllByText('Reading Comprehension').length).toBeGreaterThan(0)
     expect(screen.getByText('Analytical Reasoning')).toBeInTheDocument()
-    expect(screen.getByRole('timer')).toHaveTextContent('35:00')
+    // The section timer is docked in the sidebar by default (spec 043), so the
+    // page itself no longer renders it. Dock behaviour is covered by
+    // __tests__/shell/lsatTimerDock.test.tsx.
+    expect(screen.queryByRole('timer')).not.toBeInTheDocument()
   })
 
   it('switches to LR practice and grades a question', async () => {
@@ -210,9 +219,9 @@ describe('LsatLab', () => {
       ).toBeInTheDocument()
     })
     expect(screen.getByText(/Hasty generalisation/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/average time per question/i)).toHaveTextContent(
-      /avg 0:00 \/ q/,
-    )
+    // Pace now lives in the timer store, because the timer can be docked in a
+    // side panel — a different React subtree from this page.
+    expect(getTimerSnapshot().answered).toBe(1)
   })
 
   it('invokes the AI tutor when requested', async () => {

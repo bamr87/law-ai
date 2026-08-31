@@ -1,4 +1,10 @@
-import { defineSetting, INSTANCE_ONLY, parseBoolean, parseNumber } from './define'
+import {
+  defineSetting,
+  INSTANCE_ONLY,
+  parseBoolean,
+  parseEnum,
+  parseNumber,
+} from './define'
 import type { SettingDefinition } from '@/lib/scope/types'
 
 export const hitlThreshold = defineSetting({
@@ -31,8 +37,28 @@ export const inspectorDefaultOpen = defineSetting({
   parse: parseBoolean,
 })
 
+/** Where a dockable widget sits. `inline` means in the module's own page. */
+export const DOCKS = ['sidebar', 'inspector', 'inline'] as const
+export type Dock = (typeof DOCKS)[number]
+
+export const lsatTimerDock = defineSetting<Dock>({
+  key: 'lsat.timer.dock',
+  label: 'LSAT timer dock',
+  help: 'Where the section timer sits. It stays out of the way in a side panel by default, and follows you to other modules while a section is in progress so the clock is never hidden behind a navigation.',
+  default: 'sidebar',
+  settableAt: INSTANCE_ONLY,
+  lockable: false,
+  parse: parseEnum(DOCKS),
+  options: [
+    { value: 'sidebar', label: 'Sidebar' },
+    { value: 'inspector', label: 'Inspector' },
+    { value: 'inline', label: 'In page' },
+  ],
+})
+
 export const SETTING_CATALOG: SettingDefinition<unknown>[] = [
   hitlThreshold as SettingDefinition<unknown>,
   showCitationCounts as SettingDefinition<unknown>,
   inspectorDefaultOpen as SettingDefinition<unknown>,
+  lsatTimerDock as SettingDefinition<unknown>,
 ]

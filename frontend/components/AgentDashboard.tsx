@@ -1,5 +1,6 @@
 'use client'
 
+import { StickyToolbar } from '@/components/shell/PageLayout'
 import {
     fetchAgentMetrics,
     fetchAgents,
@@ -228,15 +229,16 @@ export default function AgentDashboard() {
             <div className="flex items-center gap-2">
               <input
                 type="text"
+                aria-label="Filter runs"
                 placeholder="Filter…"
                 value={runFilter}
                 onChange={(e) => setRunFilter(e.target.value)}
-                className="w-28 rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-xs text-slate-300 placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+                className="w-28 rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-xs text-slate-300 placeholder-slate-600 focus:border-blue-500 focus-ring"
               />
               <select
                 value={runLimit}
                 onChange={(e) => setRunLimit(Number(e.target.value))}
-                className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-xs text-slate-300 focus:border-blue-500 focus:outline-none"
+                className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-xs text-slate-300 focus:border-blue-500 focus-ring"
                 aria-label="Run limit"
               >
                 {[25, 50, 100, 200].map((n) => (
@@ -251,7 +253,7 @@ export default function AgentDashboard() {
             active={runTypeFilter}
             onChange={setRunTypeFilter}
           />
-          <ul className="mt-2 max-h-96 space-y-1.5 overflow-auto pr-1">
+          <ul className="shell-panel-scroll mt-2 max-h-96 space-y-1.5 pr-1">
             {filteredRuns.map((run, i) => {
               const id = (run.trace_id as string | undefined) ?? `${i}`
               return (
@@ -295,7 +297,7 @@ export default function AgentDashboard() {
                   Total: {state.backlog.data.counts.total}
                 </Pill>
               </div>
-              <ul className="max-h-80 space-y-1.5 overflow-auto pr-1">
+              <ul className="shell-panel-scroll max-h-80 space-y-1.5 pr-1">
                 {state.backlog.data.open.map((item) => (
                   <li
                     key={item.id}
@@ -367,30 +369,36 @@ function ControlBar({
   onTogglePause: () => void
   lastUpdated: Date | null
 }) {
+  // Pinned under the page header: "is this live and when did it last update"
+  // is the question an operator re-asks constantly while reading the run
+  // trail, and the pause control has to be reachable without scrolling back.
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-2.5">
-      <div className="flex items-center gap-2 text-xs text-slate-400">
-        <span
-          className={
-            'inline-block h-2 w-2 rounded-full ' +
-            (paused ? 'bg-amber-400' : 'animate-pulse bg-emerald-400')
-          }
-        />
-        {paused ? 'Polling paused' : `Auto-refresh every ${POLL_MS / 1000}s`}
-        {lastUpdated && (
-          <span className="text-slate-500">
-            · last updated {relativeTime(lastUpdated)}
-          </span>
-        )}
+    <StickyToolbar label="Polling controls">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          <span
+            className={
+              'inline-block h-2 w-2 rounded-full ' +
+              (paused ? 'bg-amber-400' : 'animate-pulse bg-emerald-400')
+            }
+          />
+          {paused ? 'Polling paused' : `Auto-refresh every ${POLL_MS / 1000}s`}
+          {lastUpdated && (
+            <span className="text-slate-500">
+              · last updated {relativeTime(lastUpdated)}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onTogglePause}
+          aria-pressed={paused}
+          className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300 transition hover:border-blue-500/50 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+        >
+          {paused ? '▶ Resume' : '⏸ Pause'}
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={onTogglePause}
-        className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300 transition hover:border-blue-500/50 hover:text-white"
-      >
-        {paused ? '▶ Resume' : '⏸ Pause'}
-      </button>
-    </div>
+    </StickyToolbar>
   )
 }
 
@@ -1097,7 +1105,8 @@ function AgentLaunchModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+      style={{ zIndex: 'var(--z-drawer)' }}
+      className="fixed inset-0 flex items-end justify-center bg-black/60 p-4 sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-label={`Run ${agent.name}`}
@@ -1132,7 +1141,7 @@ function AgentLaunchModal({
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Describe the legal issue or paste a case fact pattern…"
-              className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-blue-500 focus-ring"
               required
             />
           </div>
@@ -1146,7 +1155,7 @@ function AgentLaunchModal({
               value={jurisdiction}
               onChange={(e) => setJurisdiction(e.target.value)}
               placeholder="e.g. Colorado, 10th Circuit"
-              className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-blue-500 focus-ring"
             />
           </div>
 
@@ -1361,7 +1370,8 @@ function RunDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+      style={{ zIndex: 'var(--z-drawer)' }}
+      className="fixed inset-0 flex items-end justify-center bg-black/60 p-4 sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-label="Run details"
@@ -1385,7 +1395,7 @@ function RunDetailModal({
           </button>
         </header>
 
-        <div className="max-h-[70vh] overflow-auto p-5">
+        <div className="shell-panel-scroll max-h-[70vh] p-5">
           {loading && <SkeletonLines />}
           {error && (
             <p className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
