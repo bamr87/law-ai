@@ -51,6 +51,14 @@ class Archetype(BaseModel):
         description="True when items need a PassageContext (RC passages, LG "
         "game setups).",
     )
+    passage_keyword: str | None = Field(
+        default=None,
+        description="Substring that a candidate passage's title or summary "
+        "must contain for this archetype to be writable against it. A "
+        "grouping archetype cannot be served by a sequencing game, and a "
+        "comparative RC question cannot be served by a single-text passage; "
+        "when nothing matches, the planner requests a new passage_set.",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -277,6 +285,139 @@ _LR: tuple[Archetype, ...] = (
         ),
     ),
     Archetype(
+        id="lr-point-at-issue",
+        section="LR",
+        name="Point at Issue",
+        concepts=["point-at-issue", "method-of-reasoning"],
+        difficulty_weights={"intro": 0.1, "easy": 0.3, "med": 0.4, "hard": 0.2},
+        guidance=(
+            "Write a two-speaker exchange in which the speakers overlap on "
+            "topic but take opposed positions on exactly ONE proposition. The "
+            "credited answer is a claim both speakers address and on which "
+            "they differ. Distractors must fail the two-part test in "
+            "different ways: one speaker is silent on it, both agree on it, "
+            "or neither addresses it. Never let the second speaker merely add "
+            "a cost the first conceded."
+        ),
+    ),
+    Archetype(
+        id="lr-role-of-claim",
+        section="LR",
+        name="Role of a Claim",
+        concepts=["role-of-claim", "main-conclusion"],
+        difficulty_weights={"easy": 0.2, "med": 0.5, "hard": 0.3},
+        guidance=(
+            "Build a three-tier argument: premise supports an intermediate "
+            "conclusion, which supports the main conclusion. Boldface or "
+            "quote the intermediate conclusion and ask what role it plays. "
+            "The credited answer names it as both supported and supporting. "
+            "Distractors call it the main conclusion, a premise, a "
+            "concession the argument rejects, or background."
+        ),
+    ),
+    Archetype(
+        id="lr-most-strongly-supported",
+        section="LR",
+        name="Most Strongly Supported",
+        concepts=["most-strongly-supported", "must-be-true"],
+        difficulty_weights={"easy": 0.3, "med": 0.5, "hard": 0.2},
+        guidance=(
+            "Give two or three findings that jointly favour — without "
+            "entailing — one modest claim. The credited answer is the "
+            "WEAKEST plausible choice, hedged ('may', 'at least some'). "
+            "Distractors overstate ('proves', 'all'), swap a quantifier, or "
+            "are real-world plausible but unsupported by the stimulus."
+        ),
+    ),
+    Archetype(
+        id="lr-cannot-be-true",
+        section="LR",
+        name="Cannot Be True",
+        concepts=["cannot-be-true", "conditional-reasoning"],
+        difficulty_weights={"easy": 0.2, "med": 0.5, "hard": 0.3},
+        guidance=(
+            "State two or three constraints (a conditional, a quantifier, a "
+            "count). Exactly one choice contradicts them; the other four are "
+            "each consistent. The explanation must show WHICH constraint the "
+            "credited answer collides with, and must confirm consistency for "
+            "the other four rather than merely asserting it."
+        ),
+    ),
+    Archetype(
+        id="lr-evaluate-argument",
+        section="LR",
+        name="Evaluate the Argument",
+        concepts=["evaluate-the-argument", "alternative-cause"],
+        difficulty_weights={"easy": 0.2, "med": 0.5, "hard": 0.3},
+        guidance=(
+            "Write a causal or comparative argument with exactly one "
+            "unaddressed alternative explanation. Ask which question would be "
+            "most useful in evaluating it. The credited answer passes the "
+            "variance test — answering it one way strengthens, the other "
+            "weakens. Distractors are questions whose either answer leaves "
+            "the argument untouched, or that probe cost/popularity instead "
+            "of the premise-to-conclusion link."
+        ),
+    ),
+    Archetype(
+        id="lr-complete-the-argument",
+        section="LR",
+        name="Completing the Argument",
+        concepts=["completing-the-argument", "main-conclusion"],
+        difficulty_weights={"intro": 0.1, "easy": 0.3, "med": 0.4, "hard": 0.2},
+        guidance=(
+            "End the stimulus with a blank after an explicit connector — "
+            "'therefore' (wants the conclusion) or 'because' (wants the "
+            "missing premise). Say in the stem which is wanted. The credited "
+            "answer is the claim the preceding sentences were assembled to "
+            "license. Distractors are topical and true but were not built "
+            "toward, or fit the OTHER connector."
+        ),
+    ),
+    Archetype(
+        id="lr-percent-vs-number",
+        section="LR",
+        name="Percentage vs. Number Flaw",
+        concepts=["percent-vs-number", "flaw-in-reasoning"],
+        difficulty_weights={"easy": 0.3, "med": 0.5, "hard": 0.2},
+        guidance=(
+            "Switch vocabulary between premise and conclusion — a rate or "
+            "share in one, a raw count in the other — while leaving the "
+            "denominator unmentioned. The credited answer names the "
+            "confusion. Distractors name other real flaws (sampling, "
+            "equivocation on a different term, causal reversal)."
+        ),
+    ),
+    Archetype(
+        id="lr-sampling-flaw",
+        section="LR",
+        name="Unrepresentative Sample Flaw",
+        concepts=["sampling-flaw", "flaw-in-reasoning"],
+        difficulty_weights={"easy": 0.3, "med": 0.5, "hard": 0.2},
+        guidance=(
+            "Generalize from a group whose SELECTION — not size — makes it "
+            "unlike the population: self-selection, survivorship, or "
+            "convenience. The credited answer names the mismatch between how "
+            "the sample was gathered and the population concluded about. "
+            "Never make small sample size the defect; distractors may allege "
+            "it precisely because it is the tempting wrong answer."
+        ),
+    ),
+    Archetype(
+        id="lr-circular-reasoning",
+        section="LR",
+        name="Circular Reasoning Flaw",
+        concepts=["circular-reasoning", "flaw-in-reasoning"],
+        difficulty_weights={"easy": 0.2, "med": 0.5, "hard": 0.3},
+        guidance=(
+            "Paraphrase the conclusion into the premise using different "
+            "vocabulary — never repeat it verbatim. The credited answer says "
+            "the argument presupposes what it sets out to establish. "
+            "Distractors describe merely weak support, an unstated "
+            "assumption, or an appeal to authority."
+        ),
+    ),
+    Archetype(
         id="lr-principle-apply",
         section="LR",
         name="Principle Application",
@@ -370,6 +511,55 @@ _RC: tuple[Archetype, ...] = (
         ),
     ),
     Archetype(
+        id="rc-comparative",
+        section="RC",
+        name="Comparative Passages Relationship",
+        concepts=["rc-comparative", "author-attitude"],
+        difficulty_weights={"easy": 0.2, "med": 0.5, "hard": 0.3},
+        requires_passage=True,
+        passage_keyword="comparative",
+        tier_hint="premium",
+        guidance=(
+            "Only writable against a comparative (Passage A / Passage B) set. "
+            "Ask about the RELATIONSHIP: what both authors are committed to, "
+            "what they would disagree about, or how B's approach differs from "
+            "A's. The credited answer must be supportable from BOTH texts. "
+            "Distractors are supported by one passage only, or attribute to "
+            "one author a view the other holds."
+        ),
+    ),
+    Archetype(
+        id="rc-analogous-situation",
+        section="RC",
+        name="Analogous Situation",
+        concepts=["analogous-situation", "rc-inference"],
+        difficulty_weights={"easy": 0.1, "med": 0.5, "hard": 0.4},
+        requires_passage=True,
+        guidance=(
+            "Ask which scenario is most analogous to a situation the passage "
+            "describes. Abstract that situation to a relationship skeleton "
+            "first; the credited answer matches the skeleton in an UNRELATED "
+            "domain. Include one distractor from the passage's own subject "
+            "matter that matches on topic and not on structure."
+        ),
+    ),
+    Archetype(
+        id="rc-phrase-in-context",
+        section="RC",
+        name="Phrase in Context",
+        concepts=["phrase-in-context", "detail-question"],
+        difficulty_weights={"intro": 0.1, "easy": 0.3, "med": 0.4, "hard": 0.2},
+        requires_passage=True,
+        guidance=(
+            "Quote a word or short phrase from the passage whose local "
+            "meaning is fixed by a contrast the author draws, and ask what "
+            "the author means by it. The credited answer is the contextual "
+            "sense. Distractors supply the ordinary dictionary sense, a sense "
+            "the phrase carries elsewhere in the passage, and a sense that "
+            "would suit the author's opponent."
+        ),
+    ),
+    Archetype(
         id="rc-organization",
         section="RC",
         name="Passage Organization",
@@ -447,6 +637,91 @@ _LG: tuple[Archetype, ...] = (
         ),
     ),
     Archetype(
+        id="lg-in-out-selection",
+        section="LG",
+        name="In / Out Selection",
+        concepts=["in-out-selection", "contrapositive"],
+        difficulty_weights={"easy": 0.3, "med": 0.5, "hard": 0.2},
+        requires_passage=True,
+        passage_keyword="select",
+        guidance=(
+            "Only writable against a selection setup (each element in or "
+            "out). Build questions that turn on chaining conditional "
+            "membership rules through their contrapositives. The explanation "
+            "must show the chain, not just the result. Distractors should "
+            "each break one link — affirming a consequent, dropping a "
+            "negation, or ignoring the numerical constraint."
+        ),
+    ),
+    Archetype(
+        id="lg-numeric-distribution",
+        section="LG",
+        name="Numeric Distribution",
+        concepts=["numeric-distribution", "grouping-game"],
+        difficulty_weights={"easy": 0.2, "med": 0.5, "hard": 0.3},
+        requires_passage=True,
+        passage_keyword="group",
+        guidance=(
+            "Only writable against a grouping setup with unequal or bounded "
+            "group sizes. Ask what must or could be true about the COUNTS "
+            "before anything is placed. The explanation must enumerate the "
+            "complete list of possible distributions — that list is the "
+            "teaching point. Distractors correspond to distributions the "
+            "rules exclude."
+        ),
+    ),
+    Archetype(
+        id="lg-max-min",
+        section="LG",
+        name="Maximum / Minimum",
+        concepts=["max-min", "numeric-distribution"],
+        difficulty_weights={"easy": 0.2, "med": 0.5, "hard": 0.3},
+        requires_passage=True,
+        guidance=(
+            "Ask for the greatest or least number of elements that can "
+            "satisfy every rule at once. The explanation MUST do both halves: "
+            "exhibit a witness arrangement achieving the credited number, and "
+            "derive the contradiction that rules out one more (or one "
+            "fewer). Distractors are numbers achievable in isolation but "
+            "blocked once the rest of the board is filled."
+        ),
+    ),
+    Archetype(
+        id="lg-hybrid",
+        section="LG",
+        name="Hybrid Game Question",
+        concepts=["hybrid-game", "sequencing"],
+        difficulty_weights={"med": 0.4, "hard": 0.4, "elite": 0.2},
+        requires_passage=True,
+        passage_keyword="hybrid",
+        tier_hint="premium",
+        guidance=(
+            "Only writable against a setup combining two actions (order plus "
+            "group membership, or sequence plus selection). Every question "
+            "must turn on BOTH dimensions at once — a question answerable "
+            "from the ordering alone is a sequencing question wearing a "
+            "costume. Show the combined board in the explanation."
+        ),
+    ),
+    Archetype(
+        id="lg-rule-substitution",
+        section="LG",
+        name="Rule Substitution",
+        concepts=["rule-substitution", "must-be-true"],
+        difficulty_weights={"hard": 0.6, "elite": 0.4},
+        requires_passage=True,
+        tier_hint="premium",
+        guidance=(
+            "Offer to replace one stated rule and ask which substitute leaves "
+            "the set of valid arrangements EXACTLY unchanged. Verify "
+            "equivalence in both directions: the credited answer must permit "
+            "nothing new and forbid nothing old. Each distractor should fail "
+            "in exactly one direction, and the explanation must name which — "
+            "the too-strong/too-weak split is the whole lesson. The hardest "
+            "and rarest LG type; enumerate the solution set before keying."
+        ),
+    ),
+    Archetype(
         id="lg-grouping",
         section="LG",
         name="Grouping Game Question",
@@ -454,6 +729,7 @@ _LG: tuple[Archetype, ...] = (
         difficulty_weights={"easy": 0.2, "med": 0.5, "hard": 0.3},
         tier_hint="premium",
         requires_passage=True,
+        passage_keyword="group",
         guidance=(
             "For selection/distribution setups (in/out, or teams), write "
             "questions turning on conditional membership rules ('If J is "

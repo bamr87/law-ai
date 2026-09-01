@@ -123,12 +123,28 @@ a {
   text-transform: uppercase;
   color: var(--text-muted);
 }
+/* One row, never wrapping. Seven destinations wrapped to three lines on a
+ * phone and spent 136px on chrome before any content; scrolling the row keeps
+ * the header at one line and puts the reading area back on screen. */
 .nav {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.25rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.nav::-webkit-scrollbar {
+  display: none;
 }
 .nav-link {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  scroll-snap-align: center;
+  white-space: nowrap;
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-muted);
@@ -136,6 +152,10 @@ a {
   border-radius: 999px;
   font-size: 0.85rem;
   cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease;
 }
 .nav-link:hover {
   color: var(--text);
@@ -146,6 +166,7 @@ a {
   background: var(--accent);
   font-weight: 600;
 }
+
 
 main#view {
   padding-top: 2rem;
@@ -162,6 +183,14 @@ main#view {
   padding: 0.55rem 1rem;
   font-size: 0.9rem;
   cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.1s ease;
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 .btn:hover:not(:disabled) {
   background: var(--bg-elev-2);
@@ -468,6 +497,11 @@ main#view {
   color: var(--text);
   cursor: pointer;
   font-size: 0.92rem;
+}
+.choice {
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease;
 }
 .choice:hover:not(:disabled) {
   border-color: var(--text-muted);
@@ -1089,4 +1123,400 @@ main#view {
   padding: 0.2rem 0.45rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.7rem;
+}
+
+/* ---- Argumentative Writing (spec 047) --------------------------------- */
+
+.writing-draft {
+  width: 100%;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  line-height: 1.6;
+  padding: 0.85rem 1rem;
+  resize: vertical;
+}
+
+.self-check {
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.self-check-item {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.8rem 1rem;
+}
+
+.self-check-item label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  cursor: pointer;
+}
+
+.self-check-item input {
+  margin-top: 0.3rem;
+  flex: none;
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.self-check-prompt {
+  color: var(--muted);
+}
+
+.self-check-bands {
+  margin-top: 0.6rem;
+  font-size: 0.9rem;
+}
+
+.self-check-bands summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.self-check-bands ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+  color: var(--muted);
+}
+
+.model-response {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+  margin-top: 1rem;
+}
+
+.model-response summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.model-thesis {
+  font-weight: 600;
+  border-left: 3px solid var(--border);
+  padding-left: 0.85rem;
+  margin: 0.75rem 0 1rem;
+}
+
+/* ---- Motion, responsiveness, and touch targets (spec 047) -------------- *
+ *
+ * Everything below is presentation-only: no rule here changes what content
+ * exists, so a browser that ignores all of it still shows the whole site.
+ */
+
+/* Entrance animation on destination change. Two variants on purpose: above
+ * 820px the passage column is `position: sticky`, and an animated `transform`
+ * creates a containing block that would break sticky for the duration of the
+ * animation — so the wide layout fades only, and the rise is reserved for the
+ * narrow layout where nothing is sticky but the site header. */
+.view-anim {
+  animation: view-fade 0.2s ease-out both;
+}
+@keyframes view-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (max-width: 819px) {
+  .view-anim {
+    animation: view-rise 0.24s ease-out both;
+  }
+  @keyframes view-rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* ---- Phone layout ----
+ * The header was 136px of chrome at 390px: brand, subtitle, and a nav wrapped
+ * to three lines. Now it is one compact line plus one scrolling nav strip, and
+ * the nav bleeds to the viewport edges so the scroll affordance reads as a
+ * strip rather than as a clipped box.
+ */
+@media (max-width: 719px) {
+  /* Width, not just `pointer: coarse`. A phone-width window on a laptop is
+   * still the layout a phone gets, and the 44px guideline is about the target
+   * a thumb has to hit — which the browser cannot tell us from the pointer
+   * media query alone. (BL-20260831-11.) */
+  .btn,
+  .nav-link,
+  .choice {
+    min-height: 44px;
+  }
+  .site-header .wrap {
+    padding-top: 0.35rem;
+    padding-bottom: 0.3rem;
+    gap: 0.3rem;
+  }
+  .brand {
+    font-size: 1rem;
+  }
+  .brand-sub {
+    display: none;
+  }
+  .nav {
+    width: 100%;
+    margin-inline: -1.25rem;
+    padding-inline: 1.25rem;
+  }
+  /* Tell the reader the strip continues. `scroll-state` is not available
+   * everywhere, so this is an unconditional trailing fade — harmless when the
+   * row already fits, since the last pill's own margin sits inside it. */
+  .nav-scrollable {
+    mask-image: linear-gradient(to right, #000 88%, transparent 100%);
+  }
+  main#view {
+    padding-top: 1.25rem;
+    padding-bottom: 2rem;
+  }
+  .drill-head h2 {
+    font-size: 1.25rem;
+  }
+  .drill-head,
+  .section-timer {
+    gap: 0.5rem;
+  }
+  .card,
+  .passage,
+  .qcard {
+    padding: 1rem;
+  }
+  .site-footer .wrap {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+}
+
+/* ---- Touch targets ----
+ * WCAG 2.5.8 sets a 24px floor and the platform guidelines ask for 44px. A
+ * pointer:coarse query rather than a width query: a small touchscreen and a
+ * large one both need the bigger target, and a mouse on a narrow window does
+ * not. (BL-20260831-11.)
+ */
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .choice {
+    min-height: 44px;
+  }
+  .solve-dot {
+    min-width: 20px;
+    min-height: 20px;
+  }
+}
+
+/* Motion is a preference, not a default — same contract as base.css's
+ * `.shell-motion`, applied to this app's own animated surfaces. */
+@media (prefers-reduced-motion: reduce) {
+  .view-anim {
+    animation: none;
+  }
+  .nav-link,
+  .btn,
+  .choice {
+    transition: none;
+  }
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
+  .nav {
+    scroll-behavior: auto;
+  }
+}
+
+/* Comparative RC sets: Passage B needs a visible seam from Passage A, or the
+ * two texts read as one long passage and every comparative question breaks. */
+.passage-subhead-b {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ---- Scroll-directional header (narrow viewports only) -----------------
+ *
+ * On a phone the bar costs 85px of an 844px viewport — a tenth of the screen
+ * spent on chrome while reading a passage. So it condenses to the nav strip
+ * as soon as the page moves, slides away entirely once the reader is a
+ * screenful in, and comes back on the first upward flick.
+ *
+ * Deliberately scoped to `max-width: 819px`. Above that the drill head and
+ * the passage column are `position: sticky` at offsets keyed off
+ * `--site-header-h`; a header that moved would desynchronise both, and a
+ * desktop reader is not short of vertical space in the first place.
+ *
+ * `transform`, never `top` or `height`: transforms do not reflow, so the
+ * content underneath never shifts, and `ux_audit.py` R9 stays satisfied
+ * because no sticky offset is being hand-written.
+ */
+@media (max-width: 819px) {
+  .site-header {
+    transition:
+      transform 0.26s ease,
+      box-shadow 0.26s ease;
+    will-change: transform;
+  }
+
+  /* Condensed: the brand row collapses and the nav strip carries on alone.
+   * max-height rather than `display: none` so the collapse animates. */
+  .site-header .brand {
+    overflow: hidden;
+    max-height: 2.5rem;
+    transition:
+      max-height 0.24s ease,
+      opacity 0.18s ease;
+  }
+  .site-header-condensed .brand,
+  .site-header-hidden .brand {
+    max-height: 0;
+    opacity: 0;
+  }
+  .site-header-condensed,
+  .site-header-hidden {
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  }
+
+  /* Hidden: slide the whole bar out. 101% rather than 100% so a sub-pixel
+   * rounding seam cannot leave a hairline of header on screen. */
+  .site-header-hidden {
+    transform: translateY(-101%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header,
+  .site-header .brand {
+    transition: none;
+  }
+}
+
+/* ---- Keyboard shortcut reference -------------------------------------- */
+
+kbd {
+  display: inline-block;
+  min-width: 1.4rem;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--bg-elev-2);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* A button that reads as a link — the footer's shortcut affordance. It is a
+ * button because it opens a dialog; making it an <a href="#"> would lie to
+ * anyone navigating by link. */
+.linklike {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(2, 6, 23, 0.72);
+}
+
+.shortcut-help {
+  width: min(42rem, 100%);
+  max-height: min(80vh, 44rem);
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.4rem 1.6rem;
+}
+
+.shortcut-help-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.shortcut-help-head h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.shortcut-group {
+  margin-top: 1.4rem;
+}
+
+.shortcut-group h3 {
+  margin: 0 0 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.shortcut-list {
+  margin: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.shortcut-row {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.shortcut-row dt {
+  margin: 0;
+}
+
+.shortcut-row dd {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 719px) {
+  .shortcut-row {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+  .shortcut-help {
+    max-height: 84vh;
+    padding: 1rem;
+  }
 }

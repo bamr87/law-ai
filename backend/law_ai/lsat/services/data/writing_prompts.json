@@ -1,0 +1,392 @@
+{
+  "items": [
+    {
+      "id": "ws-001",
+      "title": "Transit expansion or arterial widening",
+      "rubric_id": "argumentative-writing-v1",
+      "difficulty": "easy",
+      "issue": "Should the city council spend its one-time infrastructure grant on extending the light-rail line, or on widening the arterial road that carries commuter traffic into downtown?",
+      "context": "Fairhaven has received a one-time state infrastructure grant that will fund exactly one of two shovel-ready projects. The council has committed to deciding on the record and has published four staff perspectives. The grant cannot be split, deferred, or matched with local funds.",
+      "positions": [
+        {
+          "id": "rail",
+          "name": "Extend the light-rail line",
+          "summary": "Run the existing line four stops further into the northern neighbourhoods, adding three stations."
+        },
+        {
+          "id": "road",
+          "name": "Widen the arterial",
+          "summary": "Add one lane in each direction to Culver Avenue, the principal commuter route into downtown."
+        }
+      ],
+      "perspectives": [
+        {
+          "id": "p1",
+          "text": "Traffic engineering staff project that widening Culver Avenue would cut average peak commute times by nine minutes in its first year, and by four minutes by year six as new drivers fill the added capacity."
+        },
+        {
+          "id": "p2",
+          "text": "The three northern neighbourhoods the rail extension would serve have the city's lowest rates of household car ownership; residents there currently reach downtown by a bus route that runs every forty minutes."
+        },
+        {
+          "id": "p3",
+          "text": "The rail extension costs roughly twice as much per projected daily rider as the road project costs per projected daily driver."
+        },
+        {
+          "id": "p4",
+          "text": "A council member notes that the arterial widening can be completed in eighteen months, while the rail extension would take four years and disrupt two commercial blocks throughout."
+        }
+      ],
+      "task": "Write an argumentative essay taking a position on the issue above. Argue for one of the two positions and against the other. Use at least two of the supplied perspectives as material for your reasoning, state the strongest case against your position, and answer it. There is no correct position — only a well-argued one.",
+      "concepts": [
+        "thesis-position",
+        "warrant",
+        "counterargument-response",
+        "concession-and-scope",
+        "argument-organization"
+      ],
+      "model_response": {
+        "position_id": "rail",
+        "thesis": "The council should fund the rail extension, because it is the only one of the two projects that changes what is possible for residents who cannot drive.",
+        "essay": "The council should fund the rail extension. Both projects would move people downtown faster, but only one of them reaches people who currently cannot get there at all — and when a grant can be spent once, that difference should decide it.\n\nThe case rests on a standard, not merely on a fact. The fact is perspective 2: the three northern neighbourhoods have the city's lowest car-ownership rates and are served today by a forty-minute bus. The standard is that a one-time transport investment should be judged first by whether it reaches people who have no alternative, and only second by how much time it saves people who already have one. A driver on Culver Avenue whose commute is nine minutes shorter has a better version of a trip they were already making. A resident in the northern neighbourhoods gains a trip they were effectively priced out of. Those are not the same kind of gain, and treating them as interchangeable minutes is what the per-rider comparison quietly does.\n\nThe engineering projection in perspective 1 makes the point sharper rather than weaker. The nine-minute saving decays to four minutes by year six as new drivers fill the lane. That is the ordinary behaviour of added road capacity: it is absorbed. A grant spent on the arterial buys six years of shrinking benefit; a grant spent on rail buys a station that is still there in thirty.\n\nThe strongest case for the road is perspective 3, and it should be stated at full strength: the rail extension costs about twice as much per projected daily rider. If cost-effectiveness is the test, the road wins outright. But cost per rider ranks options by who already travels a given way — it takes today's ridership as the denominator when the entire purpose of the extension is to change that denominator. A metric that penalizes a project for serving a population that does not yet travel cannot be the metric for deciding whether to serve them.\n\nOne concession is real. Perspective 4 is right that four years of construction, and disruption to two commercial blocks throughout, is a genuine cost borne by identifiable people. The council should mitigate it and should say so on the record. But eighteen months against four years is an argument about sequencing a durable asset, not an argument against acquiring one — and it does not reach the standard the choice actually turns on.\n\nThe road project is the better answer to the question of how to make an existing commute faster. The council is answering a different question: who gets to make the commute at all.",
+        "annotations": [
+          {
+            "criterion_id": "position",
+            "note": "The thesis names the position and its principal reason in one sentence ('the only one of the two projects that changes what is possible for residents who cannot drive'), and the close restates it without softening."
+          },
+          {
+            "criterion_id": "reasoning",
+            "note": "Paragraph two states the warrant explicitly — 'the case rests on a standard, not merely on a fact' — instead of letting the car-ownership statistic stand as though it argued for itself."
+          },
+          {
+            "criterion_id": "perspectives",
+            "note": "Three of the four perspectives are put to work, and the two that cut against the position (3 on cost, 4 on disruption) are engaged rather than skipped. Perspective 1 is reinterpreted so that its own decay figure supports the thesis."
+          },
+          {
+            "criterion_id": "counterargument",
+            "note": "The cost-per-rider objection is stated at its strongest ('If cost-effectiveness is the test, the road wins outright') and then answered by denying its warrant — the metric measures the wrong denominator — not by restating the thesis."
+          },
+          {
+            "criterion_id": "expression",
+            "note": "Each paragraph's first sentence announces its job: thesis, standard, reinterpretation of the engineering projection, the strongest objection, the bounded concession, close."
+          }
+        ]
+      },
+      "self_check": [
+        {
+          "criterion_id": "position",
+          "prompt": "Can a reader state your position and your principal reason for it after reading only your first paragraph?"
+        },
+        {
+          "criterion_id": "reasoning",
+          "prompt": "For each reason you gave, did you say why it bears on your claim — or did you leave the reader to supply the link?"
+        },
+        {
+          "criterion_id": "perspectives",
+          "prompt": "Did you put at least two supplied perspectives to work, and did you handle the one that cuts against you rather than dropping it?"
+        },
+        {
+          "criterion_id": "counterargument",
+          "prompt": "Would someone holding the opposing position recognize their own view in how you stated it, and did you answer it rather than restate your thesis?"
+        },
+        {
+          "criterion_id": "expression",
+          "prompt": "Can a reader predict what each paragraph will do from its opening sentence?"
+        }
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "ws-002",
+      "title": "Mandatory pro bono hours before licensure",
+      "rubric_id": "argumentative-writing-v1",
+      "difficulty": "med",
+      "issue": "Should the state bar require every applicant for admission to complete fifty hours of supervised pro bono legal work before being licensed?",
+      "context": "The state bar's admissions committee is considering a rule requiring fifty hours of supervised pro bono work as a condition of licensure. The committee has published four perspectives from its consultation. Any rule adopted would apply to all applicants beginning with the next admissions cycle.",
+      "positions": [
+        {
+          "id": "require",
+          "name": "Adopt the requirement",
+          "summary": "Make fifty hours of supervised pro bono work a condition of admission for every applicant."
+        },
+        {
+          "id": "decline",
+          "name": "Decline to adopt it",
+          "summary": "Leave pro bono service voluntary and encouraged, as it is today."
+        }
+      ],
+      "perspectives": [
+        {
+          "id": "p1",
+          "text": "Legal-aid organizations in the state report turning away roughly two of every three eligible applicants for lack of capacity."
+        },
+        {
+          "id": "p2",
+          "text": "Supervising a novice costs a legal-aid organization staff time; two directors estimate that a fifty-hour placement consumes between eight and fifteen hours of an experienced attorney's time."
+        },
+        {
+          "id": "p3",
+          "text": "Applicants who work during law school, or who have dependants, have materially less unpaid time available than applicants who do not; a jurisdiction that adopted a similar rule saw admission delayed by a term for a disproportionate share of such applicants."
+        },
+        {
+          "id": "p4",
+          "text": "A committee member argues that a professional obligation the profession will not require of its entrants is one it does not really hold."
+        }
+      ],
+      "task": "Write an argumentative essay taking a position on the issue above. Argue for one of the two positions and against the other. Use at least two of the supplied perspectives as material for your reasoning, state the strongest case against your position, and answer it. There is no correct position — only a well-argued one.",
+      "concepts": [
+        "thesis-position",
+        "warrant",
+        "counterargument-response",
+        "concession-and-scope",
+        "principle-application"
+      ],
+      "model_response": {
+        "position_id": "decline",
+        "thesis": "The bar should decline to adopt the requirement, because a rule that conscripts unpaid labour from the applicants least able to give it is a poor instrument for a shortage caused by underfunding.",
+        "essay": "The bar should decline to adopt the fifty-hour requirement. The unmet need it responds to is real and the motive behind it is honourable, but the rule aims a licensing condition at a funding problem, and it charges the cost of doing so to the applicants least able to pay it.\n\nStart with what the requirement would actually produce. Perspective 1 establishes the shortage: legal-aid organizations turn away two of every three eligible applicants. Perspective 2 establishes what a mandated placement costs the organization receiving it — eight to fifteen hours of an experienced attorney's time for every fifty hours of novice work. That ratio matters because it means the rule does not simply add capacity; it converts scarce supervisory capacity into abundant unsupervised capacity. Whether that trade helps depends on whether the work an unlicensed novice can competently do is the work that is going undone. Nothing in the consultation suggests it is, and the committee has not asked.\n\nThe distributional objection is heavier still. Perspective 3 reports that in a jurisdiction with a comparable rule, admission was delayed by a term for a disproportionate share of applicants who worked during law school or had dependants. A licensing condition denominated in unpaid hours is not a uniform burden; it is a burden that scales inversely with an applicant's resources. The profession would be selecting, at the threshold, for applicants who can afford to work for free — and it would be doing so in the name of serving people who cannot afford lawyers. That is a standard defeating itself.\n\nThe strongest case for the rule is perspective 4, and it deserves to be stated without hedging: a professional obligation the profession will not require of its entrants is one it does not really hold. That is a serious claim about the integrity of an aspiration, and it is largely right. But it argues for requiring the obligation of the profession, not of its applicants. The bar's members are licensed, insured, competent, and paid; its applicants are none of those things. If the obligation is real, the rule that expresses it is a requirement on practitioners — who can discharge it competently and can afford to — not a toll collected at the door from people with the least capacity to pay it.\n\nOne concession is owed. Declining this rule leaves perspective 1's shortage exactly where it is, and 'fund legal aid properly' is the answer of a body that does not control the appropriation. The bar should therefore not merely decline; it should say what it will do instead, and a mandatory hours rule for admitted members is the obvious candidate.\n\nA profession that will not fund access to justice does not acquire it by requiring free labour from the people waiting to be let in.",
+        "annotations": [
+          {
+            "criterion_id": "position",
+            "note": "The thesis states the position and its reason together, and the reason is specific enough to be refutable — a reader knows that showing the burden falls evenly would damage it."
+          },
+          {
+            "criterion_id": "reasoning",
+            "note": "The supervision-ratio paragraph does not stop at the statistic; it states what the ratio implies (scarce supervisory capacity converted into abundant unsupervised capacity) and names the unexamined assumption the committee has not tested."
+          },
+          {
+            "criterion_id": "perspectives",
+            "note": "All four perspectives are used, and the one that most supports the opposing position (4) is given the essay's longest treatment rather than being minimized."
+          },
+          {
+            "criterion_id": "counterargument",
+            "note": "The rebuttal grants that perspective 4 is 'largely right' and then answers by redirecting its scope — the obligation binds practitioners, not applicants — which defeats the objection without denying its premise."
+          },
+          {
+            "criterion_id": "expression",
+            "note": "The concession paragraph is placed last-but-one so the reader leaves with the bounded answer, and it names a concrete alternative rather than conceding into vagueness."
+          }
+        ]
+      },
+      "self_check": [
+        {
+          "criterion_id": "position",
+          "prompt": "Can a reader state your position and your principal reason for it after reading only your first paragraph?"
+        },
+        {
+          "criterion_id": "reasoning",
+          "prompt": "For each reason you gave, did you say why it bears on your claim — or did you leave the reader to supply the link?"
+        },
+        {
+          "criterion_id": "perspectives",
+          "prompt": "Did you put at least two supplied perspectives to work, and did you handle the one that cuts against you rather than dropping it?"
+        },
+        {
+          "criterion_id": "counterargument",
+          "prompt": "Would someone holding the opposing position recognize their own view in how you stated it, and did you answer it rather than restate your thesis?"
+        },
+        {
+          "criterion_id": "expression",
+          "prompt": "Can a reader predict what each paragraph will do from its opening sentence?"
+        }
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "ws-003",
+      "title": "Narrative evaluations in place of letter grades",
+      "rubric_id": "argumentative-writing-v1",
+      "difficulty": "med",
+      "issue": "Should the law school replace letter grades with written narrative evaluations in all first-year courses?",
+      "context": "A law school's curriculum committee is deciding whether to replace first-year letter grades with written narrative evaluations. Four perspectives were submitted during faculty and student consultation. The decision applies to the first year only; upper-year courses would continue to be graded.",
+      "positions": [
+        {
+          "id": "narrative",
+          "name": "Replace letter grades with narrative evaluations",
+          "summary": "First-year courses produce a written evaluation of each student's work and no letter grade."
+        },
+        {
+          "id": "keep",
+          "name": "Keep letter grades",
+          "summary": "First-year courses continue to be graded on the existing curve."
+        }
+      ],
+      "perspectives": [
+        {
+          "id": "p1",
+          "text": "A survey of the school's first-year students found that the majority described grade anxiety as the single largest impediment to their learning; faculty report that students rarely take intellectual risks in graded first-year work."
+        },
+        {
+          "id": "p2",
+          "text": "Judicial clerkship hiring and many employer screens filter on first-year grade point average, and several hiring partners have said an unranked transcript would move an applicant to a slower review track."
+        },
+        {
+          "id": "p3",
+          "text": "Writing a substantive narrative evaluation takes an experienced instructor between twenty and forty minutes per student; first-year sections at the school average ninety students."
+        },
+        {
+          "id": "p4",
+          "text": "Two schools that made this change report that informal proxies for rank — faculty recommendations, journal membership, and section reputation — became more important in hiring rather than less."
+        }
+      ],
+      "task": "Write an argumentative essay taking a position on the issue above. Argue for one of the two positions and against the other. Use at least two of the supplied perspectives as material for your reasoning, state the strongest case against your position, and answer it. There is no correct position — only a well-argued one.",
+      "concepts": [
+        "thesis-position",
+        "warrant",
+        "counterargument-response",
+        "concession-and-scope",
+        "argument-organization"
+      ],
+      "model_response": {
+        "position_id": "keep",
+        "thesis": "The school should keep first-year letter grades, because removing a visible ranking does not remove ranking — it moves it somewhere students cannot see, contest, or earn.",
+        "essay": "The school should keep letter grades in the first year. The harm the proposal identifies is real, but the mechanism it proposes does not remove that harm; it relocates it into channels that are less fair than the one it replaces.\n\nThe argument turns on what a grade is for. A grade does two jobs: it tells a student how their work was read, and it tells outsiders how that work compared. The proposal assumes these can be separated — that the first job can be done better in prose while the second simply lapses. Perspective 4 is the evidence that it does not lapse. At two schools that made this change, the comparative judgement did not disappear; it migrated to faculty recommendations, journal membership, and section reputation. Every one of those is less transparent than a grade, less contestable by a student who thinks it wrong, and more responsive to who an instructor happened to notice. Anxiety about an unseen ranking is not obviously smaller than anxiety about a seen one, and it is certainly harder to act on.\n\nPerspective 2 makes the cost concrete rather than speculative. Clerkship and employer screens filter on first-year GPA, and hiring partners have said an unranked transcript slows review. A school may decide its students should bear that cost for a pedagogical gain. But it should not tell itself that the cost is borne evenly: the student with family in the profession is the one for whom the informal channels of perspective 4 already work.\n\nThe strongest case for the change is perspective 1, and it should be stated at full force: a majority of first-year students name grade anxiety as the single largest impediment to their learning, and faculty observe that graded first-year work makes students risk-averse. If that is right, the current system is failing at teaching, which is the school's actual job. The answer is that the finding indicts the *stakes* attached to first-year grades, not the existence of a grade. A compressed curve, a pass threshold for the first semester, a policy that first-year grades are not reported to employers before a fixed date — each addresses the anxiety while keeping a ranking that a student can see and appeal. The proposal treats the most drastic available instrument as the only one.\n\nPerspective 3 is a genuine cost of the proposal but should not be overstated: twenty to forty minutes per student across ninety-student sections is a real institutional burden, though a school that judged the change right could fund it. It is a reason for care, not a reason for refusal, and the argument does not need it.\n\nKeep the grade; fight the stakes. A ranking students can see is the one they can argue with.",
+        "annotations": [
+          {
+            "criterion_id": "position",
+            "note": "The thesis is contestable and specific — it claims relocation rather than elimination, which tells the reader exactly what evidence would refute it (a school where informal proxies did not intensify)."
+          },
+          {
+            "criterion_id": "reasoning",
+            "note": "The second paragraph supplies the warrant by defining what a grade is for, so perspective 4's finding has a standard to bear on instead of standing as a bare fact."
+          },
+          {
+            "criterion_id": "perspectives",
+            "note": "All four are engaged, and perspective 3 is explicitly *de-weighted* as a reason for care rather than refusal — a calibration move that strengthens the argument by refusing support it does not need."
+          },
+          {
+            "criterion_id": "counterargument",
+            "note": "The rebuttal concedes that perspective 1 may show the current system is failing at teaching, then answers by scope: the finding indicts the stakes, not the grade, and three narrower instruments are named."
+          },
+          {
+            "criterion_id": "expression",
+            "note": "Paragraph openings are all directional, and the close compresses the argument into a contrast rather than restating it."
+          }
+        ]
+      },
+      "self_check": [
+        {
+          "criterion_id": "position",
+          "prompt": "Can a reader state your position and your principal reason for it after reading only your first paragraph?"
+        },
+        {
+          "criterion_id": "reasoning",
+          "prompt": "For each reason you gave, did you say why it bears on your claim — or did you leave the reader to supply the link?"
+        },
+        {
+          "criterion_id": "perspectives",
+          "prompt": "Did you put at least two supplied perspectives to work, and did you handle the one that cuts against you rather than dropping it?"
+        },
+        {
+          "criterion_id": "counterargument",
+          "prompt": "Would someone holding the opposing position recognize their own view in how you stated it, and did you answer it rather than restate your thesis?"
+        },
+        {
+          "criterion_id": "expression",
+          "prompt": "Can a reader predict what each paragraph will do from its opening sentence?"
+        }
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "ws-004",
+      "title": "Cameras in the appellate courtroom",
+      "rubric_id": "argumentative-writing-v1",
+      "difficulty": "hard",
+      "issue": "Should the national court of appeal permit live video broadcast of its oral arguments?",
+      "context": "A national appellate court is reconsidering its rule barring cameras from oral argument. Live audio is already released; written transcripts appear the same day. Four perspectives were submitted to the court's rules committee. The court's decisions bind every lower court in the jurisdiction.",
+      "positions": [
+        {
+          "id": "broadcast",
+          "name": "Permit live video broadcast",
+          "summary": "Argument is streamed live in video, as audio already is."
+        },
+        {
+          "id": "retain",
+          "name": "Retain the bar on cameras",
+          "summary": "Live audio and same-day transcripts continue; video remains barred."
+        }
+      ],
+      "perspectives": [
+        {
+          "id": "p1",
+          "text": "Since live audio was introduced, listenership has grown steadily and no member of the court has reported a change in how counsel or the bench behave during argument."
+        },
+        {
+          "id": "p2",
+          "text": "A judge argues that video invites the excerpting of a single exchange — a judge's sharp question, an advocate's stumble — circulated without the surrounding argument, and that this reshapes what advocates and judges say more than an audio feed does."
+        },
+        {
+          "id": "p3",
+          "text": "Legal journalists report that audio-only coverage systematically under-reports argument, because outlets that lead with video have no visual material and run the story shorter or not at all."
+        },
+        {
+          "id": "p4",
+          "text": "Two comparable courts that adopted video report no measurable change in the length or tone of argument after five years, though both note that the number of arguments excerpted in political advertising rose."
+        }
+      ],
+      "task": "Write an argumentative essay taking a position on the issue above. Argue for one of the two positions and against the other. Use at least two of the supplied perspectives as material for your reasoning, state the strongest case against your position, and answer it. There is no correct position — only a well-argued one.",
+      "concepts": [
+        "thesis-position",
+        "warrant",
+        "counterargument-response",
+        "concession-and-scope",
+        "causation-vs-correlation"
+      ],
+      "model_response": {
+        "position_id": "broadcast",
+        "thesis": "The court should permit video, because the harm it fears is a harm of decontextualized excerpting that the audio feed already permits, while the benefit — that the public sees the reasoning that binds them — is available in no other way.",
+        "essay": "The court should permit live video of oral argument. The objection to it is serious and specific, but it identifies a harm the court has already accepted, and it weighs that harm against a benefit it has not credited.\n\nThe court's own experience is the strongest available evidence. Perspective 1 reports that live audio has grown its audience for years with no member of the court observing any change in how counsel or the bench behave. Perspective 4 reports the same absence at two comparable courts five years after adopting video. Two independent bodies of evidence, one internal and one external, point the same way: the behavioural effect that justifies the bar has not appeared where it was predicted. A rule maintained against a predicted harm should be reconsidered when the prediction has been tested twice and failed.\n\nPerspective 3 supplies the benefit, and it is the perspective the objection never engages. Outlets that lead with video run argument coverage shorter, or not at all, when only audio exists. The consequence is not that the public receives a worse account of the court's reasoning; it is that it receives no account and forms its impression from the decision alone. A court whose judgments bind every lower court in the jurisdiction has an interest in the public seeing that its decisions are reasoned rather than merely announced. That interest is not served by a transcript almost no one reads.\n\nThe strongest objection is perspective 2, and it should be put at full strength: video invites the excerpting of a single exchange — a sharp question, a stumble — circulated without the argument around it, and the prospect of that shapes what an advocate is willing to say. This is a real mechanism, and perspective 4's finding that political excerpting rose is evidence that it operates.\n\nBut it does not distinguish video from what the court already does. Audio is excerptible; a fifteen-second clip of a judge's question travels perfectly well without pictures, and the same-day transcript is quotable in print. The court accepted decontextualized excerpting when it released audio. What video changes is the volume of the excerpting, not its nature — and perspective 4 is the direct test of whether that volume changes behaviour. It reports that it did not, at two courts, over five years. The objection predicts an effect; the evidence assembled for this decision looks for that effect and does not find it.\n\nThe concession is that this evidence is about two courts and about tone and length — the things that can be measured. It cannot rule out a subtler chilling: an advocate who does not press an unpopular argument, a judge who does not test a position they intend to adopt. That possibility warrants monitoring, and a court adopting video should say what it would count as evidence of it and commit to revisiting the rule. It does not warrant continuing to bar the one form of coverage that reaches the people the court's judgments bind.",
+        "annotations": [
+          {
+            "criterion_id": "position",
+            "note": "The thesis carries both halves of the argument — the harm is already accepted, the benefit is uniquely available — so the reader knows in advance which two claims the essay must make good."
+          },
+          {
+            "criterion_id": "reasoning",
+            "note": "The evidence paragraph is careful about what two null findings license: it claims a failed prediction, not a proven absence, and the concession paragraph later names exactly what the measurements could not detect."
+          },
+          {
+            "criterion_id": "perspectives",
+            "note": "All four are used, and perspective 4 is used against itself — the same study that reports rising political excerpting also reports no behavioural change, and the essay makes that tension the pivot of the rebuttal."
+          },
+          {
+            "criterion_id": "counterargument",
+            "note": "The objection is stated at full strength and conceded to be a real mechanism with supporting evidence; it is then answered by showing it does not distinguish video from the audio the court already releases — a parity argument, not a denial."
+          },
+          {
+            "criterion_id": "expression",
+            "note": "The rebuttal is deliberately split across two paragraphs — statement, then answer — so the objection is allowed to land before it is met, and the close converts the concession into a monitoring commitment rather than a hedge."
+          }
+        ]
+      },
+      "self_check": [
+        {
+          "criterion_id": "position",
+          "prompt": "Can a reader state your position and your principal reason for it after reading only your first paragraph?"
+        },
+        {
+          "criterion_id": "reasoning",
+          "prompt": "For each reason you gave, did you say why it bears on your claim — or did you leave the reader to supply the link?"
+        },
+        {
+          "criterion_id": "perspectives",
+          "prompt": "Did you put at least two supplied perspectives to work, and did you handle the one that cuts against you rather than dropping it?"
+        },
+        {
+          "criterion_id": "counterargument",
+          "prompt": "Would someone holding the opposing position recognize their own view in how you stated it, and did you answer it rather than restate your thesis?"
+        },
+        {
+          "criterion_id": "expression",
+          "prompt": "Can a reader predict what each paragraph will do from its opening sentence?"
+        }
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    }
+  ]
+}

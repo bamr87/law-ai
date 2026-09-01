@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { guideFor } from '@/lib/data'
 import type { SolveStep, StepKind } from '@/lib/types'
 import Representation from './diagrams/Representation'
+import { useShortcuts } from '@/lib/keyboard'
 
 /**
  * Progressive solve-guide reveal as a carousel — the static counterpart of the
@@ -92,13 +93,36 @@ export default function SolveAssist({
     Math.max(0, (revealedByQuestion.get(questionId) ?? 0) - 1),
   )
 
+  const stepCount = guide?.steps.length ?? 0
+
+  // Hints without reaching for the mouse: H opens the guide and then walks it
+  // forward, J and K move through what is already revealed, R jumps to the
+  // final step once the question has been graded. Declared before the
+  // guide-less early return so the hook order never changes between renders.
+  useShortcuts({
+    h: () => {
+      if (!guide) return
+      if (revealed === 0) return setRevealedTo(1)
+      if (active < revealed - 1) return setActive((a) => a + 1)
+      if (revealed < stepCount) return setRevealedTo(revealed + 1)
+    },
+    k: () => {
+      if (guide && active < revealed - 1) setActive((a) => a + 1)
+    },
+    j: () => {
+      if (guide) setActive((a) => Math.max(0, a - 1))
+    },
+    r: () => {
+      if (guide && graded) setRevealedTo(stepCount)
+    },
+  })
+
   if (!guide) {
     return (
       <p className="solve-none">No step-by-step guide for this question yet.</p>
     )
   }
 
-  const stepCount = guide.steps.length
   const isLocked = (s: SolveStep) => s.spoiler && !graded
   const hasLockedVisible = guide.steps
     .slice(0, revealed)
@@ -123,6 +147,7 @@ export default function SolveAssist({
           <button
             type="button"
             className="btn btn-hint"
+            aria-keyshortcuts="H"
             onClick={() => setRevealedTo(1)}
           >
             💡 Hint
@@ -132,6 +157,7 @@ export default function SolveAssist({
           <button
             type="button"
             className="btn btn-reveal"
+            aria-keyshortcuts="R"
             onClick={() => setRevealedTo(stepCount)}
           >
             Show final step

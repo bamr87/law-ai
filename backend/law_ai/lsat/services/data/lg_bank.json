@@ -1,733 +1,923 @@
 {
-    "items": [
+  "items": [
+    {
+      "id": "lg-001",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "easy",
+      "passage_id": "lg-game-001",
+      "stem": "Which one of the following could be the order in which the associates argue, from first to fifth?",
+      "choices": [
         {
-            "id": "lg-001",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "easy",
-            "passage_id": "lg-game-001",
-            "stem": "Which one of the following could be the order in which the associates argue, from first to fifth?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "F, G, H, J, K"
-                },
-                {
-                    "label": "B",
-                    "text": "G, F, H, K, J"
-                },
-                {
-                    "label": "C",
-                    "text": "K, F, H, J, G"
-                },
-                {
-                    "label": "D",
-                    "text": "F, H, K, J, G"
-                },
-                {
-                    "label": "E",
-                    "text": "H, F, G, J, K"
-                }
-            ],
-            "correct": "D",
-            "explanation": "Apply the rules as eliminators. A puts F first and H third — not the required immediate F-H block (Rule 1). B places J fifth, violating Rule 2 (J fourth). C starts with K, violating Rule 3. E reverses the block, putting H before F (Rule 1). D — F, H, K, J, G — satisfies all three: F is immediately before H, J is fourth, and K is not first.",
-            "concepts": [
-                "sequencing",
-                "elimination-grid"
-            ],
-            "references": [
-                {
-                    "title": "7Sage — Logic Games Fundamentals",
-                    "url": "https://7sage.com/free-lsat-prep-course/"
-                }
-            ],
-            "source": "original (CC0)"
+          "label": "A",
+          "text": "F, G, H, J, K"
         },
         {
-            "id": "lg-002",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "med",
-            "passage_id": "lg-game-001",
-            "stem": "If H argues third, then which one of the following must be true?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "F argues first."
-                },
-                {
-                    "label": "B",
-                    "text": "K argues second."
-                },
-                {
-                    "label": "C",
-                    "text": "J argues fifth."
-                },
-                {
-                    "label": "D",
-                    "text": "K argues third."
-                },
-                {
-                    "label": "E",
-                    "text": "G argues first."
-                }
-            ],
-            "correct": "E",
-            "explanation": "If H=3, Rule 1 forces F=2. Rule 2 fixes J=4. Slots 1 and 5 remain for G and K, and Rule 3 forbids K=1, so G=1 and K=5. Therefore E — G argues first — must be true. A is false (F=2); B and D misplace K (K=5); C is false (J=4).",
-            "concepts": [
-                "sequencing",
-                "must-be-true"
-            ],
-            "references": [],
-            "source": "original (CC0)"
+          "label": "B",
+          "text": "G, F, H, K, J"
         },
         {
-            "id": "lg-003",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "med",
-            "passage_id": "lg-game-001",
-            "stem": "If G argues fifth, then which one of the following must be true?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "K argues third."
-                },
-                {
-                    "label": "B",
-                    "text": "H argues first."
-                },
-                {
-                    "label": "C",
-                    "text": "J argues fifth."
-                },
-                {
-                    "label": "D",
-                    "text": "F argues second."
-                },
-                {
-                    "label": "E",
-                    "text": "K argues first."
-                }
-            ],
-            "correct": "A",
-            "explanation": "If G=5, the F-H block (Rule 1) and J=4 (Rule 2) leave only one valid layout: F=1, H=2, K=3, J=4, G=5. So A — K argues third — must be true. E is forbidden by Rule 3; B, C, and D are inconsistent with the forced layout.",
-            "concepts": [
-                "sequencing",
-                "must-be-true"
-            ],
-            "references": [],
-            "source": "original (CC0)"
+          "label": "C",
+          "text": "K, F, H, J, G"
         },
         {
-            "id": "lg-004",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "hard",
-            "passage_id": "lg-game-001",
-            "stem": "Which one of the following CANNOT be true?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "K argues fifth."
-                },
-                {
-                    "label": "B",
-                    "text": "H argues first."
-                },
-                {
-                    "label": "C",
-                    "text": "G argues third."
-                },
-                {
-                    "label": "D",
-                    "text": "F argues second."
-                },
-                {
-                    "label": "E",
-                    "text": "K argues third."
-                }
-            ],
-            "correct": "B",
-            "explanation": "Only three orders satisfy the rules: F-H-G-J-K, F-H-K-J-G, and G-F-H-J-K. In every one the F-H block places H in slot 2 or 3, so H can never argue first — B cannot be true. K fifth (A), G third (C), F second (D), and K third (E) each occur in at least one valid order.",
-            "concepts": [
-                "sequencing",
-                "could-be-true-except"
-            ],
-            "references": [],
-            "source": "original (CC0)"
+          "label": "D",
+          "text": "F, H, K, J, G"
         },
         {
-            "id": "lg-005",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "med",
-            "passage_id": "lg-game-001",
-            "stem": "If K argues third, then which one of the following must be true?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "H argues first."
-                },
-                {
-                    "label": "B",
-                    "text": "F argues second."
-                },
-                {
-                    "label": "C",
-                    "text": "G argues fifth."
-                },
-                {
-                    "label": "D",
-                    "text": "G argues first."
-                },
-                {
-                    "label": "E",
-                    "text": "H argues fourth."
-                }
-            ],
-            "correct": "C",
-            "explanation": "If K=3 and J=4 (Rule 2), the F-H block (Rule 1) can only fit in slots 1-2, leaving slot 5 for G. The single valid order is F, H, K, J, G. So C — G argues fifth — must be true. A and D misplace G and H, B places F second (F=1), and E puts H fourth (H=2).",
-            "concepts": [
-                "sequencing",
-                "must-be-true"
-            ],
-            "references": [],
-            "source": "original (CC0)"
-        },
-        {
-            "id": "lg-006",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "easy",
-            "stem": "Which one of the following could be the order in which the students argue, from first (slot 1) to last (slot 6)?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "H, J, F, G, K, M"
-                },
-                {
-                    "label": "B",
-                    "text": "F, G, K, H, J, M"
-                },
-                {
-                    "label": "C",
-                    "text": "F, K, G, H, J, M"
-                },
-                {
-                    "label": "D",
-                    "text": "F, G, H, K, J, M"
-                },
-                {
-                    "label": "E",
-                    "text": "F, G, H, J, M, K"
-                }
-            ],
-            "correct": "B",
-            "explanation": "Test each order against the four rules. B obeys all four: F is immediately before G (slots 1-2), H is immediately before J (slots 4-5), K (3) argues before M (6), and F (1) argues before H (4); it is the valid order F-G-K-H-J-M, so B is correct. A places H-J ahead of F-G, so F does not argue before H, violating Rule 4. C puts K between F and G, so F is not immediately before G, violating Rule 1. D puts K between H and J, so H is not immediately before J, violating Rule 2. E ends with M then K, so K does not argue before M, violating Rule 3.",
-            "concepts": [
-                "sequencing",
-                "elimination-grid"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "lg-game-002"
-        },
-        {
-            "id": "lg-007",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "easy",
-            "stem": "Which one of the following could be an acceptable order in which the witnesses testify, from the first session through the sixth?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "L, P, M, T, N, R"
-                },
-                {
-                    "label": "B",
-                    "text": "L, M, P, T, R, N"
-                },
-                {
-                    "label": "C",
-                    "text": "N, M, P, T, R, L"
-                },
-                {
-                    "label": "D",
-                    "text": "L, M, P, N, T, R"
-                },
-                {
-                    "label": "E",
-                    "text": "M, P, L, T, N, R"
-                }
-            ],
-            "correct": "C",
-            "explanation": "Test each order against the four rules. C (N, M, P, T, R, L) obeys all of them: M is immediately before P, N precedes R, T is fourth, and L is sixth, so C is correct. A violates Rule 1: P is second but M is third, not immediately before P. B violates Rule 2: R (fifth) comes before N (sixth). D violates Rule 3: T is fifth, not fourth. E violates Rule 4: L testifies third, not first or sixth.",
-            "concepts": [
-                "sequencing",
-                "elimination-grid"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "lg-game-003"
-        },
-        {
-            "id": "lg-008",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "easy",
-            "stem": "Each of the following could be true EXCEPT:",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "F argues first."
-                },
-                {
-                    "label": "B",
-                    "text": "G argues second."
-                },
-                {
-                    "label": "C",
-                    "text": "H argues fourth."
-                },
-                {
-                    "label": "D",
-                    "text": "M argues third."
-                },
-                {
-                    "label": "E",
-                    "text": "K argues fifth."
-                }
-            ],
-            "correct": "D",
-            "explanation": "D is the exception. In every valid order M lands in an even slot — second (K-M-F-G-H-J), fourth (F-G-K-M-H-J), or sixth (F-G-H-J-K-M) — and never in slot 3, so 'M argues third' cannot be true. Each of the others is possible: A ('F argues first'), B ('G argues second'), and C ('H argues fourth') all hold in the order F-G-K-H-J-M, and E ('K argues fifth') holds in F-G-H-J-K-M.",
-            "concepts": [
-                "sequencing",
-                "could-be-true-except"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "lg-game-002"
-        },
-        {
-            "id": "lg-009",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "med",
-            "stem": "If K argues fifth, then which one of the following must be true?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "F argues second."
-                },
-                {
-                    "label": "B",
-                    "text": "G argues third."
-                },
-                {
-                    "label": "C",
-                    "text": "H argues third."
-                },
-                {
-                    "label": "D",
-                    "text": "J argues fifth."
-                },
-                {
-                    "label": "E",
-                    "text": "M argues fifth."
-                }
-            ],
-            "correct": "C",
-            "explanation": "If K argues fifth, Rule 3 (K before M) forces M into slot 6, the only later slot. Slots 1 through 4 must then hold the two adjacency blocks F-G and H-J. Because F argues before H (Rule 4), the F-G block takes slots 1-2 and the H-J block takes slots 3-4, giving the unique order F-G-H-J-K-M. Hence C, 'H argues third,' must be true. A is false because F is first, B is false because G is second, D is false because J is fourth (K, not J, is fifth), and E is false because M is sixth.",
-            "concepts": [
-                "sequencing",
-                "conditional-reasoning",
-                "must-be-true"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "lg-game-002"
-        },
-        {
-            "id": "lg-010",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "easy",
-            "stem": "Which one of the following could be the complete list of paintings displayed in the main gallery?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "F, G, and J"
-                },
-                {
-                    "label": "B",
-                    "text": "G, H, and L"
-                },
-                {
-                    "label": "C",
-                    "text": "G, K, and L"
-                },
-                {
-                    "label": "D",
-                    "text": "H, J, and L"
-                },
-                {
-                    "label": "E",
-                    "text": "F, J, and K"
-                }
-            ],
-            "correct": "B",
-            "explanation": "B is correct: it displays exactly three paintings; F is out so Rule 1 is idle, G is displayed while K is not (Rule 2), and H is displayed while J is not (Rule 3). A displays F without H, violating Rule 1. C displays both G and K, violating Rule 2. D displays both H and J, violating Rule 3. E displays F without H, violating Rule 1.",
-            "concepts": [
-                "grouping-game",
-                "elimination-grid"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "lg-game-004"
-        },
-        {
-            "id": "lg-011",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "med",
-            "stem": "Which one of the following is a pair of paintings that CANNOT both be displayed?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "F and H"
-                },
-                {
-                    "label": "B",
-                    "text": "H and L"
-                },
-                {
-                    "label": "C",
-                    "text": "J and L"
-                },
-                {
-                    "label": "D",
-                    "text": "G and K"
-                },
-                {
-                    "label": "E",
-                    "text": "K and L"
-                }
-            ],
-            "correct": "D",
-            "explanation": "By Rule 2 (if G then not K), G and K can never both be displayed, so D is the pair that cannot co-occur. A is possible: F and H appear together in {F, G, H}. B is possible: H and L appear together in {F, H, L}. C is possible: J and L appear together in {G, J, L}. E is possible: K and L appear together in {H, K, L}.",
-            "concepts": [
-                "grouping-game",
-                "conditional-reasoning"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "lg-game-004"
-        },
-        {
-            "id": "lg-012",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "med",
-            "stem": "Which one of the following must be true?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "R does not testify first."
-                },
-                {
-                    "label": "B",
-                    "text": "L testifies first."
-                },
-                {
-                    "label": "C",
-                    "text": "N testifies third."
-                },
-                {
-                    "label": "D",
-                    "text": "P testifies sixth."
-                },
-                {
-                    "label": "E",
-                    "text": "M testifies second."
-                }
-            ],
-            "correct": "A",
-            "explanation": "The four valid orders are (M,P,N,T,R,L), (L,M,P,T,N,R), (N,M,P,T,R,L), and (L,N,R,T,M,P). Because Rule 2 puts N before R, R can never lead; R occupies slot 3, 5, or 6 in every order, so A must be true. B fails in the first and third orders, where L is sixth. C is true only in the first order. D is true only in the fourth order. E is true only in the second and third orders.",
-            "concepts": [
-                "must-be-true",
-                "sequencing"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "lg-game-003"
-        },
-        {
-            "id": "lg-013",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "med",
-            "stem": "If J is displayed, then which one of the following must be true?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "L is displayed."
-                },
-                {
-                    "label": "B",
-                    "text": "G is displayed."
-                },
-                {
-                    "label": "C",
-                    "text": "K is displayed."
-                },
-                {
-                    "label": "D",
-                    "text": "F is displayed."
-                },
-                {
-                    "label": "E",
-                    "text": "H is displayed."
-                }
-            ],
-            "correct": "A",
-            "explanation": "If J is displayed, the contrapositive of Rule 3 puts H out, and since F would force H (Rule 1) F is out too; the two remaining displays must come from {G, K, L}, but Rule 2 bars the pair G-K, leaving {G, L} or {K, L} — both of which include L. So A must be true. B (G) holds only in {G, J, L} and fails in {J, K, L}. C (K) holds only in {J, K, L} and fails in {G, J, L}. D (F) is impossible, since F would require H while Rule 3 keeps H out. E (H) is impossible by Rule 3.",
-            "concepts": [
-                "conditional-reasoning",
-                "must-be-true"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "lg-game-004"
-        },
-        {
-            "id": "lg-014",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "med",
-            "stem": "If K argues third, then which one of the following must be true?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "H argues fourth."
-                },
-                {
-                    "label": "B",
-                    "text": "M argues sixth."
-                },
-                {
-                    "label": "C",
-                    "text": "H argues fifth."
-                },
-                {
-                    "label": "D",
-                    "text": "J argues fifth."
-                },
-                {
-                    "label": "E",
-                    "text": "F argues first."
-                }
-            ],
-            "correct": "E",
-            "explanation": "If K argues third, slot 3 is filled, so the F-G block cannot use it; the only consecutive pairs left for that block are 1-2 and 5-6. Placing F-G in 5-6 would make F fifth, but then H (which follows F by Rule 4) and the whole H-J block would have no room, so F-G must take slots 1-2. Therefore F is first and G is second, and E, 'F argues first,' must be true — the only orders are F-G-K-H-J-M and F-G-K-M-H-J. A ('H fourth'), B ('M sixth'), and D ('J fifth') hold only in the first order; C ('H fifth') holds only in the second; none of those four must be true.",
-            "concepts": [
-                "sequencing",
-                "conditional-reasoning",
-                "must-be-true"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "lg-game-002"
-        },
-        {
-            "id": "lg-015",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "hard",
-            "stem": "Assuming F is displayed, each of the following could also be displayed EXCEPT:",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "G"
-                },
-                {
-                    "label": "B",
-                    "text": "H"
-                },
-                {
-                    "label": "C",
-                    "text": "J"
-                },
-                {
-                    "label": "D",
-                    "text": "K"
-                },
-                {
-                    "label": "E",
-                    "text": "L"
-                }
-            ],
-            "correct": "C",
-            "explanation": "If F is displayed, Rule 1 forces H, and Rule 3 (if H then not J) then bars J, so J alone cannot be displayed alongside F — C is the exception. A (G) joins F in {F, G, H}. B (H) must and does join F, for example in {F, H, K}. D (K) joins F in {F, H, K}. E (L) joins F in {F, H, L}.",
-            "concepts": [
-                "could-be-true-except",
-                "conditional-reasoning"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "lg-game-004"
-        },
-        {
-            "id": "lg-016",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "hard",
-            "stem": "If K is not displayed, then which one of the following must be true?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "F is displayed."
-                },
-                {
-                    "label": "B",
-                    "text": "G is displayed."
-                },
-                {
-                    "label": "C",
-                    "text": "L is displayed."
-                },
-                {
-                    "label": "D",
-                    "text": "At least one of H and J is displayed."
-                },
-                {
-                    "label": "E",
-                    "text": "H is displayed."
-                }
-            ],
-            "correct": "D",
-            "explanation": "Suppose neither H nor J were displayed; with K also out, the three displays would have to be exactly {F, G, L}, but F displayed forces H (Rule 1), contradicting H out — so at least one of H and J must be displayed, making D true. A (F) is false in {G, H, L}. B (G) is false in {F, H, L}. C (L) is false in {F, G, H}. E (H) is false in {G, J, L}, where J supplies the disjunct instead.",
-            "concepts": [
-                "conditional-reasoning",
-                "must-be-true"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "lg-game-004"
-        },
-        {
-            "id": "lg-017",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "med",
-            "stem": "If L testifies first, then which one of the following must be true?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "M testifies second."
-                },
-                {
-                    "label": "B",
-                    "text": "P testifies third."
-                },
-                {
-                    "label": "C",
-                    "text": "R testifies sixth."
-                },
-                {
-                    "label": "D",
-                    "text": "M testifies before N."
-                },
-                {
-                    "label": "E",
-                    "text": "N testifies immediately before R."
-                }
-            ],
-            "correct": "E",
-            "explanation": "With L first, only two orders survive: (L,M,P,T,N,R) and (L,N,R,T,M,P). In the first the M-P block fills slots 2 and 3, pushing N and R to 5 and 6; in the second the block fills 5 and 6, pushing N and R to 2 and 3. Either way N sits immediately before R, so E must be true. A, B, and C each hold only in (L,M,P,T,N,R); in the other order M is fifth, P is sixth, and R is third. D also fails there, since M (fifth) follows N (second).",
-            "concepts": [
-                "must-be-true",
-                "sequencing"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "lg-game-003"
-        },
-        {
-            "id": "lg-018",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "hard",
-            "stem": "Which one of the following must be true?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "K argues at some time before F."
-                },
-                {
-                    "label": "B",
-                    "text": "G argues at some time before H."
-                },
-                {
-                    "label": "C",
-                    "text": "H argues at some time before K."
-                },
-                {
-                    "label": "D",
-                    "text": "F argues at some time before K."
-                },
-                {
-                    "label": "E",
-                    "text": "M argues at some time after J."
-                }
-            ],
-            "correct": "B",
-            "explanation": "By Rule 1, G argues in the slot immediately after F, so G occupies F's slot plus one. By Rule 4, F argues before H, and since H cannot take G's slot, H must be at least two slots after F — hence later than G. So B, 'G argues before H,' holds in every valid order and must be true. The others each fail in some valid order: A ('K before F') is false in F-G-H-J-K-M; C ('H before K') is false in F-G-K-H-J-M; D ('F before K') is false in K-F-G-H-J-M; and E ('M after J') is false in F-G-K-M-H-J, where M is fourth and J is sixth.",
-            "concepts": [
-                "sequencing",
-                "must-be-true"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "lg-game-002"
-        },
-        {
-            "id": "lg-019",
-            "section": "LG",
-            "type": "LG",
-            "difficulty": "hard",
-            "stem": "Which one of the following must be true?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "M testifies before R."
-                },
-                {
-                    "label": "B",
-                    "text": "P testifies before R."
-                },
-                {
-                    "label": "C",
-                    "text": "M testifies before R, or L testifies before R."
-                },
-                {
-                    "label": "D",
-                    "text": "N testifies before T."
-                },
-                {
-                    "label": "E",
-                    "text": "T testifies before R."
-                }
-            ],
-            "correct": "C",
-            "explanation": "Check the four orders (M,P,N,T,R,L), (L,M,P,T,N,R), (N,M,P,T,R,L), and (L,N,R,T,M,P). In the first three M precedes R; in the fourth M (fifth) follows R (third), but there L (first) precedes R, so in every order M or L precedes R, and C must be true. A fails in the fourth order (M after R). B fails there too (P sixth, after R). D fails in the second order, where N is fifth, after T. E fails in the fourth order, where R (third) precedes T (fourth).",
-            "concepts": [
-                "must-be-true",
-                "sequencing"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "lg-game-003"
+          "label": "E",
+          "text": "H, F, G, J, K"
         }
-    ]
+      ],
+      "correct": "D",
+      "explanation": "Apply the rules as eliminators. A puts F first and H third — not the required immediate F-H block (Rule 1). B places J fifth, violating Rule 2 (J fourth). C starts with K, violating Rule 3. E reverses the block, putting H before F (Rule 1). D — F, H, K, J, G — satisfies all three: F is immediately before H, J is fourth, and K is not first.",
+      "concepts": [
+        "sequencing",
+        "elimination-grid"
+      ],
+      "references": [
+        {
+          "title": "7Sage — Logic Games Fundamentals",
+          "url": "https://7sage.com/free-lsat-prep-course/"
+        }
+      ],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-002",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-001",
+      "stem": "If H argues third, then which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "F argues first."
+        },
+        {
+          "label": "B",
+          "text": "K argues second."
+        },
+        {
+          "label": "C",
+          "text": "J argues fifth."
+        },
+        {
+          "label": "D",
+          "text": "K argues third."
+        },
+        {
+          "label": "E",
+          "text": "G argues first."
+        }
+      ],
+      "correct": "E",
+      "explanation": "If H=3, Rule 1 forces F=2. Rule 2 fixes J=4. Slots 1 and 5 remain for G and K, and Rule 3 forbids K=1, so G=1 and K=5. Therefore E — G argues first — must be true. A is false (F=2); B and D misplace K (K=5); C is false (J=4).",
+      "concepts": [
+        "sequencing",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-003",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-001",
+      "stem": "If G argues fifth, then which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "K argues third."
+        },
+        {
+          "label": "B",
+          "text": "H argues first."
+        },
+        {
+          "label": "C",
+          "text": "J argues fifth."
+        },
+        {
+          "label": "D",
+          "text": "F argues second."
+        },
+        {
+          "label": "E",
+          "text": "K argues first."
+        }
+      ],
+      "correct": "A",
+      "explanation": "If G=5, the F-H block (Rule 1) and J=4 (Rule 2) leave only one valid layout: F=1, H=2, K=3, J=4, G=5. So A — K argues third — must be true. E is forbidden by Rule 3; B, C, and D are inconsistent with the forced layout.",
+      "concepts": [
+        "sequencing",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-004",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "hard",
+      "passage_id": "lg-game-001",
+      "stem": "Which one of the following CANNOT be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "K argues fifth."
+        },
+        {
+          "label": "B",
+          "text": "H argues first."
+        },
+        {
+          "label": "C",
+          "text": "G argues third."
+        },
+        {
+          "label": "D",
+          "text": "F argues second."
+        },
+        {
+          "label": "E",
+          "text": "K argues third."
+        }
+      ],
+      "correct": "B",
+      "explanation": "Only three orders satisfy the rules: F-H-G-J-K, F-H-K-J-G, and G-F-H-J-K. In every one the F-H block places H in slot 2 or 3, so H can never argue first — B cannot be true. K fifth (A), G third (C), F second (D), and K third (E) each occur in at least one valid order.",
+      "concepts": [
+        "sequencing",
+        "could-be-true-except"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-005",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-001",
+      "stem": "If K argues third, then which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "H argues first."
+        },
+        {
+          "label": "B",
+          "text": "F argues second."
+        },
+        {
+          "label": "C",
+          "text": "G argues fifth."
+        },
+        {
+          "label": "D",
+          "text": "G argues first."
+        },
+        {
+          "label": "E",
+          "text": "H argues fourth."
+        }
+      ],
+      "correct": "C",
+      "explanation": "If K=3 and J=4 (Rule 2), the F-H block (Rule 1) can only fit in slots 1-2, leaving slot 5 for G. The single valid order is F, H, K, J, G. So C — G argues fifth — must be true. A and D misplace G and H, B places F second (F=1), and E puts H fourth (H=2).",
+      "concepts": [
+        "sequencing",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-006",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "easy",
+      "stem": "Which one of the following could be the order in which the students argue, from first (slot 1) to last (slot 6)?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "H, J, F, G, K, M"
+        },
+        {
+          "label": "B",
+          "text": "F, G, K, H, J, M"
+        },
+        {
+          "label": "C",
+          "text": "F, K, G, H, J, M"
+        },
+        {
+          "label": "D",
+          "text": "F, G, H, K, J, M"
+        },
+        {
+          "label": "E",
+          "text": "F, G, H, J, M, K"
+        }
+      ],
+      "correct": "B",
+      "explanation": "Test each order against the four rules. B obeys all four: F is immediately before G (slots 1-2), H is immediately before J (slots 4-5), K (3) argues before M (6), and F (1) argues before H (4); it is the valid order F-G-K-H-J-M, so B is correct. A places H-J ahead of F-G, so F does not argue before H, violating Rule 4. C puts K between F and G, so F is not immediately before G, violating Rule 1. D puts K between H and J, so H is not immediately before J, violating Rule 2. E ends with M then K, so K does not argue before M, violating Rule 3.",
+      "concepts": [
+        "sequencing",
+        "elimination-grid"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "lg-game-002"
+    },
+    {
+      "id": "lg-007",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "easy",
+      "stem": "Which one of the following could be an acceptable order in which the witnesses testify, from the first session through the sixth?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "L, P, M, T, N, R"
+        },
+        {
+          "label": "B",
+          "text": "L, M, P, T, R, N"
+        },
+        {
+          "label": "C",
+          "text": "N, M, P, T, R, L"
+        },
+        {
+          "label": "D",
+          "text": "L, M, P, N, T, R"
+        },
+        {
+          "label": "E",
+          "text": "M, P, L, T, N, R"
+        }
+      ],
+      "correct": "C",
+      "explanation": "Test each order against the four rules. C (N, M, P, T, R, L) obeys all of them: M is immediately before P, N precedes R, T is fourth, and L is sixth, so C is correct. A violates Rule 1: P is second but M is third, not immediately before P. B violates Rule 2: R (fifth) comes before N (sixth). D violates Rule 3: T is fifth, not fourth. E violates Rule 4: L testifies third, not first or sixth.",
+      "concepts": [
+        "sequencing",
+        "elimination-grid"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "lg-game-003"
+    },
+    {
+      "id": "lg-008",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "easy",
+      "stem": "Each of the following could be true EXCEPT:",
+      "choices": [
+        {
+          "label": "A",
+          "text": "F argues first."
+        },
+        {
+          "label": "B",
+          "text": "G argues second."
+        },
+        {
+          "label": "C",
+          "text": "H argues fourth."
+        },
+        {
+          "label": "D",
+          "text": "M argues third."
+        },
+        {
+          "label": "E",
+          "text": "K argues fifth."
+        }
+      ],
+      "correct": "D",
+      "explanation": "D is the exception. In every valid order M lands in an even slot — second (K-M-F-G-H-J), fourth (F-G-K-M-H-J), or sixth (F-G-H-J-K-M) — and never in slot 3, so 'M argues third' cannot be true. Each of the others is possible: A ('F argues first'), B ('G argues second'), and C ('H argues fourth') all hold in the order F-G-K-H-J-M, and E ('K argues fifth') holds in F-G-H-J-K-M.",
+      "concepts": [
+        "sequencing",
+        "could-be-true-except"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "lg-game-002"
+    },
+    {
+      "id": "lg-009",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "stem": "If K argues fifth, then which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "F argues second."
+        },
+        {
+          "label": "B",
+          "text": "G argues third."
+        },
+        {
+          "label": "C",
+          "text": "H argues third."
+        },
+        {
+          "label": "D",
+          "text": "J argues fifth."
+        },
+        {
+          "label": "E",
+          "text": "M argues fifth."
+        }
+      ],
+      "correct": "C",
+      "explanation": "If K argues fifth, Rule 3 (K before M) forces M into slot 6, the only later slot. Slots 1 through 4 must then hold the two adjacency blocks F-G and H-J. Because F argues before H (Rule 4), the F-G block takes slots 1-2 and the H-J block takes slots 3-4, giving the unique order F-G-H-J-K-M. Hence C, 'H argues third,' must be true. A is false because F is first, B is false because G is second, D is false because J is fourth (K, not J, is fifth), and E is false because M is sixth.",
+      "concepts": [
+        "sequencing",
+        "conditional-reasoning",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "lg-game-002"
+    },
+    {
+      "id": "lg-010",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "easy",
+      "stem": "Which one of the following could be the complete list of paintings displayed in the main gallery?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "F, G, and J"
+        },
+        {
+          "label": "B",
+          "text": "G, H, and L"
+        },
+        {
+          "label": "C",
+          "text": "G, K, and L"
+        },
+        {
+          "label": "D",
+          "text": "H, J, and L"
+        },
+        {
+          "label": "E",
+          "text": "F, J, and K"
+        }
+      ],
+      "correct": "B",
+      "explanation": "B is correct: it displays exactly three paintings; F is out so Rule 1 is idle, G is displayed while K is not (Rule 2), and H is displayed while J is not (Rule 3). A displays F without H, violating Rule 1. C displays both G and K, violating Rule 2. D displays both H and J, violating Rule 3. E displays F without H, violating Rule 1.",
+      "concepts": [
+        "grouping-game",
+        "elimination-grid"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "lg-game-004"
+    },
+    {
+      "id": "lg-011",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "stem": "Which one of the following is a pair of paintings that CANNOT both be displayed?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "F and H"
+        },
+        {
+          "label": "B",
+          "text": "H and L"
+        },
+        {
+          "label": "C",
+          "text": "J and L"
+        },
+        {
+          "label": "D",
+          "text": "G and K"
+        },
+        {
+          "label": "E",
+          "text": "K and L"
+        }
+      ],
+      "correct": "D",
+      "explanation": "By Rule 2 (if G then not K), G and K can never both be displayed, so D is the pair that cannot co-occur. A is possible: F and H appear together in {F, G, H}. B is possible: H and L appear together in {F, H, L}. C is possible: J and L appear together in {G, J, L}. E is possible: K and L appear together in {H, K, L}.",
+      "concepts": [
+        "grouping-game",
+        "conditional-reasoning"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "lg-game-004"
+    },
+    {
+      "id": "lg-012",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "stem": "Which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "R does not testify first."
+        },
+        {
+          "label": "B",
+          "text": "L testifies first."
+        },
+        {
+          "label": "C",
+          "text": "N testifies third."
+        },
+        {
+          "label": "D",
+          "text": "P testifies sixth."
+        },
+        {
+          "label": "E",
+          "text": "M testifies second."
+        }
+      ],
+      "correct": "A",
+      "explanation": "The four valid orders are (M,P,N,T,R,L), (L,M,P,T,N,R), (N,M,P,T,R,L), and (L,N,R,T,M,P). Because Rule 2 puts N before R, R can never lead; R occupies slot 3, 5, or 6 in every order, so A must be true. B fails in the first and third orders, where L is sixth. C is true only in the first order. D is true only in the fourth order. E is true only in the second and third orders.",
+      "concepts": [
+        "must-be-true",
+        "sequencing"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "lg-game-003"
+    },
+    {
+      "id": "lg-013",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "stem": "If J is displayed, then which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "L is displayed."
+        },
+        {
+          "label": "B",
+          "text": "G is displayed."
+        },
+        {
+          "label": "C",
+          "text": "K is displayed."
+        },
+        {
+          "label": "D",
+          "text": "F is displayed."
+        },
+        {
+          "label": "E",
+          "text": "H is displayed."
+        }
+      ],
+      "correct": "A",
+      "explanation": "If J is displayed, the contrapositive of Rule 3 puts H out, and since F would force H (Rule 1) F is out too; the two remaining displays must come from {G, K, L}, but Rule 2 bars the pair G-K, leaving {G, L} or {K, L} — both of which include L. So A must be true. B (G) holds only in {G, J, L} and fails in {J, K, L}. C (K) holds only in {J, K, L} and fails in {G, J, L}. D (F) is impossible, since F would require H while Rule 3 keeps H out. E (H) is impossible by Rule 3.",
+      "concepts": [
+        "conditional-reasoning",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "lg-game-004"
+    },
+    {
+      "id": "lg-014",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "stem": "If K argues third, then which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "H argues fourth."
+        },
+        {
+          "label": "B",
+          "text": "M argues sixth."
+        },
+        {
+          "label": "C",
+          "text": "H argues fifth."
+        },
+        {
+          "label": "D",
+          "text": "J argues fifth."
+        },
+        {
+          "label": "E",
+          "text": "F argues first."
+        }
+      ],
+      "correct": "E",
+      "explanation": "If K argues third, slot 3 is filled, so the F-G block cannot use it; the only consecutive pairs left for that block are 1-2 and 5-6. Placing F-G in 5-6 would make F fifth, but then H (which follows F by Rule 4) and the whole H-J block would have no room, so F-G must take slots 1-2. Therefore F is first and G is second, and E, 'F argues first,' must be true — the only orders are F-G-K-H-J-M and F-G-K-M-H-J. A ('H fourth'), B ('M sixth'), and D ('J fifth') hold only in the first order; C ('H fifth') holds only in the second; none of those four must be true.",
+      "concepts": [
+        "sequencing",
+        "conditional-reasoning",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "lg-game-002"
+    },
+    {
+      "id": "lg-015",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "hard",
+      "stem": "Assuming F is displayed, each of the following could also be displayed EXCEPT:",
+      "choices": [
+        {
+          "label": "A",
+          "text": "G"
+        },
+        {
+          "label": "B",
+          "text": "H"
+        },
+        {
+          "label": "C",
+          "text": "J"
+        },
+        {
+          "label": "D",
+          "text": "K"
+        },
+        {
+          "label": "E",
+          "text": "L"
+        }
+      ],
+      "correct": "C",
+      "explanation": "If F is displayed, Rule 1 forces H, and Rule 3 (if H then not J) then bars J, so J alone cannot be displayed alongside F — C is the exception. A (G) joins F in {F, G, H}. B (H) must and does join F, for example in {F, H, K}. D (K) joins F in {F, H, K}. E (L) joins F in {F, H, L}.",
+      "concepts": [
+        "could-be-true-except",
+        "conditional-reasoning"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "lg-game-004"
+    },
+    {
+      "id": "lg-016",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "hard",
+      "stem": "If K is not displayed, then which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "F is displayed."
+        },
+        {
+          "label": "B",
+          "text": "G is displayed."
+        },
+        {
+          "label": "C",
+          "text": "L is displayed."
+        },
+        {
+          "label": "D",
+          "text": "At least one of H and J is displayed."
+        },
+        {
+          "label": "E",
+          "text": "H is displayed."
+        }
+      ],
+      "correct": "D",
+      "explanation": "Suppose neither H nor J were displayed; with K also out, the three displays would have to be exactly {F, G, L}, but F displayed forces H (Rule 1), contradicting H out — so at least one of H and J must be displayed, making D true. A (F) is false in {G, H, L}. B (G) is false in {F, H, L}. C (L) is false in {F, G, H}. E (H) is false in {G, J, L}, where J supplies the disjunct instead.",
+      "concepts": [
+        "conditional-reasoning",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "lg-game-004"
+    },
+    {
+      "id": "lg-017",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "stem": "If L testifies first, then which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "M testifies second."
+        },
+        {
+          "label": "B",
+          "text": "P testifies third."
+        },
+        {
+          "label": "C",
+          "text": "R testifies sixth."
+        },
+        {
+          "label": "D",
+          "text": "M testifies before N."
+        },
+        {
+          "label": "E",
+          "text": "N testifies immediately before R."
+        }
+      ],
+      "correct": "E",
+      "explanation": "With L first, only two orders survive: (L,M,P,T,N,R) and (L,N,R,T,M,P). In the first the M-P block fills slots 2 and 3, pushing N and R to 5 and 6; in the second the block fills 5 and 6, pushing N and R to 2 and 3. Either way N sits immediately before R, so E must be true. A, B, and C each hold only in (L,M,P,T,N,R); in the other order M is fifth, P is sixth, and R is third. D also fails there, since M (fifth) follows N (second).",
+      "concepts": [
+        "must-be-true",
+        "sequencing"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "lg-game-003"
+    },
+    {
+      "id": "lg-018",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "hard",
+      "stem": "Which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "K argues at some time before F."
+        },
+        {
+          "label": "B",
+          "text": "G argues at some time before H."
+        },
+        {
+          "label": "C",
+          "text": "H argues at some time before K."
+        },
+        {
+          "label": "D",
+          "text": "F argues at some time before K."
+        },
+        {
+          "label": "E",
+          "text": "M argues at some time after J."
+        }
+      ],
+      "correct": "B",
+      "explanation": "By Rule 1, G argues in the slot immediately after F, so G occupies F's slot plus one. By Rule 4, F argues before H, and since H cannot take G's slot, H must be at least two slots after F — hence later than G. So B, 'G argues before H,' holds in every valid order and must be true. The others each fail in some valid order: A ('K before F') is false in F-G-H-J-K-M; C ('H before K') is false in F-G-K-H-J-M; D ('F before K') is false in K-F-G-H-J-M; and E ('M after J') is false in F-G-K-M-H-J, where M is fourth and J is sixth.",
+      "concepts": [
+        "sequencing",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "lg-game-002"
+    },
+    {
+      "id": "lg-019",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "hard",
+      "stem": "Which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "M testifies before R."
+        },
+        {
+          "label": "B",
+          "text": "P testifies before R."
+        },
+        {
+          "label": "C",
+          "text": "M testifies before R, or L testifies before R."
+        },
+        {
+          "label": "D",
+          "text": "N testifies before T."
+        },
+        {
+          "label": "E",
+          "text": "T testifies before R."
+        }
+      ],
+      "correct": "C",
+      "explanation": "Check the four orders (M,P,N,T,R,L), (L,M,P,T,N,R), (N,M,P,T,R,L), and (L,N,R,T,M,P). In the first three M precedes R; in the fourth M (fifth) follows R (third), but there L (first) precedes R, so in every order M or L precedes R, and C must be true. A fails in the fourth order (M after R). B fails there too (P sixth, after R). D fails in the second order, where N is fifth, after T. E fails in the fourth order, where R (third) precedes T (fourth).",
+      "concepts": [
+        "must-be-true",
+        "sequencing"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "lg-game-003"
+    },
+    {
+      "id": "lg-020",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "intro",
+      "passage_id": "lg-game-005",
+      "stem": "Which one of the following could be the complete selection of candidates for the trial team?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "F, H, J, M"
+        },
+        {
+          "label": "B",
+          "text": "G, H, K, M"
+        },
+        {
+          "label": "C",
+          "text": "J, K, L, M"
+        },
+        {
+          "label": "D",
+          "text": "F, G, J, K"
+        },
+        {
+          "label": "E",
+          "text": "G, H, J, L"
+        }
+      ],
+      "correct": "E",
+      "explanation": "Run the rules as eliminators, one violation each. A puts F and H together, breaking Rule 1. B selects G without J, breaking Rule 2. C selects both K and L, breaking Rule 3. D includes neither H nor M, breaking Rule 4. E — G, H, J, L — satisfies all four: F is absent so Rule 1 is idle, G is accompanied by J, only L of the K/L pair appears, and H covers Rule 4.",
+      "concepts": [
+        "elimination-grid",
+        "in-out-selection"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-021",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-005",
+      "stem": "Which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "M is selected."
+        },
+        {
+          "label": "B",
+          "text": "At least one of F and H is selected."
+        },
+        {
+          "label": "C",
+          "text": "If K is selected, then M is selected."
+        },
+        {
+          "label": "D",
+          "text": "J is selected."
+        },
+        {
+          "label": "E",
+          "text": "Exactly one of G and M is selected."
+        }
+      ],
+      "correct": "D",
+      "explanation": "J is forced, and the derivation is the game's central inference. Suppose J were out. Rule 2's contrapositive then puts G out as well. The four selections would have to come from F, H, K, L, and M — but Rule 1 allows at most one of F and H, and Rule 3 allows at most one of K and L, so that pool yields at most three. Four is impossible, so J is always selected. Each other choice has a counterexample: G, H, J, K excludes M (refuting A) and includes K without M (refuting C); G, J, K, M contains neither F nor H (refuting B) and contains both G and M (refuting E).",
+      "concepts": [
+        "in-out-selection",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-022",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-005",
+      "stem": "If F is selected, then which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "M is selected."
+        },
+        {
+          "label": "B",
+          "text": "G is selected."
+        },
+        {
+          "label": "C",
+          "text": "K is selected."
+        },
+        {
+          "label": "D",
+          "text": "L is selected."
+        },
+        {
+          "label": "E",
+          "text": "Exactly two of G, K, and L are selected."
+        }
+      ],
+      "correct": "A",
+      "explanation": "Chain from F. Rule 1 puts H out, and Rule 4 then forces M in — that is A, and it settles the question. Confirming the rest: with F, J (always selected) and M taking three of the four places, exactly one slot remains for G, K, or L, so no one of B, C, or D is forced, and E is not merely unforced but impossible. The three valid selections containing F are F-G-J-M, F-J-K-M, and F-J-L-M; M appears in all three.",
+      "concepts": [
+        "in-out-selection",
+        "conditional-reasoning"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-023",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "hard",
+      "passage_id": "lg-game-005",
+      "stem": "If M is not selected, then which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "F is selected."
+        },
+        {
+          "label": "B",
+          "text": "K is selected."
+        },
+        {
+          "label": "C",
+          "text": "L is selected."
+        },
+        {
+          "label": "D",
+          "text": "Neither G nor H is selected."
+        },
+        {
+          "label": "E",
+          "text": "Both G and H are selected."
+        }
+      ],
+      "correct": "E",
+      "explanation": "With M out, Rule 4 forces H in, and Rule 1's contrapositive then puts F out. J is always selected. Two of the four places are filled by H and J, and the remaining candidates are G, K, and L — of which Rule 3 permits at most one of K and L. Two more places therefore require G plus exactly one of K or L. So G and H are both selected: E. The only selections with M out are G-H-J-K and G-H-J-L, which refute A directly and refute B, C, and D by exhibiting one of each pair.",
+      "concepts": [
+        "in-out-selection",
+        "contrapositive"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-024",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "hard",
+      "passage_id": "lg-game-005",
+      "stem": "What is the greatest number of the candidates F, H, K, and L that can be selected for the team?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "zero"
+        },
+        {
+          "label": "B",
+          "text": "one"
+        },
+        {
+          "label": "C",
+          "text": "two"
+        },
+        {
+          "label": "D",
+          "text": "three"
+        },
+        {
+          "label": "E",
+          "text": "four"
+        }
+      ],
+      "correct": "C",
+      "explanation": "Two, and both halves of the answer need showing. Rule 1 allows at most one of F and H; Rule 3 allows at most one of K and L; so at most two of the four can ever appear together — three is impossible, which rules out D and E. Two is achieved: F, J, K, M is a valid selection containing F and K. That witness also rules out A and B, which understate what the rules permit.",
+      "concepts": [
+        "max-min",
+        "numeric-distribution"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    }
+  ]
 }

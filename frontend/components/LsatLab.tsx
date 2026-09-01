@@ -550,10 +550,17 @@ function PassagePanel({
 }
 
 function PassageReader({ passage }: { passage: LsatPassage }) {
+  // Spec 047 FR-9: a comparative set carries two texts, and every question in
+  // the set names one of them — so both need visible headings, not one blob.
+  const comparative = Boolean(passage.passage_b)
   return (
     <article className="shell-sticky-aside shell-panel-scroll max-h-[calc(100dvh-var(--shell-masthead-h)-var(--shell-pageheader-h)-var(--shell-toolbar-h)-3rem)] rounded-2xl border border-slate-800 bg-slate-900/40 p-5 backdrop-blur">
       <div className="text-[11px] uppercase tracking-wider text-amber-400">
-        {passage.section === 'LG' ? 'Game setup' : 'Reading passage'}
+        {passage.section === 'LG'
+          ? 'Game setup'
+          : comparative
+            ? 'Comparative passages'
+            : 'Reading passage'}
       </div>
       <h3 className="mt-1 text-lg font-semibold text-slate-100">
         {passage.title}
@@ -561,10 +568,30 @@ function PassageReader({ passage }: { passage: LsatPassage }) {
       {passage.summary && (
         <p className="mt-1 text-xs italic text-slate-500">{passage.summary}</p>
       )}
+      {passage.passage && comparative && (
+        <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
+          {passage.title_a ?? 'Passage A'}
+        </h4>
+      )}
       {passage.passage && (
-        <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-slate-200">
+        <p
+          className={
+            (comparative ? 'mt-2' : 'mt-4') +
+            ' whitespace-pre-line text-sm leading-relaxed text-slate-200'
+          }
+        >
           {passage.passage}
         </p>
+      )}
+      {passage.passage_b && (
+        <>
+          <h4 className="mt-5 border-t border-slate-800 pt-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
+            {passage.title_b ?? 'Passage B'}
+          </h4>
+          <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-200">
+            {passage.passage_b}
+          </p>
+        </>
       )}
       {passage.setup && (
         <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-slate-200">

@@ -5,6 +5,7 @@ import SolveAssist from './solve/SolveAssist'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Question } from '@/lib/types'
 import { recordAttempt } from '@/lib/progress'
+import { useShortcuts } from '@/lib/keyboard'
 import { QuestionElapsed } from './SectionTimer'
 
 interface Props {
@@ -67,6 +68,26 @@ export default function QuestionCard({
     onAnnounce?.(correct ? 'Correct.' : `Incorrect. The correct answer is ${question.correct}.`)
   }
 
+  // Letter keys pick a choice from anywhere on the page — you should not have
+  // to tab into the radiogroup from the passage to answer.
+  //
+  // The map is built from state rather than guarded inside the handlers,
+  // because *registering* a key is what claims it: `useShortcuts` calls
+  // `preventDefault()` before dispatching, and a later listener skips an event
+  // that is already claimed. A permanently-bound `Enter` whose handler merely
+  // no-opped after submitting therefore swallowed the keystroke and starved
+  // Drill's Enter-to-advance. Bind only what can act.
+  useShortcuts(
+    submitted
+      ? {}
+      : {
+          ...Object.fromEntries(
+            labels.map((label) => [label.toLowerCase(), () => focusLabel(label)]),
+          ),
+          ...(selected ? { Enter: () => submit() } : {}),
+        },
+  )
+
   function onKeyDown(e: React.KeyboardEvent, label: string) {
     if (submitted) return
     switch (e.key) {
@@ -115,6 +136,7 @@ export default function QuestionCard({
       <div
         role="radiogroup"
         aria-label="Answer choices"
+        aria-keyshortcuts="A B C D E"
         className="choices"
       >
         {question.choices.map((c) => {
@@ -158,7 +180,13 @@ export default function QuestionCard({
       <SolveAssist key={question.id} questionId={question.id} graded={submitted} />
 
       {!submitted ? (
-        <button type="button" className="btn btn-primary" disabled={!selected} onClick={submit}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          aria-keyshortcuts="Enter"
+          disabled={!selected}
+          onClick={submit}
+        >
           Check answer
         </button>
       ) : (

@@ -1,8 +1,16 @@
 """LSAT question bank loader (spec 005, refactored 2026-05-03).
 
 Supports all current LSAT sections — Logical Reasoning (LR), Reading
-Comprehension (RC), and Logic Games / Analytical Reasoning (LG) — plus a
-catalog of reusable concept explanations and passage/game contexts.
+Comprehension (RC), Logic Games / Analytical Reasoning (LG), and Argumentative
+Writing (WS) — plus a catalog of reusable concept explanations and
+passage/game contexts.
+
+``WS`` is a section for *metadata and concept-tagging purposes only*: an
+argumentative-writing task produces an essay, not a keyed choice, so it has no
+:class:`Question` representation and lives in
+:mod:`law_ai.lsat.services.writing` instead. :class:`Question` rejects the code
+outright (spec 047 FR-1) so writing content can never masquerade as an item
+with an answer key.
 
 The loader is lazy + cached and tolerates missing per-section files so a
 fresh checkout still works after partial data updates.
@@ -19,9 +27,29 @@ from pydantic import BaseModel, Field, model_validator
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 
-Section = Literal["LR", "RC", "LG"]
+Section = Literal["LR", "RC", "LG", "WS"]
+
+# The multiple-choice subset of ``Section``. Every :class:`Question` carries
+# one of these; ``WS`` is deliberately excluded (see the module docstring).
+MCQ_SECTIONS: tuple[Section, ...] = ("LR", "RC", "LG")
 ChoiceLabel = Literal["A", "B", "C", "D", "E"]
-Difficulty = Literal["easy", "med", "hard"]
+# Spec 047 FR-8. The original three bands are kept verbatim so every stored
+# item stays valid; ``intro`` and ``elite`` extend the scale at either end.
+#
+#   intro — the pattern in its cleanest form, one inference, no trap. Where a
+#           learner meets an archetype for the first time.
+#   easy  — a real but gentle instance; the trap exists but is visible.
+#   med   — the modal difficulty of a scored section.
+#   hard  — two or more chained inferences, or a trap that survives a careful
+#           first read.
+#   elite — the handful of items per exam that separate the top band: the
+#           credited answer is defensible only after the four distractors have
+#           each been positively ruled out.
+Difficulty = Literal["intro", "easy", "med", "hard", "elite"]
+
+#: Easiest to hardest. The single source of ordering — sort and bucket by this
+#: rather than by the literal's declaration order or alphabetically.
+DIFFICULTY_ORDER: tuple[Difficulty, ...] = ("intro", "easy", "med", "hard", "elite")
 
 # Back-compat alias kept for tests / external consumers that imported the
 # original ``QuestionType`` literal when only LR existed.
@@ -42,7 +70,10 @@ class Reference(BaseModel):
 class PassageContext(BaseModel):
     """Shared context attached to a group of questions.
 
-    Used for Reading Comprehension passages and Logic Games setups.
+    Used for Reading Comprehension passages and Logic Games setups. A
+    *comparative* RC set (spec 047 FR-9) carries a second passage in
+    ``passage_b``: the real exam pairs two short passages on one topic and
+    asks about their relationship, which no single-text field can represent.
     """
 
     id: str
@@ -51,7 +82,21 @@ class PassageContext(BaseModel):
     summary: str | None = None
     passage: str | None = Field(
         default=None,
-        description="Full passage text (RC). None for LG sets.",
+        description="Full passage text (RC). On a comparative set this is "
+        "Passage A. None for LG sets.",
+    )
+    passage_b: str | None = Field(
+        default=None,
+        description="Passage B of a comparative RC set; None for a single-text "
+        "passage or an LG setup.",
+    )
+    title_a: str | None = Field(
+        default=None,
+        description="Heading for Passage A (comparative sets only).",
+    )
+    title_b: str | None = Field(
+        default=None,
+        description="Heading for Passage B (comparative sets only).",
     )
     setup: str | None = Field(
         default=None,
@@ -62,6 +107,33 @@ class PassageContext(BaseModel):
         description="Constraint list (LG). Empty for RC sets.",
     )
     source: str = "original (CC0)"
+
+    @property
+    def is_comparative(self) -> bool:
+        """True when this set pairs two passages (spec 047 FR-9)."""
+        return bool(self.passage_b)
+
+    @model_validator(mode="after")
+    def _comparative_sets_are_well_formed(self) -> PassageContext:
+        if self.passage_b is None:
+            return self
+        if self.section != "RC":
+            raise ValueError(
+                f"{self.id}: passage_b is a Reading Comprehension construct; "
+                f"section is {self.section!r}"
+            )
+        if not self.passage:
+            raise ValueError(
+                f"{self.id}: comparative set has Passage B but no Passage A"
+            )
+        if not (self.title_a and self.title_b):
+            # Without headings a reader cannot tell which text a question is
+            # about — and every comparative question stem names one of them.
+            raise ValueError(
+                f"{self.id}: comparative set must name both passages "
+                "(title_a and title_b)"
+            )
+        return self
 
 
 class Question(BaseModel):
@@ -96,6 +168,23 @@ class Question(BaseModel):
                 data.setdefault("section", section)
                 data.setdefault("type", section)
         return data
+
+    @model_validator(mode="after")
+    def _reject_writing_section(self) -> Question:
+        """Spec 047 FR-1/AC-2: ``WS`` has no keyed-choice representation.
+
+        Writing tasks produce an essay scored against a rubric, so they carry
+        no ``correct`` label and no distractors. Rejecting the code here keeps
+        the invariant at the one place it matters instead of making every
+        downstream consumer defend against a five-choice writing item.
+        """
+        if self.section == "WS" or self.type == "WS":
+            raise ValueError(
+                "section 'WS' (Argumentative Writing) has no multiple-choice "
+                "form — author it as a WritingPrompt in "
+                "law_ai.lsat.services.writing instead"
+            )
+        return self
 
 
 class Concept(BaseModel):

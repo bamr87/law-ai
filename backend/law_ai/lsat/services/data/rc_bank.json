@@ -1,1387 +1,1615 @@
 {
-    "items": [
+  "items": [
+    {
+      "id": "rc-001",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "passage_id": "rc-passage-001",
+      "stem": "Which one of the following most accurately expresses the main point of the passage?",
+      "choices": [
         {
-            "id": "rc-001",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "passage_id": "rc-passage-001",
-            "stem": "Which one of the following most accurately expresses the main point of the passage?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "Common-law courts have always preferred bright-line rules to flexible standards."
-                },
-                {
-                    "label": "B",
-                    "text": "Modern federal procedure has eliminated all procedural barriers facing pro se litigants."
-                },
-                {
-                    "label": "C",
-                    "text": "The drafters of the Federal Rules of Civil Procedure rejected the influence of the common-law tradition."
-                },
-                {
-                    "label": "D",
-                    "text": "Twombly and Iqbal returned the federal courts to nineteenth-century pleading standards."
-                },
-                {
-                    "label": "E",
-                    "text": "The shift from rigid pleading to notice pleading reflected a deliberate trade of doctrinal predictability for procedural access."
-                }
-            ],
-            "correct": "E",
-            "explanation": "The passage's central thesis is that the move to notice pleading was a *trade-off*: the drafters knowingly sacrificed some predictability to widen the courthouse door. E captures both halves. A overstates ('always'). B is contradicted by the closing paragraph. C is too strong — the passage says drafters were *informed by* the tradition, not that they rejected it. D confuses the post-Iqbal tightening with a full reversion.",
-            "concepts": [
-                "main-point",
-                "rc-structure"
-            ],
-            "references": [],
-            "source": "original (CC0)"
+          "label": "A",
+          "text": "Common-law courts have always preferred bright-line rules to flexible standards."
         },
         {
-            "id": "rc-002",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "hard",
-            "passage_id": "rc-passage-001",
-            "stem": "The author's attitude toward Twombly and Iqbal is best described as one of…",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "uncritical endorsement."
-                },
-                {
-                    "label": "B",
-                    "text": "open hostility."
-                },
-                {
-                    "label": "C",
-                    "text": "qualified concern."
-                },
-                {
-                    "label": "D",
-                    "text": "indifference."
-                },
-                {
-                    "label": "E",
-                    "text": "scholarly bewilderment."
-                }
-            ],
-            "correct": "C",
-            "explanation": "The author concedes that the cases addressed real problems (mass-tort fishing expeditions) but worries they 'risk reintroducing the very access barrier the 1938 drafters set out to dismantle.' That hedged worry is qualified concern (C), not endorsement, hostility, indifference, or bewilderment.",
-            "concepts": [
-                "author-attitude",
-                "rc-tone"
-            ],
-            "references": [],
-            "source": "original (CC0)"
+          "label": "B",
+          "text": "Modern federal procedure has eliminated all procedural barriers facing pro se litigants."
         },
         {
-            "id": "rc-003",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "easy",
-            "passage_id": "rc-passage-001",
-            "stem": "According to the passage, the original Federal Rules of Civil Procedure took effect in…",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "1938."
-                },
-                {
-                    "label": "B",
-                    "text": "1948."
-                },
-                {
-                    "label": "C",
-                    "text": "1957."
-                },
-                {
-                    "label": "D",
-                    "text": "1966."
-                },
-                {
-                    "label": "E",
-                    "text": "1975."
-                }
-            ],
-            "correct": "A",
-            "explanation": "Detail question. The passage states that 'the original Federal Rules of Civil Procedure … took effect in 1938.' 1957 is the year of Conley v. Gibson; the other dates appear nowhere as the adoption year.",
-            "concepts": [
-                "detail-question"
-            ],
-            "references": [],
-            "source": "original (CC0)"
+          "label": "C",
+          "text": "The drafters of the Federal Rules of Civil Procedure rejected the influence of the common-law tradition."
         },
         {
-            "id": "rc-004",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "passage_id": "rc-passage-001",
-            "stem": "The author mentions the Field Code of 1848 primarily in order to…",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "argue that fact pleading was superior to the notice pleading that followed it."
-                },
-                {
-                    "label": "B",
-                    "text": "illustrate an early reform effort that solved some problems but introduced new ones."
-                },
-                {
-                    "label": "C",
-                    "text": "show that New York courts led all other jurisdictions in procedural innovation."
-                },
-                {
-                    "label": "D",
-                    "text": "demonstrate that the writ system was never genuinely abandoned."
-                },
-                {
-                    "label": "E",
-                    "text": "establish that procedural reform inevitably fails."
-                }
-            ],
-            "correct": "B",
-            "explanation": "The Field Code is introduced as a 'partial remedy' to the writ system, but the next paragraph explains that 'fact pleading … generated its own pathologies.' B captures that role — an early reform that helped yet created new problems. A and E overstate the point; C and D assert claims the passage never makes.",
-            "concepts": [
-                "rc-structure"
-            ],
-            "references": [],
-            "source": "original (CC0)"
+          "label": "D",
+          "text": "Twombly and Iqbal returned the federal courts to nineteenth-century pleading standards."
         },
         {
-            "id": "rc-005",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "hard",
-            "passage_id": "rc-passage-001",
-            "stem": "It can most reasonably be inferred from the passage that defenders of Twombly and Iqbal believe that…",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "notice pleading should be abolished entirely."
-                },
-                {
-                    "label": "B",
-                    "text": "pro se litigants rarely file meritorious claims."
-                },
-                {
-                    "label": "C",
-                    "text": "Conley v. Gibson was wrongly decided from the outset."
-                },
-                {
-                    "label": "D",
-                    "text": "changes in litigation since 1938 justify a more demanding pleading standard."
-                },
-                {
-                    "label": "E",
-                    "text": "the Field Code offered a better model than the Federal Rules."
-                }
-            ],
-            "correct": "D",
-            "explanation": "Defenders 'note that mass-tort and antitrust complaints had created discovery abuses the 1938 drafters could not have foreseen' — i.e., new litigation conditions warrant a tougher standard, which is D. A, B, C, and E go well beyond anything the defenders are said to claim.",
-            "concepts": [
-                "rc-structure",
-                "author-attitude"
-            ],
-            "references": [],
-            "source": "original (CC0)"
-        },
-        {
-            "id": "rc-006",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "passage_id": "rc-passage-002",
-            "stem": "Which one of the following most accurately expresses the main point of the passage?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "Privity of contract was an indefensible doctrine that nineteenth-century courts should have abandoned far sooner than they did."
-                },
-                {
-                    "label": "B",
-                    "text": "American products-liability law moved from a privity bar through negligence to strict liability, yet strict liability retains substantial elements of negligence reasoning."
-                },
-                {
-                    "label": "C",
-                    "text": "MacPherson v. Buick eliminated the requirement that an injured consumer prove a manufacturer's negligence."
-                },
-                {
-                    "label": "D",
-                    "text": "The Restatement (Second) of Torts settled the long-running dispute over the proper basis of manufacturer liability."
-                },
-                {
-                    "label": "E",
-                    "text": "Justice Traynor's concurrence in Escola was the most influential single opinion in the history of American tort law."
-                }
-            ],
-            "correct": "B",
-            "explanation": "The passage traces an arc — privity bar, then negligence after MacPherson, then strict liability — and closes by stressing that strict liability still 'sits uneasily' with negligence reasoning. B captures both the arc and that tension. A states an evaluative claim the author never makes. C is false: the passage says MacPherson 'did not abolish the need to prove fault.' D is contradicted by the final paragraph, which says the question is still 'debatable.' E overstates a detail and is not the passage's overall point.",
-            "concepts": [
-                "main-point",
-                "rc-structure"
-            ],
-            "references": [],
-            "source": "original (CC0)"
-        },
-        {
-            "id": "rc-007",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "easy",
-            "passage_id": "rc-passage-002",
-            "stem": "According to the passage, the doctrine of privity of contract was crystallized in which one of the following cases?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "Winterbottom v. Wright."
-                },
-                {
-                    "label": "B",
-                    "text": "MacPherson v. Buick Motor Co."
-                },
-                {
-                    "label": "C",
-                    "text": "Escola v. Coca-Cola Bottling Co."
-                },
-                {
-                    "label": "D",
-                    "text": "Greenman v. Yuba Power Products."
-                },
-                {
-                    "label": "E",
-                    "text": "Conley v. Gibson."
-                }
-            ],
-            "correct": "A",
-            "explanation": "Detail question. The first paragraph states that privity of contract was 'crystallized in the English case Winterbottom v. Wright (1842).' MacPherson (B) cracked the privity rule; Escola (C) and Greenman (D) belong to the strict-liability story; Conley v. Gibson (E) is a civil-procedure case that does not appear in this passage at all.",
-            "concepts": [
-                "detail-question"
-            ],
-            "references": [],
-            "source": "original (CC0)"
-        },
-        {
-            "id": "rc-008",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "passage_id": "rc-passage-002",
-            "stem": "The author refers to Justice Traynor's concurrence in Escola primarily in order to",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "demonstrate that strict liability had already become the governing rule by 1944."
-                },
-                {
-                    "label": "B",
-                    "text": "identify an early judicial argument for strict liability that courts would adopt only later."
-                },
-                {
-                    "label": "C",
-                    "text": "criticize the Escola majority for reasoning that was internally inconsistent."
-                },
-                {
-                    "label": "D",
-                    "text": "show that Cardozo's approach in MacPherson had been formally overruled."
-                },
-                {
-                    "label": "E",
-                    "text": "establish that risk distribution is an inadequate justification for liability."
-                }
-            ],
-            "correct": "B",
-            "explanation": "The passage presents the 1944 concurrence as urging a change that 'prevailed a generation later' in Greenman (1963) and §402A (1965) — i.e., an early argument adopted only afterward, which is B. A misreads the timeline (it was a concurrence, not the governing rule). C and D describe moves the author never makes. E states a critique the author raises only as one side of a 'debatable' question, not the reason for citing Traynor.",
-            "concepts": [
-                "rc-structure"
-            ],
-            "references": [],
-            "source": "original (CC0)"
-        },
-        {
-            "id": "rc-009",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "hard",
-            "passage_id": "rc-passage-002",
-            "stem": "The author's attitude toward describing modern products-liability law as 'strict' is best characterized as one of",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "enthusiastic agreement."
-                },
-                {
-                    "label": "B",
-                    "text": "measured skepticism."
-                },
-                {
-                    "label": "C",
-                    "text": "outright rejection of strict liability as a concept."
-                },
-                {
-                    "label": "D",
-                    "text": "indifference to how the doctrine is labeled."
-                },
-                {
-                    "label": "E",
-                    "text": "nostalgia for the privity requirement."
-                }
-            ],
-            "correct": "B",
-            "explanation": "In the final paragraph the author concedes strict liability's risk-distribution rationale but warns that the 'strict-liability label can obscure how much negligence reasoning survives within it' — a hedged, doubting stance toward the label, i.e., measured skepticism (B). A is too positive. C overstates: the author questions the label, not the doctrine's existence. D is wrong because the author plainly cares about the label's accuracy. E finds no support; the author calls privity a remedyless 'price' borne by consumers.",
-            "concepts": [
-                "author-attitude",
-                "rc-tone"
-            ],
-            "references": [],
-            "source": "original (CC0)"
-        },
-        {
-            "id": "rc-010",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "easy",
-            "stem": "According to the passage, the appellate court in People v. Collins reversed the conviction on which one of the following grounds?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "The underlying trait frequencies were unproven, and they were multiplied together as if each trait were independent."
-                },
-                {
-                    "label": "B",
-                    "text": "The one-in-twelve-million figure was too small to support any inference of guilt."
-                },
-                {
-                    "label": "C",
-                    "text": "Statistical evidence is categorically inadmissible in criminal trials."
-                },
-                {
-                    "label": "D",
-                    "text": "The eyewitnesses' descriptions of the couple conflicted with one another."
-                },
-                {
-                    "label": "E",
-                    "text": "The prosecution introduced no physical evidence linking the couple to the crime."
-                }
-            ],
-            "correct": "A",
-            "explanation": "Paragraph 2 states that the court reversed because the individual frequencies 'were never established by evidence' and that multiplying them 'assumed, without proof, that each trait was statistically independent.' A restates exactly that ground. B misreads the objection — the court faulted the figure's foundation, not its size, and the passage never says a small probability cannot support an inference. C overstates: the paragraph on DNA shows statistics are not categorically barred. D and E describe facts (conflicting descriptions, missing physical evidence) the passage never mentions.",
-            "concepts": [
-                "detail-question"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-003"
-        },
-        {
-            "id": "rc-011",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "easy",
-            "stem": "According to the passage, the doctrine of prior appropriation differs from the riparian doctrine in that prior appropriation",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "treats flowing water as a resource held in common by every landowner the stream touches."
-                },
-                {
-                    "label": "B",
-                    "text": "forbids any user from depleting the flow so as to defeat a neighbor's reasonable use."
-                },
-                {
-                    "label": "C",
-                    "text": "assigns water rights to whoever first diverted the water to a beneficial use, independent of land ownership."
-                },
-                {
-                    "label": "D",
-                    "text": "allocates water through time-limited permits issued by an administrative agency."
-                },
-                {
-                    "label": "E",
-                    "text": "guarantees every claimant a proportional share of the water during a shortage."
-                }
-            ],
-            "correct": "C",
-            "explanation": "Paragraph 2 states that prior appropriation 'severed water rights from land ownership entirely and awarded them instead to whoever first diverted the water and put it to a recognized beneficial use.' C restates exactly that. A and B describe the riparian doctrine of paragraph 1 (water 'held in common' and the bar on so depleting the flow as 'to defeat a neighbor's reasonable use'), not appropriation. D describes the regulated-riparian permit regime of paragraph 3, not appropriation. E is contradicted: under appropriation a senior holder 'took a full allotment while junior holders received nothing,' so no proportional share is guaranteed.",
-            "concepts": [
-                "detail-question",
-                "rc-structure"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-004"
-        },
-        {
-            "id": "rc-012",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "easy",
-            "stem": "According to the passage, the Court of King's Bench relied on a legal fiction in order to",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "codify a rule that the legislature had declined to enact"
-                },
-                {
-                    "label": "B",
-                    "text": "conceal from the public the identity of the judges who governed them"
-                },
-                {
-                    "label": "C",
-                    "text": "hear cases that would otherwise have fallen outside its authority"
-                },
-                {
-                    "label": "D",
-                    "text": "relieve overcrowding among the prisoners in its custody"
-                },
-                {
-                    "label": "E",
-                    "text": "establish that a fictitious trespass was itself an actionable wrong"
-                }
-            ],
-            "correct": "C",
-            "explanation": "The first paragraph explains that the King's Bench 'could ordinarily try only prisoners already in its custody, so it invented the supposition' of a fictitious trespass — a pretense that 'quietly extended the court's reach far beyond its original bounds.' (C) captures exactly this jurisdiction-expanding purpose and is correct. (A) fails because the passage says 'no statute authorized the maneuver'; the fiction substituted for legislation rather than codifying any rule the legislature had refused to pass. (B) imports Bentham's later charge of deceit, but the paragraph describes the aim as enlarging authority, not hiding the judges' identities. (D) misreads the 'custody,' which was itself the fiction — the court was not thinning out real prisoners. (E) inverts the device: the trespass was a pretense used to reach the case, not a wrong the court sought to establish as actionable.",
-            "concepts": [
-                "detail-question"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-005"
-        },
-        {
-            "id": "rc-013",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "The author refers to People v. Collins primarily in order to",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "prove that eyewitness identifications are inherently unreliable."
-                },
-                {
-                    "label": "B",
-                    "text": "illustrate how the appearance of mathematical precision can lend false certainty to an unsupported factual premise."
-                },
-                {
-                    "label": "C",
-                    "text": "establish that appellate courts rarely disturb jury verdicts."
-                },
-                {
-                    "label": "D",
-                    "text": "endorse the prosecution's method of multiplying trait frequencies."
-                },
-                {
-                    "label": "E",
-                    "text": "show that criminal convictions require a higher probability than civil liability."
-                }
-            ],
-            "correct": "B",
-            "explanation": "Paragraph 2 presents Collins 'as a caution against the aura of certainty that a large number can lend to a shaky factual premise' — precisely the role B names. A misidentifies the lesson as being about eyewitness reliability rather than the misuse of probability. C asserts a claim the passage never makes, and Collins was itself a reversal. D reverses the author's stance; both the court and the author criticize the multiplication. E imports the criminal-versus-civil burden contrast, which belongs to the gatecrasher discussion, not to why Collins is cited.",
-            "concepts": [
-                "rc-structure"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-003"
-        },
-        {
-            "id": "rc-014",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "easy",
-            "stem": "According to the passage, proponents of actuarial risk-assessment instruments claim that the instruments do which one of the following?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "Eliminate the need for a judge to review a defendant's case file."
-                },
-                {
-                    "label": "B",
-                    "text": "Apply a uniform standard to defendants whose circumstances are alike."
-                },
-                {
-                    "label": "C",
-                    "text": "Guarantee that no defendant will be wrongly detained before trial."
-                },
-                {
-                    "label": "D",
-                    "text": "Predict rearrest more accurately than any human expert could."
-                },
-                {
-                    "label": "E",
-                    "text": "Remove race entirely from bail and sentencing decisions."
-                }
-            ],
-            "correct": "B",
-            "explanation": "The second paragraph credits the instruments with the ability to 'impose a welcome consistency, ensuring that similarly situated defendants are scored by the same yardstick,' which is precisely (B). (A) is never claimed; the case file is mentioned only as part of the older discretionary practice. (C) overstates; nothing in the passage promises a guarantee against wrongful detention. (D) overshoots the modest claim that an instrument can 'flag patterns that an overworked judge... will miss'—that is not a claim of superiority over any human expert. (E) is contradicted by the third paragraph, where the author says the proxies actually track race rather than removing it.",
-            "concepts": [
-                "detail-question"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-006"
-        },
-        {
-            "id": "rc-015",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "easy",
-            "stem": "Which one of the following most accurately states the main point of the passage?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "Legal fictions are defensible devices whose value depends on their remaining openly recognized as fictions."
-                },
-                {
-                    "label": "B",
-                    "text": "Legal fictions were indispensable to the early common law but have no place in a modern codified system."
-                },
-                {
-                    "label": "C",
-                    "text": "Bentham and Fuller reached incompatible conclusions only because they examined different historical periods."
-                },
-                {
-                    "label": "D",
-                    "text": "The fiction of corporate personhood shows why courts should abandon metaphorical reasoning altogether."
-                },
-                {
-                    "label": "E",
-                    "text": "Judicial lawmaking is illegitimate whenever it proceeds by way of a fiction rather than open declaration."
-                }
-            ],
-            "correct": "A",
-            "explanation": "The fourth paragraph states the thesis: the author 'leans toward Fuller, but with a qualification' — a fiction 'is worth its cost only so long as it remains visible as a fiction,' since a labeled fiction 'invites the very reform Bentham wanted' while a hardened one 'buries a contestable policy choice.' (A) states exactly this and is correct. (B) echoes Bentham's position, which the author rejects, and the author never says fictions lack a modern place. (C) seizes on the detail that Fuller wrote 'a century later,' but the passage never blames their disagreement on differing eras, and this is not the central claim. (D) misuses the corporate-personhood example, which Fuller offers to show fictions can honestly express, not to condemn metaphor. (E) restates Bentham's rejected view that fiction-based lawmaking is inherently illegitimate.",
-            "concepts": [
-                "main-point"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-005"
-        },
-        {
-            "id": "rc-016",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "The passage suggests that Bentham would most likely have regarded a legal system's continued reliance on fictions as evidence that",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "the system's judges were unusually inventive"
-                },
-                {
-                    "label": "B",
-                    "text": "the system had successfully avoided unjust outcomes"
-                },
-                {
-                    "label": "C",
-                    "text": "the system relied too heavily on its legislature"
-                },
-                {
-                    "label": "D",
-                    "text": "the system's litigants preferred flexibility to predictability"
-                },
-                {
-                    "label": "E",
-                    "text": "the system's written law had not yet been adequately reformed"
-                }
-            ],
-            "correct": "E",
-            "explanation": "Paragraph two reports Bentham's view that a fiction 'was always a confession of failure — proof that the written law had grown inadequate,' and that a codified system 'would dispense with fictions entirely; their persistence was a symptom of arrested legal development.' Combining these, continued reliance on fictions signals to Bentham that the written law remains unreformed, so (E) is correct. (A) contradicts the text, which says persistence was 'not a sign of judicial ingenuity.' (B) overreads: Bentham condemned fictions and would not treat their survival as proof that injustice had been avoided. (C) reverses his commitments — he favored legislative codification and viewed fictions as a sign of too little legislative reform, not excessive reliance on the legislature. (D) attributes the practice to litigants' tastes, a cause the passage never mentions.",
-            "concepts": [
-                "rc-inference"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-005"
-        },
-        {
-            "id": "rc-017",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "The author's attitude toward Bentham's critique of legal fictions is best described as",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "complete agreement with both its conclusion and its reasoning"
-                },
-                {
-                    "label": "B",
-                    "text": "dismissal of it as wholly without foundation"
-                },
-                {
-                    "label": "C",
-                    "text": "neutrality born of an unwillingness to take sides"
-                },
-                {
-                    "label": "D",
-                    "text": "partial validation of its underlying worry combined with rejection of its diagnosis"
-                },
-                {
-                    "label": "E",
-                    "text": "admiration for its rhetorical force but indifference to its substance"
-                }
-            ],
-            "correct": "D",
-            "explanation": "In the final paragraph the author writes that 'Bentham's alarm, then, is not baseless; it simply misidentifies the culprit,' locating the fault in 'the profession's habit of mistaking a useful metaphor for a discovery' rather than in fictions themselves. That is partial endorsement of the worry plus rejection of the diagnosis, so (D) is correct. (A) is too strong — the author sides with Fuller and rejects Bentham's diagnosis. (B) is refuted directly by 'not baseless.' (C) misreads the author, who plainly 'leans toward Fuller' rather than remaining neutral. (E) is unsupported: the author engages Bentham's substance closely, correcting rather than ignoring it.",
-            "concepts": [
-                "author-attitude",
-                "rc-tone"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-005"
-        },
-        {
-            "id": "rc-018",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "Which one of the following most accurately expresses the main point of the passage?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "Courts should abandon their resistance to statistical evidence, which rests on nothing more than innumeracy."
-                },
-                {
-                    "label": "B",
-                    "text": "People v. Collins demonstrates that probability calculations have no legitimate role in the courtroom."
-                },
-                {
-                    "label": "C",
-                    "text": "The law's wariness toward naked statistics is best understood as a demand for individualized, methodologically transparent proof rather than an aversion to numbers."
-                },
-                {
-                    "label": "D",
-                    "text": "DNA profiling has resolved the long-standing debate over the admissibility of statistical evidence."
-                },
-                {
-                    "label": "E",
-                    "text": "The civil preponderance standard should be raised above the 0.501 threshold to prevent unjust verdicts."
-                }
-            ],
-            "correct": "C",
-            "explanation": "The thesis emerges across paragraphs 3 and 4: the law's resistance 'defends this demand for particularized evidence' and is 'not a superstition about digits,' and quantified proof 'earns its place when its method is auditable and its inference individualized.' C captures both halves. A inverts the author, who endorses the instinct and calls the discomfort 'not mere innumeracy.' B overreads Collins; the DNA example shows numbers can belong in court. D overstates — DNA illustrates the principle rather than resolving the debate. E seizes on the 0.501 detail and urges a reform the passage never proposes.",
-            "concepts": [
-                "main-point"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-003"
-        },
-        {
-            "id": "rc-019",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "The discussion of the gatecrasher hypothetical (the rodeo attendees) functions primarily to",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "provide a real case in which a court awarded damages on statistical evidence alone."
-                },
-                {
-                    "label": "B",
-                    "text": "demonstrate that the preponderance standard is too lenient for civil cases."
-                },
-                {
-                    "label": "C",
-                    "text": "concede that naked statistical evidence is usually sufficient to prove liability."
-                },
-                {
-                    "label": "D",
-                    "text": "show that a probability can exceed the applicable burden and still fail for want of individualized evidence."
-                },
-                {
-                    "label": "E",
-                    "text": "illustrate the transparent methodology that makes DNA evidence acceptable."
-                }
-            ],
-            "correct": "D",
-            "explanation": "In paragraph 3 the author invokes the 0.501 figure — which 'formally exceeds the civil preponderance standard' — to show that 'what the naked number lacks is individualized proof.' D states that role. A is false twice over: the rodeo case is a hypothetical, not a real case, and no one collects. B misreads the point as a complaint about the standard's leniency rather than about missing particularized evidence. C asserts the reverse of the author's conclusion. E attaches the hypothetical to the DNA methodology discussed later, in paragraph 4.",
-            "concepts": [
-                "rc-structure"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-003"
-        },
-        {
-            "id": "rc-020",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "The author's attitude toward the current use of actuarial risk-assessment instruments in bail and sentencing is best described as one of…",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "unreserved enthusiasm."
-                },
-                {
-                    "label": "B",
-                    "text": "bemused detachment."
-                },
-                {
-                    "label": "C",
-                    "text": "qualified wariness."
-                },
-                {
-                    "label": "D",
-                    "text": "outright condemnation."
-                },
-                {
-                    "label": "E",
-                    "text": "complete indifference."
-                }
-            ],
-            "correct": "C",
-            "explanation": "The author concedes 'the case for these tools is not frivolous' yet insists that 'my reservation is narrower but firm'—a hedged, cautionary stance, i.e., qualified wariness (C). (A) is wrong because the reservation is explicit and firm. (B) fails because the author is engaged and takes a clear side rather than standing amused and aloof. (D) is expressly ruled out by the refusal 'to condemn them wholesale.' (E) is impossible given how much concern the author registers about opacity and biased proxies.",
-            "concepts": [
-                "author-attitude",
-                "rc-tone"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-006"
-        },
-        {
-            "id": "rc-021",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "Which one of the following most accurately expresses the main point of the passage?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "The riparian and prior appropriation doctrines are equally unsuited to every jurisdiction, whatever its climate."
-                },
-                {
-                    "label": "B",
-                    "text": "Wherever water has grown scarce, prior appropriation should displace the older riparian doctrine."
-                },
-                {
-                    "label": "C",
-                    "text": "The history of water law shows that no legal rule can allocate a scarce resource fairly."
-                },
-                {
-                    "label": "D",
-                    "text": "Because neither the riparian nor the appropriation doctrine adequately meets modern scarcity, regulated riparianism, despite a genuine cost in predictability, is the better framework."
-                },
-                {
-                    "label": "E",
-                    "text": "Administrative permit systems have eliminated the disputes that once arose under the common law of water."
-                }
-            ],
-            "correct": "D",
-            "explanation": "The passage argues that because neither pure doctrine 'serves a modern jurisdiction well,' regulated riparianism is 'the more promising path,' while conceding that 'predictability has genuine value.' D captures both the rejection of the two older rules and the qualified preference for regulation. A misstates the thesis—the author faults the two doctrines for a modern jurisdiction, not 'equally' and everywhere. B backs the wrong winner: the author prefers regulated riparianism, not prior appropriation. C is contradicted, since the author thinks a scarce resource can be allocated well. E overstates—the passage never claims permit systems have 'eliminated' disputes.",
-            "concepts": [
-                "main-point",
-                "rc-structure"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-004"
-        },
-        {
-            "id": "rc-022",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "Which one of the following most accurately describes the organization of the passage?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "A doctrine is described; a competing doctrine is shown to be superior; the two are then merged into one rule."
-                },
-                {
-                    "label": "B",
-                    "text": "A traditional doctrine is presented; a rival that arose to remedy its limits is introduced; the author advances a synthesizing approach and defends it against an objection."
-                },
-                {
-                    "label": "C",
-                    "text": "A problem is posed; two failed solutions are catalogued; the author concludes that the problem is insoluble."
-                },
-                {
-                    "label": "D",
-                    "text": "A reform is proposed; historical precedents for it are surveyed; the reform is then abandoned in favor of an older rule."
-                },
-                {
-                    "label": "E",
-                    "text": "Two doctrines are compared; empirical evidence is marshaled to test each; a policy recommendation follows from the data."
-                }
-            ],
-            "correct": "B",
-            "explanation": "The passage presents the riparian doctrine (paragraph 1), introduces prior appropriation as the rival that 'arose in answer' to riparianism's failure in arid country (paragraph 2), advances regulated riparianism as a synthesis the author endorses (paragraph 3), and defends it against 'the objection most often pressed' (paragraph 4). B tracks that sequence. A is wrong because the rival appropriation doctrine is never shown to be superior. C is wrong because the author treats the problem as soluble, not 'insoluble.' D inverts the structure—no reform is abandoned for an older rule. E is wrong because no empirical evidence or data is marshaled to test the doctrines.",
-            "concepts": [
-                "rc-structure"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-004"
-        },
-        {
-            "id": "rc-023",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "Which one of the following most accurately expresses the main point of the passage?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "The reasonable-person standard should be replaced with a test that measures each defendant against his own capacities."
-                },
-                {
-                    "label": "B",
-                    "text": "Because ordinary morality excuses those who do their best, negligence law is fundamentally unjust to the less capable."
-                },
-                {
-                    "label": "C",
-                    "text": "Although criticized as unfair to those who cannot meet it, the objective standard is best justified as a pragmatic device for allocating the risks of human variation."
-                },
-                {
-                    "label": "D",
-                    "text": "Courts have increasingly abandoned the objective standard in favor of individualized inquiries into fault."
-                },
-                {
-                    "label": "E",
-                    "text": "The exceptions courts make for children and the suddenly incapacitated show that the objective standard is ultimately incoherent."
-                }
-            ],
-            "correct": "C",
-            "explanation": "The thesis spans the whole arc: the passage presents the objection (para 2), answers it by recasting the standard as a risk-allocation rule (para 3), and argues the exceptions confirm that logic (para 4). C captures both the criticism and the author's pragmatic defense. A recommends replacing the standard, the opposite of the author's endorsement. B states the critics' position as though it were the author's conclusion. D asserts a wholesale abandonment the passage denies, noting only 'limited' carve-outs. E calls the standard 'incoherent,' but the author says the carve-outs 'confirm the allocative logic.'",
-            "concepts": [
-                "main-point",
-                "rc-structure"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-007"
-        },
-        {
-            "id": "rc-024",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "It can most reasonably be inferred that Fuller would consider the description of a corporation as a 'person' objectionable only if",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "the legislature had not expressly authorized it"
-                },
-                {
-                    "label": "B",
-                    "text": "readers came to treat it as a literal fact rather than a shorthand"
-                },
-                {
-                    "label": "C",
-                    "text": "it were used to enlarge a court's jurisdiction"
-                },
-                {
-                    "label": "D",
-                    "text": "it appeared in a criminal proceeding rather than a civil one"
-                },
-                {
-                    "label": "E",
-                    "text": "Bentham's account of judicial deceit turned out to be correct"
-                }
-            ],
-            "correct": "B",
-            "explanation": "Paragraph three says Fuller thought the corporate-'person' fiction 'asserts no falsehood' but warned that a fiction 'can curdle into dogma' when 'later readers may forget the silent \"as if\" and mistake the metaphor for a fact.' The objection therefore arises only when the shorthand is taken literally, so (B) is correct. (A) states a Benthamite condition — legislative authorization — that Fuller never adopts as his test. (C) borrows the jurisdiction example from paragraph one, which has nothing to do with Fuller's criterion for corporate personhood. (D) invents a civil/criminal distinction the passage never draws. (E) is unsupported: Fuller 'declined to join in the condemnation,' so he does not make his objection depend on Bentham being right.",
-            "concepts": [
-                "rc-inference"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-005"
-        },
-        {
-            "id": "rc-025",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "hard",
-            "stem": "The passage most strongly supports which one of the following statements about a legal fiction whose artificiality has been forgotten?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "It has achieved the kind of permanence that Bentham thought all sound law should have."
-                },
-                {
-                    "label": "B",
-                    "text": "It is more likely to prompt legislative reform than a fiction that is openly labeled."
-                },
-                {
-                    "label": "C",
-                    "text": "It no longer performs the function that led Fuller to defend fictions in the first place."
-                },
-                {
-                    "label": "D",
-                    "text": "It exemplifies the honest expression that Fuller distinguished from deception."
-                },
-                {
-                    "label": "E",
-                    "text": "It would be endorsed by the author as among the soundest kind of fiction."
-                }
-            ],
-            "correct": "C",
-            "explanation": "Fuller defended fictions as 'an honest device for saying something new,' one that openly expresses a not-yet-named relationship (paragraph three); the author adds that once a fiction hardens and its artificiality is forgotten, 'it does the opposite' of inviting reform and instead 'buries a contestable policy choice beneath the appearance of settled truth' (paragraph four). Combining the two, a forgotten fiction has stopped doing the transparent, expressive work that justified Fuller's defense, so (C) is correct. (A) misattributes to Bentham a taste for entrenched fictions; he wanted them replaced by open codification, not made permanent. (B) reverses the text — the openly labeled fiction, not the forgotten one, 'invites the very reform Bentham wanted.' (D) describes the honest-expression pole, whereas a forgotten fiction is precisely the case where the 'as if' is lost. (E) contradicts the author, for whom 'the soundest fictions are the ones that announce their own eventual obsolescence,' the opposite of a forgotten one.",
-            "concepts": [
-                "rc-inference"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-005"
-        },
-        {
-            "id": "rc-026",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "The author's attitude toward the courts' resistance to naked statistical evidence is best described as",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "unqualified endorsement of every application of the doctrine."
-                },
-                {
-                    "label": "B",
-                    "text": "detached neutrality that declines to take any position."
-                },
-                {
-                    "label": "C",
-                    "text": "sweeping dismissal of the doctrine as rooted in innumeracy."
-                },
-                {
-                    "label": "D",
-                    "text": "alarm that the doctrine has rendered statistical evidence categorically inadmissible."
-                },
-                {
-                    "label": "E",
-                    "text": "sustained approval of its core impulse, tempered by concern that it can harden into reflexive hostility."
-                }
-            ],
-            "correct": "E",
-            "explanation": "The author writes 'I share the courts' underlying instinct' and defends it as principled in paragraph 3, then concedes in paragraph 4 that 'the doctrine can curdle into reflexive hostility, and here the critics have a point.' E captures that approval-with-caveat. A ignores the paragraph 4 concession. B is contradicted by the first-person endorsement. C inverts the author, who says the discomfort 'is not mere innumeracy.' D overstates — the passage notes DNA statistics are 'routinely admit[ted],' so nothing is categorically barred.",
-            "concepts": [
-                "author-attitude"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-003"
-        },
-        {
-            "id": "rc-027",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "hard",
-            "stem": "The passage most strongly supports which one of the following statements about DNA profiling evidence?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "It would be inadmissible under the reasoning the appellate court applied in Collins."
-                },
-                {
-                    "label": "B",
-                    "text": "Its acceptance shows that the objection to statistical proof was never directed at quantification as such."
-                },
-                {
-                    "label": "C",
-                    "text": "It satisfies the individualization concern only because its random-match figure is smaller than the figure in Collins."
-                },
-                {
-                    "label": "D",
-                    "text": "It has replaced the civil preponderance standard with a probabilistic threshold."
-                },
-                {
-                    "label": "E",
-                    "text": "Its use has been resisted by courts on the same grounds that doomed the Collins calculation."
-                }
-            ],
-            "correct": "B",
-            "explanation": "Paragraph 4 observes that DNA evidence 'is every bit as statistical as the one in Collins' yet is admitted because it rests on 'a transparent, replicable methodology' and 'a sample drawn from the defendant himself,' concluding that 'the objection was never to numbers as such.' B is that supported inference. A is contradicted — the passage distinguishes DNA precisely so that Collins-style objections do not reach it. C fixes on magnitude, but the passage grounds the difference in auditable method and individualized source, not the size of the figure. D invents a doctrinal change the passage never mentions. E contradicts the statement that 'courts today routinely admit DNA profiling.'",
-            "concepts": [
-                "rc-inference"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-003"
-        },
-        {
-            "id": "rc-028",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "Which one of the following most accurately expresses the main point of the passage?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "Actuarial risk-assessment instruments should be banned from bail and sentencing decisions."
-                },
-                {
-                    "label": "B",
-                    "text": "Judicial intuition has proven more reliable than any statistical instrument."
-                },
-                {
-                    "label": "C",
-                    "text": "Proprietary instruments are unconstitutional because defendants cannot inspect them."
-                },
-                {
-                    "label": "D",
-                    "text": "Although actuarial instruments could improve on discretionary judgment, their adoption has outrun the safeguards needed to make them trustworthy."
-                },
-                {
-                    "label": "E",
-                    "text": "The disparities produced by human judges justify replacing them with statistical formulas."
-                }
-            ],
-            "correct": "D",
-            "explanation": "The passage grants the instruments' promise (paragraph two) but rests on the fourth paragraph's warning that 'the pace of adoption has badly outrun the development of these safeguards'—exactly (D). (A) is contradicted by the author's stated refusal 'to condemn them wholesale.' (B) misreads the passage, which concedes an instrument can catch patterns a judge misses. (C) inflates the opacity concern into a constitutional claim the author never makes. (E) endorses full replacement, whereas the author wants the instruments used only 'as one input among many.'",
-            "concepts": [
-                "main-point"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-006"
-        },
-        {
-            "id": "rc-029",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "The author's attitude toward regulated riparianism is most accurately described as",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "unqualified enthusiasm untroubled by any drawback."
-                },
-                {
-                    "label": "B",
-                    "text": "detached neutrality as between it and its rivals."
-                },
-                {
-                    "label": "C",
-                    "text": "initial approval that gives way to serious doubt."
-                },
-                {
-                    "label": "D",
-                    "text": "skepticism relieved only by grudging acknowledgment of its convenience."
-                },
-                {
-                    "label": "E",
-                    "text": "qualified endorsement that acknowledges a genuine cost."
-                }
-            ],
-            "correct": "E",
-            "explanation": "The author calls regulated riparianism 'the more promising path' and concludes that 'the trade favors regulation,' yet grants that 'predictability has genuine value.' E—qualified endorsement acknowledging a genuine cost—fits precisely. A is wrong because the author expressly concedes a drawback. B is wrong because the author is not neutral but takes a side. C is wrong because the approval never 'gives way' to doubt; the endorsement stands. D reverses the polarity: the author endorses the approach rather than merely tolerating it.",
-            "concepts": [
-                "author-attitude",
-                "rc-structure"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-004"
-        },
-        {
-            "id": "rc-030",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "The primary function of the fourth paragraph is to",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "raise the objection most pressed against the author's preferred approach and then argue that, on balance, it does not defeat that approach."
-                },
-                {
-                    "label": "B",
-                    "text": "introduce a third doctrine that the earlier paragraphs had not considered."
-                },
-                {
-                    "label": "C",
-                    "text": "summarize the historical developments described in the first three paragraphs."
-                },
-                {
-                    "label": "D",
-                    "text": "concede that the author's recommendation should ultimately be withdrawn."
-                },
-                {
-                    "label": "E",
-                    "text": "supply empirical data confirming the superiority of prior appropriation."
-                }
-            ],
-            "correct": "A",
-            "explanation": "Paragraph 4 opens by granting that 'the objection most often pressed against such systems is real'—the loss of predictability—and then answers that 'on balance the trade favors regulation.' A describes exactly that raise-then-rebut move. B is wrong: no new third doctrine is introduced, since regulated riparianism was already presented in paragraph 3. C is wrong because the paragraph argues rather than merely summarizing the history. D is wrong because the author does not withdraw the recommendation but reaffirms it. E is wrong because no empirical data appears, and the paragraph does not favor prior appropriation.",
-            "concepts": [
-                "rc-structure"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-004"
-        },
-        {
-            "id": "rc-031",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "hard",
-            "stem": "The passage most strongly supports which one of the following statements?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "A junior appropriator is guaranteed at least a partial allotment during a shortage."
-                },
-                {
-                    "label": "B",
-                    "text": "Regulated riparian permit systems place an agency's allocation decisions beyond judicial review."
-                },
-                {
-                    "label": "C",
-                    "text": "In a region where water is abundant, the riparian doctrine's premise of common sharing is not obviously untenable."
-                },
-                {
-                    "label": "D",
-                    "text": "Prior appropriation emerged in the eastern states before spreading to the arid West."
-                },
-                {
-                    "label": "E",
-                    "text": "Under a regulated riparian permit system the reasonableness of a proposed use plays no part in allocation."
-                }
-            ],
-            "correct": "C",
-            "explanation": "Paragraph 1 grounds riparianism in the fact that 'water in a well-watered landscape is rarely scarce enough to exhaust,' and paragraph 2 says that 'premise collapses in arid country'; together these support C—where water is abundant the sharing premise remains tenable. A is contradicted: junior holders 'received nothing' in a shortage. B is contradicted: the author notes that 'the agency's decisions are reviewable.' D is contradicted: appropriation 'arose' in 'the mining camps of the nineteenth-century American West,' not first in the East. E is contradicted: 'the reasonableness of the use' is an express permit criterion.",
-            "concepts": [
-                "rc-inference",
-                "rc-structure"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-004"
-        },
-        {
-            "id": "rc-032",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "easy",
-            "stem": "According to the passage, critics of the objective reasonable-person standard object to it primarily on the ground that it",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "holds defendants liable even when a reasonable person would have acted in exactly the same way."
-                },
-                {
-                    "label": "B",
-                    "text": "condemns individuals for limitations they were unable to overcome."
-                },
-                {
-                    "label": "C",
-                    "text": "requires juries to conduct a searching inquiry into each defendant's personal capacities."
-                },
-                {
-                    "label": "D",
-                    "text": "has grown too complicated for modern juries to apply consistently."
-                },
-                {
-                    "label": "E",
-                    "text": "excuses careless conduct whenever a defendant can show that he tried his best."
-                }
-            ],
-            "correct": "B",
-            "explanation": "Paragraph two states the critics' complaint directly: the law holds 'the slow-witted, the inexperienced, and the congenitally clumsy to the same external measure,' 'condemning them for shortcomings they could not have overcome.' B restates exactly that objection. A misdescribes the complaint — critics do not object that identical reasonable conduct yields liability; they object that those who cannot meet the standard are condemned. C inverts the passage: the standard is faulted for refusing to inquire into personal capacities, not for requiring such inquiry. D contradicts paragraph one, which praises the standard as 'administrable.' E describes the moral excuse that the standard pointedly rejects, not the critics' objection to the standard.",
-            "concepts": [
-                "detail-question"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-007"
-        },
-        {
-            "id": "rc-033",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "It can most reasonably be inferred that the author would regard actuarial instruments as substantially more acceptable if…",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "judges were required to defer to the instrument's score in every case."
-                },
-                {
-                    "label": "B",
-                    "text": "the instruments were adopted more rapidly and in more jurisdictions."
-                },
-                {
-                    "label": "C",
-                    "text": "their scores were kept confidential from defendants to prevent gaming."
-                },
-                {
-                    "label": "D",
-                    "text": "proponents stopped comparing them to discretionary judgment."
-                },
-                {
-                    "label": "E",
-                    "text": "their methods were opened to independent validation and their bias-laden proxies removed."
-                }
-            ],
-            "correct": "E",
-            "explanation": "The fourth paragraph states the instruments 'might yet deliver' on their promise if 'subjected to independent validation, and stripped of the proxies most likely to smuggle in bias'—directly yielding (E). (A) reverses the author's preference for treating a score as merely 'one input among many.' (B) worsens the very problem the author names: adoption outrunning safeguards. (C) deepens the opacity the author criticizes as shielding instruments 'from the defendants they score.' (D) misses the point; the objection concerns the proxies and secrecy, not the rhetorical comparison.",
-            "concepts": [
-                "rc-inference"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-006"
-        },
-        {
-            "id": "rc-034",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "The author's attitude toward the proponents' argument that a transparent formula is preferable to unexamined intuition is best characterized as…",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "acknowledgment of its force coupled with doubt that it settles the matter."
-                },
-                {
-                    "label": "B",
-                    "text": "enthusiastic and unqualified agreement."
-                },
-                {
-                    "label": "C",
-                    "text": "dismissal of it as plainly mistaken."
-                },
-                {
-                    "label": "D",
-                    "text": "suspicion that it is offered in bad faith."
-                },
-                {
-                    "label": "E",
-                    "text": "indifference to whether it is sound."
-                }
-            ],
-            "correct": "A",
-            "explanation": "The author says proponents 'point out, fairly,' and that 'the formula would seem the safer bet,' granting the argument real force; but the very next paragraph, opening 'Yet the formula is rarely transparent,' shows the author doubts it settles the question—hence (A). (B) ignores that pivot into reservation. (C) contradicts the concession that the point is fair and 'not frivolous.' (D) has no basis; the author never impugns the proponents' motives. (E) is refuted by the sustained, serious engagement the author gives the argument.",
-            "concepts": [
-                "author-attitude",
-                "rc-tone"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-006"
-        },
-        {
-            "id": "rc-035",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "The author's attitude toward the objective reasonable-person standard is best described as one of",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "unqualified enthusiasm for the moral rigor it demands of defendants."
-                },
-                {
-                    "label": "B",
-                    "text": "deep ambivalence about whether it can be justified at all."
-                },
-                {
-                    "label": "C",
-                    "text": "sharp disapproval of the way it treats the less capable."
-                },
-                {
-                    "label": "D",
-                    "text": "detached neutrality among competing academic positions."
-                },
-                {
-                    "label": "E",
-                    "text": "reasoned endorsement of it as a practical device for allocating risk."
-                }
-            ],
-            "correct": "E",
-            "explanation": "The author calls the standard a 'sensible' and 'considered decision' and a 'pragmatic instrument,' endorsing it while denying it is a moral verdict. E captures that reasoned, practical endorsement. A is wrong because the author expressly denies the standard rests on moral rigor, insisting it is not 'a pronouncement that she is a bad person.' B overstates his doubt; he is confident, not ambivalent. C attributes to the author the critics' disapproval, which he rejects. D is wrong because the author plainly takes a side rather than standing neutral among positions.",
-            "concepts": [
-                "author-attitude"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-007"
-        },
-        {
-            "id": "rc-036",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "The author's primary purpose in the second paragraph is to",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "set out the objection that the remainder of the passage is devoted to answering."
-                },
-                {
-                    "label": "B",
-                    "text": "concede a genuine flaw in the position the author goes on to defend."
-                },
-                {
-                    "label": "C",
-                    "text": "restate the main point that had already been established in the first paragraph."
-                },
-                {
-                    "label": "D",
-                    "text": "supply historical evidence for the objective standard's long endurance."
-                },
-                {
-                    "label": "E",
-                    "text": "propose a reform that would make the standard sensitive to individual capacity."
-                }
-            ],
-            "correct": "A",
-            "explanation": "Paragraph two lays out the fairness objection — that the standard 'punishes people not for choosing badly but for being who they are' — which paragraphs three and four then rebut. A captures that setup-for-rebuttal role. B is wrong: the paragraph voices the critics, not a concession by the author, whose genuine concession about 'soft edges' appears in paragraph four. C is wrong because paragraph one does not state the main point, and paragraph two introduces the new critique rather than restating anything. D misassigns the point about the standard's 'century' of use, which belongs to paragraph one. E is wrong because the author never proposes an individualizing reform; he defends the existing standard.",
-            "concepts": [
-                "rc-structure"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-007"
-        },
-        {
-            "id": "rc-037",
-            "section": "RC",
-            "type": "RC",
-            "difficulty": "med",
-            "stem": "Which one of the following most accurately describes the organization of the passage as a whole?",
-            "choices": [
-                {
-                    "label": "A",
-                    "text": "A rule is stated, a series of counterexamples is catalogued, and the rule is ultimately abandoned."
-                },
-                {
-                    "label": "B",
-                    "text": "Two competing standards are compared, and one is shown to be superior on empirical grounds."
-                },
-                {
-                    "label": "C",
-                    "text": "A doctrine's history is traced from its origins through to its eventual replacement."
-                },
-                {
-                    "label": "D",
-                    "text": "A standard is described, an objection to it is presented and answered, and apparent exceptions are shown to reinforce that answer."
-                },
-                {
-                    "label": "E",
-                    "text": "A moral principle is defended against the charge that it is merely pragmatic."
-                }
-            ],
-            "correct": "D",
-            "explanation": "The passage describes the objective standard (para 1), presents the fairness objection (para 2), answers it with the allocative account (para 3), and argues the individualized exceptions 'confirm the allocative logic' (para 4). D matches that structure. A is wrong: the rule is defended, not 'abandoned.' B invents a comparison of two competing standards resolved on 'empirical' grounds, which never occurs. C describes a history ending in 'replacement,' but the standard is neither chiefly historical nor replaced. E reverses the author's point — he defends the standard as pragmatic against the assumption that it must be moral, not a moral principle against a charge of pragmatism.",
-            "concepts": [
-                "rc-structure",
-                "main-point"
-            ],
-            "references": [],
-            "source": "LSATContentFactory build100 (2026-07-16)",
-            "passage_id": "rc-passage-007"
+          "label": "E",
+          "text": "The shift from rigid pleading to notice pleading reflected a deliberate trade of doctrinal predictability for procedural access."
         }
-    ]
+      ],
+      "correct": "E",
+      "explanation": "The passage's central thesis is that the move to notice pleading was a *trade-off*: the drafters knowingly sacrificed some predictability to widen the courthouse door. E captures both halves. A overstates ('always'). B is contradicted by the closing paragraph. C is too strong — the passage says drafters were *informed by* the tradition, not that they rejected it. D confuses the post-Iqbal tightening with a full reversion.",
+      "concepts": [
+        "main-point",
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-002",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "hard",
+      "passage_id": "rc-passage-001",
+      "stem": "The author's attitude toward Twombly and Iqbal is best described as one of…",
+      "choices": [
+        {
+          "label": "A",
+          "text": "uncritical endorsement."
+        },
+        {
+          "label": "B",
+          "text": "open hostility."
+        },
+        {
+          "label": "C",
+          "text": "qualified concern."
+        },
+        {
+          "label": "D",
+          "text": "indifference."
+        },
+        {
+          "label": "E",
+          "text": "scholarly bewilderment."
+        }
+      ],
+      "correct": "C",
+      "explanation": "The author concedes that the cases addressed real problems (mass-tort fishing expeditions) but worries they 'risk reintroducing the very access barrier the 1938 drafters set out to dismantle.' That hedged worry is qualified concern (C), not endorsement, hostility, indifference, or bewilderment.",
+      "concepts": [
+        "author-attitude",
+        "rc-tone"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-003",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "easy",
+      "passage_id": "rc-passage-001",
+      "stem": "According to the passage, the original Federal Rules of Civil Procedure took effect in…",
+      "choices": [
+        {
+          "label": "A",
+          "text": "1938."
+        },
+        {
+          "label": "B",
+          "text": "1948."
+        },
+        {
+          "label": "C",
+          "text": "1957."
+        },
+        {
+          "label": "D",
+          "text": "1966."
+        },
+        {
+          "label": "E",
+          "text": "1975."
+        }
+      ],
+      "correct": "A",
+      "explanation": "Detail question. The passage states that 'the original Federal Rules of Civil Procedure … took effect in 1938.' 1957 is the year of Conley v. Gibson; the other dates appear nowhere as the adoption year.",
+      "concepts": [
+        "detail-question"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-004",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "passage_id": "rc-passage-001",
+      "stem": "The author mentions the Field Code of 1848 primarily in order to…",
+      "choices": [
+        {
+          "label": "A",
+          "text": "argue that fact pleading was superior to the notice pleading that followed it."
+        },
+        {
+          "label": "B",
+          "text": "illustrate an early reform effort that solved some problems but introduced new ones."
+        },
+        {
+          "label": "C",
+          "text": "show that New York courts led all other jurisdictions in procedural innovation."
+        },
+        {
+          "label": "D",
+          "text": "demonstrate that the writ system was never genuinely abandoned."
+        },
+        {
+          "label": "E",
+          "text": "establish that procedural reform inevitably fails."
+        }
+      ],
+      "correct": "B",
+      "explanation": "The Field Code is introduced as a 'partial remedy' to the writ system, but the next paragraph explains that 'fact pleading … generated its own pathologies.' B captures that role — an early reform that helped yet created new problems. A and E overstate the point; C and D assert claims the passage never makes.",
+      "concepts": [
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-005",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "hard",
+      "passage_id": "rc-passage-001",
+      "stem": "It can most reasonably be inferred from the passage that defenders of Twombly and Iqbal believe that…",
+      "choices": [
+        {
+          "label": "A",
+          "text": "notice pleading should be abolished entirely."
+        },
+        {
+          "label": "B",
+          "text": "pro se litigants rarely file meritorious claims."
+        },
+        {
+          "label": "C",
+          "text": "Conley v. Gibson was wrongly decided from the outset."
+        },
+        {
+          "label": "D",
+          "text": "changes in litigation since 1938 justify a more demanding pleading standard."
+        },
+        {
+          "label": "E",
+          "text": "the Field Code offered a better model than the Federal Rules."
+        }
+      ],
+      "correct": "D",
+      "explanation": "Defenders 'note that mass-tort and antitrust complaints had created discovery abuses the 1938 drafters could not have foreseen' — i.e., new litigation conditions warrant a tougher standard, which is D. A, B, C, and E go well beyond anything the defenders are said to claim.",
+      "concepts": [
+        "rc-structure",
+        "author-attitude"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-006",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "passage_id": "rc-passage-002",
+      "stem": "Which one of the following most accurately expresses the main point of the passage?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Privity of contract was an indefensible doctrine that nineteenth-century courts should have abandoned far sooner than they did."
+        },
+        {
+          "label": "B",
+          "text": "American products-liability law moved from a privity bar through negligence to strict liability, yet strict liability retains substantial elements of negligence reasoning."
+        },
+        {
+          "label": "C",
+          "text": "MacPherson v. Buick eliminated the requirement that an injured consumer prove a manufacturer's negligence."
+        },
+        {
+          "label": "D",
+          "text": "The Restatement (Second) of Torts settled the long-running dispute over the proper basis of manufacturer liability."
+        },
+        {
+          "label": "E",
+          "text": "Justice Traynor's concurrence in Escola was the most influential single opinion in the history of American tort law."
+        }
+      ],
+      "correct": "B",
+      "explanation": "The passage traces an arc — privity bar, then negligence after MacPherson, then strict liability — and closes by stressing that strict liability still 'sits uneasily' with negligence reasoning. B captures both the arc and that tension. A states an evaluative claim the author never makes. C is false: the passage says MacPherson 'did not abolish the need to prove fault.' D is contradicted by the final paragraph, which says the question is still 'debatable.' E overstates a detail and is not the passage's overall point.",
+      "concepts": [
+        "main-point",
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-007",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "easy",
+      "passage_id": "rc-passage-002",
+      "stem": "According to the passage, the doctrine of privity of contract was crystallized in which one of the following cases?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Winterbottom v. Wright."
+        },
+        {
+          "label": "B",
+          "text": "MacPherson v. Buick Motor Co."
+        },
+        {
+          "label": "C",
+          "text": "Escola v. Coca-Cola Bottling Co."
+        },
+        {
+          "label": "D",
+          "text": "Greenman v. Yuba Power Products."
+        },
+        {
+          "label": "E",
+          "text": "Conley v. Gibson."
+        }
+      ],
+      "correct": "A",
+      "explanation": "Detail question. The first paragraph states that privity of contract was 'crystallized in the English case Winterbottom v. Wright (1842).' MacPherson (B) cracked the privity rule; Escola (C) and Greenman (D) belong to the strict-liability story; Conley v. Gibson (E) is a civil-procedure case that does not appear in this passage at all.",
+      "concepts": [
+        "detail-question"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-008",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "passage_id": "rc-passage-002",
+      "stem": "The author refers to Justice Traynor's concurrence in Escola primarily in order to",
+      "choices": [
+        {
+          "label": "A",
+          "text": "demonstrate that strict liability had already become the governing rule by 1944."
+        },
+        {
+          "label": "B",
+          "text": "identify an early judicial argument for strict liability that courts would adopt only later."
+        },
+        {
+          "label": "C",
+          "text": "criticize the Escola majority for reasoning that was internally inconsistent."
+        },
+        {
+          "label": "D",
+          "text": "show that Cardozo's approach in MacPherson had been formally overruled."
+        },
+        {
+          "label": "E",
+          "text": "establish that risk distribution is an inadequate justification for liability."
+        }
+      ],
+      "correct": "B",
+      "explanation": "The passage presents the 1944 concurrence as urging a change that 'prevailed a generation later' in Greenman (1963) and §402A (1965) — i.e., an early argument adopted only afterward, which is B. A misreads the timeline (it was a concurrence, not the governing rule). C and D describe moves the author never makes. E states a critique the author raises only as one side of a 'debatable' question, not the reason for citing Traynor.",
+      "concepts": [
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-009",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "hard",
+      "passage_id": "rc-passage-002",
+      "stem": "The author's attitude toward describing modern products-liability law as 'strict' is best characterized as one of",
+      "choices": [
+        {
+          "label": "A",
+          "text": "enthusiastic agreement."
+        },
+        {
+          "label": "B",
+          "text": "measured skepticism."
+        },
+        {
+          "label": "C",
+          "text": "outright rejection of strict liability as a concept."
+        },
+        {
+          "label": "D",
+          "text": "indifference to how the doctrine is labeled."
+        },
+        {
+          "label": "E",
+          "text": "nostalgia for the privity requirement."
+        }
+      ],
+      "correct": "B",
+      "explanation": "In the final paragraph the author concedes strict liability's risk-distribution rationale but warns that the 'strict-liability label can obscure how much negligence reasoning survives within it' — a hedged, doubting stance toward the label, i.e., measured skepticism (B). A is too positive. C overstates: the author questions the label, not the doctrine's existence. D is wrong because the author plainly cares about the label's accuracy. E finds no support; the author calls privity a remedyless 'price' borne by consumers.",
+      "concepts": [
+        "author-attitude",
+        "rc-tone"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-010",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "easy",
+      "stem": "According to the passage, the appellate court in People v. Collins reversed the conviction on which one of the following grounds?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "The underlying trait frequencies were unproven, and they were multiplied together as if each trait were independent."
+        },
+        {
+          "label": "B",
+          "text": "The one-in-twelve-million figure was too small to support any inference of guilt."
+        },
+        {
+          "label": "C",
+          "text": "Statistical evidence is categorically inadmissible in criminal trials."
+        },
+        {
+          "label": "D",
+          "text": "The eyewitnesses' descriptions of the couple conflicted with one another."
+        },
+        {
+          "label": "E",
+          "text": "The prosecution introduced no physical evidence linking the couple to the crime."
+        }
+      ],
+      "correct": "A",
+      "explanation": "Paragraph 2 states that the court reversed because the individual frequencies 'were never established by evidence' and that multiplying them 'assumed, without proof, that each trait was statistically independent.' A restates exactly that ground. B misreads the objection — the court faulted the figure's foundation, not its size, and the passage never says a small probability cannot support an inference. C overstates: the paragraph on DNA shows statistics are not categorically barred. D and E describe facts (conflicting descriptions, missing physical evidence) the passage never mentions.",
+      "concepts": [
+        "detail-question"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-003"
+    },
+    {
+      "id": "rc-011",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "easy",
+      "stem": "According to the passage, the doctrine of prior appropriation differs from the riparian doctrine in that prior appropriation",
+      "choices": [
+        {
+          "label": "A",
+          "text": "treats flowing water as a resource held in common by every landowner the stream touches."
+        },
+        {
+          "label": "B",
+          "text": "forbids any user from depleting the flow so as to defeat a neighbor's reasonable use."
+        },
+        {
+          "label": "C",
+          "text": "assigns water rights to whoever first diverted the water to a beneficial use, independent of land ownership."
+        },
+        {
+          "label": "D",
+          "text": "allocates water through time-limited permits issued by an administrative agency."
+        },
+        {
+          "label": "E",
+          "text": "guarantees every claimant a proportional share of the water during a shortage."
+        }
+      ],
+      "correct": "C",
+      "explanation": "Paragraph 2 states that prior appropriation 'severed water rights from land ownership entirely and awarded them instead to whoever first diverted the water and put it to a recognized beneficial use.' C restates exactly that. A and B describe the riparian doctrine of paragraph 1 (water 'held in common' and the bar on so depleting the flow as 'to defeat a neighbor's reasonable use'), not appropriation. D describes the regulated-riparian permit regime of paragraph 3, not appropriation. E is contradicted: under appropriation a senior holder 'took a full allotment while junior holders received nothing,' so no proportional share is guaranteed.",
+      "concepts": [
+        "detail-question",
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-004"
+    },
+    {
+      "id": "rc-012",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "easy",
+      "stem": "According to the passage, the Court of King's Bench relied on a legal fiction in order to",
+      "choices": [
+        {
+          "label": "A",
+          "text": "codify a rule that the legislature had declined to enact"
+        },
+        {
+          "label": "B",
+          "text": "conceal from the public the identity of the judges who governed them"
+        },
+        {
+          "label": "C",
+          "text": "hear cases that would otherwise have fallen outside its authority"
+        },
+        {
+          "label": "D",
+          "text": "relieve overcrowding among the prisoners in its custody"
+        },
+        {
+          "label": "E",
+          "text": "establish that a fictitious trespass was itself an actionable wrong"
+        }
+      ],
+      "correct": "C",
+      "explanation": "The first paragraph explains that the King's Bench 'could ordinarily try only prisoners already in its custody, so it invented the supposition' of a fictitious trespass — a pretense that 'quietly extended the court's reach far beyond its original bounds.' (C) captures exactly this jurisdiction-expanding purpose and is correct. (A) fails because the passage says 'no statute authorized the maneuver'; the fiction substituted for legislation rather than codifying any rule the legislature had refused to pass. (B) imports Bentham's later charge of deceit, but the paragraph describes the aim as enlarging authority, not hiding the judges' identities. (D) misreads the 'custody,' which was itself the fiction — the court was not thinning out real prisoners. (E) inverts the device: the trespass was a pretense used to reach the case, not a wrong the court sought to establish as actionable.",
+      "concepts": [
+        "detail-question"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-005"
+    },
+    {
+      "id": "rc-013",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "The author refers to People v. Collins primarily in order to",
+      "choices": [
+        {
+          "label": "A",
+          "text": "prove that eyewitness identifications are inherently unreliable."
+        },
+        {
+          "label": "B",
+          "text": "illustrate how the appearance of mathematical precision can lend false certainty to an unsupported factual premise."
+        },
+        {
+          "label": "C",
+          "text": "establish that appellate courts rarely disturb jury verdicts."
+        },
+        {
+          "label": "D",
+          "text": "endorse the prosecution's method of multiplying trait frequencies."
+        },
+        {
+          "label": "E",
+          "text": "show that criminal convictions require a higher probability than civil liability."
+        }
+      ],
+      "correct": "B",
+      "explanation": "Paragraph 2 presents Collins 'as a caution against the aura of certainty that a large number can lend to a shaky factual premise' — precisely the role B names. A misidentifies the lesson as being about eyewitness reliability rather than the misuse of probability. C asserts a claim the passage never makes, and Collins was itself a reversal. D reverses the author's stance; both the court and the author criticize the multiplication. E imports the criminal-versus-civil burden contrast, which belongs to the gatecrasher discussion, not to why Collins is cited.",
+      "concepts": [
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-003"
+    },
+    {
+      "id": "rc-014",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "easy",
+      "stem": "According to the passage, proponents of actuarial risk-assessment instruments claim that the instruments do which one of the following?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Eliminate the need for a judge to review a defendant's case file."
+        },
+        {
+          "label": "B",
+          "text": "Apply a uniform standard to defendants whose circumstances are alike."
+        },
+        {
+          "label": "C",
+          "text": "Guarantee that no defendant will be wrongly detained before trial."
+        },
+        {
+          "label": "D",
+          "text": "Predict rearrest more accurately than any human expert could."
+        },
+        {
+          "label": "E",
+          "text": "Remove race entirely from bail and sentencing decisions."
+        }
+      ],
+      "correct": "B",
+      "explanation": "The second paragraph credits the instruments with the ability to 'impose a welcome consistency, ensuring that similarly situated defendants are scored by the same yardstick,' which is precisely (B). (A) is never claimed; the case file is mentioned only as part of the older discretionary practice. (C) overstates; nothing in the passage promises a guarantee against wrongful detention. (D) overshoots the modest claim that an instrument can 'flag patterns that an overworked judge... will miss'—that is not a claim of superiority over any human expert. (E) is contradicted by the third paragraph, where the author says the proxies actually track race rather than removing it.",
+      "concepts": [
+        "detail-question"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-006"
+    },
+    {
+      "id": "rc-015",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "easy",
+      "stem": "Which one of the following most accurately states the main point of the passage?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Legal fictions are defensible devices whose value depends on their remaining openly recognized as fictions."
+        },
+        {
+          "label": "B",
+          "text": "Legal fictions were indispensable to the early common law but have no place in a modern codified system."
+        },
+        {
+          "label": "C",
+          "text": "Bentham and Fuller reached incompatible conclusions only because they examined different historical periods."
+        },
+        {
+          "label": "D",
+          "text": "The fiction of corporate personhood shows why courts should abandon metaphorical reasoning altogether."
+        },
+        {
+          "label": "E",
+          "text": "Judicial lawmaking is illegitimate whenever it proceeds by way of a fiction rather than open declaration."
+        }
+      ],
+      "correct": "A",
+      "explanation": "The fourth paragraph states the thesis: the author 'leans toward Fuller, but with a qualification' — a fiction 'is worth its cost only so long as it remains visible as a fiction,' since a labeled fiction 'invites the very reform Bentham wanted' while a hardened one 'buries a contestable policy choice.' (A) states exactly this and is correct. (B) echoes Bentham's position, which the author rejects, and the author never says fictions lack a modern place. (C) seizes on the detail that Fuller wrote 'a century later,' but the passage never blames their disagreement on differing eras, and this is not the central claim. (D) misuses the corporate-personhood example, which Fuller offers to show fictions can honestly express, not to condemn metaphor. (E) restates Bentham's rejected view that fiction-based lawmaking is inherently illegitimate.",
+      "concepts": [
+        "main-point"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-005"
+    },
+    {
+      "id": "rc-016",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "The passage suggests that Bentham would most likely have regarded a legal system's continued reliance on fictions as evidence that",
+      "choices": [
+        {
+          "label": "A",
+          "text": "the system's judges were unusually inventive"
+        },
+        {
+          "label": "B",
+          "text": "the system had successfully avoided unjust outcomes"
+        },
+        {
+          "label": "C",
+          "text": "the system relied too heavily on its legislature"
+        },
+        {
+          "label": "D",
+          "text": "the system's litigants preferred flexibility to predictability"
+        },
+        {
+          "label": "E",
+          "text": "the system's written law had not yet been adequately reformed"
+        }
+      ],
+      "correct": "E",
+      "explanation": "Paragraph two reports Bentham's view that a fiction 'was always a confession of failure — proof that the written law had grown inadequate,' and that a codified system 'would dispense with fictions entirely; their persistence was a symptom of arrested legal development.' Combining these, continued reliance on fictions signals to Bentham that the written law remains unreformed, so (E) is correct. (A) contradicts the text, which says persistence was 'not a sign of judicial ingenuity.' (B) overreads: Bentham condemned fictions and would not treat their survival as proof that injustice had been avoided. (C) reverses his commitments — he favored legislative codification and viewed fictions as a sign of too little legislative reform, not excessive reliance on the legislature. (D) attributes the practice to litigants' tastes, a cause the passage never mentions.",
+      "concepts": [
+        "rc-inference"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-005"
+    },
+    {
+      "id": "rc-017",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "The author's attitude toward Bentham's critique of legal fictions is best described as",
+      "choices": [
+        {
+          "label": "A",
+          "text": "complete agreement with both its conclusion and its reasoning"
+        },
+        {
+          "label": "B",
+          "text": "dismissal of it as wholly without foundation"
+        },
+        {
+          "label": "C",
+          "text": "neutrality born of an unwillingness to take sides"
+        },
+        {
+          "label": "D",
+          "text": "partial validation of its underlying worry combined with rejection of its diagnosis"
+        },
+        {
+          "label": "E",
+          "text": "admiration for its rhetorical force but indifference to its substance"
+        }
+      ],
+      "correct": "D",
+      "explanation": "In the final paragraph the author writes that 'Bentham's alarm, then, is not baseless; it simply misidentifies the culprit,' locating the fault in 'the profession's habit of mistaking a useful metaphor for a discovery' rather than in fictions themselves. That is partial endorsement of the worry plus rejection of the diagnosis, so (D) is correct. (A) is too strong — the author sides with Fuller and rejects Bentham's diagnosis. (B) is refuted directly by 'not baseless.' (C) misreads the author, who plainly 'leans toward Fuller' rather than remaining neutral. (E) is unsupported: the author engages Bentham's substance closely, correcting rather than ignoring it.",
+      "concepts": [
+        "author-attitude",
+        "rc-tone"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-005"
+    },
+    {
+      "id": "rc-018",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "Which one of the following most accurately expresses the main point of the passage?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Courts should abandon their resistance to statistical evidence, which rests on nothing more than innumeracy."
+        },
+        {
+          "label": "B",
+          "text": "People v. Collins demonstrates that probability calculations have no legitimate role in the courtroom."
+        },
+        {
+          "label": "C",
+          "text": "The law's wariness toward naked statistics is best understood as a demand for individualized, methodologically transparent proof rather than an aversion to numbers."
+        },
+        {
+          "label": "D",
+          "text": "DNA profiling has resolved the long-standing debate over the admissibility of statistical evidence."
+        },
+        {
+          "label": "E",
+          "text": "The civil preponderance standard should be raised above the 0.501 threshold to prevent unjust verdicts."
+        }
+      ],
+      "correct": "C",
+      "explanation": "The thesis emerges across paragraphs 3 and 4: the law's resistance 'defends this demand for particularized evidence' and is 'not a superstition about digits,' and quantified proof 'earns its place when its method is auditable and its inference individualized.' C captures both halves. A inverts the author, who endorses the instinct and calls the discomfort 'not mere innumeracy.' B overreads Collins; the DNA example shows numbers can belong in court. D overstates — DNA illustrates the principle rather than resolving the debate. E seizes on the 0.501 detail and urges a reform the passage never proposes.",
+      "concepts": [
+        "main-point"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-003"
+    },
+    {
+      "id": "rc-019",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "The discussion of the gatecrasher hypothetical (the rodeo attendees) functions primarily to",
+      "choices": [
+        {
+          "label": "A",
+          "text": "provide a real case in which a court awarded damages on statistical evidence alone."
+        },
+        {
+          "label": "B",
+          "text": "demonstrate that the preponderance standard is too lenient for civil cases."
+        },
+        {
+          "label": "C",
+          "text": "concede that naked statistical evidence is usually sufficient to prove liability."
+        },
+        {
+          "label": "D",
+          "text": "show that a probability can exceed the applicable burden and still fail for want of individualized evidence."
+        },
+        {
+          "label": "E",
+          "text": "illustrate the transparent methodology that makes DNA evidence acceptable."
+        }
+      ],
+      "correct": "D",
+      "explanation": "In paragraph 3 the author invokes the 0.501 figure — which 'formally exceeds the civil preponderance standard' — to show that 'what the naked number lacks is individualized proof.' D states that role. A is false twice over: the rodeo case is a hypothetical, not a real case, and no one collects. B misreads the point as a complaint about the standard's leniency rather than about missing particularized evidence. C asserts the reverse of the author's conclusion. E attaches the hypothetical to the DNA methodology discussed later, in paragraph 4.",
+      "concepts": [
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-003"
+    },
+    {
+      "id": "rc-020",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "The author's attitude toward the current use of actuarial risk-assessment instruments in bail and sentencing is best described as one of…",
+      "choices": [
+        {
+          "label": "A",
+          "text": "unreserved enthusiasm."
+        },
+        {
+          "label": "B",
+          "text": "bemused detachment."
+        },
+        {
+          "label": "C",
+          "text": "qualified wariness."
+        },
+        {
+          "label": "D",
+          "text": "outright condemnation."
+        },
+        {
+          "label": "E",
+          "text": "complete indifference."
+        }
+      ],
+      "correct": "C",
+      "explanation": "The author concedes 'the case for these tools is not frivolous' yet insists that 'my reservation is narrower but firm'—a hedged, cautionary stance, i.e., qualified wariness (C). (A) is wrong because the reservation is explicit and firm. (B) fails because the author is engaged and takes a clear side rather than standing amused and aloof. (D) is expressly ruled out by the refusal 'to condemn them wholesale.' (E) is impossible given how much concern the author registers about opacity and biased proxies.",
+      "concepts": [
+        "author-attitude",
+        "rc-tone"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-006"
+    },
+    {
+      "id": "rc-021",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "Which one of the following most accurately expresses the main point of the passage?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "The riparian and prior appropriation doctrines are equally unsuited to every jurisdiction, whatever its climate."
+        },
+        {
+          "label": "B",
+          "text": "Wherever water has grown scarce, prior appropriation should displace the older riparian doctrine."
+        },
+        {
+          "label": "C",
+          "text": "The history of water law shows that no legal rule can allocate a scarce resource fairly."
+        },
+        {
+          "label": "D",
+          "text": "Because neither the riparian nor the appropriation doctrine adequately meets modern scarcity, regulated riparianism, despite a genuine cost in predictability, is the better framework."
+        },
+        {
+          "label": "E",
+          "text": "Administrative permit systems have eliminated the disputes that once arose under the common law of water."
+        }
+      ],
+      "correct": "D",
+      "explanation": "The passage argues that because neither pure doctrine 'serves a modern jurisdiction well,' regulated riparianism is 'the more promising path,' while conceding that 'predictability has genuine value.' D captures both the rejection of the two older rules and the qualified preference for regulation. A misstates the thesis—the author faults the two doctrines for a modern jurisdiction, not 'equally' and everywhere. B backs the wrong winner: the author prefers regulated riparianism, not prior appropriation. C is contradicted, since the author thinks a scarce resource can be allocated well. E overstates—the passage never claims permit systems have 'eliminated' disputes.",
+      "concepts": [
+        "main-point",
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-004"
+    },
+    {
+      "id": "rc-022",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "Which one of the following most accurately describes the organization of the passage?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "A doctrine is described; a competing doctrine is shown to be superior; the two are then merged into one rule."
+        },
+        {
+          "label": "B",
+          "text": "A traditional doctrine is presented; a rival that arose to remedy its limits is introduced; the author advances a synthesizing approach and defends it against an objection."
+        },
+        {
+          "label": "C",
+          "text": "A problem is posed; two failed solutions are catalogued; the author concludes that the problem is insoluble."
+        },
+        {
+          "label": "D",
+          "text": "A reform is proposed; historical precedents for it are surveyed; the reform is then abandoned in favor of an older rule."
+        },
+        {
+          "label": "E",
+          "text": "Two doctrines are compared; empirical evidence is marshaled to test each; a policy recommendation follows from the data."
+        }
+      ],
+      "correct": "B",
+      "explanation": "The passage presents the riparian doctrine (paragraph 1), introduces prior appropriation as the rival that 'arose in answer' to riparianism's failure in arid country (paragraph 2), advances regulated riparianism as a synthesis the author endorses (paragraph 3), and defends it against 'the objection most often pressed' (paragraph 4). B tracks that sequence. A is wrong because the rival appropriation doctrine is never shown to be superior. C is wrong because the author treats the problem as soluble, not 'insoluble.' D inverts the structure—no reform is abandoned for an older rule. E is wrong because no empirical evidence or data is marshaled to test the doctrines.",
+      "concepts": [
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-004"
+    },
+    {
+      "id": "rc-023",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "Which one of the following most accurately expresses the main point of the passage?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "The reasonable-person standard should be replaced with a test that measures each defendant against his own capacities."
+        },
+        {
+          "label": "B",
+          "text": "Because ordinary morality excuses those who do their best, negligence law is fundamentally unjust to the less capable."
+        },
+        {
+          "label": "C",
+          "text": "Although criticized as unfair to those who cannot meet it, the objective standard is best justified as a pragmatic device for allocating the risks of human variation."
+        },
+        {
+          "label": "D",
+          "text": "Courts have increasingly abandoned the objective standard in favor of individualized inquiries into fault."
+        },
+        {
+          "label": "E",
+          "text": "The exceptions courts make for children and the suddenly incapacitated show that the objective standard is ultimately incoherent."
+        }
+      ],
+      "correct": "C",
+      "explanation": "The thesis spans the whole arc: the passage presents the objection (para 2), answers it by recasting the standard as a risk-allocation rule (para 3), and argues the exceptions confirm that logic (para 4). C captures both the criticism and the author's pragmatic defense. A recommends replacing the standard, the opposite of the author's endorsement. B states the critics' position as though it were the author's conclusion. D asserts a wholesale abandonment the passage denies, noting only 'limited' carve-outs. E calls the standard 'incoherent,' but the author says the carve-outs 'confirm the allocative logic.'",
+      "concepts": [
+        "main-point",
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-007"
+    },
+    {
+      "id": "rc-024",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "It can most reasonably be inferred that Fuller would consider the description of a corporation as a 'person' objectionable only if",
+      "choices": [
+        {
+          "label": "A",
+          "text": "the legislature had not expressly authorized it"
+        },
+        {
+          "label": "B",
+          "text": "readers came to treat it as a literal fact rather than a shorthand"
+        },
+        {
+          "label": "C",
+          "text": "it were used to enlarge a court's jurisdiction"
+        },
+        {
+          "label": "D",
+          "text": "it appeared in a criminal proceeding rather than a civil one"
+        },
+        {
+          "label": "E",
+          "text": "Bentham's account of judicial deceit turned out to be correct"
+        }
+      ],
+      "correct": "B",
+      "explanation": "Paragraph three says Fuller thought the corporate-'person' fiction 'asserts no falsehood' but warned that a fiction 'can curdle into dogma' when 'later readers may forget the silent \"as if\" and mistake the metaphor for a fact.' The objection therefore arises only when the shorthand is taken literally, so (B) is correct. (A) states a Benthamite condition — legislative authorization — that Fuller never adopts as his test. (C) borrows the jurisdiction example from paragraph one, which has nothing to do with Fuller's criterion for corporate personhood. (D) invents a civil/criminal distinction the passage never draws. (E) is unsupported: Fuller 'declined to join in the condemnation,' so he does not make his objection depend on Bentham being right.",
+      "concepts": [
+        "rc-inference"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-005"
+    },
+    {
+      "id": "rc-025",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "hard",
+      "stem": "The passage most strongly supports which one of the following statements about a legal fiction whose artificiality has been forgotten?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "It has achieved the kind of permanence that Bentham thought all sound law should have."
+        },
+        {
+          "label": "B",
+          "text": "It is more likely to prompt legislative reform than a fiction that is openly labeled."
+        },
+        {
+          "label": "C",
+          "text": "It no longer performs the function that led Fuller to defend fictions in the first place."
+        },
+        {
+          "label": "D",
+          "text": "It exemplifies the honest expression that Fuller distinguished from deception."
+        },
+        {
+          "label": "E",
+          "text": "It would be endorsed by the author as among the soundest kind of fiction."
+        }
+      ],
+      "correct": "C",
+      "explanation": "Fuller defended fictions as 'an honest device for saying something new,' one that openly expresses a not-yet-named relationship (paragraph three); the author adds that once a fiction hardens and its artificiality is forgotten, 'it does the opposite' of inviting reform and instead 'buries a contestable policy choice beneath the appearance of settled truth' (paragraph four). Combining the two, a forgotten fiction has stopped doing the transparent, expressive work that justified Fuller's defense, so (C) is correct. (A) misattributes to Bentham a taste for entrenched fictions; he wanted them replaced by open codification, not made permanent. (B) reverses the text — the openly labeled fiction, not the forgotten one, 'invites the very reform Bentham wanted.' (D) describes the honest-expression pole, whereas a forgotten fiction is precisely the case where the 'as if' is lost. (E) contradicts the author, for whom 'the soundest fictions are the ones that announce their own eventual obsolescence,' the opposite of a forgotten one.",
+      "concepts": [
+        "rc-inference"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-005"
+    },
+    {
+      "id": "rc-026",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "The author's attitude toward the courts' resistance to naked statistical evidence is best described as",
+      "choices": [
+        {
+          "label": "A",
+          "text": "unqualified endorsement of every application of the doctrine."
+        },
+        {
+          "label": "B",
+          "text": "detached neutrality that declines to take any position."
+        },
+        {
+          "label": "C",
+          "text": "sweeping dismissal of the doctrine as rooted in innumeracy."
+        },
+        {
+          "label": "D",
+          "text": "alarm that the doctrine has rendered statistical evidence categorically inadmissible."
+        },
+        {
+          "label": "E",
+          "text": "sustained approval of its core impulse, tempered by concern that it can harden into reflexive hostility."
+        }
+      ],
+      "correct": "E",
+      "explanation": "The author writes 'I share the courts' underlying instinct' and defends it as principled in paragraph 3, then concedes in paragraph 4 that 'the doctrine can curdle into reflexive hostility, and here the critics have a point.' E captures that approval-with-caveat. A ignores the paragraph 4 concession. B is contradicted by the first-person endorsement. C inverts the author, who says the discomfort 'is not mere innumeracy.' D overstates — the passage notes DNA statistics are 'routinely admit[ted],' so nothing is categorically barred.",
+      "concepts": [
+        "author-attitude"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-003"
+    },
+    {
+      "id": "rc-027",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "hard",
+      "stem": "The passage most strongly supports which one of the following statements about DNA profiling evidence?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "It would be inadmissible under the reasoning the appellate court applied in Collins."
+        },
+        {
+          "label": "B",
+          "text": "Its acceptance shows that the objection to statistical proof was never directed at quantification as such."
+        },
+        {
+          "label": "C",
+          "text": "It satisfies the individualization concern only because its random-match figure is smaller than the figure in Collins."
+        },
+        {
+          "label": "D",
+          "text": "It has replaced the civil preponderance standard with a probabilistic threshold."
+        },
+        {
+          "label": "E",
+          "text": "Its use has been resisted by courts on the same grounds that doomed the Collins calculation."
+        }
+      ],
+      "correct": "B",
+      "explanation": "Paragraph 4 observes that DNA evidence 'is every bit as statistical as the one in Collins' yet is admitted because it rests on 'a transparent, replicable methodology' and 'a sample drawn from the defendant himself,' concluding that 'the objection was never to numbers as such.' B is that supported inference. A is contradicted — the passage distinguishes DNA precisely so that Collins-style objections do not reach it. C fixes on magnitude, but the passage grounds the difference in auditable method and individualized source, not the size of the figure. D invents a doctrinal change the passage never mentions. E contradicts the statement that 'courts today routinely admit DNA profiling.'",
+      "concepts": [
+        "rc-inference"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-003"
+    },
+    {
+      "id": "rc-028",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "Which one of the following most accurately expresses the main point of the passage?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Actuarial risk-assessment instruments should be banned from bail and sentencing decisions."
+        },
+        {
+          "label": "B",
+          "text": "Judicial intuition has proven more reliable than any statistical instrument."
+        },
+        {
+          "label": "C",
+          "text": "Proprietary instruments are unconstitutional because defendants cannot inspect them."
+        },
+        {
+          "label": "D",
+          "text": "Although actuarial instruments could improve on discretionary judgment, their adoption has outrun the safeguards needed to make them trustworthy."
+        },
+        {
+          "label": "E",
+          "text": "The disparities produced by human judges justify replacing them with statistical formulas."
+        }
+      ],
+      "correct": "D",
+      "explanation": "The passage grants the instruments' promise (paragraph two) but rests on the fourth paragraph's warning that 'the pace of adoption has badly outrun the development of these safeguards'—exactly (D). (A) is contradicted by the author's stated refusal 'to condemn them wholesale.' (B) misreads the passage, which concedes an instrument can catch patterns a judge misses. (C) inflates the opacity concern into a constitutional claim the author never makes. (E) endorses full replacement, whereas the author wants the instruments used only 'as one input among many.'",
+      "concepts": [
+        "main-point"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-006"
+    },
+    {
+      "id": "rc-029",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "The author's attitude toward regulated riparianism is most accurately described as",
+      "choices": [
+        {
+          "label": "A",
+          "text": "unqualified enthusiasm untroubled by any drawback."
+        },
+        {
+          "label": "B",
+          "text": "detached neutrality as between it and its rivals."
+        },
+        {
+          "label": "C",
+          "text": "initial approval that gives way to serious doubt."
+        },
+        {
+          "label": "D",
+          "text": "skepticism relieved only by grudging acknowledgment of its convenience."
+        },
+        {
+          "label": "E",
+          "text": "qualified endorsement that acknowledges a genuine cost."
+        }
+      ],
+      "correct": "E",
+      "explanation": "The author calls regulated riparianism 'the more promising path' and concludes that 'the trade favors regulation,' yet grants that 'predictability has genuine value.' E—qualified endorsement acknowledging a genuine cost—fits precisely. A is wrong because the author expressly concedes a drawback. B is wrong because the author is not neutral but takes a side. C is wrong because the approval never 'gives way' to doubt; the endorsement stands. D reverses the polarity: the author endorses the approach rather than merely tolerating it.",
+      "concepts": [
+        "author-attitude",
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-004"
+    },
+    {
+      "id": "rc-030",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "The primary function of the fourth paragraph is to",
+      "choices": [
+        {
+          "label": "A",
+          "text": "raise the objection most pressed against the author's preferred approach and then argue that, on balance, it does not defeat that approach."
+        },
+        {
+          "label": "B",
+          "text": "introduce a third doctrine that the earlier paragraphs had not considered."
+        },
+        {
+          "label": "C",
+          "text": "summarize the historical developments described in the first three paragraphs."
+        },
+        {
+          "label": "D",
+          "text": "concede that the author's recommendation should ultimately be withdrawn."
+        },
+        {
+          "label": "E",
+          "text": "supply empirical data confirming the superiority of prior appropriation."
+        }
+      ],
+      "correct": "A",
+      "explanation": "Paragraph 4 opens by granting that 'the objection most often pressed against such systems is real'—the loss of predictability—and then answers that 'on balance the trade favors regulation.' A describes exactly that raise-then-rebut move. B is wrong: no new third doctrine is introduced, since regulated riparianism was already presented in paragraph 3. C is wrong because the paragraph argues rather than merely summarizing the history. D is wrong because the author does not withdraw the recommendation but reaffirms it. E is wrong because no empirical data appears, and the paragraph does not favor prior appropriation.",
+      "concepts": [
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-004"
+    },
+    {
+      "id": "rc-031",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "hard",
+      "stem": "The passage most strongly supports which one of the following statements?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "A junior appropriator is guaranteed at least a partial allotment during a shortage."
+        },
+        {
+          "label": "B",
+          "text": "Regulated riparian permit systems place an agency's allocation decisions beyond judicial review."
+        },
+        {
+          "label": "C",
+          "text": "In a region where water is abundant, the riparian doctrine's premise of common sharing is not obviously untenable."
+        },
+        {
+          "label": "D",
+          "text": "Prior appropriation emerged in the eastern states before spreading to the arid West."
+        },
+        {
+          "label": "E",
+          "text": "Under a regulated riparian permit system the reasonableness of a proposed use plays no part in allocation."
+        }
+      ],
+      "correct": "C",
+      "explanation": "Paragraph 1 grounds riparianism in the fact that 'water in a well-watered landscape is rarely scarce enough to exhaust,' and paragraph 2 says that 'premise collapses in arid country'; together these support C—where water is abundant the sharing premise remains tenable. A is contradicted: junior holders 'received nothing' in a shortage. B is contradicted: the author notes that 'the agency's decisions are reviewable.' D is contradicted: appropriation 'arose' in 'the mining camps of the nineteenth-century American West,' not first in the East. E is contradicted: 'the reasonableness of the use' is an express permit criterion.",
+      "concepts": [
+        "rc-inference",
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-004"
+    },
+    {
+      "id": "rc-032",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "easy",
+      "stem": "According to the passage, critics of the objective reasonable-person standard object to it primarily on the ground that it",
+      "choices": [
+        {
+          "label": "A",
+          "text": "holds defendants liable even when a reasonable person would have acted in exactly the same way."
+        },
+        {
+          "label": "B",
+          "text": "condemns individuals for limitations they were unable to overcome."
+        },
+        {
+          "label": "C",
+          "text": "requires juries to conduct a searching inquiry into each defendant's personal capacities."
+        },
+        {
+          "label": "D",
+          "text": "has grown too complicated for modern juries to apply consistently."
+        },
+        {
+          "label": "E",
+          "text": "excuses careless conduct whenever a defendant can show that he tried his best."
+        }
+      ],
+      "correct": "B",
+      "explanation": "Paragraph two states the critics' complaint directly: the law holds 'the slow-witted, the inexperienced, and the congenitally clumsy to the same external measure,' 'condemning them for shortcomings they could not have overcome.' B restates exactly that objection. A misdescribes the complaint — critics do not object that identical reasonable conduct yields liability; they object that those who cannot meet the standard are condemned. C inverts the passage: the standard is faulted for refusing to inquire into personal capacities, not for requiring such inquiry. D contradicts paragraph one, which praises the standard as 'administrable.' E describes the moral excuse that the standard pointedly rejects, not the critics' objection to the standard.",
+      "concepts": [
+        "detail-question"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-007"
+    },
+    {
+      "id": "rc-033",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "It can most reasonably be inferred that the author would regard actuarial instruments as substantially more acceptable if…",
+      "choices": [
+        {
+          "label": "A",
+          "text": "judges were required to defer to the instrument's score in every case."
+        },
+        {
+          "label": "B",
+          "text": "the instruments were adopted more rapidly and in more jurisdictions."
+        },
+        {
+          "label": "C",
+          "text": "their scores were kept confidential from defendants to prevent gaming."
+        },
+        {
+          "label": "D",
+          "text": "proponents stopped comparing them to discretionary judgment."
+        },
+        {
+          "label": "E",
+          "text": "their methods were opened to independent validation and their bias-laden proxies removed."
+        }
+      ],
+      "correct": "E",
+      "explanation": "The fourth paragraph states the instruments 'might yet deliver' on their promise if 'subjected to independent validation, and stripped of the proxies most likely to smuggle in bias'—directly yielding (E). (A) reverses the author's preference for treating a score as merely 'one input among many.' (B) worsens the very problem the author names: adoption outrunning safeguards. (C) deepens the opacity the author criticizes as shielding instruments 'from the defendants they score.' (D) misses the point; the objection concerns the proxies and secrecy, not the rhetorical comparison.",
+      "concepts": [
+        "rc-inference"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-006"
+    },
+    {
+      "id": "rc-034",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "The author's attitude toward the proponents' argument that a transparent formula is preferable to unexamined intuition is best characterized as…",
+      "choices": [
+        {
+          "label": "A",
+          "text": "acknowledgment of its force coupled with doubt that it settles the matter."
+        },
+        {
+          "label": "B",
+          "text": "enthusiastic and unqualified agreement."
+        },
+        {
+          "label": "C",
+          "text": "dismissal of it as plainly mistaken."
+        },
+        {
+          "label": "D",
+          "text": "suspicion that it is offered in bad faith."
+        },
+        {
+          "label": "E",
+          "text": "indifference to whether it is sound."
+        }
+      ],
+      "correct": "A",
+      "explanation": "The author says proponents 'point out, fairly,' and that 'the formula would seem the safer bet,' granting the argument real force; but the very next paragraph, opening 'Yet the formula is rarely transparent,' shows the author doubts it settles the question—hence (A). (B) ignores that pivot into reservation. (C) contradicts the concession that the point is fair and 'not frivolous.' (D) has no basis; the author never impugns the proponents' motives. (E) is refuted by the sustained, serious engagement the author gives the argument.",
+      "concepts": [
+        "author-attitude",
+        "rc-tone"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-006"
+    },
+    {
+      "id": "rc-035",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "The author's attitude toward the objective reasonable-person standard is best described as one of",
+      "choices": [
+        {
+          "label": "A",
+          "text": "unqualified enthusiasm for the moral rigor it demands of defendants."
+        },
+        {
+          "label": "B",
+          "text": "deep ambivalence about whether it can be justified at all."
+        },
+        {
+          "label": "C",
+          "text": "sharp disapproval of the way it treats the less capable."
+        },
+        {
+          "label": "D",
+          "text": "detached neutrality among competing academic positions."
+        },
+        {
+          "label": "E",
+          "text": "reasoned endorsement of it as a practical device for allocating risk."
+        }
+      ],
+      "correct": "E",
+      "explanation": "The author calls the standard a 'sensible' and 'considered decision' and a 'pragmatic instrument,' endorsing it while denying it is a moral verdict. E captures that reasoned, practical endorsement. A is wrong because the author expressly denies the standard rests on moral rigor, insisting it is not 'a pronouncement that she is a bad person.' B overstates his doubt; he is confident, not ambivalent. C attributes to the author the critics' disapproval, which he rejects. D is wrong because the author plainly takes a side rather than standing neutral among positions.",
+      "concepts": [
+        "author-attitude"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-007"
+    },
+    {
+      "id": "rc-036",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "The author's primary purpose in the second paragraph is to",
+      "choices": [
+        {
+          "label": "A",
+          "text": "set out the objection that the remainder of the passage is devoted to answering."
+        },
+        {
+          "label": "B",
+          "text": "concede a genuine flaw in the position the author goes on to defend."
+        },
+        {
+          "label": "C",
+          "text": "restate the main point that had already been established in the first paragraph."
+        },
+        {
+          "label": "D",
+          "text": "supply historical evidence for the objective standard's long endurance."
+        },
+        {
+          "label": "E",
+          "text": "propose a reform that would make the standard sensitive to individual capacity."
+        }
+      ],
+      "correct": "A",
+      "explanation": "Paragraph two lays out the fairness objection — that the standard 'punishes people not for choosing badly but for being who they are' — which paragraphs three and four then rebut. A captures that setup-for-rebuttal role. B is wrong: the paragraph voices the critics, not a concession by the author, whose genuine concession about 'soft edges' appears in paragraph four. C is wrong because paragraph one does not state the main point, and paragraph two introduces the new critique rather than restating anything. D misassigns the point about the standard's 'century' of use, which belongs to paragraph one. E is wrong because the author never proposes an individualizing reform; he defends the existing standard.",
+      "concepts": [
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-007"
+    },
+    {
+      "id": "rc-037",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "stem": "Which one of the following most accurately describes the organization of the passage as a whole?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "A rule is stated, a series of counterexamples is catalogued, and the rule is ultimately abandoned."
+        },
+        {
+          "label": "B",
+          "text": "Two competing standards are compared, and one is shown to be superior on empirical grounds."
+        },
+        {
+          "label": "C",
+          "text": "A doctrine's history is traced from its origins through to its eventual replacement."
+        },
+        {
+          "label": "D",
+          "text": "A standard is described, an objection to it is presented and answered, and apparent exceptions are shown to reinforce that answer."
+        },
+        {
+          "label": "E",
+          "text": "A moral principle is defended against the charge that it is merely pragmatic."
+        }
+      ],
+      "correct": "D",
+      "explanation": "The passage describes the objective standard (para 1), presents the fairness objection (para 2), answers it with the allocative account (para 3), and argues the individualized exceptions 'confirm the allocative logic' (para 4). D matches that structure. A is wrong: the rule is defended, not 'abandoned.' B invents a comparison of two competing standards resolved on 'empirical' grounds, which never occurs. C describes a history ending in 'replacement,' but the standard is neither chiefly historical nor replaced. E reverses the author's point — he defends the standard as pragmatic against the assumption that it must be moral, not a moral principle against a charge of pragmatism.",
+      "concepts": [
+        "rc-structure",
+        "main-point"
+      ],
+      "references": [],
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "passage_id": "rc-passage-007"
+    },
+    {
+      "id": "rc-038",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "easy",
+      "passage_id": "rc-passage-008",
+      "stem": "Which one of the following most accurately expresses the main point of Passage A?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Third-party litigation funding should be prohibited in federal court until Congress acts."
+        },
+        {
+          "label": "B",
+          "text": "Insurance disclosure rules have proven unworkable and should not be extended to litigation funding."
+        },
+        {
+          "label": "C",
+          "text": "A narrow rule requiring disclosure of a funder's identity would serve recusal and case management without giving defendants a meaningful tactical advantage."
+        },
+        {
+          "label": "D",
+          "text": "Judges are frequently unaware of conflicts of interest, and this is the most serious problem facing the federal courts."
+        },
+        {
+          "label": "E",
+          "text": "Defendants who learn that a plaintiff is funded will inevitably litigate against the funder rather than on the merits."
+        }
+      ],
+      "correct": "C",
+      "explanation": "A argues for disclosure and then answers the scope objection by narrowing the rule to identity alone, drawing the insurance analogy to show the line is workable. C carries both halves. A overstates — A never proposes prohibition. B reverses the insurance point: A cites insurance as a *successful* precedent. D inflates a supporting example (recusal) into the passage's thesis and adds a superlative A never uses. E states the critics' prediction as though A endorsed it; A calls it an argument about scope that the narrow rule defuses.",
+      "concepts": [
+        "main-point",
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-039",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "intro",
+      "passage_id": "rc-passage-008",
+      "stem": "In the third paragraph of Passage A, the phrase \"an argument about scope, not about principle\" is used primarily to indicate that the critics' objection",
+      "choices": [
+        {
+          "label": "A",
+          "text": "is dishonest and should be disregarded"
+        },
+        {
+          "label": "B",
+          "text": "identifies a real risk that can be addressed by limiting what must be disclosed rather than by abandoning disclosure"
+        },
+        {
+          "label": "C",
+          "text": "applies with equal force to insurance disclosure"
+        },
+        {
+          "label": "D",
+          "text": "rests on an empirical claim that no study has tested"
+        },
+        {
+          "label": "E",
+          "text": "would be persuasive if the practice of litigation funding were smaller"
+        }
+      ],
+      "correct": "B",
+      "explanation": "The sentence before grants the objection 'has force'; the sentences after propose a rule limited to identity and nothing more. So the phrase concedes the risk and relocates it to a question of how much must be disclosed — B. A misreads a concession as a dismissal. C reverses the insurance point: A offers insurance as evidence that a narrow line *works*, not as another victim of the objection. D imports an evidentiary complaint the passage never makes. E introduces a size condition found nowhere in the paragraph.",
+      "concepts": [
+        "phrase-in-context",
+        "detail-question"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-040",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "passage_id": "rc-passage-008",
+      "stem": "Both passages are committed to which one of the following claims?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Mandatory disclosure of litigation funders should be adopted in every federal district."
+        },
+        {
+          "label": "B",
+          "text": "The identity of a litigation funder is more important to a court than the terms of the funding agreement."
+        },
+        {
+          "label": "C",
+          "text": "Existing rules governing who may bring a claim were drafted without contemplating third-party funding."
+        },
+        {
+          "label": "D",
+          "text": "Courts currently lack information about litigation funding that bears on how funded cases are handled."
+        },
+        {
+          "label": "E",
+          "text": "Satellite litigation over funding arrangements is a serious risk of any disclosure regime."
+        }
+      ],
+      "correct": "D",
+      "explanation": "A opens by calling funding 'largely invisible to the courts' and builds its case on the judge who 'cannot see'; B says a court told a funder exists 'proceeds exactly as before' because it cannot tell financing from control — both are committed to an information deficit that matters. D. A is A's position, which B declines to reach. B is A's implicit ranking; B argues the terms are what matter. C is B's historical claim; A never addresses standing rules. E is stated by A as the critics' objection and never raised by B at all — a claim one passage makes is not a claim both are committed to.",
+      "concepts": [
+        "rc-comparative",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-041",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "hard",
+      "passage_id": "rc-passage-008",
+      "stem": "Which one of the following most accurately describes how Passage B's treatment of disclosure differs from Passage A's?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Passage B denies that courts lack information about funding, whereas Passage A asserts that they lack it."
+        },
+        {
+          "label": "B",
+          "text": "Passage B treats disclosure as premature absent a substantive standard, whereas Passage A treats it as independently justified by existing judicial needs."
+        },
+        {
+          "label": "C",
+          "text": "Passage B regards disclosure as harmful to plaintiffs, whereas Passage A regards it as harmful only to funders."
+        },
+        {
+          "label": "D",
+          "text": "Passage B would require disclosure of the funding agreement's terms, whereas Passage A would require only the funder's identity."
+        },
+        {
+          "label": "E",
+          "text": "Passage B considers disclosure a matter for legislatures, whereas Passage A considers it a matter for individual districts."
+        }
+      ],
+      "correct": "B",
+      "explanation": "B's closing sentence is the difference: building the reporting requirement 'before the standard it is meant to serve' leaves courts collecting information they cannot use — disclosure is out of order, not wrong. A grounds disclosure in needs courts already have (recusal, settlement management). B captures the contrast. A misstates B, which agrees courts are uninformed and says the information would not help yet. C invents harms neither passage claims. D is close and wrong: B never proposes a disclosure rule of its own beyond one 'calibrated' to a standard that does not yet exist. E supplies an institutional split neither passage draws.",
+      "concepts": [
+        "rc-comparative",
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-042",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "hard",
+      "passage_id": "rc-passage-008",
+      "stem": "The relationship Passage B describes between a funder with settlement-veto rights and the nominal plaintiff is most analogous to which one of the following?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "A homeowner who hires a contractor to renovate a kitchen and approves each change order before work proceeds."
+        },
+        {
+          "label": "B",
+          "text": "A bank that lends against a business's receivables and is repaid from them regardless of how the business is run."
+        },
+        {
+          "label": "C",
+          "text": "A record label that advances a musician recording costs, chooses the producer, must approve any release, and recoups so large a share that the musician profits only on an exceptional hit."
+        },
+        {
+          "label": "D",
+          "text": "A tenant who sublets an apartment to a subtenant while remaining liable to the landlord under the original lease."
+        },
+        {
+          "label": "E",
+          "text": "An insurer that reimburses a policyholder's loss after the policyholder has settled a claim with a third party."
+        }
+      ],
+      "correct": "C",
+      "explanation": "Abstract B's structure: a financier supplies capital, holds a veto over the decisive event, may replace the agent doing the work, and takes so large a return that the named party gains only in an extreme outcome — control transferred while the name stays on the caption. C matches every element in an unrelated domain. A reverses the control: the homeowner approves, the contractor performs. B is the *passive* end of B's spectrum — repaid regardless of how things are run — which is the arrangement B says is unobjectionable. D transfers possession, not control of a claim, and the tenant keeps liability rather than losing direction. E involves no control over the underlying dispute and is post hoc.",
+      "concepts": [
+        "analogous-situation",
+        "rc-inference"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-043",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "passage_id": "rc-passage-008",
+      "stem": "The author of Passage B's attitude toward the current debate over litigation funding is most accurately described as",
+      "choices": [
+        {
+          "label": "A",
+          "text": "alarmed at the growth of an unregulated market"
+        },
+        {
+          "label": "B",
+          "text": "impatient with a focus the author considers misdirected"
+        },
+        {
+          "label": "C",
+          "text": "confident that existing doctrine is adequate to the problem"
+        },
+        {
+          "label": "D",
+          "text": "neutral as between the competing positions"
+        },
+        {
+          "label": "E",
+          "text": "hostile to litigation funding in all its forms"
+        }
+      ],
+      "correct": "B",
+      "explanation": "'Which is a pity' in the opening paragraph, and the closing charge that disclosure-first reasoning has the order backwards, register a settled impatience with where the debate has landed — not with funding itself. B. A overshoots: B's concern is doctrinal sequencing, not market growth. C is contradicted by 'there is no doctrine on which it could act'. D ignores the evaluative language throughout. E is contradicted by B's explicit acceptance of passive capital as unproblematic.",
+      "concepts": [
+        "author-attitude",
+        "rc-tone"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    }
+  ]
 }

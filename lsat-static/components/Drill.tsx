@@ -6,6 +6,7 @@ import { passageById, questionsFor, sectionMeta } from '@/lib/data'
 import QuestionCard from './QuestionCard'
 import PassagePanel from './PassagePanel'
 import SectionTimer from './SectionTimer'
+import { useShortcuts } from '@/lib/keyboard'
 
 /** Question-by-question drill for one section, with prev/next navigation. */
 export default function Drill({
@@ -25,11 +26,24 @@ export default function Drill({
     setAnswers(new Map())
   }, [section])
 
+  const q = questions[Math.min(i, questions.length - 1)]
+  const answered = q ? answers.has(q.id) : false
+
+  // Question-to-question movement. `Enter` advances only once the current
+  // question has been checked — before that it belongs to QuestionCard, which
+  // uses it to submit. The two guards are mutually exclusive, so both can
+  // listen for the same key without racing.
+  useShortcuts({
+    n: () => setI((n) => Math.min(questions.length - 1, n + 1)),
+    p: () => setI((n) => Math.max(0, n - 1)),
+    Enter: () => {
+      if (answered) setI((n) => Math.min(questions.length - 1, n + 1))
+    },
+  })
+
   if (questions.length === 0) {
     return <p className="empty">No questions in this section yet.</p>
   }
-
-  const q = questions[Math.min(i, questions.length - 1)]
   const passage = passageById(q.passage_id)
   const answeredCount = answers.size
   const answeredSeconds = Array.from(answers.values()).reduce((sum, n) => sum + n, 0)
@@ -72,6 +86,7 @@ export default function Drill({
             <button
               type="button"
               className="btn"
+              aria-keyshortcuts="P"
               onClick={() => setI((n) => Math.max(0, n - 1))}
               disabled={i === 0}
             >
@@ -83,6 +98,7 @@ export default function Drill({
             <button
               type="button"
               className="btn"
+              aria-keyshortcuts="N"
               onClick={() => setI((n) => Math.min(questions.length - 1, n + 1))}
               disabled={i >= questions.length - 1}
             >

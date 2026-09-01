@@ -27,7 +27,9 @@ from law_ai.lsat.factory.taxonomy import (
     validate_taxonomy,
 )
 from law_ai.lsat.services.bank import (
+    DIFFICULTY_ORDER,
     Difficulty,
+    PassageContext,
     Question,
     Section,
     load_bank,
@@ -35,7 +37,9 @@ from law_ai.lsat.services.bank import (
 )
 from law_ai.lsat.services.proposals import gap_analysis
 
-DIFFICULTIES: tuple[Difficulty, ...] = ("easy", "med", "hard")
+#: Census axis — every band the scale defines, easiest first (spec 047 FR-8).
+#: An archetype that declares no weight for a band simply wants nothing there.
+DIFFICULTIES: tuple[Difficulty, ...] = DIFFICULTY_ORDER
 
 # Accuracy below this in gap analysis marks a concept as learner-weak; cells
 # exercising weak concepts get their priority multiplied by config.gap_boost.
@@ -108,14 +112,20 @@ def coverage_matrix(config: FactoryConfig) -> list[CoverageCell]:
     """The census joined with per-cell targets.
 
     ``config.target_per_cell`` approximates the desired items per cell; each
-    archetype's total budget (``3 x target_per_cell``) is distributed across
-    difficulties by its exam-frequency weights, so a cell the real exam never
-    populates (weight 0.0) wants nothing.
+    archetype's budget is ``target_per_cell x (bands it declares)``, distributed
+    across those bands by its exam-frequency weights, so a cell the real exam
+    never populates (weight 0.0, or a band the archetype does not span at all)
+    wants nothing.
+
+    Scaling the budget by the archetype's *declared* bands rather than by the
+    length of :data:`DIFFICULTIES` is what let spec 047 widen the scale from
+    three bands to five without inflating every existing archetype's target by
+    5/3 overnight.
     """
     counts = census()
     cells: list[CoverageCell] = []
-    per_archetype_total = config.target_per_cell * len(DIFFICULTIES)
     for arch in all_archetypes():
+        per_archetype_total = config.target_per_cell * len(arch.difficulty_weights)
         for diff in DIFFICULTIES:
             weight = arch.difficulty_weights.get(diff, 0.0)
             want = round(per_archetype_total * weight)
@@ -145,22 +155,38 @@ def _weak_concepts() -> set[str]:
     }
 
 
+def _passage_traits(passage: PassageContext) -> str:
+    """Searchable text describing what a passage/game can support.
+
+    Prose (title, summary, rules) plus *derived* structural markers, so an
+    archetype's ``passage_keyword`` can match a real property of the set and
+    not merely a word its author happened to use. Spec 047 FR-9 added
+    ``comparative`` this way: a paired Passage A / Passage B set matches
+    whether or not its summary says so.
+    """
+    parts = [passage.title, passage.summary or "", " ".join(passage.rules)]
+    if passage.is_comparative:
+        parts.append("comparative")
+    return " ".join(parts).lower()
+
+
 def _passage_for(
     archetype: Archetype, *, passage_question_counts: dict[str, int]
 ) -> tuple[str | None, TargetMode]:
     """Choose a passage strategy for a passage-bound archetype.
 
     Prefer the existing same-section passage with the fewest linked questions
-    (spread coverage); when the section has no passage at all — e.g. no
-    grouping game exists yet — request a brand-new ``passage_set``.
+    (spread coverage); when nothing in the section can serve the archetype —
+    no grouping game exists yet, no comparative RC set exists yet — request a
+    brand-new ``passage_set``. The filter is the archetype's
+    ``passage_keyword`` matched against :func:`_passage_traits`; a grouping
+    archetype cannot be served by a sequencing game, and a comparative
+    question cannot be served by a single-text passage.
     """
     candidates = [p for p in load_passages().values() if p.section == archetype.section]
-    # A grouping archetype can't be served by a sequencing game: new set.
-    if archetype.id == "lg-grouping":
-        grouping_ready = [
-            p for p in candidates if "group" in ((p.summary or "") + p.title).lower()
-        ]
-        candidates = grouping_ready
+    if archetype.passage_keyword:
+        needle = archetype.passage_keyword.lower()
+        candidates = [p for p in candidates if needle in _passage_traits(p)]
     if not candidates:
         return None, "passage_set"
     best = min(

@@ -59,6 +59,8 @@ class TestSiteStructure:
             "next.config.mjs",
             "app/page.tsx",
             "app/layout.tsx",
+            # spec 047 FR-3: the writing view is part of the published site.
+            "components/Writing.tsx",
         ):
             assert (APP / name).is_file(), f"missing lsat-static file: {name}"
 
@@ -141,7 +143,19 @@ class TestContentDrift:
         assert set(site) == set(src)
         # The app renders every one of these fields (viewPassage).
         for pid, sp in site.items():
-            for field in ("section", "title", "summary", "passage", "setup"):
+            # passage_b / title_a / title_b carry comparative RC sets (spec 047
+            # FR-9); a set whose second half failed to export would render as a
+            # single passage and make every comparative question unanswerable.
+            for field in (
+                "section",
+                "title",
+                "summary",
+                "passage",
+                "passage_b",
+                "title_a",
+                "title_b",
+                "setup",
+            ):
                 assert sp.get(field) == src[pid].get(field), (
                     f"passage {pid}: {field} drift — run `make lsat-export`"
                 )
@@ -163,6 +177,47 @@ class TestContentDrift:
                 assert (sc.get(field) or []) == (src[cid].get(field) or []), (
                     f"concept {cid}: {field} drift — run `make lsat-export`"
                 )
+
+    def test_writing_prompts_fully_synced(self, artifact: dict) -> None:
+        # Spec 047 AC-5: a writing data-file edit that skips `make lsat-export`
+        # must fail CI, exactly as a bank edit does.
+        path = BANK_DIR / "writing_prompts.json"
+        src = {p["id"]: p for p in _load(path)["items"]} if path.is_file() else {}
+        site = {p["id"]: p for p in artifact.get("writing_prompts", [])}
+        assert set(site) == set(src), (
+            "site content.json is out of sync with the writing prompts — run "
+            f"`make lsat-export` (missing: {sorted(set(src) - set(site))}, "
+            f"stale: {sorted(set(site) - set(src))})"
+        )
+        assert artifact["counts"]["writing_prompts"] == len(src)
+        for pid, sp in site.items():
+            for field in ("title", "rubric_id", "difficulty", "issue", "context"):
+                assert sp.get(field) == src[pid].get(field), (
+                    f"writing prompt {pid}: {field} drift — run `make lsat-export`"
+                )
+            for field in ("task", "positions", "perspectives", "self_check"):
+                assert sp.get(field) == src[pid].get(field), (
+                    f"writing prompt {pid}: {field} drift — run `make lsat-export`"
+                )
+            # The annotated model response is the offline feedback loop; it
+            # must ship whole, not summarized.
+            assert sp["model_response"] == src[pid]["model_response"], (
+                f"writing prompt {pid}: model_response drift — run `make lsat-export`"
+            )
+
+    def test_writing_rubrics_fully_synced(self, artifact: dict) -> None:
+        path = BANK_DIR / "writing_rubrics.json"
+        src = {r["id"]: r for r in _load(path)["items"]} if path.is_file() else {}
+        site = {r["id"]: r for r in artifact.get("writing_rubrics", [])}
+        assert set(site) == set(src), (
+            "site content.json is out of sync with the writing rubrics — run "
+            "`make lsat-export`"
+        )
+        for rid, sr in site.items():
+            assert sr["bands"] == src[rid]["bands"], f"rubric {rid}: bands drift"
+            assert sr["criteria"] == src[rid]["criteria"], (
+                f"rubric {rid}: criteria drift — run `make lsat-export`"
+            )
 
     def test_sections_fully_synced(self, artifact: dict) -> None:
         src = {s["code"]: s for s in _load(BANK_DIR / "sections.json")["items"]}
@@ -197,6 +252,40 @@ class TestContentIntegrity:
         for q in artifact["questions"]:
             if q.get("passage_id"):
                 assert q["passage_id"] in passage_ids, q["id"]
+
+    def test_no_writing_item_carries_an_answer_key(self, artifact: dict) -> None:
+        # Spec 047 AC-2: WS has no keyed-choice form. The exporter loads
+        # through the bank model that rejects it; this pins the contract at
+        # the artifact boundary too.
+        assert not [q for q in artifact["questions"] if q["section"] == "WS"]
+
+    def test_every_writing_prompt_resolves_its_rubric(self, artifact: dict) -> None:
+        rubric_ids = {r["id"] for r in artifact.get("writing_rubrics", [])}
+        for prompt in artifact.get("writing_prompts", []):
+            assert prompt["rubric_id"] in rubric_ids, prompt["id"]
+
+    def test_writing_self_checks_name_real_criteria(self, artifact: dict) -> None:
+        rubrics = {r["id"]: r for r in artifact.get("writing_rubrics", [])}
+        for prompt in artifact.get("writing_prompts", []):
+            known = {c["id"] for c in rubrics[prompt["rubric_id"]]["criteria"]}
+            for item in prompt["self_check"]:
+                assert item["criterion_id"] in known, prompt["id"]
+            for note in prompt["model_response"]["annotations"]:
+                assert note["criterion_id"] in known, prompt["id"]
+
+    def test_comparative_sets_ship_both_halves(self, artifact: dict) -> None:
+        # Spec 047 FR-9: a set with Passage B must name both halves, or a
+        # reader cannot tell which text a question is asking about.
+        comparative = [p for p in artifact["passages"] if p.get("passage_b")]
+        assert comparative, "no comparative RC set in the published artifact"
+        for p in comparative:
+            assert p["section"] == "RC", p["id"]
+            assert p.get("passage"), f"{p['id']} has Passage B but no Passage A"
+            assert p.get("title_a") and p.get("title_b"), p["id"]
+            linked = [
+                q for q in artifact["questions"] if q.get("passage_id") == p["id"]
+            ]
+            assert linked, f"{p['id']} is a comparative set with no questions"
 
     def test_rc_lg_questions_have_context(self, artifact: dict) -> None:
         for q in artifact["questions"]:
