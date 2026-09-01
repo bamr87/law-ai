@@ -8,10 +8,19 @@ import type {
   Question,
   SectionCode,
   SolveGuide,
+  WritingPrompt,
+  WritingRubric,
 } from './types'
 
 export const content = raw as unknown as Content
 
+/**
+ * The drillable sections — the ones with a multiple-choice question bank.
+ *
+ * 'WS' is deliberately absent: Argumentative Writing has section metadata and
+ * concept tags but no keyed questions, so it gets its own view rather than a
+ * Drill. Mirrors `MCQ_SECTIONS` in the backend's `bank.py`.
+ */
 export const SECTIONS: SectionCode[] = ['LR', 'RC', 'LG']
 
 export function sectionMeta(code: SectionCode) {
@@ -48,4 +57,31 @@ const _concepts = new Map<string, Concept>(content.concepts.map((c) => [c.id, c]
 
 export function conceptById(id: string): Concept | undefined {
   return _concepts.get(id)
+}
+
+// ---------------------------------------------------------------------------
+// Argumentative Writing (spec 047)
+// ---------------------------------------------------------------------------
+
+export const writingPrompts: WritingPrompt[] = content.writing_prompts ?? []
+
+const _rubrics = new Map<string, WritingRubric>(
+  (content.writing_rubrics ?? []).map((r) => [r.id, r]),
+)
+
+export function writingPromptById(id: string): WritingPrompt | undefined {
+  return writingPrompts.find((p) => p.id === id)
+}
+
+/**
+ * The rubric a prompt is read against.
+ *
+ * The bundle carries the full rubric *and* the annotated model response by
+ * design: the published site has no backend, so self-scoring against the
+ * rubric is the only feedback available offline (spec 047 FR-3). `Writing`
+ * keeps both locked until the learner submits, the same way `SolveAssist`
+ * locks spoiler steps until a question is graded.
+ */
+export function rubricFor(prompt: WritingPrompt): WritingRubric | undefined {
+  return _rubrics.get(prompt.rubric_id)
 }

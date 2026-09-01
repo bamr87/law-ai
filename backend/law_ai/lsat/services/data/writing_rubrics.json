@@ -1,0 +1,120 @@
+{
+  "items": [
+    {
+      "id": "argumentative-writing-v1",
+      "name": "Argumentative Writing — analytic rubric",
+      "version": 1,
+      "summary": "Five weighted criteria read across four bands. LSAC does not publish a numeric score for the writing section — admissions readers read the sample itself — so this rubric is a study instrument for diagnosing a draft, not a predictor of any official result.",
+      "bands": [
+        {
+          "level": 1,
+          "label": "Developing",
+          "descriptor": "The reader can identify an attempt but has to supply the connective work themselves."
+        },
+        {
+          "level": 2,
+          "label": "Adequate",
+          "descriptor": "The moves are present but thin — asserted rather than argued, or handled unevenly across the response."
+        },
+        {
+          "level": 3,
+          "label": "Strong",
+          "descriptor": "The moves are present, deliberate, and carry their weight; a reader is persuaded even where they disagree."
+        },
+        {
+          "level": 4,
+          "label": "Exemplary",
+          "descriptor": "The response anticipates the reader's resistance and disarms it before it forms."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "position",
+          "name": "Position and thesis",
+          "description": "Takes one defensible position on the stated issue and holds it. Readers should be able to state the writer's claim in a sentence after the first paragraph.",
+          "weight": 0.2,
+          "look_for": [
+            "A thesis that names the position and the principal reason for it",
+            "A position that is actually contestable rather than a truism",
+            "The same position at the end as at the beginning"
+          ],
+          "band_notes": {
+            "1": "The reader cannot tell which side the writer is on, or the position drifts mid-response.",
+            "2": "A position is stated but reads as a restatement of the prompt rather than a claim of the writer's own.",
+            "3": "A clear, contestable thesis with its principal reason attached, held throughout.",
+            "4": "A thesis precise enough to rule things out — the reader knows what evidence would refute it."
+          }
+        },
+        {
+          "id": "reasoning",
+          "name": "Reasoning and evidence",
+          "description": "Supports the position with reasons that actually bear on it, and makes the connection between reason and claim explicit rather than leaving it to the reader.",
+          "weight": 0.25,
+          "look_for": [
+            "Each supporting paragraph states a reason, not just a topic",
+            "The warrant linking reason to thesis is stated, not assumed",
+            "Claims are calibrated — hedged where the support is partial"
+          ],
+          "band_notes": {
+            "1": "Assertions accumulate without support, or support is offered for a claim the thesis never made.",
+            "2": "Reasons are present but the link to the thesis is left implicit; the reader does the joining.",
+            "3": "Each reason is stated, supported, and explicitly tied back to the thesis.",
+            "4": "Reasoning is calibrated to its support — strong where the ground is firm, qualified where it is not."
+          }
+        },
+        {
+          "id": "perspectives",
+          "name": "Engagement with the given perspectives",
+          "description": "Uses the perspectives supplied with the prompt as material to reason from, rather than restating them or ignoring them.",
+          "weight": 0.2,
+          "look_for": [
+            "At least two of the supplied perspectives are engaged substantively",
+            "A perspective is interpreted or weighed, not merely quoted",
+            "A perspective that cuts against the position is not silently dropped"
+          ],
+          "band_notes": {
+            "1": "The perspectives are ignored, or listed back without use.",
+            "2": "One perspective is used; the rest are decorative or absent.",
+            "3": "Several perspectives are weighed and put to work for the argument.",
+            "4": "A perspective that appears to cut against the position is reinterpreted so that it supports it, or is honestly conceded."
+          }
+        },
+        {
+          "id": "counterargument",
+          "name": "Counterargument and concession",
+          "description": "States the strongest version of the opposing position and answers it, conceding what genuinely must be conceded.",
+          "weight": 0.2,
+          "look_for": [
+            "The opposing position is stated in a form its holders would accept",
+            "The response answers the objection rather than repeating the thesis",
+            "Concessions are real and are bounded so they do not swallow the claim"
+          ],
+          "band_notes": {
+            "1": "No opposing position appears, or it appears only as a caricature.",
+            "2": "An objection is named but answered by restating the thesis more loudly.",
+            "3": "The strongest objection is stated fairly and given a real answer.",
+            "4": "A genuine concession is made and then bounded, leaving the thesis standing on narrower but firmer ground."
+          }
+        },
+        {
+          "id": "expression",
+          "name": "Organization and written expression",
+          "description": "Orders the argument so each paragraph earns its place, and writes clearly enough that the reasoning is never obscured by the prose.",
+          "weight": 0.15,
+          "look_for": [
+            "A reader can predict what each paragraph will do from its first sentence",
+            "Transitions carry argumentative weight, not just sequence",
+            "Sentence-level clarity; errors do not impede meaning"
+          ],
+          "band_notes": {
+            "1": "Order appears arbitrary, or errors force the reader to reread to recover the meaning.",
+            "2": "A recognizable structure with paragraphs that overlap or wander; occasional interference from errors.",
+            "3": "Purposeful structure and clean prose; the argument is easy to follow.",
+            "4": "Structure that is itself an argument — each paragraph placed where it does the most work."
+          }
+        }
+      ],
+      "source": "original (CC0)"
+    }
+  ]
+}

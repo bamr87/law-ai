@@ -243,7 +243,13 @@ export function fetchRunDetail(traceId: string) {
 // --- LSAT Lab (spec 005) ---
 
 export type LsatChoiceLabel = 'A' | 'B' | 'C' | 'D' | 'E'
-export type LsatDifficulty = 'easy' | 'med' | 'hard'
+/**
+ * Spec 047 FR-8 widened the scale at both ends. The original three bands are
+ * unchanged so no stored item was invalidated; `intro` sits below `easy` and
+ * `elite` above `hard`. Order is intro < easy < med < hard < elite — mirrors
+ * `DIFFICULTY_ORDER` in the backend's `bank.py`.
+ */
+export type LsatDifficulty = 'intro' | 'easy' | 'med' | 'hard' | 'elite'
 export type LsatSection = 'LR' | 'RC' | 'LG'
 
 export interface LsatChoice {
@@ -321,7 +327,12 @@ export interface LsatPassage {
   section: LsatSection
   title: string
   summary?: string | null
+  /** RC text. On a comparative set (spec 047 FR-9) this is Passage A. */
   passage?: string | null
+  /** Passage B of a comparative RC set; absent on a single-text passage. */
+  passage_b?: string | null
+  title_a?: string | null
+  title_b?: string | null
   setup?: string | null
   rules: string[]
   source: string

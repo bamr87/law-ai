@@ -11,6 +11,12 @@ API-backed lab does. Spoiler steps ship too — the site already carries answer
 keys in order to grade offline — and the *client* keeps them locked until the
 question is graded, mirroring ``public_guide_view``.
 
+Spec 047 adds ``writing_prompts`` and ``writing_rubrics``. The whole point of
+shipping the rubric and the annotated model response is that a learner can
+score their own draft with no model call and no network (spec 047 FR-3,
+NFR-OFFLINE-1), so the model responses ship in full; the *client* keeps them
+locked until the learner submits, mirroring the guide spoiler contract.
+
 Everything is loaded through the canonical Pydantic loaders in
 :mod:`law_ai.lsat.services.bank`, so only loader-valid content can ship.
 Ordering is stable (sections LR/RC/LG; everything else by id) so re-exports
@@ -37,10 +43,11 @@ from law_ai.lsat.services.bank import (
     load_sections,
 )
 from law_ai.lsat.services.guides import load_guides
+from law_ai.lsat.services.writing import load_writing_prompts, load_writing_rubrics
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
-_SECTION_ORDER = ("LR", "RC", "LG")
+_SECTION_ORDER = ("LR", "RC", "LG", "WS")
 
 _DEFAULT_OUT = "var/lsat_site"
 
@@ -59,6 +66,8 @@ def build_content() -> dict[str, Any]:
             key=lambda q: (_SECTION_ORDER.index(bank[q].section), q),
         )
     ]
+    rubrics = load_writing_rubrics()
+    prompts = load_writing_prompts()
     counts: dict[str, int] = {s: 0 for s in _SECTION_ORDER}
     for q in bank.values():
         counts[q.section] = counts.get(q.section, 0) + 1
@@ -79,6 +88,7 @@ def build_content() -> dict[str, Any]:
             "total": len(questions),
             **counts,
             "guides": len(guide_payload),
+            "writing_prompts": len(prompts),
         },
         "sections": [
             sections[code].model_dump(mode="json")
@@ -89,6 +99,12 @@ def build_content() -> dict[str, Any]:
         "passages": [passages[pid].model_dump(mode="json") for pid in sorted(passages)],
         "questions": questions,
         "guides": guide_payload,
+        "writing_rubrics": [
+            rubrics[rid].model_dump(mode="json") for rid in sorted(rubrics)
+        ],
+        "writing_prompts": [
+            prompts[pid].model_dump(mode="json") for pid in sorted(prompts)
+        ],
     }
 
 
@@ -123,6 +139,7 @@ class Command(BaseCommand):
                 f"exported {counts['total']} questions "
                 f"(LR {counts['LR']} / RC {counts['RC']} / LG {counts['LG']}), "
                 f"{len(content['passages'])} passages, "
-                f"{len(content['concepts'])} concepts → {path}"
+                f"{len(content['concepts'])} concepts, "
+                f"{counts['writing_prompts']} writing prompts → {path}"
             )
         )

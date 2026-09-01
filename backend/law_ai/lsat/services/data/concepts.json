@@ -1,503 +1,953 @@
 {
-    "items": [
+  "items": [
+    {
+      "id": "modus-tollens",
+      "name": "Modus Tollens",
+      "sections": [
+        "LR",
+        "LG"
+      ],
+      "summary": "Valid conditional inference: if P then Q; not Q; therefore not P.",
+      "detail": "Modus tollens is the contrapositive form. Whenever a conditional 'P → Q' is true, the contrapositive '¬Q → ¬P' is logically equivalent. The LSAT loves to test contrapositive recognition because students who only memorize 'P → Q' miss that the same rule also tells you what happens when Q fails.",
+      "examples": [
+        "If the contract is enforceable, both parties signed. The contract was not signed by both parties. ∴ The contract is not enforceable."
+      ],
+      "see_also": [
+        "modus-ponens",
+        "conditional-reasoning",
+        "contrapositive"
+      ],
+      "references": [
         {
-            "id": "modus-tollens",
-            "name": "Modus Tollens",
-            "sections": [
-                "LR",
-                "LG"
-            ],
-            "summary": "Valid conditional inference: if P then Q; not Q; therefore not P.",
-            "detail": "Modus tollens is the contrapositive form. Whenever a conditional 'P → Q' is true, the contrapositive '¬Q → ¬P' is logically equivalent. The LSAT loves to test contrapositive recognition because students who only memorize 'P → Q' miss that the same rule also tells you what happens when Q fails.",
-            "examples": [
-                "If the contract is enforceable, both parties signed. The contract was not signed by both parties. ∴ The contract is not enforceable."
-            ],
-            "see_also": [
-                "modus-ponens",
-                "conditional-reasoning",
-                "contrapositive"
-            ],
-            "references": [
-                {
-                    "title": "SEP — Classical Logic",
-                    "url": "https://plato.stanford.edu/entries/logic-classical/"
-                }
-            ]
-        },
-        {
-            "id": "modus-ponens",
-            "name": "Modus Ponens",
-            "sections": [
-                "LR"
-            ],
-            "summary": "Valid conditional inference: if P then Q; P; therefore Q.",
-            "detail": "The simplest valid conditional inference. Distinguish from the *invalid* mirror moves — affirming the consequent (Q ∴ P) and denying the antecedent (¬P ∴ ¬Q) — both classic LR flaw types.",
-            "examples": [
-                "All senior partners have argued before the supreme court. Maria is a senior partner. ∴ Maria has argued before the supreme court."
-            ],
-            "see_also": [
-                "modus-tollens",
-                "conditional-reasoning"
-            ],
-            "references": []
-        },
-        {
-            "id": "conditional-reasoning",
-            "name": "Conditional Reasoning",
-            "sections": [
-                "LR",
-                "LG"
-            ],
-            "summary": "Working with 'if/then' statements, their contrapositives, and chains of conditionals.",
-            "detail": "Indicators: 'if', 'only if', 'unless', 'whenever', 'all', 'every', 'no', 'none'. 'Only if' attaches to the *necessary* condition; 'unless' translates to '¬X → Y'. Always diagram conditionals before answering and always check the contrapositive.",
-            "examples": [
-                "Only members may vote → Vote → Member (and ¬Member → ¬Vote).",
-                "Unless you submit by Friday, your filing is late → ¬Submit-by-Friday → Late."
-            ],
-            "see_also": [
-                "modus-ponens",
-                "modus-tollens",
-                "contrapositive"
-            ],
-            "references": [
-                {
-                    "title": "Khan Academy — Conditional Reasoning",
-                    "url": "https://www.khanacademy.org/prep/lsat/lsat-lessons/logical-reasoning"
-                }
-            ]
-        },
-        {
-            "id": "contrapositive",
-            "name": "Contrapositive",
-            "sections": [
-                "LR",
-                "LG"
-            ],
-            "summary": "The contrapositive of 'P → Q' is '¬Q → ¬P'; logically equivalent.",
-            "detail": "Contraposition is the workhorse of LR conditional questions. Note: the *converse* (Q → P) and the *inverse* (¬P → ¬Q) are NOT equivalent — confusing them is the affirming-the-consequent / denying-the-antecedent flaw.",
-            "examples": [
-                "P → Q is equivalent to ¬Q → ¬P, but not to Q → P or ¬P → ¬Q."
-            ],
-            "see_also": [
-                "modus-tollens",
-                "conditional-reasoning"
-            ],
-            "references": []
-        },
-        {
-            "id": "necessary-assumption",
-            "name": "Necessary Assumption",
-            "sections": [
-                "LR"
-            ],
-            "summary": "An unstated premise the argument REQUIRES in order to hold.",
-            "detail": "Use the negation test: negate the candidate; if the argument collapses, it was necessary. Necessary assumptions are minimally helpful — they fill the smallest possible gap, not the most ambitious.",
-            "examples": [
-                "Argument: 'A or B; not A; ∴ B.' Necessary assumption: those were the only options."
-            ],
-            "see_also": [
-                "sufficient-assumption",
-                "flaw-in-reasoning"
-            ],
-            "references": [
-                {
-                    "title": "7Sage — Necessary Assumption",
-                    "url": "https://7sage.com/lesson/lr-necessary-assumption/"
-                }
-            ]
-        },
-        {
-            "id": "sufficient-assumption",
-            "name": "Sufficient Assumption",
-            "sections": [
-                "LR"
-            ],
-            "summary": "An assumption strong enough to GUARANTEE the conclusion.",
-            "detail": "Sufficient-assumption answers can be much stronger than necessary ones. The trick is to map the gap between premise and conclusion and find the answer that closes it completely.",
-            "examples": [],
-            "see_also": [
-                "necessary-assumption"
-            ],
-            "references": []
-        },
-        {
-            "id": "causation-vs-correlation",
-            "name": "Causation vs. Correlation",
-            "sections": [
-                "LR"
-            ],
-            "summary": "Inferring cause from a mere correlation is a classic LR flaw.",
-            "detail": "When an argument says 'X and Y are correlated, therefore X causes Y', look for: (a) reverse causation (Y → X), (b) common cause (Z → both), (c) coincidence, (d) selection bias. Weaken answers usually surface one of these alternatives.",
-            "examples": [
-                "Breakfast eaters score higher on cognitive tests → eating breakfast causes cognitive performance? Could be sleep, exercise, or socioeconomic confounders."
-            ],
-            "see_also": [
-                "alternative-cause",
-                "weaken",
-                "flaw-in-reasoning"
-            ],
-            "references": []
-        },
-        {
-            "id": "alternative-cause",
-            "name": "Alternative Cause",
-            "sections": [
-                "LR"
-            ],
-            "summary": "A confounding variable that explains the observed pattern equally well or better.",
-            "detail": "Most LR weaken answers introduce an alternative cause. Strengthen answers usually rule one out.",
-            "examples": [],
-            "see_also": [
-                "causation-vs-correlation",
-                "weaken"
-            ],
-            "references": []
-        },
-        {
-            "id": "weaken",
-            "name": "Weaken Question",
-            "sections": [
-                "LR"
-            ],
-            "summary": "Pick the answer that, if true, most undermines the argument.",
-            "detail": "Identify the conclusion, then attack the link between premise and conclusion — typically by surfacing a counter-example, alternative cause, or unmet assumption. Avoid answers that simply contradict a premise (the LSAT treats premises as given).",
-            "examples": [],
-            "see_also": [
-                "strengthen",
-                "alternative-cause"
-            ],
-            "references": []
-        },
-        {
-            "id": "strengthen",
-            "name": "Strengthen Question",
-            "sections": [
-                "LR"
-            ],
-            "summary": "Pick the answer that, if true, most supports the argument.",
-            "detail": "Mirror image of weaken: rule out alternative explanations, supply a missing assumption, or provide additional confirming evidence.",
-            "examples": [],
-            "see_also": [
-                "weaken",
-                "necessary-assumption"
-            ],
-            "references": []
-        },
-        {
-            "id": "flaw-in-reasoning",
-            "name": "Flaw in the Reasoning",
-            "sections": [
-                "LR"
-            ],
-            "summary": "Identify the logical error the argument commits.",
-            "detail": "Common flaws: ad hominem, circular reasoning, equivocation, hasty generalization, sampling bias, appeal to ignorance, false dichotomy, conflating correlation with causation, part-whole conflations, conditional reasoning errors (affirming the consequent, denying the antecedent).",
-            "examples": [],
-            "see_also": [
-                "equivocation",
-                "appeal-to-ignorance",
-                "causation-vs-correlation"
-            ],
-            "references": [
-                {
-                    "title": "7Sage — Flaw Question Types",
-                    "url": "https://7sage.com/lesson/lr-flaw-question-types/"
-                }
-            ]
-        },
-        {
-            "id": "equivocation",
-            "name": "Equivocation",
-            "sections": [
-                "LR"
-            ],
-            "summary": "Using one word in two different senses across an argument.",
-            "detail": "Tricky because the equivocated term is often subtle ('volume of submissions' vs. 'diversity of viewpoints', or 'theory' as 'guess' vs. 'theory' as 'scientific framework'). Watch for shifts in scope between the premise and conclusion.",
-            "examples": [],
-            "see_also": [
-                "flaw-in-reasoning"
-            ],
-            "references": []
-        },
-        {
-            "id": "appeal-to-ignorance",
-            "name": "Appeal to Ignorance",
-            "sections": [
-                "LR"
-            ],
-            "summary": "Treating absence of evidence as evidence of absence (or vice versa).",
-            "detail": "'No one has shown X is true, therefore X is false' — and its mirror 'No one has shown X is false, therefore X is true.' Both are flawed because lack of evidence settles nothing.",
-            "examples": [],
-            "see_also": [
-                "flaw-in-reasoning"
-            ],
-            "references": []
-        },
-        {
-            "id": "parallel-reasoning",
-            "name": "Parallel Reasoning",
-            "sections": [
-                "LR"
-            ],
-            "summary": "Match the abstract STRUCTURE of the stimulus, not its subject matter.",
-            "detail": "Diagram the stimulus as variables (P, Q, R…). Then test each answer choice by diagramming it the same way. The correct answer must match the validity status (valid ↔ valid, invalid ↔ same kind of invalid) and the structural shape.",
-            "examples": [],
-            "see_also": [
-                "universal-instantiation"
-            ],
-            "references": [
-                {
-                    "title": "Khan Academy — Parallel Reasoning",
-                    "url": "https://www.khanacademy.org/prep/lsat/lsat-lessons/logical-reasoning/x60ba31fe60ad9ad8:parallel-reasoning/v/parallel-reasoning-1"
-                }
-            ]
-        },
-        {
-            "id": "universal-instantiation",
-            "name": "Universal Instantiation",
-            "sections": [
-                "LR"
-            ],
-            "summary": "From 'all P are Q' and 'x is P', conclude 'x is Q'. Always valid.",
-            "detail": "The bedrock valid argument form. Distinguish from 'most P are Q' (probabilistic) and 'some P are Q' (existential).",
-            "examples": [],
-            "see_also": [
-                "parallel-reasoning"
-            ],
-            "references": []
-        },
-        {
-            "id": "main-point",
-            "name": "Main Point Question",
-            "sections": [
-                "RC"
-            ],
-            "summary": "Identify the central thesis of the passage.",
-            "detail": "The main point summarizes the WHOLE passage, not a single paragraph. Wrong answers are usually too narrow (a single example) or too broad (a vague abstraction).",
-            "examples": [],
-            "see_also": [
-                "rc-structure"
-            ],
-            "references": []
-        },
-        {
-            "id": "rc-structure",
-            "name": "Passage Structure",
-            "sections": [
-                "RC"
-            ],
-            "summary": "Map each paragraph's role: setup, complication, evidence, counter-argument, resolution.",
-            "detail": "Before answering questions, jot a one-line label for each paragraph. Most RC question types (main point, author attitude, role of statement, function of paragraph) become trivial once the structural map is clear.",
-            "examples": [],
-            "see_also": [
-                "main-point",
-                "author-attitude"
-            ],
-            "references": []
-        },
-        {
-            "id": "author-attitude",
-            "name": "Author's Attitude / Tone",
-            "sections": [
-                "RC"
-            ],
-            "summary": "Identify the author's stance toward the subject — endorsement, skepticism, neutrality, etc.",
-            "detail": "Look for evaluative adjectives, hedge words ('arguably', 'risks'), and rhetorical questions. Hedged language usually means a hedged answer (qualified concern, cautious optimism) is right.",
-            "examples": [],
-            "see_also": [
-                "rc-tone"
-            ],
-            "references": []
-        },
-        {
-            "id": "rc-tone",
-            "name": "Tone",
-            "sections": [
-                "RC"
-            ],
-            "summary": "Closely related to author attitude — measure intensity (mild/strong) and polarity (positive/negative).",
-            "detail": "Eliminate extremes ('uncritical', 'open hostility') unless the passage explicitly supports them.",
-            "examples": [],
-            "see_also": [
-                "author-attitude"
-            ],
-            "references": []
-        },
-        {
-            "id": "detail-question",
-            "name": "Detail Question",
-            "sections": [
-                "RC"
-            ],
-            "summary": "Ask what the passage explicitly states. Always go back to the text.",
-            "detail": "The right answer is paraphrased directly from a specific sentence; trap answers are inferences (correct, but not stated) or close-but-not-quite restatements.",
-            "examples": [],
-            "see_also": [],
-            "references": []
-        },
-        {
-            "id": "sequencing",
-            "name": "Sequencing Game",
-            "sections": [
-                "LG"
-            ],
-            "summary": "Place items in a strict order (1st through nth) under constraints.",
-            "detail": "Diagram with slots. Render rules as adjacency blocks (F-H), distance constraints, and forbidden positions. Make a hypothetical for any rule that creates few options.",
-            "examples": [],
-            "see_also": [
-                "elimination-grid",
-                "must-be-true",
-                "could-be-true-except"
-            ],
-            "references": [
-                {
-                    "title": "7Sage — Logic Games Fundamentals",
-                    "url": "https://7sage.com/free-lsat-prep-course/"
-                }
-            ]
-        },
-        {
-            "id": "elimination-grid",
-            "name": "Rule-Elimination",
-            "sections": [
-                "LG"
-            ],
-            "summary": "Quickly knock out 'could be the order' answer choices by checking one rule at a time.",
-            "detail": "On orientation questions, scan the answers rule-by-rule rather than building a master diagram. Each rule typically eliminates exactly one answer.",
-            "examples": [],
-            "see_also": [
-                "sequencing"
-            ],
-            "references": []
-        },
-        {
-            "id": "must-be-true",
-            "name": "Must Be True",
-            "sections": [
-                "LR",
-                "LG"
-            ],
-            "summary": "An answer that holds in every case consistent with the given statements.",
-            "detail": "In LG: build the hypothetical, force every implication, then evaluate each answer — if even one valid layout makes the answer false, it doesn't 'must be true'. In LR: the credited inference must follow strictly from the stimulus; watch for quantifier downgrades ('all' → 'most' → 'some') and reversed conditionals in the traps.",
-            "examples": [],
-            "see_also": [
-                "could-be-true-except"
-            ],
-            "references": []
-        },
-        {
-            "id": "could-be-true-except",
-            "name": "Could Be True EXCEPT",
-            "sections": [
-                "LG"
-            ],
-            "summary": "Four answers are possible in some valid layout; one is impossible. Pick the impossible.",
-            "detail": "Treat as a 'must be false' question. Construct counter-examples for the four 'could' options; the remaining choice is your answer.",
-            "examples": [],
-            "see_also": [
-                "must-be-true"
-            ],
-            "references": []
-        },
-        {
-            "id": "main-conclusion",
-            "name": "Main Conclusion",
-            "sections": [
-                "LR"
-            ],
-            "summary": "Identify the statement the rest of the argument exists to support.",
-            "detail": "The main conclusion is what everything else supports and what supports nothing further. Indicator words help ('therefore', 'thus') but the LSAT loves burying the conclusion first or mid-argument and decorating premises with conclusion-like language. Test a candidate by asking 'does anything in the argument support THIS?' — if yes, keep climbing.",
-            "examples": [
-                "'Since the statute is ambiguous, and ambiguous statutes are construed against the drafter, the clause should be read narrowly.' Main conclusion: read the clause narrowly."
-            ],
-            "see_also": [
-                "method-of-reasoning"
-            ],
-            "references": []
-        },
-        {
-            "id": "resolve-paradox",
-            "name": "Resolve the Paradox",
-            "sections": [
-                "LR"
-            ],
-            "summary": "Find the fact that lets two apparently conflicting findings both be true.",
-            "detail": "The stimulus reports a surprising discrepancy ('sales rose while ad spending fell'). The credited answer adds information that dissolves the tension without denying either finding. Wrong answers explain only one side, deepen the mystery, or drift out of scope.",
-            "examples": [
-                "Fewer traffic tickets were issued, yet accident rates fell. Resolver: cameras replaced officers and deter violations without issuing tickets."
-            ],
-            "see_also": [
-                "alternative-cause"
-            ],
-            "references": []
-        },
-        {
-            "id": "method-of-reasoning",
-            "name": "Method of Reasoning",
-            "sections": [
-                "LR"
-            ],
-            "summary": "Describe HOW the argument proceeds, not whether it succeeds.",
-            "detail": "Common techniques: counterexample, analogy, reductio ad absurdum, eliminating alternatives, appealing to a general principle, attacking a premise vs. attacking reasoning. The credited answer describes the move at the right abstraction level; traps describe techniques the argument never uses or misidentify the target of an objection.",
-            "examples": [
-                "'Opponents claim X; but X implies Y, and Y is absurd; so not-X' — a reductio."
-            ],
-            "see_also": [
-                "main-conclusion",
-                "parallel-reasoning"
-            ],
-            "references": []
-        },
-        {
-            "id": "principle-application",
-            "name": "Principle Application",
-            "sections": [
-                "LR"
-            ],
-            "summary": "Match a general rule to the concrete case that satisfies all of its conditions.",
-            "detail": "Treat the principle as a conditional with (possibly several) trigger conditions and an exception clause. The conforming case satisfies every trigger and no exception. Traps satisfy most-but-not-all conditions, trip the exception, or run the principle backwards (concluding the trigger from the result).",
-            "examples": [
-                "Principle: a lawyer may withdraw only if withdrawal will not prejudice the client. Case that conforms must show BOTH withdrawal AND no prejudice."
-            ],
-            "see_also": [
-                "conditional-reasoning",
-                "sufficient-assumption"
-            ],
-            "references": []
-        },
-        {
-            "id": "rc-inference",
-            "name": "RC Inference",
-            "sections": [
-                "RC"
-            ],
-            "summary": "What the passage most strongly supports beyond its explicit statements.",
-            "detail": "Unlike detail questions, the credited answer is not stated — it follows from combining two or three passage claims. It stays modest: hedged language in the passage yields hedged inferences. Traps are real-world plausible but textually unsupported, or turn 'some commentators argue' into the author's own view.",
-            "examples": [
-                "Passage: defenders cite discovery abuse; critics cite access. Supported inference: the parties disagree about which cost matters more — NOT that either side would abolish pleading standards."
-            ],
-            "see_also": [
-                "detail-question",
-                "author-attitude"
-            ],
-            "references": []
-        },
-        {
-            "id": "grouping-game",
-            "name": "Grouping Game",
-            "sections": [
-                "LG"
-            ],
-            "summary": "Select or distribute entities into groups under membership rules.",
-            "detail": "Two families: selection (in/out of one group, e.g. 'choose four of seven') and distribution (partition into teams). Diagram membership conditionals ('If J is in, K is out' → J → ¬K) and chain contrapositives. Numeric limits (group sizes) drive most hard inferences.",
-            "examples": [
-                "If J is selected then K is not; if K is not selected then L is. Selecting J forces L."
-            ],
-            "see_also": [
-                "conditional-reasoning",
-                "contrapositive",
-                "sequencing"
-            ],
-            "references": []
+          "title": "SEP — Classical Logic",
+          "url": "https://plato.stanford.edu/entries/logic-classical/"
         }
-    ]
+      ]
+    },
+    {
+      "id": "modus-ponens",
+      "name": "Modus Ponens",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Valid conditional inference: if P then Q; P; therefore Q.",
+      "detail": "The simplest valid conditional inference. Distinguish from the *invalid* mirror moves — affirming the consequent (Q ∴ P) and denying the antecedent (¬P ∴ ¬Q) — both classic LR flaw types.",
+      "examples": [
+        "All senior partners have argued before the supreme court. Maria is a senior partner. ∴ Maria has argued before the supreme court."
+      ],
+      "see_also": [
+        "modus-tollens",
+        "conditional-reasoning"
+      ],
+      "references": []
+    },
+    {
+      "id": "conditional-reasoning",
+      "name": "Conditional Reasoning",
+      "sections": [
+        "LR",
+        "LG"
+      ],
+      "summary": "Working with 'if/then' statements, their contrapositives, and chains of conditionals.",
+      "detail": "Indicators: 'if', 'only if', 'unless', 'whenever', 'all', 'every', 'no', 'none'. 'Only if' attaches to the *necessary* condition; 'unless' translates to '¬X → Y'. Always diagram conditionals before answering and always check the contrapositive.",
+      "examples": [
+        "Only members may vote → Vote → Member (and ¬Member → ¬Vote).",
+        "Unless you submit by Friday, your filing is late → ¬Submit-by-Friday → Late."
+      ],
+      "see_also": [
+        "modus-ponens",
+        "modus-tollens",
+        "contrapositive"
+      ],
+      "references": [
+        {
+          "title": "Khan Academy — Conditional Reasoning",
+          "url": "https://www.khanacademy.org/prep/lsat/lsat-lessons/logical-reasoning"
+        }
+      ]
+    },
+    {
+      "id": "contrapositive",
+      "name": "Contrapositive",
+      "sections": [
+        "LR",
+        "LG"
+      ],
+      "summary": "The contrapositive of 'P → Q' is '¬Q → ¬P'; logically equivalent.",
+      "detail": "Contraposition is the workhorse of LR conditional questions. Note: the *converse* (Q → P) and the *inverse* (¬P → ¬Q) are NOT equivalent — confusing them is the affirming-the-consequent / denying-the-antecedent flaw.",
+      "examples": [
+        "P → Q is equivalent to ¬Q → ¬P, but not to Q → P or ¬P → ¬Q."
+      ],
+      "see_also": [
+        "modus-tollens",
+        "conditional-reasoning"
+      ],
+      "references": []
+    },
+    {
+      "id": "necessary-assumption",
+      "name": "Necessary Assumption",
+      "sections": [
+        "LR"
+      ],
+      "summary": "An unstated premise the argument REQUIRES in order to hold.",
+      "detail": "Use the negation test: negate the candidate; if the argument collapses, it was necessary. Necessary assumptions are minimally helpful — they fill the smallest possible gap, not the most ambitious.",
+      "examples": [
+        "Argument: 'A or B; not A; ∴ B.' Necessary assumption: those were the only options."
+      ],
+      "see_also": [
+        "sufficient-assumption",
+        "flaw-in-reasoning"
+      ],
+      "references": [
+        {
+          "title": "7Sage — Necessary Assumption",
+          "url": "https://7sage.com/lesson/lr-necessary-assumption/"
+        }
+      ]
+    },
+    {
+      "id": "sufficient-assumption",
+      "name": "Sufficient Assumption",
+      "sections": [
+        "LR"
+      ],
+      "summary": "An assumption strong enough to GUARANTEE the conclusion.",
+      "detail": "Sufficient-assumption answers can be much stronger than necessary ones. The trick is to map the gap between premise and conclusion and find the answer that closes it completely.",
+      "examples": [],
+      "see_also": [
+        "necessary-assumption"
+      ],
+      "references": []
+    },
+    {
+      "id": "causation-vs-correlation",
+      "name": "Causation vs. Correlation",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Inferring cause from a mere correlation is a classic LR flaw.",
+      "detail": "When an argument says 'X and Y are correlated, therefore X causes Y', look for: (a) reverse causation (Y → X), (b) common cause (Z → both), (c) coincidence, (d) selection bias. Weaken answers usually surface one of these alternatives.",
+      "examples": [
+        "Breakfast eaters score higher on cognitive tests → eating breakfast causes cognitive performance? Could be sleep, exercise, or socioeconomic confounders."
+      ],
+      "see_also": [
+        "alternative-cause",
+        "weaken",
+        "flaw-in-reasoning"
+      ],
+      "references": []
+    },
+    {
+      "id": "alternative-cause",
+      "name": "Alternative Cause",
+      "sections": [
+        "LR"
+      ],
+      "summary": "A confounding variable that explains the observed pattern equally well or better.",
+      "detail": "Most LR weaken answers introduce an alternative cause. Strengthen answers usually rule one out.",
+      "examples": [],
+      "see_also": [
+        "causation-vs-correlation",
+        "weaken"
+      ],
+      "references": []
+    },
+    {
+      "id": "weaken",
+      "name": "Weaken Question",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Pick the answer that, if true, most undermines the argument.",
+      "detail": "Identify the conclusion, then attack the link between premise and conclusion — typically by surfacing a counter-example, alternative cause, or unmet assumption. Avoid answers that simply contradict a premise (the LSAT treats premises as given).",
+      "examples": [],
+      "see_also": [
+        "strengthen",
+        "alternative-cause"
+      ],
+      "references": []
+    },
+    {
+      "id": "strengthen",
+      "name": "Strengthen Question",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Pick the answer that, if true, most supports the argument.",
+      "detail": "Mirror image of weaken: rule out alternative explanations, supply a missing assumption, or provide additional confirming evidence.",
+      "examples": [],
+      "see_also": [
+        "weaken",
+        "necessary-assumption"
+      ],
+      "references": []
+    },
+    {
+      "id": "flaw-in-reasoning",
+      "name": "Flaw in the Reasoning",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Identify the logical error the argument commits.",
+      "detail": "Common flaws: ad hominem, circular reasoning, equivocation, hasty generalization, sampling bias, appeal to ignorance, false dichotomy, conflating correlation with causation, part-whole conflations, conditional reasoning errors (affirming the consequent, denying the antecedent).",
+      "examples": [],
+      "see_also": [
+        "equivocation",
+        "appeal-to-ignorance",
+        "causation-vs-correlation"
+      ],
+      "references": [
+        {
+          "title": "7Sage — Flaw Question Types",
+          "url": "https://7sage.com/lesson/lr-flaw-question-types/"
+        }
+      ]
+    },
+    {
+      "id": "equivocation",
+      "name": "Equivocation",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Using one word in two different senses across an argument.",
+      "detail": "Tricky because the equivocated term is often subtle ('volume of submissions' vs. 'diversity of viewpoints', or 'theory' as 'guess' vs. 'theory' as 'scientific framework'). Watch for shifts in scope between the premise and conclusion.",
+      "examples": [],
+      "see_also": [
+        "flaw-in-reasoning"
+      ],
+      "references": []
+    },
+    {
+      "id": "appeal-to-ignorance",
+      "name": "Appeal to Ignorance",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Treating absence of evidence as evidence of absence (or vice versa).",
+      "detail": "'No one has shown X is true, therefore X is false' — and its mirror 'No one has shown X is false, therefore X is true.' Both are flawed because lack of evidence settles nothing.",
+      "examples": [],
+      "see_also": [
+        "flaw-in-reasoning"
+      ],
+      "references": []
+    },
+    {
+      "id": "parallel-reasoning",
+      "name": "Parallel Reasoning",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Match the abstract STRUCTURE of the stimulus, not its subject matter.",
+      "detail": "Diagram the stimulus as variables (P, Q, R…). Then test each answer choice by diagramming it the same way. The correct answer must match the validity status (valid ↔ valid, invalid ↔ same kind of invalid) and the structural shape.",
+      "examples": [],
+      "see_also": [
+        "universal-instantiation"
+      ],
+      "references": [
+        {
+          "title": "Khan Academy — Parallel Reasoning",
+          "url": "https://www.khanacademy.org/prep/lsat/lsat-lessons/logical-reasoning/x60ba31fe60ad9ad8:parallel-reasoning/v/parallel-reasoning-1"
+        }
+      ]
+    },
+    {
+      "id": "universal-instantiation",
+      "name": "Universal Instantiation",
+      "sections": [
+        "LR"
+      ],
+      "summary": "From 'all P are Q' and 'x is P', conclude 'x is Q'. Always valid.",
+      "detail": "The bedrock valid argument form. Distinguish from 'most P are Q' (probabilistic) and 'some P are Q' (existential).",
+      "examples": [],
+      "see_also": [
+        "parallel-reasoning"
+      ],
+      "references": []
+    },
+    {
+      "id": "main-point",
+      "name": "Main Point Question",
+      "sections": [
+        "RC"
+      ],
+      "summary": "Identify the central thesis of the passage.",
+      "detail": "The main point summarizes the WHOLE passage, not a single paragraph. Wrong answers are usually too narrow (a single example) or too broad (a vague abstraction).",
+      "examples": [],
+      "see_also": [
+        "rc-structure"
+      ],
+      "references": []
+    },
+    {
+      "id": "rc-structure",
+      "name": "Passage Structure",
+      "sections": [
+        "RC"
+      ],
+      "summary": "Map each paragraph's role: setup, complication, evidence, counter-argument, resolution.",
+      "detail": "Before answering questions, jot a one-line label for each paragraph. Most RC question types (main point, author attitude, role of statement, function of paragraph) become trivial once the structural map is clear.",
+      "examples": [],
+      "see_also": [
+        "main-point",
+        "author-attitude"
+      ],
+      "references": []
+    },
+    {
+      "id": "author-attitude",
+      "name": "Author's Attitude / Tone",
+      "sections": [
+        "RC"
+      ],
+      "summary": "Identify the author's stance toward the subject — endorsement, skepticism, neutrality, etc.",
+      "detail": "Look for evaluative adjectives, hedge words ('arguably', 'risks'), and rhetorical questions. Hedged language usually means a hedged answer (qualified concern, cautious optimism) is right.",
+      "examples": [],
+      "see_also": [
+        "rc-tone"
+      ],
+      "references": []
+    },
+    {
+      "id": "rc-tone",
+      "name": "Tone",
+      "sections": [
+        "RC"
+      ],
+      "summary": "Closely related to author attitude — measure intensity (mild/strong) and polarity (positive/negative).",
+      "detail": "Eliminate extremes ('uncritical', 'open hostility') unless the passage explicitly supports them.",
+      "examples": [],
+      "see_also": [
+        "author-attitude"
+      ],
+      "references": []
+    },
+    {
+      "id": "detail-question",
+      "name": "Detail Question",
+      "sections": [
+        "RC"
+      ],
+      "summary": "Ask what the passage explicitly states. Always go back to the text.",
+      "detail": "The right answer is paraphrased directly from a specific sentence; trap answers are inferences (correct, but not stated) or close-but-not-quite restatements.",
+      "examples": [],
+      "see_also": [],
+      "references": []
+    },
+    {
+      "id": "sequencing",
+      "name": "Sequencing Game",
+      "sections": [
+        "LG"
+      ],
+      "summary": "Place items in a strict order (1st through nth) under constraints.",
+      "detail": "Diagram with slots. Render rules as adjacency blocks (F-H), distance constraints, and forbidden positions. Make a hypothetical for any rule that creates few options.",
+      "examples": [],
+      "see_also": [
+        "elimination-grid",
+        "must-be-true",
+        "could-be-true-except"
+      ],
+      "references": [
+        {
+          "title": "7Sage — Logic Games Fundamentals",
+          "url": "https://7sage.com/free-lsat-prep-course/"
+        }
+      ]
+    },
+    {
+      "id": "elimination-grid",
+      "name": "Rule-Elimination",
+      "sections": [
+        "LG"
+      ],
+      "summary": "Quickly knock out 'could be the order' answer choices by checking one rule at a time.",
+      "detail": "On orientation questions, scan the answers rule-by-rule rather than building a master diagram. Each rule typically eliminates exactly one answer.",
+      "examples": [],
+      "see_also": [
+        "sequencing"
+      ],
+      "references": []
+    },
+    {
+      "id": "must-be-true",
+      "name": "Must Be True",
+      "sections": [
+        "LR",
+        "LG"
+      ],
+      "summary": "An answer that holds in every case consistent with the given statements.",
+      "detail": "In LG: build the hypothetical, force every implication, then evaluate each answer — if even one valid layout makes the answer false, it doesn't 'must be true'. In LR: the credited inference must follow strictly from the stimulus; watch for quantifier downgrades ('all' → 'most' → 'some') and reversed conditionals in the traps.",
+      "examples": [],
+      "see_also": [
+        "could-be-true-except"
+      ],
+      "references": []
+    },
+    {
+      "id": "could-be-true-except",
+      "name": "Could Be True EXCEPT",
+      "sections": [
+        "LG"
+      ],
+      "summary": "Four answers are possible in some valid layout; one is impossible. Pick the impossible.",
+      "detail": "Treat as a 'must be false' question. Construct counter-examples for the four 'could' options; the remaining choice is your answer.",
+      "examples": [],
+      "see_also": [
+        "must-be-true"
+      ],
+      "references": []
+    },
+    {
+      "id": "main-conclusion",
+      "name": "Main Conclusion",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Identify the statement the rest of the argument exists to support.",
+      "detail": "The main conclusion is what everything else supports and what supports nothing further. Indicator words help ('therefore', 'thus') but the LSAT loves burying the conclusion first or mid-argument and decorating premises with conclusion-like language. Test a candidate by asking 'does anything in the argument support THIS?' — if yes, keep climbing.",
+      "examples": [
+        "'Since the statute is ambiguous, and ambiguous statutes are construed against the drafter, the clause should be read narrowly.' Main conclusion: read the clause narrowly."
+      ],
+      "see_also": [
+        "method-of-reasoning"
+      ],
+      "references": []
+    },
+    {
+      "id": "resolve-paradox",
+      "name": "Resolve the Paradox",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Find the fact that lets two apparently conflicting findings both be true.",
+      "detail": "The stimulus reports a surprising discrepancy ('sales rose while ad spending fell'). The credited answer adds information that dissolves the tension without denying either finding. Wrong answers explain only one side, deepen the mystery, or drift out of scope.",
+      "examples": [
+        "Fewer traffic tickets were issued, yet accident rates fell. Resolver: cameras replaced officers and deter violations without issuing tickets."
+      ],
+      "see_also": [
+        "alternative-cause"
+      ],
+      "references": []
+    },
+    {
+      "id": "method-of-reasoning",
+      "name": "Method of Reasoning",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Describe HOW the argument proceeds, not whether it succeeds.",
+      "detail": "Common techniques: counterexample, analogy, reductio ad absurdum, eliminating alternatives, appealing to a general principle, attacking a premise vs. attacking reasoning. The credited answer describes the move at the right abstraction level; traps describe techniques the argument never uses or misidentify the target of an objection.",
+      "examples": [
+        "'Opponents claim X; but X implies Y, and Y is absurd; so not-X' — a reductio."
+      ],
+      "see_also": [
+        "main-conclusion",
+        "parallel-reasoning"
+      ],
+      "references": []
+    },
+    {
+      "id": "principle-application",
+      "name": "Principle Application",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Match a general rule to the concrete case that satisfies all of its conditions.",
+      "detail": "Treat the principle as a conditional with (possibly several) trigger conditions and an exception clause. The conforming case satisfies every trigger and no exception. Traps satisfy most-but-not-all conditions, trip the exception, or run the principle backwards (concluding the trigger from the result).",
+      "examples": [
+        "Principle: a lawyer may withdraw only if withdrawal will not prejudice the client. Case that conforms must show BOTH withdrawal AND no prejudice."
+      ],
+      "see_also": [
+        "conditional-reasoning",
+        "sufficient-assumption"
+      ],
+      "references": []
+    },
+    {
+      "id": "rc-inference",
+      "name": "RC Inference",
+      "sections": [
+        "RC"
+      ],
+      "summary": "What the passage most strongly supports beyond its explicit statements.",
+      "detail": "Unlike detail questions, the credited answer is not stated — it follows from combining two or three passage claims. It stays modest: hedged language in the passage yields hedged inferences. Traps are real-world plausible but textually unsupported, or turn 'some commentators argue' into the author's own view.",
+      "examples": [
+        "Passage: defenders cite discovery abuse; critics cite access. Supported inference: the parties disagree about which cost matters more — NOT that either side would abolish pleading standards."
+      ],
+      "see_also": [
+        "detail-question",
+        "author-attitude"
+      ],
+      "references": []
+    },
+    {
+      "id": "grouping-game",
+      "name": "Grouping Game",
+      "sections": [
+        "LG"
+      ],
+      "summary": "Select or distribute entities into groups under membership rules.",
+      "detail": "Two families: selection (in/out of one group, e.g. 'choose four of seven') and distribution (partition into teams). Diagram membership conditionals ('If J is in, K is out' → J → ¬K) and chain contrapositives. Numeric limits (group sizes) drive most hard inferences.",
+      "examples": [
+        "If J is selected then K is not; if K is not selected then L is. Selecting J forces L."
+      ],
+      "see_also": [
+        "conditional-reasoning",
+        "contrapositive",
+        "sequencing"
+      ],
+      "references": []
+    },
+    {
+      "id": "thesis-position",
+      "name": "Defensible Thesis",
+      "sections": [
+        "WS"
+      ],
+      "summary": "A contestable claim that names the position taken and the principal reason for it.",
+      "detail": "A thesis is defensible when a reasonable reader could disagree with it and when the writer has said what would count in its favour. 'There are arguments on both sides' is not a thesis; neither is a restatement of the prompt. The test is whether a reader can predict, from the thesis alone, which of the supplied perspectives the writer will lean on and which they will have to answer.",
+      "examples": [
+        "The city should fund the transit expansion rather than the arterial widening, because the expansion is the only option that still serves residents who cannot drive.",
+        "Weak by contrast: 'Both the transit expansion and the road widening have merits and drawbacks.' — nothing is claimed, so nothing can be argued."
+      ],
+      "see_also": [
+        "main-conclusion",
+        "warrant",
+        "counterargument-response"
+      ],
+      "references": [
+        {
+          "title": "LSAC — LSAT Argumentative Writing",
+          "url": "https://www.lsac.org/lsat/taking-lsat/about-lsat-writing"
+        }
+      ]
+    },
+    {
+      "id": "warrant",
+      "name": "Warrant",
+      "sections": [
+        "WS",
+        "LR"
+      ],
+      "summary": "The stated link between a reason and the claim it is offered in support of.",
+      "detail": "Every argument has a hidden step joining evidence to conclusion. Logical Reasoning tests your ability to *find* that step (it is what necessary- and sufficient-assumption questions are about); writing tests your ability to *supply* it. A response that stacks true facts without warranting them reads as a list, because the reader is left to guess why any of it matters.",
+      "examples": [
+        "Reason: the expansion serves three neighbourhoods with no car access. Warrant: a transport investment should be judged first by whether it reaches people with no alternative. Claim: fund the expansion.",
+        "Unwarranted: 'The expansion serves three neighbourhoods with no car access. So the city should fund it.' — true, but the reader has to invent the standard that makes it decisive."
+      ],
+      "see_also": [
+        "necessary-assumption",
+        "sufficient-assumption",
+        "thesis-position"
+      ],
+      "references": [
+        {
+          "title": "SEP — Argument and Argumentation",
+          "url": "https://plato.stanford.edu/entries/argument/"
+        }
+      ]
+    },
+    {
+      "id": "counterargument-response",
+      "name": "Counterargument and Rebuttal",
+      "sections": [
+        "WS",
+        "LR"
+      ],
+      "summary": "Stating the opposing position in a form its holders would accept, then answering it.",
+      "detail": "The graded move is the *answer*, not the mention. Naming an objection and then restating your thesis more emphatically leaves the objection standing. A rebuttal has to do one of three things: deny the objection's factual premise, deny its warrant, or accept it and show it does not reach the thesis. Steelmanning is practical rather than polite — an objection stated at its weakest is one the reader will restate at its strongest.",
+      "examples": [
+        "Objection: the expansion costs twice as much per rider. Rebuttal by warrant-denial: cost per rider ranks options by who already rides, which is exactly the population the expansion is meant to change.",
+        "Non-rebuttal: 'Some say the expansion is too expensive, but the expansion is clearly the better choice.'"
+      ],
+      "see_also": [
+        "weaken",
+        "method-of-reasoning",
+        "concession-and-scope"
+      ],
+      "references": []
+    },
+    {
+      "id": "concession-and-scope",
+      "name": "Concession and Scope",
+      "sections": [
+        "WS",
+        "LR"
+      ],
+      "summary": "Granting what genuinely must be granted, then bounding the concession so it does not swallow the claim.",
+      "detail": "A concession costs nothing when it is bounded and costs everything when it is not. The pattern is: grant the point, name its limit, and show the thesis survives inside that limit. This is the same scope discipline that separates a credited LSAT answer from an overstated distractor — 'in the near term', 'for riders without alternatives', 'absent new funding' are the words that keep a claim defensible.",
+      "examples": [
+        "Granted: the expansion will not relieve highway congestion. But congestion relief was never the standard the council adopted — access was.",
+        "Unbounded: 'Admittedly the expansion may not be the best use of funds.' — the writer has conceded the thesis."
+      ],
+      "see_also": [
+        "counterargument-response",
+        "author-attitude",
+        "rc-tone"
+      ],
+      "references": []
+    },
+    {
+      "id": "argument-organization",
+      "name": "Argumentative Organization",
+      "sections": [
+        "WS",
+        "RC"
+      ],
+      "summary": "Ordering an argument so each paragraph does one job and the order itself carries weight.",
+      "detail": "Reading Comprehension asks you to recognize a passage's structure; writing asks you to build one. The reliable order is thesis, strongest reason, supporting reason, the opposing position and its answer, then a close that states what the argument has earned rather than repeating it. Putting the counterargument last-but-one matters: it leaves the reader with your answer to it rather than with the objection.",
+      "examples": [
+        "Paragraph roles: (1) claim + principal reason, (2) reason developed against perspective B, (3) second reason against perspective C, (4) strongest objection + rebuttal, (5) bounded restatement.",
+        "Weak: three paragraphs each restating the thesis with a different example, and no objection anywhere."
+      ],
+      "see_also": [
+        "rc-structure",
+        "main-point",
+        "thesis-position"
+      ],
+      "references": []
+    },
+    {
+      "id": "point-at-issue",
+      "name": "Point at Issue",
+      "sections": [
+        "LR"
+      ],
+      "summary": "The one claim two speakers actually disagree about — as opposed to the many they never address.",
+      "detail": "A point-at-issue question gives a two-speaker exchange and asks what they disagree over. The credited answer must satisfy a two-part test: each speaker must have a *stated or clearly implied* position on it, and those positions must be opposed. Most wrong answers fail the first half — one speaker simply never touches the topic — which is why the reliable method is to check both speakers against each choice rather than to pre-phrase.",
+      "examples": [
+        "Ana: 'The ordinance will cut noise complaints.' Bo: 'Perhaps, but it will also close three venues.' They disagree about nothing yet — Bo concedes the effect and adds a cost.",
+        "Ana: 'The ordinance will cut noise complaints.' Bo: 'Complaints rose in every city that tried it.' Now the point at issue is whether the ordinance reduces complaints."
+      ],
+      "see_also": [
+        "method-of-reasoning",
+        "main-conclusion",
+        "counterargument-response"
+      ],
+      "references": [
+        {
+          "title": "LSAC — Logical Reasoning question types",
+          "url": "https://www.lsac.org/lsat/taking-lsat/test-format/logical-reasoning"
+        }
+      ]
+    },
+    {
+      "id": "role-of-claim",
+      "name": "Role of a Claim",
+      "sections": [
+        "LR"
+      ],
+      "summary": "What a specific sentence is doing in the argument: premise, main conclusion, intermediate conclusion, concession, or background.",
+      "detail": "The hardest instances turn on the *intermediate conclusion* — a claim that is supported by something earlier and in turn supports the main conclusion. Test it both ways: ask what supports the sentence, and what the sentence supports. A claim with an answer to both questions is intermediate; a claim with an answer only to the second is a premise; a claim with an answer only to the first is the main conclusion.",
+      "examples": [
+        "'Since attendance is falling, the theatre cannot cover its lease; it should therefore relocate.' — 'the theatre cannot cover its lease' is supported by falling attendance and supports relocating: intermediate conclusion.",
+        "A sentence beginning 'Admittedly…' or 'Of course…' is almost always a concession the argument goes on to answer, not a premise it relies on."
+      ],
+      "see_also": [
+        "main-conclusion",
+        "method-of-reasoning",
+        "argument-organization"
+      ],
+      "references": []
+    },
+    {
+      "id": "most-strongly-supported",
+      "name": "Most Strongly Supported",
+      "sections": [
+        "LR",
+        "RC"
+      ],
+      "summary": "The claim the stimulus best supports — a lower bar than 'must be true', and a different one.",
+      "detail": "Must-be-true admits only strict consequences; most-strongly-supported admits the claim a reasonable reader would take the evidence to favour. The practical difference is calibration: the credited answer is usually the *weakest* of the plausible choices, hedged with 'some', 'at least one', or 'likely'. A choice that would be right on a strengthen question is usually too strong here.",
+      "examples": [
+        "Stimulus: two studies found the drug outperformed placebo in adults over 60 but not under 40. Supported: 'the drug's effect may depend on age.' Not supported: 'the drug does not work in adults under 40.'",
+        "Watch the quantifier swap: 'most' in the stimulus never licenses 'all' in the answer."
+      ],
+      "see_also": [
+        "must-be-true",
+        "rc-inference",
+        "strengthen"
+      ],
+      "references": []
+    },
+    {
+      "id": "cannot-be-true",
+      "name": "Cannot Be True",
+      "sections": [
+        "LR",
+        "LG"
+      ],
+      "summary": "The claim the stimulus rules out — the mirror image of must-be-true.",
+      "detail": "Four choices are consistent with the stimulus; one contradicts it. The efficient method is not to evaluate plausibility but to look for the choice that collides with a stated conditional, quantifier, or numerical constraint. In Logic Games the same question type appears as 'could be true EXCEPT', and there the collision is demonstrated by deriving a contradiction rather than by exhibiting a counterexample.",
+      "examples": [
+        "Stimulus: 'No member of the committee is a shareholder.' Cannot be true: 'Ruiz is a shareholder and a committee member.'",
+        "Stimulus: 'At most two of the four grants were awarded.' Cannot be true: 'Three grants were awarded to first-time applicants.'"
+      ],
+      "see_also": [
+        "must-be-true",
+        "could-be-true-except",
+        "conditional-reasoning"
+      ],
+      "references": []
+    },
+    {
+      "id": "evaluate-the-argument",
+      "name": "Evaluate the Argument",
+      "sections": [
+        "LR"
+      ],
+      "summary": "The question whose answer would most change how convincing the argument is.",
+      "detail": "The credited answer passes the *variance test*: imagine answering it both ways. If one answer strengthens the argument and the other weakens it, the choice is relevant; if the argument stands or falls the same way either way, it is not. This is the same gap-finding skill as necessary assumption, asked in interrogative form — an evaluate question is usually built on an unaddressed alternative cause.",
+      "examples": [
+        "Argument: sales rose after the rebrand, so the rebrand worked. Evaluate: 'Did a competitor exit the market during the same period?' — yes weakens, no strengthens.",
+        "Irrelevant: 'How much did the rebrand cost?' — the argument claims the rebrand worked, not that it was worth it."
+      ],
+      "see_also": [
+        "alternative-cause",
+        "necessary-assumption",
+        "causation-vs-correlation"
+      ],
+      "references": []
+    },
+    {
+      "id": "completing-the-argument",
+      "name": "Completing the Argument",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Supplying the conclusion (or final premise) an argument has been built to reach.",
+      "detail": "The stem ends with a blank after 'because' or 'therefore', and the credited answer is the claim the preceding sentences were assembled to license. Read the connector: 'therefore' wants the conclusion the premises already support; 'because' wants the missing premise that would license the conclusion just stated. The commonest error is picking a claim that is true and topical but that the stimulus was not building toward.",
+      "examples": [
+        "'The bridge is inspected annually, and no inspection has ever missed a structural fault. Therefore ___' → the conclusion is about this bridge's faults being found, not about inspections in general.",
+        "'The policy cannot have caused the drop, because ___' → the blank wants a premise, and the strongest candidate is that the drop began before the policy did."
+      ],
+      "see_also": [
+        "main-conclusion",
+        "sufficient-assumption",
+        "must-be-true"
+      ],
+      "references": []
+    },
+    {
+      "id": "percent-vs-number",
+      "name": "Percentage vs. Number",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Treating a proportion as though it settled an absolute quantity, or the reverse.",
+      "detail": "A percentage and a raw count move independently once the base changes. An argument commits this flaw when it infers a change in count from a change in share (or vice versa) without knowing what happened to the denominator. The tell is a stimulus that switches vocabulary mid-argument — 'the rate of X' in the premise, 'the number of X' in the conclusion.",
+      "examples": [
+        "'The share of graduates entering public-interest law fell, so fewer graduates entered it.' — false if the graduating class grew.",
+        "'More residents than ever use the clinic, so the clinic serves a larger share of residents.' — false if the town grew faster than the clinic's caseload."
+      ],
+      "see_also": [
+        "flaw-in-reasoning",
+        "equivocation",
+        "sampling-flaw"
+      ],
+      "references": []
+    },
+    {
+      "id": "sampling-flaw",
+      "name": "Unrepresentative Sample",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Generalizing from a group chosen in a way that makes it unlike the population.",
+      "detail": "The defect is never sample *size* alone — the LSAT's samples are usually flawed by selection, not by being small. Ask how the sample was assembled: self-selection (respondents who chose to answer), survivorship (only the cases that lasted), and convenience (whoever was nearby) are the three the exam uses most. The credited answer names the mismatch between how the sample was gathered and the population the conclusion is about.",
+      "examples": [
+        "'Ninety percent of readers who returned the magazine's survey favour the change, so most readers favour it.' — the returners chose themselves.",
+        "'Every long-running firm in the sector uses this model, so the model works.' — the firms that used it and failed are not in the sample."
+      ],
+      "see_also": [
+        "flaw-in-reasoning",
+        "strengthen",
+        "percent-vs-number"
+      ],
+      "references": []
+    },
+    {
+      "id": "circular-reasoning",
+      "name": "Circular Reasoning",
+      "sections": [
+        "LR"
+      ],
+      "summary": "Offering the conclusion, restated, as the evidence for itself.",
+      "detail": "Real instances are rarer than students think, and the LSAT's are always paraphrased rather than repeated verbatim — the premise and the conclusion say the same thing in different vocabulary. The test is whether accepting the premise requires already accepting the conclusion. Distractor answers describe circularity for arguments that merely have a weak premise, which is a different defect.",
+      "examples": [
+        "'The witness is reliable, because everything the witness says is true.' — 'says only true things' is what 'reliable' means here.",
+        "Not circular: 'The witness is reliable, because two other witnesses corroborate the account.' — weak, perhaps, but the premise is independent."
+      ],
+      "see_also": [
+        "flaw-in-reasoning",
+        "equivocation",
+        "warrant"
+      ],
+      "references": []
+    },
+    {
+      "id": "rc-comparative",
+      "name": "Comparative Passages",
+      "sections": [
+        "RC"
+      ],
+      "summary": "A paired Passage A / Passage B set, where most questions are about the relationship between them.",
+      "detail": "One of the four RC sets on the exam pairs two short passages on a shared topic. The questions divide into three kinds: about A alone, about B alone, and about the pair — and the pair questions are where the points are. Before answering any of them, fix three things: what each author's position is, whether they conflict or merely differ in focus, and what each would say about the other's central claim. Authors who never engage each other can still 'agree' in the LSAT's sense if both are committed to a proposition.",
+      "examples": [
+        "A argues that a doctrine protects defendants; B argues it burdens courts. They do not disagree — they weigh different costs, and a question asking what they 'disagree about' has no answer among the topical choices.",
+        "A common pair question: 'Which one of the following is mentioned in both passages?' — a detail question wearing comparative clothing, answered by scanning, not by reasoning."
+      ],
+      "see_also": [
+        "rc-structure",
+        "point-at-issue",
+        "author-attitude"
+      ],
+      "references": [
+        {
+          "title": "LSAC — Reading Comprehension",
+          "url": "https://www.lsac.org/lsat/taking-lsat/test-format/reading-comprehension"
+        }
+      ]
+    },
+    {
+      "id": "analogous-situation",
+      "name": "Analogous Situation",
+      "sections": [
+        "RC",
+        "LR"
+      ],
+      "summary": "Finding the case outside the passage that shares its abstract structure.",
+      "detail": "The question asks which scenario is 'most analogous' to something the passage describes. Content similarity is the trap: the credited answer usually comes from an unrelated domain and matches on relationships — who acts, who is affected, what constrains whom — while a distractor from the same subject matter matches only the topic. Abstract the passage's situation into a one-sentence skeleton with the nouns removed before reading the choices.",
+      "examples": [
+        "Passage: a court adopts a rule that is easy to apply but occasionally reaches the wrong result. Analogous: a factory adopts a fast inspection that occasionally passes a defective unit.",
+        "Trap: another passage about courts adopting a rule — same domain, different structure."
+      ],
+      "see_also": [
+        "parallel-reasoning",
+        "rc-inference",
+        "principle-application"
+      ],
+      "references": []
+    },
+    {
+      "id": "phrase-in-context",
+      "name": "Phrase in Context",
+      "sections": [
+        "RC"
+      ],
+      "summary": "What a quoted word or phrase means where the passage uses it — not what it usually means.",
+      "detail": "The stem quotes a phrase and asks what the author means by it. Read the sentence before and the sentence after; the meaning is almost always fixed by the contrast the author is drawing, not by the dictionary. Distractors offer the phrase's ordinary sense, a sense it carries elsewhere in the passage, and a sense that would suit the author's opponent.",
+      "examples": [
+        "A passage calls a doctrine 'economical'. Preceding sentence: it disposes of cases without extended fact-finding. Meaning here: sparing of judicial effort — not inexpensive.",
+        "Trap answer: 'cheap for litigants', which is the ordinary sense and is contradicted two sentences later."
+      ],
+      "see_also": [
+        "rc-inference",
+        "detail-question",
+        "equivocation"
+      ],
+      "references": []
+    },
+    {
+      "id": "rule-substitution",
+      "name": "Rule Substitution",
+      "sections": [
+        "LG"
+      ],
+      "summary": "Finding a different rule that produces exactly the same set of valid arrangements.",
+      "detail": "The stem offers to replace one rule and asks which replacement leaves the outcomes unchanged. Equivalence runs both ways, so a candidate fails if it permits any arrangement the original forbade *or* forbids any the original permitted — and the second failure is the one students miss. The efficient method is to work out what the original rule actually accomplishes on the board (often a derived inference rather than the rule as written), then test candidates against that effect.",
+      "examples": [
+        "Original: 'F is not last.' If the board already forces F before H, the substitute 'F is before H' is not equivalent — it adds a constraint the original did not impose.",
+        "A correct substitute often restates a *derived* inference: 'K is third or fourth' can replace two separate rules whose only combined effect was to fix K's range."
+      ],
+      "see_also": [
+        "sequencing",
+        "must-be-true",
+        "could-be-true-except"
+      ],
+      "references": [
+        {
+          "title": "7Sage — Logic Games Fundamentals",
+          "url": "https://7sage.com/free-lsat-prep-course/"
+        }
+      ]
+    },
+    {
+      "id": "in-out-selection",
+      "name": "In / Out Selection",
+      "sections": [
+        "LG"
+      ],
+      "summary": "Choosing a subset: every element is either selected or not, and the rules chain through contrapositives.",
+      "detail": "The board is two columns, In and Out, and the entire game is conditional logic. Symbolize every rule and its contrapositive immediately; the inferences come from chaining them, not from placing pieces. Two patterns dominate: a rule whose contrapositive forces something out, and a numerical constraint ('exactly three are selected') that turns a full Out column into a forced In.",
+      "examples": [
+        "'If J is selected, K is not' gives J → ¬K and K → ¬J: J and K are never both in.",
+        "'Exactly three of six are chosen' plus 'either L or M but not both' fixes the count in one column and often forces the rest."
+      ],
+      "see_also": [
+        "grouping-game",
+        "conditional-reasoning",
+        "contrapositive"
+      ],
+      "references": []
+    },
+    {
+      "id": "numeric-distribution",
+      "name": "Numeric Distribution",
+      "sections": [
+        "LG"
+      ],
+      "summary": "Working out how many elements each group can hold before placing any of them.",
+      "detail": "When a game says groups are unequal, or gives a minimum and a maximum, the number of possible *distributions* is usually small — often two or three. Enumerating them first turns an open game into a short list of shapes, and most questions then resolve inside one shape. Doing this before touching the rules is what separates a four-minute game from a twelve-minute one.",
+      "examples": [
+        "Seven students into three groups, each group at least one and no group more than three: the distributions are 3-3-1, 3-2-2, and nothing else.",
+        "A rule that one group has more members than another eliminates every symmetric distribution at a stroke."
+      ],
+      "see_also": [
+        "grouping-game",
+        "elimination-grid",
+        "in-out-selection"
+      ],
+      "references": []
+    },
+    {
+      "id": "hybrid-game",
+      "name": "Hybrid Game",
+      "sections": [
+        "LG"
+      ],
+      "summary": "A setup that combines two actions — ordering plus grouping, or sequencing plus selection.",
+      "detail": "The failure mode is drawing one board and trying to carry the second action in your head. Draw both dimensions into a single board — slots along one axis, group membership as a row beneath — so a rule about either action lands somewhere visible. Decide which action is more constrained and build from it; the less-constrained action usually resolves itself once the first is fixed.",
+      "examples": [
+        "Five presentations in order, each given by a member of one of two departments: the board is five slots with a department row underneath.",
+        "A rule like 'the two engineering talks are consecutive' constrains both dimensions at once and is the natural starting point."
+      ],
+      "see_also": [
+        "sequencing",
+        "grouping-game",
+        "numeric-distribution"
+      ],
+      "references": []
+    },
+    {
+      "id": "max-min",
+      "name": "Maximum / Minimum",
+      "sections": [
+        "LG"
+      ],
+      "summary": "The largest or smallest number of elements that can satisfy every rule at once.",
+      "detail": "These questions are answered by construction, not by inference: to show the maximum is four you must exhibit a valid arrangement with four and show that five breaks a rule. Half the work is therefore building a witness. Start from the rule that pushes hardest against the direction asked — for a maximum, the rule that most often forces something out — and satisfy it as cheaply as possible.",
+      "examples": [
+        "'What is the greatest number of students who can be assigned to the morning session?' — build a morning-heavy arrangement, then show one more violates a rule.",
+        "A common trap: an answer that is achievable in isolation but violates a second rule once the rest of the board is filled in."
+      ],
+      "see_also": [
+        "numeric-distribution",
+        "in-out-selection",
+        "could-be-true-except"
+      ],
+      "references": []
+    }
+  ]
 }

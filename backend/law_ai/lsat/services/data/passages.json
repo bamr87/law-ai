@@ -1,130 +1,155 @@
 {
-    "items": [
-        {
-            "id": "rc-passage-001",
-            "section": "RC",
-            "title": "From Code Pleading to Notice Pleading",
-            "summary": "A 4-paragraph excerpt on the evolution of federal civil procedure pleading standards.",
-            "passage": "For most of the nineteenth century, common-law pleading required plaintiffs to fit their grievances into rigid formal categories — assumpsit, trespass on the case, trover. A misstep in selecting the proper writ could doom an otherwise meritorious claim. Reformers complained that the system rewarded procedural sophistication rather than substantive justice; the Field Code of 1848 in New York attempted a partial remedy by replacing the writ system with a unified civil action grounded in 'fact pleading.'\n\nFact pleading, however, generated its own pathologies. Courts disagreed about how granular the underlying facts had to be, and judges could dismiss a complaint for failing to plead a legally-significant element with sufficient specificity. By the 1930s a generation of procedural scholars — Charles Clark prominent among them — argued that the goal of pleading should be merely to give the defendant fair notice of the claim. The expensive work of testing factual sufficiency belonged in discovery and on summary judgment, not at the courthouse door.\n\nThis vision shaped the original Federal Rules of Civil Procedure, which took effect in 1938. Rule 8(a)(2)'s requirement of 'a short and plain statement of the claim showing that the pleader is entitled to relief' was a deliberate softening: the 1938 drafters knew they were trading some doctrinal predictability for procedural access. Conley v. Gibson (1957) cemented the bargain when the Supreme Court declared that a complaint should not be dismissed unless it was beyond doubt that no set of facts could support recovery.\n\nThe modern picture is more contested. Bell Atlantic Corp. v. Twombly (2007) and Ashcroft v. Iqbal (2009) introduced a 'plausibility' threshold that some commentators read as a partial restoration of fact pleading. Defenders of the cases note that mass-tort and antitrust complaints had created discovery abuses the 1938 drafters could not have foreseen. Critics counter that the new standard risks reintroducing the very access barrier the 1938 drafters set out to dismantle, particularly for pro se litigants and civil-rights plaintiffs who often cannot satisfy plausibility without the discovery they are seeking.",
-            "rules": [],
-            "source": "original (CC0)"
-        },
-        {
-            "id": "rc-passage-002",
-            "section": "RC",
-            "title": "The Fall of the Privity Requirement",
-            "summary": "A 4-paragraph excerpt tracing American products-liability law from the privity bar through negligence to strict liability.",
-            "passage": "Through most of the nineteenth century, a consumer injured by a defective product could rarely recover from its manufacturer. The doctrine of privity of contract, crystallized in the English case Winterbottom v. Wright (1842), held that a manufacturer's duty ran only to the party with whom it had directly contracted. A coachman maimed when a defective mail coach collapsed could not sue the supplier, because his employer, not he, had purchased the vehicle. Courts defended the rule as a necessary shield for a young industrial economy, reasoning that unlimited liability to remote users would chill manufacturing. The price of that protection fell on injured consumers, who were left without a remedy against the parties best positioned to prevent the harm.\n\nThe first decisive crack came in MacPherson v. Buick Motor Co. (1916). Writing for the New York Court of Appeals, Judge Benjamin Cardozo held that a manufacturer owes a duty of care to any foreseeable user of a product that is reasonably certain to place life and limb in peril when negligently made, regardless of privity. MacPherson did not abolish the need to prove fault; an injured plaintiff still had to show that the manufacturer had been negligent. But by untethering duty from the contract of sale, Cardozo reframed the question as one of foreseeability, and within two decades most American jurisdictions had followed.\n\nProving negligence, however, remained a formidable obstacle, since the relevant evidence usually lay in the manufacturer's exclusive control. In a celebrated 1944 concurrence in Escola v. Coca-Cola Bottling Co., Justice Roger Traynor urged courts to abandon fault altogether and hold manufacturers strictly liable for injuries caused by defective products. His view prevailed a generation later: Greenman v. Yuba Power Products (1963) imposed liability without proof of negligence, and the Restatement (Second) of Torts §402A (1965) codified strict liability for products sold in a defective condition unreasonably dangerous to the user. A plaintiff now needed to establish only a defect, causation, and injury.\n\nWhether this represented a clean break is debatable. Strict liability was justified largely on the ground that manufacturers could spread the cost of injuries across all consumers through pricing and insurance — a rationale of risk distribution rather than moral fault. Yet in design-defect cases courts increasingly asked whether a product's risks outweighed its utility, an inquiry that looks suspiciously like the reasonableness balancing at the heart of negligence. The modern law of products liability thus sits uneasily between two theories, and its strict-liability label can obscure how much negligence reasoning survives within it.",
-            "rules": [],
-            "source": "original (CC0)"
-        },
-        {
-            "id": "lg-game-001",
-            "section": "LG",
-            "title": "Five Associates, One Hearing",
-            "summary": "Sequencing game: order five associates in five consecutive slots subject to three rules.",
-            "setup": "Exactly five associates — F, G, H, J, and K — argue exactly one motion each at a single hearing. The motions are heard one at a time, in five consecutive time slots numbered 1 through 5 (1 is first, 5 is last). The order in which they argue is subject to the following constraints:",
-            "rules": [
-                "1. F argues immediately before H.",
-                "2. J argues fourth.",
-                "3. K does not argue first."
-            ],
-            "passage": null,
-            "source": "original (CC0)"
-        },
-        {
-            "id": "lg-game-002",
-            "section": "LG",
-            "title": "Six Oral Arguments, One Morning",
-            "summary": "Sequencing game: order six moot-court students across six consecutive slots under two adjacency blocks and two ordering rules.",
-            "passage": null,
-            "setup": "Exactly six students — F, G, H, J, K, and M — each present one oral argument at a moot-court program. The arguments are delivered one at a time, in six consecutive slots numbered 1 through 6 (1 is earliest, 6 is latest). No two arguments are delivered in the same slot. The order in which the students argue is subject to the following constraints:",
-            "rules": [
-                "1. F argues immediately before G.",
-                "2. H argues immediately before J.",
-                "3. K argues at some time before M.",
-                "4. F argues at some time before H."
-            ],
-            "source": "LSATContentFactory build100 (2026-07-16)"
-        },
-        {
-            "id": "lg-game-003",
-            "section": "LG",
-            "title": "Six Witnesses, One Deposition",
-            "summary": "Sequencing game: order six witnesses across six consecutive deposition sessions under four rules; the constraints admit exactly four valid orders.",
-            "passage": null,
-            "setup": "Exactly six witnesses -- L, M, N, P, R, and T -- are deposed, each testifying exactly once, in six consecutive sessions numbered 1 through 6 (1 is first, 6 is last). The order in which they testify is subject to the following constraints:",
-            "rules": [
-                "1. M testifies immediately before P.",
-                "2. N testifies at some time before R.",
-                "3. T testifies fourth.",
-                "4. L testifies either first or sixth."
-            ],
-            "source": "LSATContentFactory build100 (2026-07-16)"
-        },
-        {
-            "id": "lg-game-004",
-            "section": "LG",
-            "title": "Six Paintings, One Gallery",
-            "summary": "Grouping/selection game: choose exactly three of six paintings to display under three conditional membership rules.",
-            "passage": null,
-            "setup": "A museum curator must decide which paintings to hang in the main gallery. From six paintings — F, G, H, J, K, and L — the curator will display exactly three in the main gallery; the remaining three are placed in storage. The selection is governed by the following constraints:",
-            "rules": [
-                "1. If F is displayed, then H is displayed.",
-                "2. If G is displayed, then K is not displayed.",
-                "3. If H is displayed, then J is not displayed."
-            ],
-            "source": "LSATContentFactory build100 (2026-07-16)"
-        },
-        {
-            "id": "rc-passage-003",
-            "section": "RC",
-            "title": "Proof by the Numbers: Statistics and the Burden of Proof",
-            "summary": "A 4-paragraph passage arguing that courts' resistance to naked statistical evidence reflects a demand for individualized, transparent proof rather than an aversion to numbers.",
-            "passage": "Few questions divide evidence scholars as sharply as whether a naked statistical probability can, by itself, satisfy a legal burden of proof. Jurors reason quantitatively all the time — gauging how likely a witness is to be mistaken, or how probable an innocent explanation seems — yet courts grow uneasy the moment a party reduces that reasoning to an explicit number. The discomfort is not mere innumeracy. It reflects a durable intuition that a verdict must rest on evidence tying the defendant to this particular case, and not on a figure that would hold with equal force against anyone in a large class.\n\nThe canonical warning is People v. Collins. Prosecutors there multiplied together the estimated frequencies of several eyewitness details — a bearded man, a blond companion, a yellow car — to conclude that the odds of another couple matching the description were one in twelve million. An appellate court reversed the conviction, observing that the individual frequencies were never established by evidence and that multiplying them assumed, without proof, that each trait was statistically independent of the others. Collins is now cited less as a lesson about arithmetic than as a caution against the aura of certainty that a large number can lend to a shaky factual premise.\n\nI share the courts' underlying instinct, though for a reason more principled than any distrust of mathematics. Consider the philosophers' gatecrasher hypothetical: one thousand people attend a rodeo, but only 499 bought tickets, so any given spectator is more likely than not to have entered without paying. Few of us would let the organizer collect from a randomly chosen attendee on that basis alone, even though the resulting 0.501 probability formally exceeds the civil 'preponderance' standard. What the naked number lacks is individualized proof — evidence about that spectator rather than about the crowd. The law's resistance, properly understood, defends this demand for particularized evidence; it is not a superstition about digits.\n\nYet the doctrine can curdle into reflexive hostility, and here the critics have a point. Courts today routinely admit DNA profiling, in which an analyst may testify that the chance of a random person matching the crime-scene sample is one in several billion. That figure is every bit as statistical as the one in Collins, but it is anchored to a transparent, replicable methodology and to a sample drawn from the defendant himself. The contrast shows that the objection was never to numbers as such. The principle worth keeping is the narrower one: quantified evidence earns its place when its method is auditable and its inference individualized — and forfeits that place when it is neither.",
-            "setup": null,
-            "rules": [],
-            "source": "LSATContentFactory build100 (2026-07-16)"
-        },
-        {
-            "id": "rc-passage-004",
-            "section": "RC",
-            "title": "From Riparian Right to Regulated Withdrawal",
-            "summary": "A 4-paragraph passage tracing water-allocation doctrine from common-law riparianism through prior appropriation to a defended synthesis, regulated riparianism.",
-            "passage": "Under the common law of most humid regions, the right to use flowing water has long been tied to the ownership of land. The riparian doctrine grants each owner of land abutting a watercourse a correlative right to make reasonable use of the stream as it passes, subject to the like rights of every other riparian owner upstream and down. No one holds a superior claim by virtue of having used the water first, and no owner may so deplete or foul the flow as to defeat a neighbor's reasonable use. The doctrine's animating premise is sharing: because water in a well-watered landscape is rarely scarce enough to exhaust, the law can afford to treat it as a resource held in common by those the stream happens to touch.\n\nThat premise collapses in arid country. When the mining camps of the nineteenth-century American West confronted streams too meager to satisfy every claimant, a rule of sharing offered no guidance about who must go without. The doctrine of prior appropriation arose in answer. It severed water rights from land ownership entirely and awarded them instead to whoever first diverted the water and put it to a recognized beneficial use—irrigation, mining, municipal supply. 'First in time, first in right' meant that in a shortage the most senior appropriator took a full allotment while junior holders received nothing, a harshness the riparian system never contemplated. Whatever its rigor, the appropriation rule at least answered the question that scarcity forced and that riparianism could not.\n\nNeither pure doctrine, I would argue, serves a modern jurisdiction well, and the more promising path is the regulated riparianism that a number of eastern states have quietly adopted. Under these regimes an administrative agency issues time-limited permits to withdraw water, allocating it by public criteria—the reasonableness of the use, its effect on the flow, the availability of alternatives—rather than by the accident of riverfront ownership or the brute priority of a diversion date. The permit system preserves riparianism's commitment to shared and reasonable use while supplying what the common law lacked: a forum for measuring competing demands against one another before a crisis, and a mechanism for adjusting allocations as conditions change.\n\nThe objection most often pressed against such systems is real. A permit regime substitutes the discretion of regulators for the predictability of a fixed rule, and an appropriator who has invested in reliance on a senior right may reasonably fear that a bureaucrat will unsettle it. I concede that predictability has genuine value, particularly where large capital investments depend on secure supply. But the certainty that prior appropriation offers is the certainty of a rule indifferent to changing needs, and the flexibility that regulated riparianism introduces is not lawlessness so long as the governing criteria are public and the agency's decisions are reviewable. On balance the trade favors regulation, because the scarcity that once afflicted only the arid West is fast becoming general.",
-            "setup": null,
-            "rules": [],
-            "source": "LSATContentFactory build100 (2026-07-16)"
-        },
-        {
-            "id": "rc-passage-005",
-            "section": "RC",
-            "title": "The Uses and Dangers of Legal Fictions",
-            "summary": "A 4-paragraph passage on legal fictions that contrasts Bentham's condemnation with Fuller's defense and argues their value depends on their remaining openly recognized as fictions.",
-            "passage": "A legal fiction is an assertion that a court accepts as true, and proceeds to act upon, although everyone involved knows it to be false. Its purpose is practical: by pretending that some convenient state of affairs exists, a judge can escape a rule that would otherwise force an unjust or absurd result. Early common-law courts leaned on fictions chiefly to enlarge their own authority. The Court of King's Bench, for instance, could ordinarily try only prisoners already in its custody, so it invented the supposition that a defendant sued on an unrelated debt was being held on a fictitious trespass — a pretense that quietly extended the court's reach far beyond its original bounds. No statute authorized the maneuver; the fiction did the work that legislation might otherwise have required.\n\nTo Jeremy Bentham, this was precisely the scandal. Fictions, he argued, were instruments of judicial deceit: they allowed judges to change the law while pretending merely to apply it, and so to make binding rules without ever answering to the public in whose name they governed. A fiction, on Bentham's account, was always a confession of failure — proof that the written law had grown inadequate and that the bench was amending it in disguise. A properly codified legal system, drafted openly by a legislature, would dispense with fictions entirely; their persistence was a symptom of arrested legal development, not a sign of judicial ingenuity.\n\nWriting a century later, Lon Fuller declined to join in the condemnation. Fuller drew a line between fictions that deceive and fictions that merely express — a compressed shorthand for a legal relationship the law has not yet learned to name directly. The description of a corporation as a 'person,' on this reading, asserts no falsehood; it states economically that the entity holds rights and bears duties of its own. Fuller conceded that a fiction can curdle into dogma: later readers may forget the silent 'as if' and mistake the metaphor for a fact about the world. Yet the hazard, he maintained, lies in that forgetting, not in the fiction itself, which at its birth is merely an honest device for saying something new.\n\nThe better view leans toward Fuller, but with a qualification he left underdeveloped: a fiction is worth its cost only so long as it remains visible as a fiction. Labeled plainly, it advertises the gap between existing doctrine and present need, and thereby invites the very reform Bentham wanted. Left to harden, it does the opposite — it buries a contestable policy choice beneath the appearance of settled truth, so that no one thinks to revisit it. Bentham's alarm, then, is not baseless; it simply misidentifies the culprit. The danger is not the device but the profession's habit of mistaking a useful metaphor for a discovery. The soundest fictions are the ones that announce their own eventual obsolescence.",
-            "setup": null,
-            "rules": [],
-            "source": "LSATContentFactory build100 (2026-07-16)"
-        },
-        {
-            "id": "rc-passage-006",
-            "section": "RC",
-            "title": "Scoring Risk: Actuarial Instruments in Bail and Sentencing",
-            "summary": "A 4-paragraph passage arguing that actuarial risk-assessment instruments, though a plausible corrective to biased judicial discretion, have been adopted faster than the transparency and validation safeguards they require.",
-            "passage": "For most of the twentieth century, a judge deciding whether to release a defendant before trial or how long to incarcerate one after conviction relied on little more than the case file and a practiced sense of the person in front of the bench. That intuition was famously uneven: two defendants with nearly identical records could receive markedly different treatment depending on the courtroom they happened to draw. Into this gap stepped the actuarial risk-assessment instrument, a statistical tool that assigns each defendant a numerical score estimating the likelihood of rearrest. Marketed as a corrective to human caprice, such instruments now inform bail and sentencing decisions in jurisdictions across the country.\n\nThe case for these tools is not frivolous, and I do not dismiss it. A well-validated instrument can flag patterns that an overworked judge, reasoning case by case, will miss; it can also impose a welcome consistency, ensuring that similarly situated defendants are scored by the same yardstick rather than by the vagaries of an individual temperament. Proponents point out, fairly, that the alternative is not some pristine neutrality but the very discretionary judgment whose documented disparities prompted reform in the first place. If the choice is between unexamined intuition and a transparent formula, the formula would seem the safer bet.\n\nYet the formula is rarely transparent, and this is where my confidence falters. Many widely used instruments are proprietary, their inner workings shielded from the defendants they score and even from the courts that rely on them. More troubling still is what the instruments measure. Because direct predictors of rearrest are scarce, developers lean on proxies—residential stability, employment history, the arrest records of family members—that track socioeconomic disadvantage and, through it, race. A score that appears to describe an individual's dangerousness may in fact encode the circumstances of the neighborhood he was born into, laundering old inequities through the authority of a number.\n\nNone of this makes the instruments worthless, and I resist the temptation to condemn them wholesale. Used as one input among many, subjected to independent validation, and stripped of the proxies most likely to smuggle in bias, they might yet deliver the consistency their designers promise. My reservation is narrower but firm: the pace of adoption has badly outrun the development of these safeguards. Until transparency and testing catch up, a tool sold as a remedy for arbitrary judgment risks becoming a more durable, and less accountable, form of it.",
-            "setup": null,
-            "rules": [],
-            "source": "LSATContentFactory build100 (2026-07-16)"
-        },
-        {
-            "id": "rc-passage-007",
-            "section": "RC",
-            "title": "The Reasonable Person and the Allocation of Risk",
-            "summary": "A 4-paragraph argument that the objective reasonable-person standard in negligence is best defended not as a moral verdict on the defendant but as a pragmatic device for allocating the risks of human variation.",
-            "passage": "Negligence law asks whether a defendant exercised the care a 'reasonable person' would have shown under the circumstances. The formula is deliberately objective: the jury measures the defendant's conduct against an external community standard rather than against the defendant's own capacities, intentions, or best efforts. A driver who genuinely tried to be careful is nonetheless liable if a reasonable driver would have done more. For more than a century this impersonal yardstick has been the organizing device of accident law, and its very abstractness — its refusal to ask what this particular defendant could manage — is what makes it administrable across the endless variety of cases that juries confront.\n\nTo many critics the standard's impersonality is precisely its vice. Ordinary morality, they observe, excuses those who do the best they can: we do not blame a person of limited intelligence for failing to foresee a danger that a cleverer person would have caught. Yet negligence law holds the slow-witted, the inexperienced, and the congenitally clumsy to the same external measure as everyone else, condemning them for shortcomings they could not have overcome. On this view the reasonable-person test punishes people not for choosing badly but for being who they are, substituting a verdict about capacity for the moral judgment about choice that liability is supposed to express.\n\nThis objection, I want to suggest, misconceives what the standard is for. The reasonable-person test is not a covert assessment of the defendant's character or a pronouncement that she is a bad person; it is a rule for allocating the risk created by human variation. Someone whose reflexes or judgment fall below the community's ordinary expectations imposes an above-ordinary hazard on everyone she encounters, and the law sensibly places the cost of that hazard on the person who introduces it rather than on the strangers who cannot anticipate it. Read this way, the standard's refusal to individualize is not a moral blindness but a considered decision about who should bear the price of unusual limitations.\n\nNone of this is to deny that the objective standard has soft edges. Courts do individualize in limited ways — they hold children to the conduct of children of like age and experience, and they excuse the driver felled by a sudden, unforeseeable stroke. These carve-outs might seem to concede the critics' premise, but they in fact confirm the allocative logic: the law relaxes the standard only where insisting on it would place risk on someone who neither created it nor could guard against it. The reasonable person, in short, is best understood not as a moral ideal we all fall short of, but as a pragmatic instrument for distributing the unavoidable costs of living among the imperfect.",
-            "setup": null,
-            "rules": [],
-            "source": "LSATContentFactory build100 (2026-07-16)"
-        }
-    ]
+  "items": [
+    {
+      "id": "rc-passage-001",
+      "section": "RC",
+      "title": "From Code Pleading to Notice Pleading",
+      "summary": "A 4-paragraph excerpt on the evolution of federal civil procedure pleading standards.",
+      "passage": "For most of the nineteenth century, common-law pleading required plaintiffs to fit their grievances into rigid formal categories — assumpsit, trespass on the case, trover. A misstep in selecting the proper writ could doom an otherwise meritorious claim. Reformers complained that the system rewarded procedural sophistication rather than substantive justice; the Field Code of 1848 in New York attempted a partial remedy by replacing the writ system with a unified civil action grounded in 'fact pleading.'\n\nFact pleading, however, generated its own pathologies. Courts disagreed about how granular the underlying facts had to be, and judges could dismiss a complaint for failing to plead a legally-significant element with sufficient specificity. By the 1930s a generation of procedural scholars — Charles Clark prominent among them — argued that the goal of pleading should be merely to give the defendant fair notice of the claim. The expensive work of testing factual sufficiency belonged in discovery and on summary judgment, not at the courthouse door.\n\nThis vision shaped the original Federal Rules of Civil Procedure, which took effect in 1938. Rule 8(a)(2)'s requirement of 'a short and plain statement of the claim showing that the pleader is entitled to relief' was a deliberate softening: the 1938 drafters knew they were trading some doctrinal predictability for procedural access. Conley v. Gibson (1957) cemented the bargain when the Supreme Court declared that a complaint should not be dismissed unless it was beyond doubt that no set of facts could support recovery.\n\nThe modern picture is more contested. Bell Atlantic Corp. v. Twombly (2007) and Ashcroft v. Iqbal (2009) introduced a 'plausibility' threshold that some commentators read as a partial restoration of fact pleading. Defenders of the cases note that mass-tort and antitrust complaints had created discovery abuses the 1938 drafters could not have foreseen. Critics counter that the new standard risks reintroducing the very access barrier the 1938 drafters set out to dismantle, particularly for pro se litigants and civil-rights plaintiffs who often cannot satisfy plausibility without the discovery they are seeking.",
+      "rules": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-passage-002",
+      "section": "RC",
+      "title": "The Fall of the Privity Requirement",
+      "summary": "A 4-paragraph excerpt tracing American products-liability law from the privity bar through negligence to strict liability.",
+      "passage": "Through most of the nineteenth century, a consumer injured by a defective product could rarely recover from its manufacturer. The doctrine of privity of contract, crystallized in the English case Winterbottom v. Wright (1842), held that a manufacturer's duty ran only to the party with whom it had directly contracted. A coachman maimed when a defective mail coach collapsed could not sue the supplier, because his employer, not he, had purchased the vehicle. Courts defended the rule as a necessary shield for a young industrial economy, reasoning that unlimited liability to remote users would chill manufacturing. The price of that protection fell on injured consumers, who were left without a remedy against the parties best positioned to prevent the harm.\n\nThe first decisive crack came in MacPherson v. Buick Motor Co. (1916). Writing for the New York Court of Appeals, Judge Benjamin Cardozo held that a manufacturer owes a duty of care to any foreseeable user of a product that is reasonably certain to place life and limb in peril when negligently made, regardless of privity. MacPherson did not abolish the need to prove fault; an injured plaintiff still had to show that the manufacturer had been negligent. But by untethering duty from the contract of sale, Cardozo reframed the question as one of foreseeability, and within two decades most American jurisdictions had followed.\n\nProving negligence, however, remained a formidable obstacle, since the relevant evidence usually lay in the manufacturer's exclusive control. In a celebrated 1944 concurrence in Escola v. Coca-Cola Bottling Co., Justice Roger Traynor urged courts to abandon fault altogether and hold manufacturers strictly liable for injuries caused by defective products. His view prevailed a generation later: Greenman v. Yuba Power Products (1963) imposed liability without proof of negligence, and the Restatement (Second) of Torts §402A (1965) codified strict liability for products sold in a defective condition unreasonably dangerous to the user. A plaintiff now needed to establish only a defect, causation, and injury.\n\nWhether this represented a clean break is debatable. Strict liability was justified largely on the ground that manufacturers could spread the cost of injuries across all consumers through pricing and insurance — a rationale of risk distribution rather than moral fault. Yet in design-defect cases courts increasingly asked whether a product's risks outweighed its utility, an inquiry that looks suspiciously like the reasonableness balancing at the heart of negligence. The modern law of products liability thus sits uneasily between two theories, and its strict-liability label can obscure how much negligence reasoning survives within it.",
+      "rules": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-game-001",
+      "section": "LG",
+      "title": "Five Associates, One Hearing",
+      "summary": "Sequencing game: order five associates in five consecutive slots subject to three rules.",
+      "setup": "Exactly five associates — F, G, H, J, and K — argue exactly one motion each at a single hearing. The motions are heard one at a time, in five consecutive time slots numbered 1 through 5 (1 is first, 5 is last). The order in which they argue is subject to the following constraints:",
+      "rules": [
+        "1. F argues immediately before H.",
+        "2. J argues fourth.",
+        "3. K does not argue first."
+      ],
+      "passage": null,
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-game-002",
+      "section": "LG",
+      "title": "Six Oral Arguments, One Morning",
+      "summary": "Sequencing game: order six moot-court students across six consecutive slots under two adjacency blocks and two ordering rules.",
+      "passage": null,
+      "setup": "Exactly six students — F, G, H, J, K, and M — each present one oral argument at a moot-court program. The arguments are delivered one at a time, in six consecutive slots numbered 1 through 6 (1 is earliest, 6 is latest). No two arguments are delivered in the same slot. The order in which the students argue is subject to the following constraints:",
+      "rules": [
+        "1. F argues immediately before G.",
+        "2. H argues immediately before J.",
+        "3. K argues at some time before M.",
+        "4. F argues at some time before H."
+      ],
+      "source": "LSATContentFactory build100 (2026-07-16)"
+    },
+    {
+      "id": "lg-game-003",
+      "section": "LG",
+      "title": "Six Witnesses, One Deposition",
+      "summary": "Sequencing game: order six witnesses across six consecutive deposition sessions under four rules; the constraints admit exactly four valid orders.",
+      "passage": null,
+      "setup": "Exactly six witnesses -- L, M, N, P, R, and T -- are deposed, each testifying exactly once, in six consecutive sessions numbered 1 through 6 (1 is first, 6 is last). The order in which they testify is subject to the following constraints:",
+      "rules": [
+        "1. M testifies immediately before P.",
+        "2. N testifies at some time before R.",
+        "3. T testifies fourth.",
+        "4. L testifies either first or sixth."
+      ],
+      "source": "LSATContentFactory build100 (2026-07-16)"
+    },
+    {
+      "id": "lg-game-004",
+      "section": "LG",
+      "title": "Six Paintings, One Gallery",
+      "summary": "Grouping/selection game: choose exactly three of six paintings to display under three conditional membership rules.",
+      "passage": null,
+      "setup": "A museum curator must decide which paintings to hang in the main gallery. From six paintings — F, G, H, J, K, and L — the curator will display exactly three in the main gallery; the remaining three are placed in storage. The selection is governed by the following constraints:",
+      "rules": [
+        "1. If F is displayed, then H is displayed.",
+        "2. If G is displayed, then K is not displayed.",
+        "3. If H is displayed, then J is not displayed."
+      ],
+      "source": "LSATContentFactory build100 (2026-07-16)"
+    },
+    {
+      "id": "rc-passage-003",
+      "section": "RC",
+      "title": "Proof by the Numbers: Statistics and the Burden of Proof",
+      "summary": "A 4-paragraph passage arguing that courts' resistance to naked statistical evidence reflects a demand for individualized, transparent proof rather than an aversion to numbers.",
+      "passage": "Few questions divide evidence scholars as sharply as whether a naked statistical probability can, by itself, satisfy a legal burden of proof. Jurors reason quantitatively all the time — gauging how likely a witness is to be mistaken, or how probable an innocent explanation seems — yet courts grow uneasy the moment a party reduces that reasoning to an explicit number. The discomfort is not mere innumeracy. It reflects a durable intuition that a verdict must rest on evidence tying the defendant to this particular case, and not on a figure that would hold with equal force against anyone in a large class.\n\nThe canonical warning is People v. Collins. Prosecutors there multiplied together the estimated frequencies of several eyewitness details — a bearded man, a blond companion, a yellow car — to conclude that the odds of another couple matching the description were one in twelve million. An appellate court reversed the conviction, observing that the individual frequencies were never established by evidence and that multiplying them assumed, without proof, that each trait was statistically independent of the others. Collins is now cited less as a lesson about arithmetic than as a caution against the aura of certainty that a large number can lend to a shaky factual premise.\n\nI share the courts' underlying instinct, though for a reason more principled than any distrust of mathematics. Consider the philosophers' gatecrasher hypothetical: one thousand people attend a rodeo, but only 499 bought tickets, so any given spectator is more likely than not to have entered without paying. Few of us would let the organizer collect from a randomly chosen attendee on that basis alone, even though the resulting 0.501 probability formally exceeds the civil 'preponderance' standard. What the naked number lacks is individualized proof — evidence about that spectator rather than about the crowd. The law's resistance, properly understood, defends this demand for particularized evidence; it is not a superstition about digits.\n\nYet the doctrine can curdle into reflexive hostility, and here the critics have a point. Courts today routinely admit DNA profiling, in which an analyst may testify that the chance of a random person matching the crime-scene sample is one in several billion. That figure is every bit as statistical as the one in Collins, but it is anchored to a transparent, replicable methodology and to a sample drawn from the defendant himself. The contrast shows that the objection was never to numbers as such. The principle worth keeping is the narrower one: quantified evidence earns its place when its method is auditable and its inference individualized — and forfeits that place when it is neither.",
+      "setup": null,
+      "rules": [],
+      "source": "LSATContentFactory build100 (2026-07-16)"
+    },
+    {
+      "id": "rc-passage-004",
+      "section": "RC",
+      "title": "From Riparian Right to Regulated Withdrawal",
+      "summary": "A 4-paragraph passage tracing water-allocation doctrine from common-law riparianism through prior appropriation to a defended synthesis, regulated riparianism.",
+      "passage": "Under the common law of most humid regions, the right to use flowing water has long been tied to the ownership of land. The riparian doctrine grants each owner of land abutting a watercourse a correlative right to make reasonable use of the stream as it passes, subject to the like rights of every other riparian owner upstream and down. No one holds a superior claim by virtue of having used the water first, and no owner may so deplete or foul the flow as to defeat a neighbor's reasonable use. The doctrine's animating premise is sharing: because water in a well-watered landscape is rarely scarce enough to exhaust, the law can afford to treat it as a resource held in common by those the stream happens to touch.\n\nThat premise collapses in arid country. When the mining camps of the nineteenth-century American West confronted streams too meager to satisfy every claimant, a rule of sharing offered no guidance about who must go without. The doctrine of prior appropriation arose in answer. It severed water rights from land ownership entirely and awarded them instead to whoever first diverted the water and put it to a recognized beneficial use—irrigation, mining, municipal supply. 'First in time, first in right' meant that in a shortage the most senior appropriator took a full allotment while junior holders received nothing, a harshness the riparian system never contemplated. Whatever its rigor, the appropriation rule at least answered the question that scarcity forced and that riparianism could not.\n\nNeither pure doctrine, I would argue, serves a modern jurisdiction well, and the more promising path is the regulated riparianism that a number of eastern states have quietly adopted. Under these regimes an administrative agency issues time-limited permits to withdraw water, allocating it by public criteria—the reasonableness of the use, its effect on the flow, the availability of alternatives—rather than by the accident of riverfront ownership or the brute priority of a diversion date. The permit system preserves riparianism's commitment to shared and reasonable use while supplying what the common law lacked: a forum for measuring competing demands against one another before a crisis, and a mechanism for adjusting allocations as conditions change.\n\nThe objection most often pressed against such systems is real. A permit regime substitutes the discretion of regulators for the predictability of a fixed rule, and an appropriator who has invested in reliance on a senior right may reasonably fear that a bureaucrat will unsettle it. I concede that predictability has genuine value, particularly where large capital investments depend on secure supply. But the certainty that prior appropriation offers is the certainty of a rule indifferent to changing needs, and the flexibility that regulated riparianism introduces is not lawlessness so long as the governing criteria are public and the agency's decisions are reviewable. On balance the trade favors regulation, because the scarcity that once afflicted only the arid West is fast becoming general.",
+      "setup": null,
+      "rules": [],
+      "source": "LSATContentFactory build100 (2026-07-16)"
+    },
+    {
+      "id": "rc-passage-005",
+      "section": "RC",
+      "title": "The Uses and Dangers of Legal Fictions",
+      "summary": "A 4-paragraph passage on legal fictions that contrasts Bentham's condemnation with Fuller's defense and argues their value depends on their remaining openly recognized as fictions.",
+      "passage": "A legal fiction is an assertion that a court accepts as true, and proceeds to act upon, although everyone involved knows it to be false. Its purpose is practical: by pretending that some convenient state of affairs exists, a judge can escape a rule that would otherwise force an unjust or absurd result. Early common-law courts leaned on fictions chiefly to enlarge their own authority. The Court of King's Bench, for instance, could ordinarily try only prisoners already in its custody, so it invented the supposition that a defendant sued on an unrelated debt was being held on a fictitious trespass — a pretense that quietly extended the court's reach far beyond its original bounds. No statute authorized the maneuver; the fiction did the work that legislation might otherwise have required.\n\nTo Jeremy Bentham, this was precisely the scandal. Fictions, he argued, were instruments of judicial deceit: they allowed judges to change the law while pretending merely to apply it, and so to make binding rules without ever answering to the public in whose name they governed. A fiction, on Bentham's account, was always a confession of failure — proof that the written law had grown inadequate and that the bench was amending it in disguise. A properly codified legal system, drafted openly by a legislature, would dispense with fictions entirely; their persistence was a symptom of arrested legal development, not a sign of judicial ingenuity.\n\nWriting a century later, Lon Fuller declined to join in the condemnation. Fuller drew a line between fictions that deceive and fictions that merely express — a compressed shorthand for a legal relationship the law has not yet learned to name directly. The description of a corporation as a 'person,' on this reading, asserts no falsehood; it states economically that the entity holds rights and bears duties of its own. Fuller conceded that a fiction can curdle into dogma: later readers may forget the silent 'as if' and mistake the metaphor for a fact about the world. Yet the hazard, he maintained, lies in that forgetting, not in the fiction itself, which at its birth is merely an honest device for saying something new.\n\nThe better view leans toward Fuller, but with a qualification he left underdeveloped: a fiction is worth its cost only so long as it remains visible as a fiction. Labeled plainly, it advertises the gap between existing doctrine and present need, and thereby invites the very reform Bentham wanted. Left to harden, it does the opposite — it buries a contestable policy choice beneath the appearance of settled truth, so that no one thinks to revisit it. Bentham's alarm, then, is not baseless; it simply misidentifies the culprit. The danger is not the device but the profession's habit of mistaking a useful metaphor for a discovery. The soundest fictions are the ones that announce their own eventual obsolescence.",
+      "setup": null,
+      "rules": [],
+      "source": "LSATContentFactory build100 (2026-07-16)"
+    },
+    {
+      "id": "rc-passage-006",
+      "section": "RC",
+      "title": "Scoring Risk: Actuarial Instruments in Bail and Sentencing",
+      "summary": "A 4-paragraph passage arguing that actuarial risk-assessment instruments, though a plausible corrective to biased judicial discretion, have been adopted faster than the transparency and validation safeguards they require.",
+      "passage": "For most of the twentieth century, a judge deciding whether to release a defendant before trial or how long to incarcerate one after conviction relied on little more than the case file and a practiced sense of the person in front of the bench. That intuition was famously uneven: two defendants with nearly identical records could receive markedly different treatment depending on the courtroom they happened to draw. Into this gap stepped the actuarial risk-assessment instrument, a statistical tool that assigns each defendant a numerical score estimating the likelihood of rearrest. Marketed as a corrective to human caprice, such instruments now inform bail and sentencing decisions in jurisdictions across the country.\n\nThe case for these tools is not frivolous, and I do not dismiss it. A well-validated instrument can flag patterns that an overworked judge, reasoning case by case, will miss; it can also impose a welcome consistency, ensuring that similarly situated defendants are scored by the same yardstick rather than by the vagaries of an individual temperament. Proponents point out, fairly, that the alternative is not some pristine neutrality but the very discretionary judgment whose documented disparities prompted reform in the first place. If the choice is between unexamined intuition and a transparent formula, the formula would seem the safer bet.\n\nYet the formula is rarely transparent, and this is where my confidence falters. Many widely used instruments are proprietary, their inner workings shielded from the defendants they score and even from the courts that rely on them. More troubling still is what the instruments measure. Because direct predictors of rearrest are scarce, developers lean on proxies—residential stability, employment history, the arrest records of family members—that track socioeconomic disadvantage and, through it, race. A score that appears to describe an individual's dangerousness may in fact encode the circumstances of the neighborhood he was born into, laundering old inequities through the authority of a number.\n\nNone of this makes the instruments worthless, and I resist the temptation to condemn them wholesale. Used as one input among many, subjected to independent validation, and stripped of the proxies most likely to smuggle in bias, they might yet deliver the consistency their designers promise. My reservation is narrower but firm: the pace of adoption has badly outrun the development of these safeguards. Until transparency and testing catch up, a tool sold as a remedy for arbitrary judgment risks becoming a more durable, and less accountable, form of it.",
+      "setup": null,
+      "rules": [],
+      "source": "LSATContentFactory build100 (2026-07-16)"
+    },
+    {
+      "id": "rc-passage-007",
+      "section": "RC",
+      "title": "The Reasonable Person and the Allocation of Risk",
+      "summary": "A 4-paragraph argument that the objective reasonable-person standard in negligence is best defended not as a moral verdict on the defendant but as a pragmatic device for allocating the risks of human variation.",
+      "passage": "Negligence law asks whether a defendant exercised the care a 'reasonable person' would have shown under the circumstances. The formula is deliberately objective: the jury measures the defendant's conduct against an external community standard rather than against the defendant's own capacities, intentions, or best efforts. A driver who genuinely tried to be careful is nonetheless liable if a reasonable driver would have done more. For more than a century this impersonal yardstick has been the organizing device of accident law, and its very abstractness — its refusal to ask what this particular defendant could manage — is what makes it administrable across the endless variety of cases that juries confront.\n\nTo many critics the standard's impersonality is precisely its vice. Ordinary morality, they observe, excuses those who do the best they can: we do not blame a person of limited intelligence for failing to foresee a danger that a cleverer person would have caught. Yet negligence law holds the slow-witted, the inexperienced, and the congenitally clumsy to the same external measure as everyone else, condemning them for shortcomings they could not have overcome. On this view the reasonable-person test punishes people not for choosing badly but for being who they are, substituting a verdict about capacity for the moral judgment about choice that liability is supposed to express.\n\nThis objection, I want to suggest, misconceives what the standard is for. The reasonable-person test is not a covert assessment of the defendant's character or a pronouncement that she is a bad person; it is a rule for allocating the risk created by human variation. Someone whose reflexes or judgment fall below the community's ordinary expectations imposes an above-ordinary hazard on everyone she encounters, and the law sensibly places the cost of that hazard on the person who introduces it rather than on the strangers who cannot anticipate it. Read this way, the standard's refusal to individualize is not a moral blindness but a considered decision about who should bear the price of unusual limitations.\n\nNone of this is to deny that the objective standard has soft edges. Courts do individualize in limited ways — they hold children to the conduct of children of like age and experience, and they excuse the driver felled by a sudden, unforeseeable stroke. These carve-outs might seem to concede the critics' premise, but they in fact confirm the allocative logic: the law relaxes the standard only where insisting on it would place risk on someone who neither created it nor could guard against it. The reasonable person, in short, is best understood not as a moral ideal we all fall short of, but as a pragmatic instrument for distributing the unavoidable costs of living among the imperfect.",
+      "setup": null,
+      "rules": [],
+      "source": "LSATContentFactory build100 (2026-07-16)"
+    },
+    {
+      "id": "rc-passage-008",
+      "section": "RC",
+      "title": "Litigation Funding: Disclosure and Control",
+      "summary": "A comparative (Passage A / Passage B) set on third-party litigation funding: A argues for mandatory disclosure of funders; B argues that disclosure is the wrong first question and that control is the real issue.",
+      "title_a": "Passage A",
+      "title_b": "Passage B",
+      "passage": "Third-party litigation funding — the practice of an outside investor paying a plaintiff's legal costs in exchange for a share of any recovery — has grown from a curiosity into a multi-billion-dollar market, and it remains largely invisible to the courts that adjudicate the funded cases. Several federal districts now require parties to disclose the existence and identity of any funder; most do not.\n\nThe case for mandatory disclosure rests on a modest premise: a judge cannot manage what a judge cannot see. Recusal analysis is the clearest instance. A judge who holds an interest in a funder has a conflict in every case that funder backs, and under the present regime the judge has no way to learn of it. The same information gap distorts settlement conferences, where a court urging compromise may be unaware that the plaintiff's share of any settlement is contractually capped and that the plaintiff is therefore indifferent to the range under discussion.\n\nCritics answer that disclosure invites satellite litigation over the funding arrangement itself, and that a defendant who learns a plaintiff is funded will litigate against the funder's balance sheet rather than the merits. The objection has force, but it is an argument about scope, not about principle. A rule requiring the funder's identity and nothing more — not the terms, not the returns — supplies what recusal and case management need while giving a defendant almost nothing to exploit. Courts already draw this line for insurance, which is disclosed as a matter of course without collapsing into a trial about the policy.",
+      "passage_b": "Debate over third-party litigation funding has fixed on disclosure, which is a pity, because disclosure is the least consequential question the practice raises. Whether a court knows a funder exists tells us nothing about whether the funder is running the case.\n\nFunding agreements vary enormously in the control they transfer. At one end sits passive capital: the funder pays, takes a return, and has no say in strategy or settlement. At the other sits an arrangement in which the funder must consent to any settlement, may replace counsel, and receives a return steep enough that only an improbably large verdict leaves the nominal plaintiff meaningfully better off. The second arrangement is not an investment in a lawsuit; it is a transfer of the lawsuit, conducted in a form that leaves the plaintiff's name on the caption. Our rules about who may bring a claim were written for a world in which the person suing was the person aggrieved, and they have not been revisited.\n\nA disclosure regime addresses none of this. It tells the court that a funder exists, and the court then proceeds exactly as before — because there is no doctrine on which it could act. What is needed first is a standard distinguishing permissible financing from impermissible control, and only then a disclosure rule calibrated to detect which side of it a given agreement falls on. Building the reporting requirement before the standard it is meant to serve puts the courts in the position of collecting information they have no framework for using.",
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-game-005",
+      "section": "LG",
+      "title": "Trial-Team Selection",
+      "summary": "An in/out selection game: exactly four of seven candidates are selected for a trial team, governed by conditional membership rules.",
+      "setup": "A firm will select exactly four of seven candidates — F, G, H, J, K, L, and M — for a trial team. The selection must conform to the following conditions:",
+      "rules": [
+        "If F is selected, H is not selected.",
+        "If G is selected, J is selected.",
+        "K and L are not both selected.",
+        "At least one of H and M is selected."
+      ],
+      "source": "original (CC0)"
+    }
+  ]
 }

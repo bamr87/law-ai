@@ -50,9 +50,14 @@ DEFAULT_CLAUDE_TIER_MODELS: dict[ModelTier, str] = {
 _DEFAULT_OUTPUT_DIR = Path("var/lsat_factory")
 
 _DIFFICULTY_TIER: dict[Difficulty, ModelTier] = {
+    # Spec 047 FR-8: the widened scale routes at its ends the same way its
+    # neighbours do — an intro item is bulk work, an elite item needs the
+    # premium tier at least as much as a hard one does.
+    "intro": "bulk",
     "easy": "bulk",
     "med": "standard",
     "hard": "premium",
+    "elite": "premium",
 }
 
 

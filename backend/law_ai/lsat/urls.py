@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 from law_ai.core import audit_jsonl as audit_store
 from law_ai.core.auth import RequireLsat
 from law_ai.lsat.services.bank import (
+    DIFFICULTY_ORDER,
     ChoiceLabel,
     Difficulty,
     Section,
@@ -29,6 +30,7 @@ from law_ai.lsat.services.bank import (
     public_view,
 )
 from law_ai.lsat.services import proposals as proposals_store
+from law_ai.lsat.services import writing as writing_store
 from law_ai.lsat.services.crosscheck import CrossCheckResult, cross_check
 from law_ai.lsat.services.guides import load_guides, public_guide_view
 from law_ai.lsat.services.tutor import TutorRequest, TutorResponse, tutor
@@ -82,10 +84,18 @@ class SectionsView(_Base):
         counts = {code: 0 for code in sections}
         for q in bank.values():
             counts[q.section] = counts.get(q.section, 0) + 1
+        # Spec 047 FR-5: WS holds writing prompts, not keyed questions. Report
+        # them in their own field rather than overloading question_count, so a
+        # client can tell an empty MCQ bank from a section that has no MCQ form.
+        writing_counts = {"WS": len(writing_store.load_writing_prompts())}
         return Response(
             {
                 "sections": [
-                    {**s.model_dump(), "question_count": counts.get(s.code, 0)}
+                    {
+                        **s.model_dump(),
+                        "question_count": counts.get(s.code, 0),
+                        "writing_prompt_count": writing_counts.get(s.code, 0),
+                    }
                     for s in sections.values()
                 ],
                 "count": len(sections),
@@ -391,6 +401,132 @@ class ValidationView(_Base):
 
 
 # ---------------------------------------------------------------------------
+# Argumentative Writing (spec 047 FR-5)
+# ---------------------------------------------------------------------------
+
+
+class WritingPromptsView(_Base):
+    """``GET /api/lsat/writing/prompts`` — the prompt library, model-free.
+
+    Every payload goes through ``public_prompt_view``: reading the annotated
+    model response before drafting destroys the exercise, so it is withheld
+    here the same way ``public_view`` withholds an answer key.
+    """
+
+    def get(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        difficulty = request.query_params.get("difficulty")
+        if difficulty is not None and difficulty not in DIFFICULTY_ORDER:
+            return Response(
+                {
+                    "detail": {
+                        "difficulty": f"must be one of {', '.join(DIFFICULTY_ORDER)}"
+                    }
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        prompts = [
+            writing_store.public_prompt_view(p).model_dump()
+            for p in sorted(
+                writing_store.load_writing_prompts().values(), key=lambda p: p.id
+            )
+            if difficulty is None or p.difficulty == difficulty
+        ]
+        return Response({"prompts": prompts, "count": len(prompts)})
+
+
+class WritingPromptDetailView(_Base):
+    """``GET /api/lsat/writing/prompts/<id>`` — one prompt plus its rubric.
+
+    ``?model_response=1`` adds the annotated worked example. The client asks
+    for it only after the learner has drafted — the same soft protection level
+    the solve-guide endpoint applies to spoiler steps.
+    """
+
+    def get(self, request: Any, prompt_id: str, *args: Any, **kwargs: Any) -> Response:
+        prompt = writing_store.load_writing_prompts().get(prompt_id)
+        if prompt is None:
+            raise Http404("writing prompt not found")
+        rubric = writing_store.rubric_for(prompt)
+        include_model = request.query_params.get("model_response") in ("1", "true")
+        body: dict[str, Any] = {
+            "prompt": writing_store.public_prompt_view(prompt).model_dump(),
+            "rubric": rubric.model_dump(),
+        }
+        if include_model:
+            body["model_response"] = prompt.model_response.model_dump()
+        return Response(body)
+
+
+class WritingRubricView(_Base):
+    """``GET /api/lsat/writing/rubric`` — the rubric, for offline self-scoring."""
+
+    def get(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        rubric_id = request.query_params.get("id")
+        if rubric_id:
+            rubric = writing_store.load_writing_rubrics().get(rubric_id)
+        else:
+            rubric = writing_store.default_rubric()
+        if rubric is None:
+            raise Http404("rubric not found")
+        return Response({"rubric": rubric.model_dump()})
+
+
+class WritingEvaluateView(_Base):
+    """``POST /api/lsat/writing/evaluate`` — rubric-scored feedback (FR-4).
+
+    Formative feedback for one learner; nothing here is promoted into the
+    bank. The response carries ``model`` and ``prompt_version`` so the UI can
+    label machine-derived bands at the point of display (NFR-PROV-1).
+    """
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "llm"
+
+    def post(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        from law_ai.agents_runtime.crews.lsat_writing_evaluator import (
+            EvaluateWritingInput,
+            LSATWritingEvaluator,
+        )
+
+        try:
+            req = EvaluateWritingInput.model_validate(request.data or {})
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        if req.prompt_id not in writing_store.load_writing_prompts():
+            raise Http404("writing prompt not found")
+
+        agent = LSATWritingEvaluator()
+        try:
+            output = async_to_sync(agent.run)(req.model_dump())
+        except Exception as exc:
+            logger.exception("LSATWritingEvaluator.run failed: %s", exc)
+            return Response(
+                {"detail": f"evaluation failed: {type(exc).__name__}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        try:
+            audit_store.record(
+                {
+                    "type": "lsat_writing_evaluate",
+                    "prompt_id": req.prompt_id,
+                    "section": "WS",
+                    "response_chars": len(req.response),
+                    "weighted_band": output.evaluation.weighted_band,
+                    "model": output.model,
+                    "degraded": output.degraded,
+                }
+            )
+        except Exception:
+            logger.warning(
+                "audit_store.record failed for lsat_writing_evaluate", exc_info=True
+            )
+        return Response(output.model_dump())
+
+
+# ---------------------------------------------------------------------------
 # Authoring / proposal endpoints (spec 019 FR-7)
 # ---------------------------------------------------------------------------
 
@@ -634,6 +770,18 @@ urlpatterns = [
         name="lsat-question-cross-check",
     ),
     path("validation", ValidationView.as_view(), name="lsat-validation"),
+    path("writing/prompts", WritingPromptsView.as_view(), name="lsat-writing-prompts"),
+    path(
+        "writing/prompts/<str:prompt_id>",
+        WritingPromptDetailView.as_view(),
+        name="lsat-writing-prompt-detail",
+    ),
+    path("writing/rubric", WritingRubricView.as_view(), name="lsat-writing-rubric"),
+    path(
+        "writing/evaluate",
+        WritingEvaluateView.as_view(),
+        name="lsat-writing-evaluate",
+    ),
     path("grade", GradeView.as_view(), name="lsat-grade"),
     path("stats", StatsView.as_view(), name="lsat-stats"),
     path("tutor", TutorView.as_view(), name="lsat-tutor"),

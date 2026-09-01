@@ -5,7 +5,7 @@
 	evolve-audit lint-specs ux-audit ui-sync \
 	autonomy-run autonomy-status autonomy-stop \
 	local-ai-up local-ai-down local-ai-pull local-ai-verify local-ai-health validate-claude-code \
-	lsat-author-demo lsat-export legal-analyst-demo host-setup host-test clean
+	lsat-author-demo lsat-export lsat-static-build legal-analyst-demo host-setup host-test clean
 
 # =============================================================================
 # Docker is the canonical dev/test surface. Every target below shells into
@@ -57,6 +57,7 @@ help:
 	@echo "  make lint-specs        - spec drift + BACKLOG + UI/UX contract (host stdlib)"
 	@echo "  make ux-audit          - UI/UX contract, both front ends (docs/ui-ux-review.md)"
 	@echo "  make ui-sync           - mirror frontend/ui/base.css into lsat-static"
+	@echo "  make lsat-static-build - build the static LSAT site in a container (as Pages does)"
 	@echo ""
 	@echo "Local AI stack (Spec 010):"
 	@echo "  make local-ai-up       - Start postgres/redis/neo4j/ollama/phoenix"
@@ -255,6 +256,14 @@ lsat-export:
 	$(RUN_BACKEND) python manage.py lsat_export --out var/lsat_site
 	cp backend/var/lsat_site/content.json lsat-static/content.json
 	@echo "site data refreshed → lsat-static/content.json"
+
+# Build + typecheck the static LSAT site the way GitHub Pages does, but inside
+# a container — Docker-first applies here too, and `lsat-static/` has no
+# compose service of its own because nothing in the dev stack serves it.
+lsat-static-build:
+	docker run --rm -v "$(PWD)":/repo -w /repo/lsat-static \
+		-e PAGES_BASE_PATH=/law-ai node:20-alpine \
+		sh -c "npm ci --no-audit --no-fund && npm run build"
 
 # Live LSATContentAuthor agent run. Routes through Claude Code when opted in
 # (LSAT_LLM_PROVIDER=claude_code + token in backend/.env). Pass extra flags via
