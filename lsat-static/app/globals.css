@@ -457,6 +457,14 @@ main#view {
 }
 
 /* ---- Question card ---- */
+/* The drill moves focus to the card on every question change, so the card
+   has to say so. `:focus-visible` alone will not fire for programmatic focus
+   in every browser, hence the plain `:focus` on a target that is only ever
+   focused programmatically. */
+.qcard:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
 .qcard {
   background: var(--bg-elev);
   border: 1px solid var(--border);
@@ -503,8 +511,13 @@ main#view {
     background-color 0.16s ease,
     border-color 0.16s ease;
 }
-.choice:hover:not(:disabled) {
+.choice:hover:not([aria-disabled='true']) {
   border-color: var(--text-muted);
+}
+/* Graded choices stay in the focus order (see QuestionCard), so they have to
+   stop *looking* clickable on their own. */
+.choice[aria-disabled='true'] {
+  cursor: default;
 }
 .choice-selected {
   border-color: var(--accent);

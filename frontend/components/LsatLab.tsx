@@ -60,6 +60,15 @@ const TABS: { id: Tab; label: string; hint: string }[] = [
   { id: 'authoring', label: 'Authoring (HITL)', hint: 'Review AI-drafted questions' },
 ]
 
+/**
+ * Sections the lab can actually drill. The API also describes WS
+ * (Argumentative Writing), which has no panel here — it is an essay, not a
+ * keyed item, and it lives on the published static site. Jumping to it opened
+ * an empty tabpanel with no tab selected: a dead end a keyboard user could
+ * land on and had no marked way out of.
+ */
+const PRACTICE_TABS = new Set<Tab>(['LR', 'RC', 'LG'])
+
 const DIFFICULTIES: { label: string; value: LsatDifficulty | 'any' }[] = [
   { label: 'Any', value: 'any' },
   { label: 'Easy', value: 'easy' },
@@ -323,12 +332,18 @@ function OverviewPanel({ onJump }: { onJump: (t: Tab) => void }) {
                 </ul>
               )}
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => onJump(s.code as Tab)}
-                  className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow shadow-blue-500/20 transition hover:shadow-blue-500/40"
-                >
-                  Practice {s.code} →
-                </button>
+                {PRACTICE_TABS.has(s.code as Tab) ? (
+                  <button
+                    onClick={() => onJump(s.code as Tab)}
+                    className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow shadow-blue-500/20 transition hover:shadow-blue-500/40"
+                  >
+                    Practice {s.code} →
+                  </button>
+                ) : (
+                  <span className="rounded-lg border border-slate-800 px-3 py-1.5 text-xs text-slate-500">
+                    No drill in the lab yet
+                  </span>
+                )}
                 {s.references.slice(0, 2).map((r) =>
                   r.url ? (
                     <a
@@ -377,6 +392,10 @@ function LrPanel({
   const [question, setQuestion] = useState<LsatQuestion | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const cardRef = useRef<HTMLDivElement | null>(null)
+  // Set only by "next", so changing the difficulty — which reloads through the
+  // same path while the user is still in the select — never yanks focus.
+  const advanced = useRef(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -399,6 +418,21 @@ function LrPanel({
     void load()
   }, [load])
 
+  const loadNext = useCallback(() => {
+    advanced.current = true
+    void load()
+  }, [load])
+
+  // Drawing the next question unmounts the card (the panel shows a skeleton
+  // while it fetches), which dropped focus to <body> — outside the element the
+  // drill's key handler is bound to, so the *following* keystroke did nothing
+  // and the run stalled until someone reached for the mouse.
+  useEffect(() => {
+    if (!advanced.current || loading || !question) return
+    advanced.current = false
+    cardRef.current?.focus()
+  }, [loading, question])
+
   return (
     <section className="space-y-4">
       <Toolbar
@@ -410,9 +444,10 @@ function LrPanel({
       {!loading && error && <ErrorBanner message={error} onRetry={load} />}
       {!loading && !error && question && (
         <QuestionCard
+          cardRef={cardRef}
           question={question}
           onResolved={(r, elapsed, hints) => onAttempt(r.correct, elapsed, hints)}
-          onNext={load}
+          onNext={loadNext}
         />
       )}
     </section>
@@ -625,6 +660,7 @@ function QuestionCard({
   compact,
   elapsedEnabled = true,
   onActivate,
+  cardRef,
 }: {
   question: LsatQuestion
   onResolved: (
@@ -636,6 +672,8 @@ function QuestionCard({
   compact?: boolean
   elapsedEnabled?: boolean
   onActivate?: () => void
+  /** Focus target the panel moves to when it swaps in a new question. */
+  cardRef?: React.Ref<HTMLDivElement>
 }) {
   const [selected, setSelected] = useState<LsatChoiceLabel | null>(null)
   const [result, setResult] = useState<LsatGradeResponse | null>(null)
@@ -694,17 +732,28 @@ function QuestionCard({
     }
   }
 
-  // Keyboard drilling: A–E pick a choice, Enter submits. Scoped to the card
-  // (events bubble from the focused choice buttons) so stacked RC/LG cards
-  // never react to one another's keypresses. Disabled once graded, and we
-  // ignore keys typed into the tutor's text input.
+  // Keyboard drilling: A–E pick a choice, Enter submits, then N (or Enter
+  // again) draws the next question. Scoped to the card (events bubble from the
+  // focused choice buttons) so stacked RC/LG cards never react to one
+  // another's keypresses, and we ignore keys typed into the tutor's text
+  // input.
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (result || submitting) return
+    if (submitting) return
     // Let modified shortcuts (Ctrl/⌘/Alt+key, e.g. Select All) reach the browser.
     if (e.ctrlKey || e.metaKey || e.altKey) return
     const tag = (e.target as HTMLElement).tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA') return
     const key = e.key.toUpperCase()
+    if (result) {
+      // Graded: the only move left is forward, and it was two Tab stops away
+      // past the hint carousel — far enough that a timed drill reached for the
+      // mouse instead.
+      if (onNext && (key === 'N' || e.key === 'Enter')) {
+        e.preventDefault()
+        onNext()
+      }
+      return
+    }
     if (['A', 'B', 'C', 'D', 'E'].includes(key)) {
       if (question.choices.some((c) => c.label === key)) {
         setSelected(key as LsatChoiceLabel)
@@ -718,11 +767,17 @@ function QuestionCard({
 
   return (
     <div
+      ref={cardRef}
+      // Programmatic focus target. Every shortcut on this card is bound to
+      // this element, so focus leaving it silently disarms the whole keyboard
+      // drill — which is exactly what a fresh question did until the panel
+      // started moving focus back in.
+      tabIndex={-1}
       onKeyDown={handleKeyDown}
       onFocusCapture={onActivate}
       onPointerDown={onActivate}
       className={
-        'rounded-2xl border border-slate-800 bg-slate-900/40 backdrop-blur ' +
+        'rounded-2xl border border-slate-800 bg-slate-900/40 backdrop-blur focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 ' +
         (compact ? 'p-4' : 'p-6')
       }
     >
@@ -775,6 +830,9 @@ function QuestionCard({
           let cls =
             'group flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-left text-sm transition '
           if (showResult) {
+            // Still focusable (see aria-disabled below), so it has to stop
+            // advertising itself as clickable.
+            cls += 'cursor-default '
             if (isCorrect)
               cls += 'border-emerald-500/50 bg-emerald-500/10 text-emerald-100'
             else if (isWrongPick)
@@ -793,8 +851,14 @@ function QuestionCard({
                 {...choiceRoving.itemProps(i)}
                 role="radio"
                 aria-checked={isSelected}
-                disabled={showResult}
-                onClick={() => setSelected(c.label)}
+                // `aria-disabled`, not `disabled`: a disabled button leaves the
+                // focus order, so grading while a choice had focus dropped
+                // focus to <body> — outside this card, where none of the
+                // shortcuts above can hear a keystroke any more.
+                aria-disabled={showResult}
+                onClick={() => {
+                  if (!showResult) setSelected(c.label)
+                }}
                 className={cls}
               >
                 {/* The letter stays in the accessible name on purpose. The
@@ -817,6 +881,20 @@ function QuestionCard({
           )
         })}
       </ul>
+
+      {result && onNext && (
+        <p className="mt-2 text-[11px] text-slate-500">
+          Keyboard:{' '}
+          <kbd className="rounded border border-slate-700 bg-slate-800/60 px-1 font-mono text-slate-300">
+            N
+          </kbd>{' '}
+          or{' '}
+          <kbd className="rounded border border-slate-700 bg-slate-800/60 px-1 font-mono text-slate-300">
+            Enter
+          </kbd>{' '}
+          for the next question
+        </p>
+      )}
 
       {!result && (
         <p className="mt-2 text-[11px] text-slate-500">

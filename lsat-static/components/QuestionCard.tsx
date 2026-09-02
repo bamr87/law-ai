@@ -12,8 +12,20 @@ interface Props {
   question: Question
   index: number
   total: number
+  /**
+   * The choice this question was already answered with, when the drill is
+   * paging back over ground it has covered. Non-null mounts the card in its
+   * checked state: `P` has to show the answer you gave and the key you were
+   * shown, or moving back through a section is a way to lose your work rather
+   * than a way to review it.
+   */
+  savedChoice?: string | null
+  /** Seconds already spent on a restored question, so the clock is honest. */
+  savedSeconds?: number
+  /** The drill moves focus here on every question change. */
+  cardRef?: React.Ref<HTMLElement>
   onAnnounce?: (msg: string) => void
-  onAnswered?: (elapsedSeconds: number) => void
+  onAnswered?: (choice: string, elapsedSeconds: number) => void
 }
 
 /**
@@ -26,19 +38,25 @@ export default function QuestionCard({
   question,
   index,
   total,
+  savedChoice = null,
+  savedSeconds = 0,
+  cardRef,
   onAnnounce,
   onAnswered,
 }: Props) {
-  const [selected, setSelected] = useState<string | null>(null)
-  const [submitted, setSubmitted] = useState(false)
+  const [selected, setSelected] = useState<string | null>(savedChoice)
+  const [submitted, setSubmitted] = useState(savedChoice !== null)
   const optionRefs = useRef<Record<string, HTMLButtonElement | null>>({})
-  const elapsedRef = useRef(0)
+  const elapsedRef = useRef(savedSeconds)
 
-  // Reset when the question changes.
+  // Rehydrate when the question changes. The drill keys this component on the
+  // question id so the initial state above already covers its own navigation;
+  // this is what keeps the card correct if it is ever rendered unkeyed. Both
+  // paths read the same saved answer, so it is idempotent.
   useEffect(() => {
-    setSelected(null)
-    setSubmitted(false)
-  }, [question.id])
+    setSelected(savedChoice)
+    setSubmitted(savedChoice !== null)
+  }, [question.id, savedChoice])
 
   const labels = useMemo(() => question.choices.map((c) => c.label), [question.choices])
 
@@ -57,7 +75,7 @@ export default function QuestionCard({
     if (submitted || !selected) return
     const correct = selected === question.correct
     setSubmitted(true)
-    onAnswered?.(elapsedRef.current)
+    onAnswered?.(selected, elapsedRef.current)
     recordAttempt({
       qid: question.id,
       section: question.section,
@@ -114,7 +132,16 @@ export default function QuestionCard({
   }
 
   return (
-    <article className="qcard" aria-label={`Question ${index + 1} of ${total}`}>
+    <article
+      ref={cardRef}
+      // Programmatic focus target only — the drill moves focus here on every
+      // question change so `N`/`P` land the user on the new stem instead of
+      // dropping focus to <body>, where there is no ring to see and Tab
+      // restarts from the top of the document.
+      tabIndex={-1}
+      className="qcard"
+      aria-label={`Question ${index + 1} of ${total}`}
+    >
       <div className="qcard-meta">
         <span className="pill">{question.section}</span>
         <span className="pill pill-muted">{question.type}</span>
@@ -124,6 +151,7 @@ export default function QuestionCard({
         </span>
         <QuestionElapsed
           key={question.id}
+          startAt={savedSeconds}
           frozen={submitted}
           onTick={(s) => {
             elapsedRef.current = s
@@ -154,7 +182,13 @@ export default function QuestionCard({
               role="radio"
               aria-checked={isSelected}
               tabIndex={tabIndex}
-              disabled={submitted}
+              // `aria-disabled` rather than `disabled`: a disabled button is
+              // removed from the focus order, so checking an answer while the
+              // chosen choice had focus threw focus to <body> — no ring, no
+              // screen-reader position, and Tab restarting at the skip link.
+              // The graded choices stay reachable and readable; every handler
+              // below already no-ops once submitted.
+              aria-disabled={submitted}
               onClick={() => !submitted && setSelected(c.label)}
               onKeyDown={(e) => onKeyDown(e, c.label)}
               className={

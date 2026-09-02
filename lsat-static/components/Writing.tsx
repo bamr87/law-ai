@@ -68,12 +68,31 @@ export default function Writing({ onAnnounce }: { onAnnounce?: (m: string) => vo
   }, [])
 
   // From the list, O opens the first prompt so the section is enterable
-  // without reaching for a card.
+  // without reaching for a card — and then puts the caret in the editor,
+  // because "open the writing task" and "be able to write" are the same
+  // intention. Opening it left focus on <body> six Tab stops from the
+  // textarea, which made the one shortcut into the section useless on its own.
+  //
+  // From the workspace the same key is the way back *in* after Escape blurs
+  // the field, so the pair is symmetric: Escape leaves the editor, O returns.
+  // It is one binding rather than two because a mouse-opened prompt must not
+  // yank focus into the textarea — the click already put the reader where
+  // they meant to be, and scrolling the prompt off screen would undo that.
+  const [focusEditorAt, setFocusEditorAt] = useState(0)
+
   useShortcuts({
     o: () => {
       if (phase === 'list' && writingPrompts.length > 0) open(writingPrompts[0])
+      setFocusEditorAt((n) => n + 1)
     },
   })
+
+  // Runs after the workspace has committed, so the textarea exists whether O
+  // opened the prompt just now or it was already open.
+  useEffect(() => {
+    if (focusEditorAt === 0) return
+    document.getElementById('writing-draft')?.focus()
+  }, [focusEditorAt])
 
   if (writingPrompts.length === 0) {
     return <p className="empty">No writing prompts in this bundle yet.</p>

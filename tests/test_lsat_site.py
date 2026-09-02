@@ -83,6 +83,76 @@ class TestSiteStructure:
 
 
 # ---------------------------------------------------------------------------
+# Keyboard contract
+# ---------------------------------------------------------------------------
+
+
+class TestKeyboardContract:
+    """The published drill has to be runnable end to end without a mouse.
+
+    `lsat-static/` ships no component-test harness, so these are source
+    assertions rather than behavioural ones: crude, but they pin the four
+    properties that a browser pass found broken and that nothing else in CI
+    would notice going missing again. Each is a rule about *focus*, which is
+    what actually failed — the key bindings themselves were fine.
+    """
+
+    def _read(self, name: str) -> str:
+        return (APP / name).read_text(encoding="utf-8")
+
+    def test_graded_choices_stay_focusable(self) -> None:
+        # `disabled` drops the element out of the focus order, so checking an
+        # answer while the chosen choice had focus threw focus to <body>: no
+        # ring to see, no position for a screen reader, and Tab restarting at
+        # the skip link.
+        card = self._read("components/QuestionCard.tsx")
+        assert "aria-disabled={submitted}" in card, (
+            "graded choices must use aria-disabled, not disabled"
+        )
+        # Every occurrence has to be the aria- one: a bare `disabled={submitted}`
+        # anywhere in this card is the regression.
+        assert card.count("disabled={submitted}") == card.count(
+            "aria-disabled={submitted}"
+        ), "a disabled choice leaves the focus order — use aria-disabled"
+
+    def test_answers_survive_paging_back(self) -> None:
+        # The card is keyed on the question id, so anything the drill does not
+        # hold is destroyed on the way out and rebuilt blank on the way back —
+        # which made `P` a way to lose your work rather than review it.
+        drill = self._read("components/Drill.tsx")
+        card = self._read("components/QuestionCard.tsx")
+        assert "savedChoice" in drill and "savedChoice" in card, (
+            "Drill must hand the recorded choice back to a revisited question"
+        )
+        assert "savedSeconds" in drill and "savedSeconds" in card, (
+            "a revisited question must show the time it was answered in"
+        )
+
+    def test_question_changes_move_focus_and_announce(self) -> None:
+        drill = self._read("components/Drill.tsx")
+        assert "cardRef.current?.focus()" in drill, (
+            "N/P must land focus on the new question, not <body>"
+        )
+        assert "Question ${i + 1} of ${questions.length}" in drill, (
+            "N/P must announce the new position into the live region"
+        )
+
+    def test_opening_a_writing_prompt_reaches_the_editor(self) -> None:
+        # O is the only key into the section; opening a prompt but leaving
+        # focus six Tab stops from the textarea made it useless on its own.
+        writing = self._read("components/Writing.tsx")
+        assert "getElementById('writing-draft')?.focus()" in writing, (
+            "O must put the caret in the essay editor"
+        )
+
+    def test_help_sheet_documents_the_drill_keys(self) -> None:
+        # A shortcut nobody can discover is a shortcut nobody uses.
+        help_sheet = self._read("components/ShortcutHelp.tsx")
+        for keys in ("A – E", "N  /  P", "H", "J  /  K", "R", "O", "T", "M"):
+            assert f"['{keys}'," in help_sheet, f"? sheet must document {keys}"
+
+
+# ---------------------------------------------------------------------------
 # Drift gate: committed artifact ↔ source bank
 # ---------------------------------------------------------------------------
 
