@@ -30,7 +30,7 @@ const GROUPS: Group[] = [
       ['A – E', 'Select that answer choice'],
       ['↑ ↓ ← →', 'Move between choices (when a choice has focus)'],
       ['Enter', 'Check the answer — then again to advance'],
-      ['N  /  P', 'Next / previous question'],
+      ['N  /  P', 'Next / previous question (answers you gave are kept)'],
       ['H', 'Reveal the next hint'],
       ['J  /  K', 'Move back / forward through revealed hints'],
       ['R', 'Reveal the final step (after checking)'],
@@ -39,11 +39,12 @@ const GROUPS: Group[] = [
   {
     title: 'Argumentative Writing',
     rows: [
-      ['O', 'Open the first prompt (from the list)'],
+      ['O', 'Open the first prompt, and jump into the editor'],
       ['T', 'Start or pause the writing clock'],
       ['Ctrl / ⌘ + Enter', 'Submit the draft and unlock feedback'],
       ['M', 'Show or hide the model response'],
       ['Esc', 'Leave the editor, then back to all prompts'],
+      ['O', 'Return to the editor after Esc'],
     ],
   },
 ]

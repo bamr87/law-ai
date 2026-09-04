@@ -96,13 +96,20 @@ export default function SectionTimer({
 
 export function QuestionElapsed({
   frozen,
+  startAt = 0,
   onTick,
 }: {
   frozen: boolean
+  /**
+   * Seconds already banked against this question. The drill passes the time a
+   * revisited question was answered in, so paging back does not claim you
+   * solved it in 0:00.
+   */
+  startAt?: number
   onTick?: (seconds: number) => void
 }) {
-  const [elapsed, setElapsed] = useState(0)
-  const elapsedRef = useRef(0)
+  const [elapsed, setElapsed] = useState(startAt)
+  const elapsedRef = useRef(startAt)
   const onTickRef = useRef(onTick)
   useEffect(() => {
     onTickRef.current = onTick

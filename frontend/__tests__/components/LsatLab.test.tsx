@@ -289,4 +289,90 @@ describe('LsatLab', () => {
       '0:00',
     )
   })
+
+  it('drives a whole LR drill from the keyboard, without losing focus', async () => {
+    // The keyboard contract is bound to the card element, so *where focus is*
+    // after each step is the test: a keystroke that lands on <body> reaches
+    // nothing, which is how a mouse-free run used to stall after one question.
+    let served = 0
+    server.use(
+      http.get('http://localhost:8000/api/lsat/questions', () => {
+        served += 1
+        return HttpResponse.json({
+          count: 1,
+          questions: [{ ...sampleQuestion, id: `lr-00${served}` }],
+        })
+      }),
+    )
+
+    render(<LsatLab />)
+    fireEvent.click(screen.getByRole('tab', { name: /Logical Reasoning/i }))
+    await waitFor(() =>
+      expect(screen.getByText(/All swans observed/)).toBeInTheDocument(),
+    )
+    expect(screen.getByText('lr-001')).toBeInTheDocument()
+
+    const choice = screen.getByRole('radio', { name: /A.*Alpha/ })
+    choice.focus()
+    fireEvent.keyDown(choice, { key: 'b' })
+    expect(screen.getByRole('radio', { name: /B.*Bravo/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+
+    fireEvent.keyDown(choice, { key: 'Enter' })
+    await waitFor(() =>
+      expect(screen.getByText(/Incorrect — answer was C/)).toBeInTheDocument(),
+    )
+    // Graded choices stay in the focus order. `disabled` would have thrown
+    // focus to <body>, outside the element every shortcut is bound to.
+    expect(choice).toHaveAttribute('aria-disabled', 'true')
+    expect(choice).not.toBeDisabled()
+    expect(document.activeElement).toBe(choice)
+
+    fireEvent.keyDown(choice, { key: 'n' })
+    await waitFor(() => expect(screen.getByText('lr-002')).toBeInTheDocument())
+    // Focus followed the new question in, so the next keystroke has somewhere
+    // to land.
+    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement).toHaveTextContent('lr-002')
+  })
+
+  it('offers no practice jump for a section the lab cannot drill', async () => {
+    server.use(
+      http.get('http://localhost:8000/api/lsat/sections', () =>
+        HttpResponse.json({
+          count: sampleSections.sections.length + 1,
+          sections: [
+            ...sampleSections.sections,
+            {
+              code: 'WS',
+              name: 'Argumentative Writing',
+              description: 'One essay, no answer key.',
+              format: 'Prompt + perspectives',
+              timing: '35 min',
+              scoring: 'Unscored, sent to schools',
+              skills: ['take a position'],
+              tips: ['Name the trade-off'],
+              concepts: [],
+              references: [],
+              question_count: 0,
+            },
+          ],
+        }),
+      ),
+    )
+
+    render(<LsatLab />)
+    await waitFor(() =>
+      expect(screen.getByText('Argumentative Writing')).toBeInTheDocument(),
+    )
+    // WS has no tab, so a "Practice WS" button selected nothing and rendered
+    // an empty tabpanel — a dead end with no marked way back.
+    expect(
+      screen.queryByRole('button', { name: /Practice WS/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText(/No drill in the lab yet/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Practice LR/i })).toBeInTheDocument()
+  })
 })
