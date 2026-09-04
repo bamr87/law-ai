@@ -813,6 +813,218 @@ export function fetchLsatGaps(limit = 10) {
 }
 
 
+// --- LSAT knowledge library (spec 048) ---
+
+/**
+ * Articles arrive as compiled *typed blocks*, never as Markdown or HTML.
+ * `library.py` does the parsing once, at load time, so neither this client
+ * nor the static site needs a Markdown dependency and neither ever renders
+ * raw markup (spec 048 FR-2/FR-11, NFR-SAFETY-1). Keep these shapes in
+ * lockstep with `lsat-static/lib/types.ts` — `tests/test_lsat_site.py`
+ * asserts the two renderers cover the same block-type set.
+ */
+export type LsatSpanKind =
+  | 'text'
+  | 'strong'
+  | 'em'
+  | 'code'
+  | 'link'
+  | 'concept'
+  | 'article'
+  | 'question'
+
+export interface LsatSpan {
+  kind: LsatSpanKind
+  text: string
+  href?: string | null
+  /** Target id on concept / article / question spans; resolved server-side. */
+  ref_id?: string | null
+}
+
+/** One table cell: a run of spans. */
+export type LsatCell = LsatSpan[]
+
+export interface LsatHeadingBlock {
+  block_type: 'heading'
+  level: number
+  text: string
+  anchor: string
+}
+
+export interface LsatParagraphBlock {
+  block_type: 'paragraph'
+  spans: LsatSpan[]
+}
+
+export interface LsatListBlock {
+  block_type: 'list'
+  ordered: boolean
+  items: LsatCell[]
+}
+
+export interface LsatNotationBlock {
+  block_type: 'notation'
+  lines: string[]
+  caption?: string | null
+}
+
+export interface LsatTableBlock {
+  block_type: 'table'
+  headers: LsatCell[]
+  rows: LsatCell[][]
+}
+
+export type LsatCalloutVariant =
+  | 'example'
+  | 'trap'
+  | 'tip'
+  | 'note'
+  | 'warning'
+  | 'drill'
+
+export interface LsatCalloutBlock {
+  block_type: 'callout'
+  variant: LsatCalloutVariant
+  title: string
+  blocks: (LsatParagraphBlock | LsatListBlock | LsatNotationBlock)[]
+}
+
+export type LsatBlock =
+  | LsatHeadingBlock
+  | LsatParagraphBlock
+  | LsatListBlock
+  | LsatCalloutBlock
+  | LsatTableBlock
+  | LsatNotationBlock
+
+export type LsatArticleKind =
+  | 'orientation'
+  | 'section-guide'
+  | 'question-type'
+  | 'technique'
+  | 'strategy'
+  | 'foundation'
+  | 'review-method'
+
+export type LsatArticleLevel = 'foundation' | 'core' | 'advanced'
+
+/**
+ * Wider than `LsatSection`, which is deliberately the multiple-choice subset
+ * a `LsatQuestion` can carry. A library article can serve Argumentative
+ * Writing, which has no keyed-question form.
+ */
+export type LsatSectionCode = LsatSection | 'WS'
+
+export interface LsatOutlineEntry {
+  level: number
+  text: string
+  anchor: string
+}
+
+/** Index row — no body. `/api/lsat/library` returns these. */
+export interface LsatArticleSummary {
+  id: string
+  title: string
+  kind: LsatArticleKind
+  level: LsatArticleLevel
+  summary: string
+  sections: LsatSectionCode[]
+  concepts: string[]
+  prerequisites: string[]
+  related: string[]
+  tags: string[]
+  status: 'draft' | 'reviewed' | 'needs-review'
+  last_reviewed: string
+  reading_minutes: number
+  word_count: number
+}
+
+export interface LsatArticle extends LsatArticleSummary {
+  archetypes: string[]
+  revision: number
+  source: string
+  references: { title: string; url?: string | null; note?: string | null }[]
+  blocks: LsatBlock[]
+  outline: LsatOutlineEntry[]
+}
+
+export interface LsatTrack {
+  id: string
+  name: string
+  summary: string
+  goal: string
+  article_ids: string[]
+  tags: string[]
+  article_count: number
+  estimated_minutes: number
+}
+
+export interface LsatLibraryIndex {
+  articles: LsatArticleSummary[]
+  count: number
+}
+
+export interface LsatArticleDetail {
+  article: LsatArticle
+  concepts: LsatConcept[]
+  prerequisites: LsatArticleSummary[]
+  related: LsatArticleSummary[]
+  tracks: { id: string; name: string }[]
+  drill_question_ids: string[]
+  drill_question_count: number
+}
+
+export interface LsatLibrarySearchHit {
+  id: string
+  title: string
+  kind: LsatArticleKind
+  sections: LsatSectionCode[]
+  reading_minutes: number
+  score: number
+  matched_in: string[]
+  snippet: string
+  anchor: string | null
+}
+
+export interface LsatLibraryFilters {
+  kind?: LsatArticleKind
+  level?: LsatArticleLevel
+  section?: LsatSectionCode
+  tag?: string
+  concept?: string
+  track?: string
+}
+
+export function fetchLsatLibrary(filters: LsatLibraryFilters = {}) {
+  const qs = new URLSearchParams()
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) qs.set(key, value)
+  }
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  return getJson<LsatLibraryIndex>(`/api/lsat/library${suffix}`)
+}
+
+export function fetchLsatArticle(articleId: string) {
+  return getJson<LsatArticleDetail>(
+    `/api/lsat/library/${encodeURIComponent(articleId)}`,
+  )
+}
+
+export function fetchLsatTracks() {
+  return getJson<{ tracks: LsatTrack[]; count: number }>(
+    '/api/lsat/library/tracks',
+  )
+}
+
+export function searchLsatLibrary(query: string, limit = 20) {
+  const qs = new URLSearchParams({ q: query, limit: String(limit) })
+  return getJson<{
+    query: string
+    results: LsatLibrarySearchHit[]
+    count: number
+  }>(`/api/lsat/library/search?${qs.toString()}`)
+}
+
 // --- Knowledge Graph (spec 006) ---
 
 export interface GraphStats {

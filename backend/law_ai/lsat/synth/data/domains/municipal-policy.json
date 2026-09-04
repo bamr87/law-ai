@@ -1,0 +1,197 @@
+{
+  "id": "municipal-policy",
+  "name": "Municipal policy",
+  "summary": "City administration: permits, hearings, budgets, and the boards that process them.",
+  "subjects": [
+    {
+      "id": "application",
+      "singular": "the zoning application",
+      "plural": "zoning applications",
+      "bare_singular": "zoning application"
+    },
+    {
+      "id": "proposal",
+      "singular": "the budget proposal",
+      "plural": "budget proposals",
+      "bare_singular": "budget proposal"
+    },
+    {
+      "id": "petition",
+      "singular": "the residents' petition",
+      "plural": "residents' petitions",
+      "bare_singular": "residents' petition"
+    }
+  ],
+  "properties": [
+    {
+      "id": "reviewed",
+      "vp_affirm": "was reviewed by the planning board",
+      "vp_affirm_plural": "were reviewed by the planning board",
+      "vp_negate": "was not reviewed by the planning board",
+      "vp_negate_plural": "were not reviewed by the planning board",
+      "modifier": "reviewed by the planning board"
+    },
+    {
+      "id": "on_time",
+      "vp_affirm": "was filed before the posted deadline",
+      "vp_affirm_plural": "were filed before the posted deadline",
+      "vp_negate": "was not filed before the posted deadline",
+      "vp_negate_plural": "were not filed before the posted deadline",
+      "modifier": "filed before the posted deadline"
+    },
+    {
+      "id": "hearing",
+      "vp_affirm": "received a public hearing",
+      "vp_affirm_plural": "received a public hearing",
+      "vp_negate": "did not receive a public hearing",
+      "vp_negate_plural": "did not receive a public hearing",
+      "modifier": "that received a public hearing"
+    },
+    {
+      "id": "fee_waived",
+      "vp_affirm": "had its filing fee waived",
+      "vp_affirm_plural": "had their filing fees waived",
+      "vp_negate": "did not have its filing fee waived",
+      "vp_negate_plural": "did not have their filing fees waived",
+      "modifier": "whose filing fee was waived",
+      "modifier_plural": "whose filing fees were waived"
+    },
+    {
+      "id": "amended",
+      "vp_affirm": "was amended after submission",
+      "vp_affirm_plural": "were amended after submission",
+      "vp_negate": "was not amended after submission",
+      "vp_negate_plural": "were not amended after submission",
+      "modifier": "amended after submission"
+    },
+    {
+      "id": "published",
+      "vp_affirm": "appeared in the published agenda",
+      "vp_affirm_plural": "appeared in the published agenda",
+      "vp_negate": "did not appear in the published agenda",
+      "vp_negate_plural": "did not appear in the published agenda",
+      "modifier": "listed in the published agenda"
+    },
+    {
+      "id": "surveyed",
+      "vp_affirm": "was accompanied by a site survey",
+      "vp_affirm_plural": "were accompanied by a site survey",
+      "vp_negate": "was not accompanied by a site survey",
+      "vp_negate_plural": "were not accompanied by a site survey",
+      "modifier": "accompanied by a site survey"
+    },
+    {
+      "id": "contested",
+      "vp_affirm": "drew a written objection",
+      "vp_affirm_plural": "drew written objections",
+      "vp_negate": "drew no written objection",
+      "vp_negate_plural": "drew no written objections",
+      "modifier": "that drew a written objection",
+      "modifier_plural": "that drew written objections"
+    }
+  ],
+  "entities": [
+    "Alvarez",
+    "Brennan",
+    "Castellano",
+    "Dvorak",
+    "Eguchi",
+    "Feldman",
+    "Grewal"
+  ],
+  "groups": [
+    {
+      "id": "panels",
+      "unit": "panel",
+      "frame": "is assigned to",
+      "names": [
+        "the zoning panel",
+        "the finance panel",
+        "the appeals panel"
+      ]
+    },
+    {
+      "id": "wards",
+      "unit": "ward",
+      "frame": "is seated for",
+      "names": [
+        "the north ward",
+        "the south ward"
+      ]
+    }
+  ],
+  "orderings": [
+    {
+      "id": "hearing_days",
+      "frame": "on {n} consecutive weekdays, one per day",
+      "slot_noun": "day",
+      "verb": "is heard",
+      "slot_phrase": "on day {n}",
+      "consecutive_phrase": "on consecutive days"
+    },
+    {
+      "id": "agenda",
+      "frame": "in a single sitting, one after another in {n} positions",
+      "slot_noun": "position",
+      "verb": "is taken up",
+      "slot_phrase": "in position {n}",
+      "consecutive_phrase": "in consecutive positions"
+    }
+  ],
+  "causal_scenarios": [
+    {
+      "id": "solar_bills",
+      "population": "households in the county",
+      "cause_vp": "installed rooftop solar panels",
+      "cause_np": "rooftop solar installation",
+      "effect_vp": "reported lower winter energy bills",
+      "effect_np": "the drop in winter energy bills",
+      "alternative_cause": "The county's weatherization grant ran in the same year, and nearly all of the households that installed panels also used it to replace their windows and insulation.",
+      "reverse_causation": "Households already paying less for energy are the ones with the disposable income to install panels in the first place.",
+      "sampling_flaw": "The figures cover only the eleven households that returned the county's voluntary follow-up survey, out of several hundred that installed panels.",
+      "inert_facts": [
+        "The county's solar permitting office took longer to process each application last year than it had in the year before the study began.",
+        "Panel prices fell steadily across the state over the period studied, as they have in every state with a comparable installation programme.",
+        "Most of the households included in the figures had lived at their current address for more than a decade before the programme opened.",
+        "The county publishes its household energy figures in a quarterly bulletin that it has issued in the same format since 2019."
+      ],
+      "control_comparison": "Households in a neighbouring county with the same weather and the same utility rates, but no solar programme, saw no comparable change in winter bills."
+    },
+    {
+      "id": "bike_lanes",
+      "population": "corridors in the city",
+      "cause_vp": "received protected bike lanes",
+      "cause_np": "the bike-lane programme",
+      "effect_vp": "recorded fewer collisions",
+      "effect_np": "the decline in collisions",
+      "alternative_cause": "The same corridors had their speed limits lowered by ten miles per hour in the month the lanes opened.",
+      "reverse_causation": "The city chose its safest corridors first, precisely because installing lanes there was least disruptive.",
+      "sampling_flaw": "Only corridors that reported their collision data voluntarily are included in the comparison, and reporting was left to each corridor's own district office.",
+      "inert_facts": [
+        "The lanes were funded by a state transport grant rather than from the city's own capital budget, as several earlier projects had been.",
+        "Cycling has grown steadily more popular nationally over the past decade, in cities with protected lanes and in cities without them alike.",
+        "Two of the corridors that received lanes are noticeably longer than the others, and one of them crosses a river.",
+        "The city repaints the markings on all of its lane infrastructure every eighteen months under a standing maintenance contract."
+      ],
+      "control_comparison": "Corridors of similar width and traffic volume that did not receive lanes recorded no change in collisions over the same period."
+    }
+  ],
+  "ratio_scenarios": [
+    {
+      "id": "permit_violations",
+      "population": "the county's licensed contractors",
+      "measure_np": "permit violations",
+      "early_period": "the first year of the programme",
+      "late_period": "last year",
+      "base_change": "The number of licensed contractors in the county nearly doubled over the same period.",
+      "inert_facts": [
+        "The county raised its permit fee midway through the period.",
+        "Violations are recorded by the same office that issues the permits.",
+        "Neighbouring counties do not publish comparable figures.",
+        "The county publishes its violation figures in an annual report."
+      ]
+    }
+  ],
+  "tone": "civic",
+  "entity_noun": "applicants"
+}

@@ -1,0 +1,141 @@
+"""Promotion — the two ways a synthesized item leaves the engine.
+
+Spec 049 FR-15/AC-8. The default is the same as every other content path in the
+repo: a draft becomes a ``pending`` proposal and a human approves it.
+
+The second way is the exemption spec 049 §12/R2 argues for, and it is bounded.
+Constitution §5 enforces HITL through "confidence and verification thresholds,
+not by a subject-matter classifier", and says a new output path "inherits the
+requirement until the spec earns an explicit exemption". A finite-model proof
+that the credited answer is entailed and that no distractor is, is a
+verification threshold — a stronger one than the 0.7 confidence score that
+already licenses an unattended ingestion commit.
+
+So the exemption exists, and every one of these must hold before a single item
+is written:
+
+1. ``proof_kind == "logical"`` — a structural guarantee is not a proof.
+2. The verification report is clean, **re-run here** rather than trusted from
+   the caller. A future edit that weakens generation must not be able to carry
+   a stale clean report past this gate.
+3. ``LSAT_SYNTH_AUTOPROMOTE`` is enabled. Default off.
+4. The caller passed ``--promote`` explicitly. The setting alone is not consent.
+5. Every promotion writes an audit event carrying the proof summary.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from typing import Any
+
+from law_ai.core import audit_jsonl as audit_store
+from law_ai.core.settings_proxy import settings_proxy as settings
+from law_ai.lsat.services import bank as _bank
+from law_ai.lsat.services import proposals as proposals_store
+from law_ai.lsat.synth.generate import SynthItem, as_draft
+
+logger = logging.getLogger("law_ai.lsat.synth.promote")
+
+_BANK_FILES = {"LR": "lr_bank.json", "RC": "rc_bank.json", "LG": "lg_bank.json"}
+
+
+class PromotionRefused(RuntimeError):
+    """The direct-write gate said no. The message says which condition failed."""
+
+
+def queue_for_review(item: SynthItem) -> str:
+    """The default path: one pending proposal, reviewed like any other draft."""
+    return proposals_store.record_proposal(
+        as_draft(item),
+        agent_trace_id="",
+        model=f"deterministic/{item.provenance.engine_version}",
+        # Not a model's self-assessment: 1.0 means the checker proved it, 0.0
+        # means nothing was proved and a human decides everything.
+        confidence=1.0 if item.provenance.proof_kind == "logical" else 0.0,
+        source_concept_ids=item.question.concepts,
+        meta=item.provenance.model_dump(mode="json"),
+        proposal_kind="question",
+    )
+
+
+def _check_gate(item: SynthItem) -> None:
+    if item.provenance.proof_kind != "logical":
+        raise PromotionRefused(
+            f"{item.question.id}: proof kind is "
+            f"{item.provenance.proof_kind!r} — only logically-proved items may "
+            "bypass review; queue this one for a reviewer instead"
+        )
+    if not getattr(settings, "LSAT_SYNTH_AUTOPROMOTE", False):
+        raise PromotionRefused(
+            "LSAT_SYNTH_AUTOPROMOTE is off — direct bank writes are disabled by "
+            "default; set it deliberately or use the review queue"
+        )
+    # Re-verify rather than trust the report we were handed.
+    from law_ai.lsat.synth.generate import generate
+
+    fresh = generate(
+        item.provenance.schema_id,
+        item.provenance.domain_id,
+        seed=item.provenance.seed,
+    )
+    if not fresh.report.ok:
+        raise PromotionRefused(
+            f"{item.question.id}: re-verification failed — "
+            + "; ".join(c.name for c in fresh.report.failures)
+        )
+    if fresh.question.correct != item.question.correct:
+        raise PromotionRefused(
+            f"{item.question.id}: re-generation produced a different key, so the "
+            "item is not reproducible from its provenance"
+        )
+
+
+def promote_to_bank(item: SynthItem, *, reviewer: str = "synth") -> str:
+    """Write one proved item straight into the bank. Refuses unless all five gates pass."""
+    _check_gate(item)
+
+    section = item.question.section
+    filename = _BANK_FILES.get(section)
+    if filename is None:
+        raise PromotionRefused(f"no bank file for section {section!r}")
+    path = _bank.DATA_DIR / filename
+    blob: dict[str, Any] = {"items": []}
+    if path.is_file():
+        blob = json.loads(path.read_text(encoding="utf-8"))
+    existing = {entry.get("id") for entry in blob.get("items", [])}
+    if item.question.id in existing:
+        raise PromotionRefused(f"{item.question.id} is already in the bank")
+
+    blob.setdefault("items", []).append(item.question.model_dump(mode="json"))
+    path.write_text(
+        json.dumps(blob, indent=4, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    _bank.load_bank.cache_clear()
+
+    try:
+        audit_store.record(
+            {
+                "type": "lsat_synth.promoted",
+                "question_id": item.question.id,
+                "reviewer": reviewer,
+                "provenance": item.provenance.model_dump(mode="json"),
+                # The proof summary is the whole justification for skipping a
+                # human, so it goes in the audit trail verbatim.
+                "proof": {
+                    "space": item.report.space,
+                    "space_models": item.report.space_models,
+                    "premise_models": item.report.premise_models,
+                    "checks": [c.name for c in item.report.checks],
+                    "choices": [
+                        {"label": c.label, "status": c.status}
+                        for c in item.report.choices
+                    ],
+                },
+            }
+        )
+    except Exception:  # pragma: no cover - audit failure must not lose the write
+        logger.warning(
+            "audit_store.record failed for lsat_synth.promoted", exc_info=True
+        )
+    return item.question.id

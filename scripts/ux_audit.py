@@ -402,7 +402,11 @@ def rule_static_single_main(paths: list[Path], audit: Audit) -> None:
 
 
 PLATFORM_LSAT = FRONTEND / "components" / "lsat"
-STATIC_SOLVE = LSAT_STATIC / "components" / "solve"
+#: Where a ported platform component may live. Spec 045's solve components
+#: landed under `components/solve/`; spec 048's library components under
+#: `components/library/`. The rule asks "is it ported", not "is it ported to
+#: one blessed directory", so search the whole component tree.
+STATIC_COMPONENTS = LSAT_STATIC / "components"
 STATIC_PARITY_RE = re.compile(r"static-parity:\s*none\s*[—-]\s*\S")
 
 
@@ -415,14 +419,18 @@ def rule_lsat_parity(audit: Audit) -> None:
     feature landing on only one side has to be a decision, not an oversight.
 
     A platform component under `frontend/components/lsat/` passes when either a
-    same-named file exists under `lsat-static/components/solve/`, or it carries
+    same-named file exists anywhere under `lsat-static/components/`, or it carries
     `static-parity: none — <reason>`. Plenty of them legitimately cannot port —
     anything needing the provider chain or an API cannot run serverless — and
     saying so in one line is the whole ask.
     """
     if not PLATFORM_LSAT.is_dir():
         return
-    ported = {p.name for p in STATIC_SOLVE.rglob("*.tsx")} if STATIC_SOLVE.is_dir() else set()
+    ported = (
+        {p.name for p in STATIC_COMPONENTS.rglob("*.tsx")}
+        if STATIC_COMPONENTS.is_dir()
+        else set()
+    )
     for path in sorted(PLATFORM_LSAT.rglob("*.tsx")):
         if path.name in ported:
             continue

@@ -1533,3 +1533,539 @@ kbd {
     padding: 1rem;
   }
 }
+
+/* ==========================================================================
+   Knowledge library (spec 048)
+
+   A reading surface, not a drill surface: the article column is capped at a
+   comfortable measure rather than filling the content width, and the rail and
+   outline are the only things allowed to compete with it. At narrow widths the
+   rail stacks above the article instead of collapsing behind a control — a
+   reader arriving on a phone should see what the library contains.
+   ========================================================================== */
+
+.lib-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 900px) {
+  .lib-grid {
+    grid-template-columns: 16rem minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .lib-rail {
+    position: sticky;
+    /* Hangs off the same header offset the drill head uses, so the rail and
+       the sticky passage column never disagree about where the header ends. */
+    top: calc(var(--site-header-h) + 1rem);
+    max-height: calc(100vh - var(--site-header-h) - 2rem);
+    overflow-y: auto;
+    padding-right: 0.5rem;
+  }
+}
+
+.lib-eyebrow {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.lib-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0.75rem 0;
+}
+
+.pill-active {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+.lib-track-select select {
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  /* 44px minimum touch target on a phone (spec 047 T-013). */
+  min-height: 44px;
+}
+
+.lib-track-goal {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elev);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.lib-group {
+  margin-top: 1rem;
+}
+
+.lib-list-nav,
+.lib-hitlist,
+.lib-outline ul,
+.lib-refs,
+.lib-related {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lib-nav-item,
+.lib-hit {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.4rem 0.5rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lib-nav-item:hover,
+.lib-hit:hover {
+  background: var(--bg-elev);
+  color: var(--text);
+}
+
+.lib-nav-item-active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.lib-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin-top: 0.5rem;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.lib-dot-read {
+  background: var(--ok);
+}
+
+.lib-nav-text {
+  min-width: 0;
+}
+
+.lib-nav-title {
+  display: block;
+  font-size: 0.875rem;
+}
+
+.lib-nav-meta {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.lib-hit {
+  flex-direction: column;
+  gap: 0.2rem;
+  border: 1px solid var(--border);
+  margin-bottom: 0.5rem;
+}
+
+.lib-hit-title {
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.lib-hit-snippet {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.lib-hit-where {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------- article */
+
+.lib-article {
+  min-width: 0;
+  /* The measure that makes long-form prose readable. Wider than this and the
+     eye loses the line return; the drill views can fill the column, a 700-word
+     article cannot. */
+  max-width: 68ch;
+}
+
+.lib-article:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.lib-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.lib-meta-section {
+  color: var(--accent);
+}
+
+.lib-title {
+  margin: 0.5rem 0 0;
+  font-size: 1.375rem;
+  line-height: 1.3;
+}
+
+.lib-summary {
+  margin: 0.5rem 0 0;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.lib-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.lib-drill-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.lib-prereq {
+  margin-top: 1.25rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+}
+
+.lib-prereq ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lib-outline {
+  margin-top: 1.25rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--border);
+}
+
+.lib-outline a {
+  display: block;
+  padding: 0.15rem 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.lib-outline a:hover {
+  color: var(--text);
+}
+
+.lib-outline-sub a {
+  padding-left: 0.75rem;
+}
+
+.lib-body {
+  margin-top: 1.5rem;
+}
+
+.lib-h2 {
+  margin: 2rem 0 0;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 1.125rem;
+  /* Anchor links from the outline must not land under the sticky header. */
+  scroll-margin-top: calc(var(--site-header-h) + 1rem);
+}
+
+.lib-h3 {
+  margin: 1.5rem 0 0;
+  font-size: 1rem;
+  scroll-margin-top: calc(var(--site-header-h) + 1rem);
+}
+
+.lib-p {
+  margin: 1rem 0 0;
+  line-height: 1.75;
+}
+
+.lib-list {
+  margin: 1rem 0 0;
+  padding-left: 1.25rem;
+  line-height: 1.75;
+}
+
+.lib-list li + li {
+  margin-top: 0.4rem;
+}
+
+.lib-code {
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  background: var(--bg-elev-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  color: var(--accent);
+}
+
+.lib-figure {
+  margin: 1.25rem 0 0;
+}
+
+.lib-notation {
+  margin: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  /* Boards and conditional chains must not reflow — scroll them instead, and
+     inside the figure so the page body never scrolls sideways. */
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.lib-figure figcaption {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.lib-table-wrap {
+  margin: 1.25rem 0 0;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.lib-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.lib-table th,
+.lib-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border);
+}
+
+.lib-table th {
+  background: var(--bg-elev);
+}
+
+.lib-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.lib-callout {
+  margin: 1.5rem 0 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--border);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--bg-elev);
+}
+
+.lib-callout .lib-p:first-of-type {
+  margin-top: 0;
+}
+
+.lib-callout-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.4rem;
+}
+
+.lib-callout-example {
+  border-left-color: #38bdf8;
+}
+.lib-callout-example .lib-callout-title {
+  color: #7dd3fc;
+}
+
+.lib-callout-trap,
+.lib-callout-warning {
+  border-left-color: var(--no);
+}
+.lib-callout-trap .lib-callout-title,
+.lib-callout-warning .lib-callout-title {
+  color: var(--no);
+}
+
+.lib-callout-tip {
+  border-left-color: var(--ok);
+}
+.lib-callout-tip .lib-callout-title {
+  color: var(--ok);
+}
+
+.lib-callout-drill {
+  border-left-color: #a78bfa;
+}
+.lib-callout-drill .lib-callout-title {
+  color: #c4b5fd;
+}
+
+.lib-callout-note .lib-callout-title {
+  color: var(--text-muted);
+}
+
+/* Typed cross-references. Distinct affordances per target kind so a reader can
+   tell a concept anchor from an article jump without following either. */
+.lib-ref {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lib-ref-concept {
+  color: var(--ok);
+  border-bottom: 1px dotted rgba(52, 211, 153, 0.6);
+  text-decoration: none;
+}
+
+.lib-ref-article {
+  color: #a5b4fc;
+  border-bottom: 1px dotted rgba(165, 180, 252, 0.6);
+}
+
+.lib-ref-question {
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  background: var(--bg-elev-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8em;
+  cursor: default;
+}
+
+.lib-section {
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.lib-section h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.0625rem;
+}
+
+.lib-glossary div {
+  margin-bottom: 0.75rem;
+  scroll-margin-top: calc(var(--site-header-h) + 1rem);
+}
+
+.lib-glossary dt {
+  font-weight: 600;
+  color: var(--ok);
+  font-size: 0.875rem;
+}
+
+.lib-glossary dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.lib-related li button {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lib-related li button:hover {
+  border-color: var(--accent);
+}
+
+.lib-related-title {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.lib-related-summary {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.lib-provenance {
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* The contents rail is a disclosure on a phone and always-on above 900px.
+   35 rows of contents between the reader and the article is a long scroll to
+   reach the thing they came for; on a wide viewport the rail is a column
+   beside the article and costs nothing. */
+.lib-rail-toggle {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .lib-rail-toggle {
+    display: block;
+    width: 100%;
+    margin-bottom: 1rem;
+    text-align: left;
+  }
+
+  .lib-rail {
+    display: none;
+  }
+
+  .lib-rail-open {
+    display: block;
+  }
+}

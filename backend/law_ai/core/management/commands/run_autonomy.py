@@ -35,7 +35,13 @@ class Command(BaseCommand):
         parser.add_argument(
             "--kind",
             default="test_pillar",
-            choices=["test_pillar", "corpus_growth", "digest", "lsat_content"],
+            choices=[
+                "test_pillar",
+                "corpus_growth",
+                "digest",
+                "lsat_content",
+                "lsat_library",
+            ],
             help="Kind of cycle to run (default: test_pillar).",
         )
         parser.add_argument(
@@ -121,6 +127,8 @@ class Command(BaseCommand):
                 return _run_digest(context)
             if kind == "lsat_content":
                 return _run_lsat_content(context, budget=budget)
+            if kind == "lsat_library":
+                return _run_lsat_library(context, budget=budget)
             raise ValueError(f"Unknown kind: {kind!r}")  # unreachable via argparse
 
         try:
@@ -295,6 +303,66 @@ def _run_lsat_content(context: dict[str, Any], *, budget: int | None) -> dict[st
         "model": output.model,
         "degraded": output.degraded,
         "trace_id": output.trace_id,
+    }
+    context.update(summary)
+    return summary
+
+
+def _run_lsat_library(context: dict[str, Any], *, budget: int | None) -> dict[str, Any]:
+    """Review the stalest knowledge-library articles (spec 048 FR-17).
+
+    Review only. Every result is filed as a ``library_finding`` proposal with
+    ``status="pending"``; nothing under ``data/library/`` is touched, and
+    promotion stays a deliberate human act (spec 048 AC-10, constitution §5).
+    """
+    import asyncio
+
+    from law_ai.agents_runtime.crews.lsat_librarian import LSATLibrarian
+    from law_ai.lsat.services import proposals as proposals_store
+    from law_ai.lsat.services.library import library_audit, load_library
+
+    count = max(1, min(budget or 3, 10))
+    report = library_audit()
+    # Stalest first; the audit already orders them by days-since-review. A
+    # freshly-reviewed library falls back to the head of the corpus so the
+    # cycle still does something rather than idling (BL-20260903-08 tracks a
+    # real picker).
+    targets = [row["id"] for row in report["freshness"]["stale_articles"]]
+    if not targets:
+        targets = sorted(load_library())
+    targets = targets[:count]
+
+    agent = LSATLibrarian()
+    filed = 0
+    findings = 0
+    degraded = False
+    for article_id in targets:
+        output = asyncio.run(agent.run({"action": "review", "article_id": article_id}))
+        degraded = degraded or output.degraded
+        if output.degraded:
+            # An offline fallback carries no review; filing it would only add
+            # noise a reviewer has to reject.
+            continue
+        proposals_store.record_proposal(
+            {
+                "article_id": article_id,
+                "summary": output.summary,
+                "findings": [f.model_dump() for f in output.findings],
+            },
+            agent_trace_id=output.trace_id or "",
+            model=output.model,
+            confidence=output.confidence,
+            proposal_kind="library_finding",
+        )
+        filed += 1
+        findings += len(output.findings)
+
+    summary = {
+        "articles_reviewed": len(targets),
+        "reviews_filed": filed,
+        "findings": findings,
+        "targets": targets,
+        "degraded": degraded,
     }
     context.update(summary)
     return summary

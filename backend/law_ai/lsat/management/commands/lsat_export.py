@@ -17,6 +17,12 @@ score their own draft with no model call and no network (spec 047 FR-3,
 NFR-OFFLINE-1), so the model responses ship in full; the *client* keeps them
 locked until the learner submits, mirroring the guide spoiler contract.
 
+Spec 048 adds ``library`` and ``library_tracks``: the knowledge library ships
+whole so the offline site can read, cross-link and search it with no network
+call (spec 048 FR-13, NFR-OFFLINE-1). Articles ship as compiled *typed blocks*,
+never as Markdown — neither client parses anything, which is what keeps the two
+renderers in lockstep and keeps raw HTML off both pages.
+
 Everything is loaded through the canonical Pydantic loaders in
 :mod:`law_ai.lsat.services.bank`, so only loader-valid content can ship.
 Ordering is stable (sections LR/RC/LG; everything else by id) so re-exports
@@ -43,9 +49,16 @@ from law_ai.lsat.services.bank import (
     load_sections,
 )
 from law_ai.lsat.services.guides import load_guides
+from law_ai.lsat.services.library import (
+    load_library,
+    load_tracks,
+    public_track_view,
+)
 from law_ai.lsat.services.writing import load_writing_prompts, load_writing_rubrics
 
-SCHEMA_VERSION = 2
+# 3: spec 048 adds `library` + `library_tracks`. Additive — both clients treat
+# a missing key as "older artifact" and degrade to no-library.
+SCHEMA_VERSION = 3
 
 _SECTION_ORDER = ("LR", "RC", "LG", "WS")
 
@@ -81,6 +94,17 @@ def build_content() -> dict[str, Any]:
         if qid in bank
     ]
 
+    articles = load_library()
+    tracks = load_tracks()
+    library_payload = [
+        articles[aid].model_dump(mode="json") for aid in sorted(articles)
+    ]
+    # Tracks ship in *file* order, not id order: the order they are authored in
+    # is the curriculum (orientation before the final two weeks), and both
+    # readers land a first-time visitor on the head of the first track. Still
+    # deterministic — the file is committed — which is what the drift gate needs.
+    track_payload = [public_track_view(track) for track in tracks.values()]
+
     return {
         "schema_version": SCHEMA_VERSION,
         "generated_at": datetime.now(UTC).isoformat(),
@@ -89,6 +113,8 @@ def build_content() -> dict[str, Any]:
             **counts,
             "guides": len(guide_payload),
             "writing_prompts": len(prompts),
+            "library_articles": len(library_payload),
+            "library_tracks": len(track_payload),
         },
         "sections": [
             sections[code].model_dump(mode="json")
@@ -105,6 +131,8 @@ def build_content() -> dict[str, Any]:
         "writing_prompts": [
             prompts[pid].model_dump(mode="json") for pid in sorted(prompts)
         ],
+        "library": library_payload,
+        "library_tracks": track_payload,
     }
 
 
@@ -140,6 +168,8 @@ class Command(BaseCommand):
                 f"(LR {counts['LR']} / RC {counts['RC']} / LG {counts['LG']}), "
                 f"{len(content['passages'])} passages, "
                 f"{len(content['concepts'])} concepts, "
-                f"{counts['writing_prompts']} writing prompts → {path}"
+                f"{counts['writing_prompts']} writing prompts, "
+                f"{counts['library_articles']} library articles "
+                f"in {counts['library_tracks']} tracks → {path}"
             )
         )

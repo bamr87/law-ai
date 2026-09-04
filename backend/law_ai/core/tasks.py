@@ -43,6 +43,7 @@ def autonomy_cycle(kind: str = "test_pillar", **kwargs: Any) -> dict[str, Any]:
         _run_corpus_growth,
         _run_digest,
         _run_lsat_content,
+        _run_lsat_library,
         _run_test_pillar,
     )
 
@@ -58,6 +59,8 @@ def autonomy_cycle(kind: str = "test_pillar", **kwargs: Any) -> dict[str, Any]:
             return _run_digest(context)
         if kind == "lsat_content":
             return _run_lsat_content(context, budget=budget)
+        if kind == "lsat_library":
+            return _run_lsat_library(context, budget=budget)
         raise ValueError(f"Unknown kind: {kind!r}")  # unreachable via beat config
 
     payload: dict[str, Any] = {

@@ -1,0 +1,119 @@
+{
+  "items": [
+    {
+      "id": "start-here",
+      "name": "Start Here",
+      "summary": "Four hours that tell you what the exam is, how it is scored, how to plan for it, and how to review — before you drill anything.",
+      "goal": "Finish with an accurate model of the test and a study plan built from your own diagnostic rather than from a template.",
+      "article_ids": [
+        "lsat-exam-architecture",
+        "lsat-scoring-and-percentiles",
+        "building-a-study-plan",
+        "argument-anatomy",
+        "blind-review-method"
+      ],
+      "tags": ["orientation", "beginner"]
+    },
+    {
+      "id": "logic-foundations",
+      "name": "Logic Foundations",
+      "summary": "Conditional, quantifier and causal reasoning, plus the flaw catalog — the machinery every Logical Reasoning family runs on.",
+      "goal": "Be able to translate any conditional, combine quantifiers correctly, recognise the causal template on sight, and name a flaw in plain language.",
+      "article_ids": [
+        "argument-anatomy",
+        "conditional-logic-foundations",
+        "quantifiers-and-overlap",
+        "causal-reasoning-foundations",
+        "formal-fallacies-catalog"
+      ],
+      "tags": ["foundations", "logic"]
+    },
+    {
+      "id": "lr-mastery",
+      "name": "Logical Reasoning End to End",
+      "summary": "The full Logical Reasoning path: foundations, then every question family in the order they are best learned.",
+      "goal": "Classify any LR stem in five seconds and know the method that family rewards before reading the stimulus.",
+      "article_ids": [
+        "argument-anatomy",
+        "conditional-logic-foundations",
+        "causal-reasoning-foundations",
+        "formal-fallacies-catalog",
+        "quantifiers-and-overlap",
+        "lr-section-guide",
+        "lr-assumption-family",
+        "lr-strengthen-and-weaken",
+        "lr-flaw-family",
+        "lr-main-point-and-role",
+        "lr-inference-family",
+        "lr-paradox-and-evaluate",
+        "lr-principle-family",
+        "lr-completing-the-argument",
+        "lr-numbers-and-percentages",
+        "lr-parallel-family"
+      ],
+      "tags": ["logical-reasoning", "core"]
+    },
+    {
+      "id": "rc-mastery",
+      "name": "Reading Comprehension End to End",
+      "summary": "Section shape, the four-line passage map, every question family, and the comparative set.",
+      "goal": "Read a passage once for structure and answer its questions from the text rather than from memory.",
+      "article_ids": [
+        "rc-section-guide",
+        "rc-passage-types-and-mapping",
+        "rc-question-families",
+        "rc-comparative-passages"
+      ],
+      "tags": ["reading-comprehension", "core"]
+    },
+    {
+      "id": "timing-and-review",
+      "name": "Timing and Review",
+      "summary": "The procedural half of the score: pacing, triage, elimination discipline, blind review, and the error log.",
+      "goal": "Convert questions you already know how to do into questions you actually get right under the clock.",
+      "article_ids": [
+        "lsat-scoring-and-percentiles",
+        "pacing-and-time-management",
+        "guessing-and-triage",
+        "answer-choice-elimination",
+        "blind-review-method",
+        "error-log-and-diagnosis"
+      ],
+      "tags": ["strategy", "review", "pacing"]
+    },
+    {
+      "id": "writing-sample",
+      "name": "The Writing Sample",
+      "summary": "What Argumentative Writing is for, and a five-paragraph method that fits inside 35 minutes.",
+      "goal": "Draft a position you can defend, engage the strongest objection, and self-score against the rubric.",
+      "article_ids": ["writing-section-guide", "writing-argumentative-method"],
+      "tags": ["writing", "essay"]
+    },
+    {
+      "id": "logic-games-trainer",
+      "name": "Logic Games as a Trainer",
+      "summary": "Analytical Reasoning left the scored exam in 2024; this path uses it for what it is still the best practice at — constraint tracking.",
+      "goal": "Build the conditional discipline and exhaustive case analysis that conditional Logical Reasoning rewards.",
+      "article_ids": [
+        "lg-section-guide",
+        "lg-setup-and-notation",
+        "lg-game-types",
+        "lg-inference-and-frames"
+      ],
+      "tags": ["logic-games", "optional", "conditional"]
+    },
+    {
+      "id": "final-two-weeks",
+      "name": "The Final Two Weeks",
+      "summary": "No new method. Pacing, triage, the error log, and test-day conduct.",
+      "goal": "Arrive having rehearsed the conditions, with a triage policy you have already used under time.",
+      "article_ids": [
+        "pacing-and-time-management",
+        "guessing-and-triage",
+        "error-log-and-diagnosis",
+        "test-day-logistics"
+      ],
+      "tags": ["strategy", "test-day"]
+    }
+  ]
+}

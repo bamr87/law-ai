@@ -1,0 +1,197 @@
+{
+  "id": "field-biology",
+  "name": "Field biology",
+  "summary": "Ecological fieldwork: specimens, records, surveys, and the constraints of a season.",
+  "subjects": [
+    {
+      "id": "specimen",
+      "singular": "the collected specimen",
+      "plural": "collected specimens",
+      "bare_singular": "collected specimen"
+    },
+    {
+      "id": "sample",
+      "singular": "the catalogued sample",
+      "plural": "catalogued samples",
+      "bare_singular": "catalogued sample"
+    },
+    {
+      "id": "voucher",
+      "singular": "the retained voucher",
+      "plural": "retained vouchers",
+      "bare_singular": "retained voucher"
+    }
+  ],
+  "properties": [
+    {
+      "id": "catalogued",
+      "vp_affirm": "was catalogued in the field",
+      "vp_affirm_plural": "were catalogued in the field",
+      "vp_negate": "was not catalogued in the field",
+      "vp_negate_plural": "were not catalogued in the field",
+      "modifier": "catalogued in the field"
+    },
+    {
+      "id": "photographed",
+      "vp_affirm": "was photographed before collection",
+      "vp_affirm_plural": "were photographed before collection",
+      "vp_negate": "was not photographed before collection",
+      "vp_negate_plural": "were not photographed before collection",
+      "modifier": "photographed before collection"
+    },
+    {
+      "id": "coastal",
+      "vp_affirm": "came from a coastal transect",
+      "vp_affirm_plural": "came from coastal transects",
+      "vp_negate": "did not come from a coastal transect",
+      "vp_negate_plural": "did not come from coastal transects",
+      "modifier": "taken from a coastal transect"
+    },
+    {
+      "id": "sequenced",
+      "vp_affirm": "was genetically sequenced",
+      "vp_affirm_plural": "were genetically sequenced",
+      "vp_negate": "was not genetically sequenced",
+      "vp_negate_plural": "were not genetically sequenced",
+      "modifier": "that was genetically sequenced",
+      "modifier_plural": "that were genetically sequenced"
+    },
+    {
+      "id": "juvenile",
+      "vp_affirm": "was recorded as a juvenile",
+      "vp_affirm_plural": "were recorded as juveniles",
+      "vp_negate": "was not recorded as a juvenile",
+      "vp_negate_plural": "were not recorded as juveniles",
+      "modifier": "recorded as a juvenile",
+      "modifier_plural": "recorded as juveniles"
+    },
+    {
+      "id": "reexamined",
+      "vp_affirm": "was re-examined in the laboratory",
+      "vp_affirm_plural": "were re-examined in the laboratory",
+      "vp_negate": "was not re-examined in the laboratory",
+      "vp_negate_plural": "were not re-examined in the laboratory",
+      "modifier": "re-examined in the laboratory"
+    },
+    {
+      "id": "permit",
+      "vp_affirm": "was covered by the collection permit",
+      "vp_affirm_plural": "were covered by the collection permit",
+      "vp_negate": "was not covered by the collection permit",
+      "vp_negate_plural": "were not covered by the collection permit",
+      "modifier": "covered by the collection permit"
+    },
+    {
+      "id": "archived",
+      "vp_affirm": "was deposited in the museum archive",
+      "vp_affirm_plural": "were deposited in the museum archive",
+      "vp_negate": "was not deposited in the museum archive",
+      "vp_negate_plural": "were not deposited in the museum archive",
+      "modifier": "deposited in the museum archive"
+    }
+  ],
+  "entities": [
+    "Achara",
+    "Bhatt",
+    "Cordero",
+    "Dilworth",
+    "Erdmann",
+    "Fournier",
+    "Gyasi"
+  ],
+  "groups": [
+    {
+      "id": "teams",
+      "unit": "team",
+      "frame": "is assigned to",
+      "names": [
+        "the coastal team",
+        "the upland team",
+        "the wetland team"
+      ]
+    },
+    {
+      "id": "shifts",
+      "unit": "shift",
+      "frame": "works",
+      "names": [
+        "the dawn shift",
+        "the dusk shift"
+      ]
+    }
+  ],
+  "orderings": [
+    {
+      "id": "survey_days",
+      "frame": "on {n} consecutive days of the season, one per day",
+      "slot_noun": "day",
+      "verb": "is surveyed",
+      "slot_phrase": "on day {n}",
+      "consecutive_phrase": "on consecutive days"
+    },
+    {
+      "id": "processing",
+      "frame": "one at a time, in a single run of {n} positions",
+      "slot_noun": "position",
+      "verb": "is processed",
+      "slot_phrase": "in position {n}",
+      "consecutive_phrase": "in consecutive positions"
+    }
+  ],
+  "causal_scenarios": [
+    {
+      "id": "nest_success",
+      "population": "nesting colonies in the reserve",
+      "cause_vp": "were fitted with predator baffles",
+      "cause_np": "the baffle programme",
+      "effect_vp": "fledged more chicks per nest",
+      "effect_np": "the rise in chicks fledged per nest",
+      "alternative_cause": "The reserve also removed feral cats from exactly those areas during the same season.",
+      "reverse_causation": "Wardens fitted baffles at the colonies that were already thriving, because those were the ones worth protecting.",
+      "sampling_flaw": "Only colonies reachable from the reserve's single service road were counted, which excludes most of the reserve's interior.",
+      "inert_facts": [
+        "The baffles are manufactured from recycled plastic by a supplier the reserve has used for a decade for its other equipment.",
+        "The reserve has published its nesting counts annually since it opened, using the same counting protocol throughout that period.",
+        "Chick counts are taken by trained volunteers rather than by reserve staff, as they are at most reserves of comparable size.",
+        "The season was slightly wetter than the ten-year average across the whole region, including areas with no colonies at all."
+      ],
+      "control_comparison": "Colonies in an adjacent reserve with the same predators and the same weather, but no baffles, fledged no more chicks than before."
+    },
+    {
+      "id": "transect_diversity",
+      "population": "transects in the survey area",
+      "cause_vp": "were burned in the controlled fire",
+      "cause_np": "the controlled burn",
+      "effect_vp": "showed higher plant diversity the following spring",
+      "effect_np": "the increase in plant diversity",
+      "alternative_cause": "The burned transects are also the only ones on which the reserve suspended grazing that year, having moved its herd to the northern paddocks.",
+      "reverse_causation": "The reserve selected its most botanically varied transects for burning, since those were the ones the programme was designed to maintain.",
+      "sampling_flaw": "Diversity was recorded on eight of the reserve's ninety transects, all of them within a short walk of the access track.",
+      "inert_facts": [
+        "The controlled burn was carried out over two days rather than the single day the reserve's management plan had originally allowed for.",
+        "Plant diversity is recorded as a species count rather than by biomass, which is the convention across the reserve's published surveys.",
+        "The reserve borders a national park along its western edge, and the two share a boundary fence maintained by the park authority.",
+        "Several of the species recorded on the transects are common throughout the region and appear in surveys of every habitat type in it."
+      ],
+      "control_comparison": "Unburned transects with the same soil and rainfall showed no increase in plant diversity that spring."
+    }
+  ],
+  "ratio_scenarios": [
+    {
+      "id": "sequencing_failures",
+      "population": "specimens submitted to the laboratory",
+      "measure_np": "failed sequencing attempts",
+      "early_period": "the laboratory's first season",
+      "late_period": "this season",
+      "base_change": "The laboratory processed roughly four times as many specimens this season as in its first.",
+      "inert_facts": [
+        "The laboratory replaced its sequencing equipment between the two seasons.",
+        "Failed attempts are re-run once before being recorded.",
+        "The laboratory reports its figures to the funding body each year.",
+        "The laboratory's staffing did not change between the two seasons."
+      ]
+    }
+  ],
+  "tone": "scientific",
+  "entity_noun": "field workers"
+}

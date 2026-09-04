@@ -1,0 +1,177 @@
+{
+  "id": "academic-publishing",
+  "name": "Academic publishing",
+  "summary": "Journals, manuscripts, peer review, and the committees that run them.",
+  "subjects": [
+    {
+      "id": "manuscript",
+      "singular": "the submitted manuscript",
+      "plural": "submitted manuscripts",
+      "bare_singular": "submitted manuscript"
+    },
+    {
+      "id": "article",
+      "singular": "the accepted article",
+      "plural": "accepted articles",
+      "bare_singular": "accepted article"
+    },
+    {
+      "id": "monograph",
+      "singular": "the commissioned monograph",
+      "plural": "commissioned monographs",
+      "bare_singular": "commissioned monograph"
+    }
+  ],
+  "properties": [
+    {
+      "id": "peer_reviewed",
+      "vp_affirm": "went out for external review",
+      "vp_affirm_plural": "went out for external review",
+      "vp_negate": "did not go out for external review",
+      "vp_negate_plural": "did not go out for external review",
+      "modifier": "sent out for external review"
+    },
+    {
+      "id": "revised",
+      "vp_affirm": "was revised before acceptance",
+      "vp_affirm_plural": "were revised before acceptance",
+      "vp_negate": "was not revised before acceptance",
+      "vp_negate_plural": "were not revised before acceptance",
+      "modifier": "revised before acceptance"
+    },
+    {
+      "id": "open_access",
+      "vp_affirm": "was published under an open licence",
+      "vp_affirm_plural": "were published under an open licence",
+      "vp_negate": "was not published under an open licence",
+      "vp_negate_plural": "were not published under an open licence",
+      "modifier": "published under an open licence"
+    },
+    {
+      "id": "funded",
+      "vp_affirm": "declared a funding source",
+      "vp_affirm_plural": "declared a funding source",
+      "vp_negate": "declared no funding source",
+      "vp_negate_plural": "declared no funding source",
+      "modifier": "that declared a funding source"
+    },
+    {
+      "id": "coauthored",
+      "vp_affirm": "had more than one author",
+      "vp_affirm_plural": "had more than one author",
+      "vp_negate": "had only one author",
+      "vp_negate_plural": "had only one author",
+      "modifier": "with more than one author"
+    },
+    {
+      "id": "data_deposited",
+      "vp_affirm": "deposited its underlying data",
+      "vp_affirm_plural": "deposited their underlying data",
+      "vp_negate": "did not deposit its underlying data",
+      "vp_negate_plural": "did not deposit their underlying data",
+      "modifier": "whose underlying data was deposited"
+    },
+    {
+      "id": "indexed",
+      "vp_affirm": "was indexed within the year",
+      "vp_affirm_plural": "were indexed within the year",
+      "vp_negate": "was not indexed within the year",
+      "vp_negate_plural": "were not indexed within the year",
+      "modifier": "indexed within the year"
+    },
+    {
+      "id": "translated",
+      "vp_affirm": "appeared in translation",
+      "vp_affirm_plural": "appeared in translation",
+      "vp_negate": "did not appear in translation",
+      "vp_negate_plural": "did not appear in translation",
+      "modifier": "that appeared in translation"
+    }
+  ],
+  "entities": [
+    "Adeyemi",
+    "Baranov",
+    "Cheung",
+    "Delacroix",
+    "Ekstrom",
+    "Fitzgerald",
+    "Halvorsen"
+  ],
+  "groups": [
+    {
+      "id": "committees",
+      "unit": "committee",
+      "frame": "sits on",
+      "names": [
+        "the editorial committee",
+        "the ethics committee",
+        "the standards committee"
+      ]
+    },
+    {
+      "id": "issues",
+      "unit": "issue",
+      "frame": "is scheduled for",
+      "names": [
+        "the spring issue",
+        "the autumn issue"
+      ]
+    }
+  ],
+  "orderings": [
+    {
+      "id": "review_slots",
+      "frame": "over {n} consecutive weeks, one per week",
+      "slot_noun": "week",
+      "verb": "is reviewed",
+      "slot_phrase": "in week {n}",
+      "consecutive_phrase": "in consecutive weeks"
+    },
+    {
+      "id": "table_of_contents",
+      "frame": "in a single issue, one after another in {n} positions",
+      "slot_noun": "position",
+      "verb": "is placed",
+      "slot_phrase": "in position {n}",
+      "consecutive_phrase": "in consecutive positions"
+    }
+  ],
+  "causal_scenarios": [
+    {
+      "id": "open_citations",
+      "population": "articles in the journal's back catalogue",
+      "cause_vp": "were made openly available",
+      "cause_np": "the open-access conversion",
+      "effect_vp": "were cited more often in the following three years",
+      "effect_np": "the increase in citations",
+      "alternative_cause": "The journal converted its most-requested articles first, and those were already the ones other researchers were seeking out.",
+      "reverse_causation": "Editors chose articles for conversion by watching which ones were accumulating citations fastest.",
+      "sampling_flaw": "The comparison covers the fourteen articles converted in the pilot, all from a single subfield.",
+      "inert_facts": [
+        "The conversion work was carried out by an external contractor the publisher had used for two earlier digitisation projects.",
+        "Citation counts were drawn from a database the journal has used for its annual reporting since long before the conversion began.",
+        "The journal's overall submission volume rose slightly over the period, in line with the rise reported across its whole subject area.",
+        "Open and closed articles are hosted on the same platform and are returned by the same search interface in the same result format."
+      ],
+      "control_comparison": "Articles of comparable age and subject that remained closed showed no comparable rise in citations."
+    }
+  ],
+  "ratio_scenarios": [
+    {
+      "id": "desk_rejections",
+      "population": "manuscripts reaching the journal",
+      "measure_np": "desk rejections",
+      "early_period": "the editor's first year",
+      "late_period": "last year",
+      "base_change": "The journal received almost three times as many submissions last year as in the editor's first.",
+      "inert_facts": [
+        "The journal introduced an online submission system between the two years.",
+        "Desk rejections are recorded by the managing editor rather than by the reviewers.",
+        "The journal's page budget did not change over the period.",
+        "The journal's editorial board met the same number of times in each year."
+      ]
+    }
+  ],
+  "tone": "scholarly",
+  "entity_noun": "reviewers"
+}
