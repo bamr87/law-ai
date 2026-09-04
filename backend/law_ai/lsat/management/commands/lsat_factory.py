@@ -9,8 +9,11 @@ Subcommands::
     manage.py lsat_factory status             # census / holes / queue depth
 
 ``plan``, ``compile``, ``ingest``, and ``status`` are offline-safe (AC-1/AC-2).
-``run`` needs a live provider: ``--executor ollama`` (product default) or
-``--executor claude_code`` (dev-time only; refuses outside the OAuth gate).
+``run`` needs a live provider for the model-backed executors: ``--executor
+ollama`` (product default) or ``--executor claude_code`` (dev-time only;
+refuses outside the OAuth gate). ``--executor synth`` needs none — it fulfills
+a job from the spec 049 synthesis engine, whose keys are proved rather than
+asserted, and whose drafts still pass every intake gate into the HITL queue.
 """
 
 from __future__ import annotations
@@ -41,8 +44,13 @@ class Command(BaseCommand):
         p_run = sub.add_parser("run", help="fulfill a manifest and ingest")
         p_run.add_argument(
             "--executor",
-            choices=("ollama", "claude_code", "drafts"),
+            choices=("ollama", "claude_code", "drafts", "synth"),
             default="ollama",
+        )
+        p_run.add_argument(
+            "--synth-domain",
+            default=None,
+            help="Restrict the synth executor to one domain pack (default: all).",
         )
         p_run.add_argument("--manifest", default=None, help="path (default: latest)")
         p_run.add_argument(
@@ -164,6 +172,9 @@ class Command(BaseCommand):
         try:
             if name == "claude_code":
                 return factory.ClaudeCodeExecutor(config)
+            if name == "synth":
+                # No provider gate: the synthesis engine calls nothing.
+                return factory.SynthExecutor(domain=opts.get("synth_domain"))
             if name == "drafts":
                 drafts = opts.get("drafts")
                 if not drafts:

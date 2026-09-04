@@ -330,3 +330,9 @@ CELERY_TASK_ALWAYS_EAGER = False
 
 # CORS — preserves the FastAPI app/main.py allow-list verbatim
 CORS_ALLOWED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
+
+
+# Spec 049 FR-15. Off by default: a synthesized item with a finite-model proof
+# of its key may bypass HITL review, but only when an operator turns this on
+# *and* passes --promote explicitly. Structural-proof items are never eligible.
+LSAT_SYNTH_AUTOPROMOTE = env.bool("LSAT_SYNTH_AUTOPROMOTE", default=False)

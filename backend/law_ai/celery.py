@@ -52,6 +52,17 @@ app.conf.beat_schedule = {
         "kwargs": {"kind": "lsat_content", "budget": 5},
         "options": {"queue": "autonomy"},
     },
+    # Pillar D — weekly LSAT knowledge-library review (Monday 05:00 UTC,
+    # spec 048 FR-17). Review only: every result lands as a pending
+    # `library_finding` proposal and nothing under data/library/ is written.
+    # Weekly rather than daily because prose about exam structure does not
+    # change on a daily cadence, and each review is a full-article model call.
+    "autonomy-lsat-library": {
+        "task": "law_ai.core.tasks.autonomy_cycle",
+        "schedule": crontab(hour=5, minute=0, day_of_week=1),
+        "kwargs": {"kind": "lsat_library", "budget": 3},
+        "options": {"queue": "autonomy"},
+    },
 }
 app.conf.beat_schedule_filename = "celerybeat-schedule"
 

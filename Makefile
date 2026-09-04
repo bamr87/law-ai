@@ -5,7 +5,9 @@
 	evolve-audit lint-specs ux-audit ui-sync \
 	autonomy-run autonomy-status autonomy-stop \
 	local-ai-up local-ai-down local-ai-pull local-ai-verify local-ai-health validate-claude-code \
-	lsat-author-demo lsat-export lsat-static-build legal-analyst-demo host-setup host-test clean
+	lsat-author-demo lsat-export lsat-static-build lsat-library-audit lsat-library-review \
+	lsat-synth-list lsat-synth-preview lsat-synth-generate lsat-synth-sweep \
+	legal-analyst-demo host-setup host-test clean
 
 # =============================================================================
 # Docker is the canonical dev/test surface. Every target below shells into
@@ -66,6 +68,10 @@ help:
 	@echo "  make local-ai-health   - Hit /api/agents/health/local-ai"
 	@echo "  make validate-claude-code - Validate the dev-time Claude Code OAuth integration (LSAT)"
 	@echo "  make lsat-author-demo  - Run the LSATContentAuthor agent live (via Claude Code when opted in)"
+	@echo "  make lsat-library-audit  - Deterministic knowledge-library health report (no LLM)"
+	@echo "  make lsat-library-review - HITL-gated LSATLibrarian review pass over the library"
+	@echo "  make lsat-synth-list     - Schemas and domain packs the synthesis engine ships"
+	@echo "  make lsat-synth-sweep    - Generate across every schema x domain and verify each"
 	@echo "  make legal-analyst-demo - Run the LegalAnalyst IRAC agent live (via Claude Code when opted in)"
 	@echo ""
 	@echo "Autonomy (Spec 018 — requires AUTONOMY_ENABLED=true):"
@@ -268,6 +274,29 @@ lsat-static-build:
 # Live LSATContentAuthor agent run. Routes through Claude Code when opted in
 # (LSAT_LLM_PROVIDER=claude_code + token in backend/.env). Pass extra flags via
 # ARGS, e.g. `make lsat-author-demo ARGS='--section RC --difficulty hard'`.
+# Spec 048: the knowledge-library maintenance loop. `audit` is deterministic
+# and needs no provider; `review` invokes LSATLibrarian and files every result
+# as a pending proposal — it never writes under data/library/.
+# Spec 049: the deterministic synthesis engine. Every target is offline.
+lsat-synth-list:
+	$(RUN_BACKEND) python manage.py lsat_synth list
+
+lsat-synth-preview:
+	$(RUN_BACKEND) python manage.py lsat_synth preview $(ARGS)
+
+lsat-synth-generate:
+	$(RUN_BACKEND) python manage.py lsat_synth generate $(ARGS)
+
+# The engine's regression test: fails on any item that does not verify.
+lsat-synth-sweep:
+	$(RUN_BACKEND) python manage.py lsat_synth sweep $(ARGS)
+
+lsat-library-audit:
+	$(RUN_BACKEND) python manage.py lsat_library audit $(ARGS)
+
+lsat-library-review:
+	$(RUN_BACKEND) python manage.py lsat_library review $(ARGS)
+
 lsat-author-demo:
 	$(DC) run --rm --no-deps -e PHOENIX_COLLECTOR_ENDPOINT= backend \
 		python manage.py run_lsat_author $(ARGS)

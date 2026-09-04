@@ -2,12 +2,14 @@
 // export, so the published site makes zero network calls for content.
 import raw from '../content.json'
 import type {
+  Article,
   Concept,
   Content,
   Passage,
   Question,
   SectionCode,
   SolveGuide,
+  Track,
   WritingPrompt,
   WritingRubric,
 } from './types'
@@ -84,4 +86,52 @@ export function writingPromptById(id: string): WritingPrompt | undefined {
  */
 export function rubricFor(prompt: WritingPrompt): WritingRubric | undefined {
   return _rubrics.get(prompt.rubric_id)
+}
+
+// ---------------------------------------------------------------------------
+// Knowledge library (spec 048)
+// ---------------------------------------------------------------------------
+
+/**
+ * The whole library is in the bundle, bodies included. That is the point: the
+ * published site has no backend, so reading, cross-linking and searching all
+ * have to work from what shipped (spec 048 NFR-OFFLINE-1). Unlike guides and
+ * model responses there is nothing here to keep locked — an article is study
+ * material, not an answer key.
+ */
+export const articles: Article[] = content.library ?? []
+
+const _articles = new Map<string, Article>(articles.map((a) => [a.id, a]))
+
+export function articleById(id: string): Article | undefined {
+  return _articles.get(id)
+}
+
+export const tracks: Track[] = content.library_tracks ?? []
+
+export function trackById(id: string): Track | undefined {
+  return tracks.find((t) => t.id === id)
+}
+
+/** Article ids that point at this one — prerequisite, related, or inline. */
+export function inboundArticles(id: string): Article[] {
+  return articles.filter(
+    (a) =>
+      a.id !== id &&
+      (a.prerequisites.includes(id) ||
+        a.related.includes(id) ||
+        a.blocks.some((b) =>
+          b.block_type === 'paragraph'
+            ? b.spans.some((s) => s.kind === 'article' && s.ref_id === id)
+            : false,
+        )),
+  )
+}
+
+/** Bank questions tagged with any concept this article teaches. */
+export function drillsForArticle(article: Article): Question[] {
+  if (article.concepts.length === 0) return []
+  return content.questions.filter((q) =>
+    (q.concepts ?? []).some((c) => article.concepts.includes(c)),
+  )
 }

@@ -1,0 +1,178 @@
+{
+  "id": "commercial-logistics",
+  "name": "Commercial logistics",
+  "summary": "Warehouses, shipments, carriers, and the schedules that move them.",
+  "subjects": [
+    {
+      "id": "shipment",
+      "singular": "the outbound shipment",
+      "plural": "outbound shipments",
+      "bare_singular": "outbound shipment"
+    },
+    {
+      "id": "consignment",
+      "singular": "the bonded consignment",
+      "plural": "bonded consignments",
+      "bare_singular": "bonded consignment"
+    },
+    {
+      "id": "order",
+      "singular": "the wholesale order",
+      "plural": "wholesale orders",
+      "bare_singular": "wholesale order"
+    }
+  ],
+  "properties": [
+    {
+      "id": "inspected",
+      "vp_affirm": "was inspected at the depot",
+      "vp_affirm_plural": "were inspected at the depot",
+      "vp_negate": "was not inspected at the depot",
+      "vp_negate_plural": "were not inspected at the depot",
+      "modifier": "inspected at the depot"
+    },
+    {
+      "id": "insured",
+      "vp_affirm": "carried transit insurance",
+      "vp_affirm_plural": "carried transit insurance",
+      "vp_negate": "carried no transit insurance",
+      "vp_negate_plural": "carried no transit insurance",
+      "modifier": "carrying transit insurance"
+    },
+    {
+      "id": "refrigerated",
+      "vp_affirm": "travelled in a refrigerated container",
+      "vp_affirm_plural": "travelled in refrigerated containers",
+      "vp_negate": "did not travel in a refrigerated container",
+      "vp_negate_plural": "did not travel in refrigerated containers",
+      "modifier": "shipped in a refrigerated container",
+      "modifier_plural": "shipped in refrigerated containers"
+    },
+    {
+      "id": "expedited",
+      "vp_affirm": "was routed on the expedited service",
+      "vp_affirm_plural": "were routed on the expedited service",
+      "vp_negate": "was not routed on the expedited service",
+      "vp_negate_plural": "were not routed on the expedited service",
+      "modifier": "routed on the expedited service"
+    },
+    {
+      "id": "documented",
+      "vp_affirm": "cleared customs on the first attempt",
+      "vp_affirm_plural": "cleared customs on the first attempt",
+      "vp_negate": "did not clear customs on the first attempt",
+      "vp_negate_plural": "did not clear customs on the first attempt",
+      "modifier": "that cleared customs on the first attempt"
+    },
+    {
+      "id": "palletised",
+      "vp_affirm": "was palletised before loading",
+      "vp_affirm_plural": "were palletised before loading",
+      "vp_negate": "was not palletised before loading",
+      "vp_negate_plural": "were not palletised before loading",
+      "modifier": "palletised before loading"
+    },
+    {
+      "id": "damaged",
+      "vp_affirm": "arrived with recorded damage",
+      "vp_affirm_plural": "arrived with recorded damage",
+      "vp_negate": "arrived with no recorded damage",
+      "vp_negate_plural": "arrived with no recorded damage",
+      "modifier": "that arrived with recorded damage"
+    },
+    {
+      "id": "tracked",
+      "vp_affirm": "was scanned at every waypoint",
+      "vp_affirm_plural": "were scanned at every waypoint",
+      "vp_negate": "was not scanned at every waypoint",
+      "vp_negate_plural": "were not scanned at every waypoint",
+      "modifier": "scanned at every waypoint"
+    }
+  ],
+  "entities": [
+    "Ashford",
+    "Bergqvist",
+    "Choudhury",
+    "Duarte",
+    "Ellison",
+    "Fontaine",
+    "Gunderson"
+  ],
+  "groups": [
+    {
+      "id": "docks",
+      "unit": "dock",
+      "frame": "is loaded at",
+      "names": [
+        "the north dock",
+        "the east dock",
+        "the transit dock"
+      ]
+    },
+    {
+      "id": "carriers",
+      "unit": "carrier",
+      "frame": "is booked with",
+      "names": [
+        "the overnight carrier",
+        "the freight carrier"
+      ]
+    }
+  ],
+  "orderings": [
+    {
+      "id": "loading_slots",
+      "frame": "in {n} consecutive loading slots, one per slot",
+      "slot_noun": "slot",
+      "verb": "is loaded",
+      "slot_phrase": "in slot {n}",
+      "consecutive_phrase": "in consecutive slots"
+    },
+    {
+      "id": "delivery_run",
+      "frame": "on a single delivery run of {n} stops, one after another",
+      "slot_noun": "stop",
+      "verb": "is delivered",
+      "slot_phrase": "at stop {n}",
+      "consecutive_phrase": "at consecutive stops"
+    }
+  ],
+  "causal_scenarios": [
+    {
+      "id": "scanner_damage",
+      "population": "depots in the network",
+      "cause_vp": "adopted the handheld scanners",
+      "cause_np": "the scanner rollout",
+      "effect_vp": "recorded less damage in transit",
+      "effect_np": "the fall in recorded damage",
+      "alternative_cause": "The depots that adopted the scanners are the same ones that replaced their pallet racking that quarter, under a single capital programme.",
+      "reverse_causation": "The rollout went first to the depots with the cleanest damage records, on the reasoning that those crews would be quickest to retrain.",
+      "sampling_flaw": "The figures come from the six depots that opted into the pilot, all of which volunteered for it.",
+      "inert_facts": [
+        "The handheld scanners were leased rather than purchased outright, under the same framework agreement the network uses for its vehicles.",
+        "Damage is recorded by the receiving depot rather than the sending one, which has been the network's practice since it was founded.",
+        "Freight volumes across the network were broadly flat that quarter, as they have been in the equivalent quarter for several years.",
+        "The network circulates its damage figures to every contracted carrier each month, in a report whose format has not changed."
+      ],
+      "control_comparison": "Depots of similar size that did not adopt the scanners recorded no change in damage over the same quarter."
+    }
+  ],
+  "ratio_scenarios": [
+    {
+      "id": "late_deliveries",
+      "population": "the network's scheduled deliveries",
+      "measure_np": "late deliveries",
+      "early_period": "the year the depot opened",
+      "late_period": "last year",
+      "base_change": "The depot handled roughly five times as many scheduled deliveries last year as in its opening year.",
+      "inert_facts": [
+        "The depot added a second loading bay between the two years.",
+        "Lateness is measured against the carrier's published window.",
+        "The network uses the same definition of lateness at every depot.",
+        "The network's published delivery window is the same at every depot."
+      ]
+    }
+  ],
+  "tone": "operational",
+  "entity_noun": "drivers"
+}

@@ -33,6 +33,16 @@ from law_ai.lsat.services import proposals as proposals_store
 from law_ai.lsat.services import writing as writing_store
 from law_ai.lsat.services.crosscheck import CrossCheckResult, cross_check
 from law_ai.lsat.services.guides import load_guides, public_guide_view
+from law_ai.lsat.services.library import (
+    articles_teaching,
+    inbound_links,
+    library_audit,
+    load_library,
+    load_tracks,
+    public_article_view,
+    public_track_view,
+    search_library,
+)
 from law_ai.lsat.services.tutor import TutorRequest, TutorResponse, tutor
 from law_ai.lsat.services.validation import validate_question_set
 
@@ -140,7 +150,16 @@ class ConceptDetailView(_Base):
             raise Http404("concept not found")
         bank = load_bank()
         used_in = [q.id for q in bank.values() if concept_id in q.concepts][:10]
-        return Response({"concept": concept.model_dump(), "used_in_questions": used_in})
+        return Response(
+            {
+                "concept": concept.model_dump(),
+                "used_in_questions": used_in,
+                # Spec 048 FR-7: the inverse of Article.concepts. A learner who
+                # misses a concept-tagged question needs a route from the tag to
+                # the material, not only from the material to the tag.
+                "taught_in": articles_teaching(concept_id),
+            }
+        )
 
 
 class PassagesView(_Base):
@@ -381,6 +400,133 @@ class CrossCheckView(_Base):
             raise Http404("question not found")
         body: CrossCheckResult = async_to_sync(cross_check)(q, refresh=req.refresh)
         return Response(body.model_dump())
+
+
+# ---------------------------------------------------------------------------
+# Knowledge library (spec 048 FR-12)
+# ---------------------------------------------------------------------------
+
+
+class LibraryIndexView(_Base):
+    """``GET /api/lsat/library`` — the contents rail.
+
+    Returns index rows only. Article bodies are 700 words apiece; shipping
+    35 of them to render a list of 35 titles is the difference between a
+    fast rail and a 900 KB one (NFR-PERF-1).
+    """
+
+    def get(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        articles = list(load_library().values())
+        params = request.query_params
+        if kind := params.get("kind"):
+            articles = [a for a in articles if a.kind == kind]
+        if level := params.get("level"):
+            articles = [a for a in articles if a.level == level]
+        if section := params.get("section"):
+            articles = [a for a in articles if section in a.sections]
+        if tag := params.get("tag"):
+            articles = [a for a in articles if tag in a.tags]
+        if concept := params.get("concept"):
+            teaching = set(articles_teaching(concept))
+            articles = [a for a in articles if a.id in teaching]
+        if track_id := params.get("track"):
+            track = load_tracks().get(track_id)
+            if track is None:
+                raise Http404("track not found")
+            # Track order is the curriculum, so preserve it rather than
+            # re-sorting alphabetically like every other filter.
+            order = {a: i for i, a in enumerate(track.article_ids)}
+            articles = [a for a in articles if a.id in order]
+            articles.sort(key=lambda a: order[a.id])
+        else:
+            articles.sort(key=lambda a: a.id)
+        return Response(
+            {
+                "articles": [
+                    public_article_view(a).model_dump(mode="json") for a in articles
+                ],
+                "count": len(articles),
+            }
+        )
+
+
+class LibraryArticleView(_Base):
+    """``GET /api/lsat/library/<id>`` — one article with its cross-references resolved."""
+
+    def get(self, request: Any, article_id: str, *args: Any, **kwargs: Any) -> Response:
+        articles = load_library()
+        article = articles.get(article_id)
+        if article is None:
+            raise Http404("article not found")
+        concepts = load_concepts()
+        bank = load_bank()
+        related_ids = sorted(set(article.related) | set(inbound_links(article.id)))
+        drills = sorted(
+            q.id
+            for q in bank.values()
+            if any(c in article.concepts for c in q.concepts)
+        )
+        return Response(
+            {
+                "article": article.model_dump(mode="json"),
+                "concepts": [
+                    concepts[c].model_dump(mode="json")
+                    for c in article.concepts
+                    if c in concepts
+                ],
+                "prerequisites": [
+                    public_article_view(articles[p]).model_dump(mode="json")
+                    for p in article.prerequisites
+                    if p in articles
+                ],
+                "related": [
+                    public_article_view(articles[r]).model_dump(mode="json")
+                    for r in related_ids
+                    if r in articles
+                ],
+                "tracks": [
+                    {"id": t.id, "name": t.name}
+                    for t in load_tracks().values()
+                    if article.id in t.article_ids
+                ],
+                "drill_question_ids": drills[:25],
+                "drill_question_count": len(drills),
+            }
+        )
+
+
+class LibraryTracksView(_Base):
+    """``GET /api/lsat/library/tracks`` — curated reading paths."""
+
+    def get(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        tracks = [public_track_view(t) for t in load_tracks().values()]
+        return Response({"tracks": tracks, "count": len(tracks)})
+
+
+class LibrarySearchView(_Base):
+    """``GET /api/lsat/library/search?q=`` — ranked hits with snippets."""
+
+    def get(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        query = (request.query_params.get("q") or "").strip()
+        if len(query) < 2 or len(query) > 100:
+            return Response(
+                {"detail": {"q": "must be between 2 and 100 characters"}},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        limit = _bounded_int(request.query_params.get("limit"), default=20, lo=1, hi=50)
+        results = search_library(query, limit=limit)
+        return Response({"query": query, "results": results, "count": len(results)})
+
+
+class LibraryHealthView(_Base):
+    """``GET /api/lsat/library/health`` — the deterministic audit (FR-14).
+
+    No model call. This is the number behind the claim that the library is
+    being maintained, so it must not depend on the thing it measures.
+    """
+
+    def get(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        return Response(library_audit())
 
 
 class ValidationView(_Base):
@@ -770,6 +916,17 @@ urlpatterns = [
         name="lsat-question-cross-check",
     ),
     path("validation", ValidationView.as_view(), name="lsat-validation"),
+    # Knowledge library (spec 048). Static segments precede the catch-all id
+    # route so /library/tracks is never read as an article called "tracks".
+    path("library", LibraryIndexView.as_view(), name="lsat-library"),
+    path("library/tracks", LibraryTracksView.as_view(), name="lsat-library-tracks"),
+    path("library/search", LibrarySearchView.as_view(), name="lsat-library-search"),
+    path("library/health", LibraryHealthView.as_view(), name="lsat-library-health"),
+    path(
+        "library/<str:article_id>",
+        LibraryArticleView.as_view(),
+        name="lsat-library-article",
+    ),
     path("writing/prompts", WritingPromptsView.as_view(), name="lsat-writing-prompts"),
     path(
         "writing/prompts/<str:prompt_id>",

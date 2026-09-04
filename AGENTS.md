@@ -274,7 +274,7 @@ When starting work, read in this order:
 6. [docs/related-github-repos.md](docs/related-github-repos.md) — Upstream OSS we integrate with
 7. [docs/ui-ux.md](docs/ui-ux.md) — Every user-facing surface, the two styling idioms, and the design-system contract
 
-`docs/data-model.md`, `docs/data-sources.md`, `docs/legalbench.md`, and [docs/django-conventions.md](docs/django-conventions.md) (Django app-layout and coding conventions) all exist — keep them current as the schema, sources, eval harness, and conventions evolve rather than skipping the documentation step.
+`docs/data-model.md`, `docs/data-sources.md`, `docs/legalbench.md`, [docs/lsat-library.md](docs/lsat-library.md) (the LSAT knowledge library's authoring dialect and maintenance loop), [docs/lsat-synthesis.md](docs/lsat-synthesis.md) (the deterministic item-synthesis engine and its proof gates), and [docs/django-conventions.md](docs/django-conventions.md) (Django app-layout and coding conventions) all exist — keep them current as the schema, sources, eval harness, and conventions evolve rather than skipping the documentation step.
 
 ---
 

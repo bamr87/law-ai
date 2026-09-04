@@ -248,6 +248,142 @@ export interface WritingPrompt {
   source?: string | null
 }
 
+// ---------------------------------------------------------------------------
+// Knowledge library (spec 048 schema)
+// ---------------------------------------------------------------------------
+
+/**
+ * Articles ship as compiled *typed blocks*, never as Markdown or HTML: the
+ * backend's `library.py` closes the article dialect and parses it once, at
+ * export time. So this site carries no Markdown parser, renders no raw markup,
+ * and cannot drift from the platform reader on what a block may contain
+ * (spec 048 FR-2/FR-11, NFR-SAFETY-1).
+ */
+export type SpanKind =
+  | 'text'
+  | 'strong'
+  | 'em'
+  | 'code'
+  | 'link'
+  | 'concept'
+  | 'article'
+  | 'question'
+
+export interface Span {
+  kind: SpanKind
+  text: string
+  href?: string | null
+  /** Target id on concept / article / question spans; resolved at export. */
+  ref_id?: string | null
+}
+
+/** One table cell: a run of spans. */
+export type Cell = Span[]
+
+export interface HeadingBlock {
+  block_type: 'heading'
+  level: number
+  text: string
+  anchor: string
+}
+
+export interface ParagraphBlock {
+  block_type: 'paragraph'
+  spans: Span[]
+}
+
+export interface ListBlock {
+  block_type: 'list'
+  ordered: boolean
+  items: Cell[]
+}
+
+export interface NotationBlock {
+  block_type: 'notation'
+  lines: string[]
+  caption?: string | null
+}
+
+export interface TableBlock {
+  block_type: 'table'
+  headers: Cell[]
+  rows: Cell[][]
+}
+
+export type CalloutVariant =
+  | 'example'
+  | 'trap'
+  | 'tip'
+  | 'note'
+  | 'warning'
+  | 'drill'
+
+export interface CalloutBlock {
+  block_type: 'callout'
+  variant: CalloutVariant
+  title: string
+  blocks: (ParagraphBlock | ListBlock | NotationBlock)[]
+}
+
+export type Block =
+  | HeadingBlock
+  | ParagraphBlock
+  | ListBlock
+  | CalloutBlock
+  | TableBlock
+  | NotationBlock
+
+export type ArticleKind =
+  | 'orientation'
+  | 'section-guide'
+  | 'question-type'
+  | 'technique'
+  | 'strategy'
+  | 'foundation'
+  | 'review-method'
+
+export type ArticleLevel = 'foundation' | 'core' | 'advanced'
+
+export interface OutlineEntry {
+  level: number
+  text: string
+  anchor: string
+}
+
+export interface Article {
+  id: string
+  title: string
+  kind: ArticleKind
+  level: ArticleLevel
+  summary: string
+  sections: SectionCode[]
+  concepts: string[]
+  archetypes: string[]
+  prerequisites: string[]
+  related: string[]
+  tags: string[]
+  status: 'draft' | 'reviewed' | 'needs-review'
+  last_reviewed: string
+  revision: number
+  source?: string | null
+  references?: Reference[]
+  blocks: Block[]
+  outline: OutlineEntry[]
+  word_count: number
+  reading_minutes: number
+}
+
+export interface Track {
+  id: string
+  name: string
+  summary: string
+  goal: string
+  article_ids: string[]
+  tags: string[]
+  article_count: number
+  estimated_minutes: number
+}
+
 export interface Content {
   schema_version: number | string
   generated_at: string
@@ -266,4 +402,7 @@ export interface Content {
   /** Present since spec 047; older artifacts predate the writing section. */
   writing_rubrics?: WritingRubric[]
   writing_prompts?: WritingPrompt[]
+  /** Present since spec 048; older artifacts predate the knowledge library. */
+  library?: Article[]
+  library_tracks?: Track[]
 }

@@ -113,6 +113,202 @@ export const lsatValidationFixture = {
   },
 }
 
+// --- LSAT knowledge library fixtures (spec 048) ---
+
+const paragraph = (text: string) => ({
+  block_type: 'paragraph' as const,
+  spans: [{ kind: 'text' as const, text }],
+})
+
+const heading = (text: string, anchor: string, level = 2) => ({
+  block_type: 'heading' as const,
+  level,
+  text,
+  anchor,
+})
+
+const takeaways = [
+  heading('Key takeaways', 'key-takeaways'),
+  {
+    block_type: 'list' as const,
+    ordered: false,
+    items: [[{ kind: 'text' as const, text: 'A takeaway.' }]],
+  },
+]
+
+export const lsatLibraryIndexFixture = {
+  articles: [
+    {
+      id: 'argument-anatomy',
+      title: 'Argument Anatomy',
+      kind: 'foundation',
+      level: 'foundation',
+      summary: 'Separating the conclusion from what supports it.',
+      sections: ['LR'],
+      concepts: ['main-conclusion'],
+      prerequisites: [],
+      related: ['lr-assumption-family'],
+      tags: ['conclusion'],
+      status: 'reviewed',
+      last_reviewed: '2026-09-03',
+      reading_minutes: 4,
+      word_count: 700,
+    },
+    {
+      id: 'lr-assumption-family',
+      title: 'The Assumption Family',
+      kind: 'question-type',
+      level: 'core',
+      summary: 'Necessary versus sufficient, and the negation test.',
+      sections: ['LR'],
+      concepts: ['necessary-assumption'],
+      prerequisites: ['argument-anatomy'],
+      related: [],
+      tags: ['assumption', 'negation-test'],
+      status: 'reviewed',
+      last_reviewed: '2026-09-03',
+      reading_minutes: 3,
+      word_count: 690,
+    },
+  ],
+  count: 2,
+}
+
+const articleBody = (title: string) => ({
+  archetypes: [],
+  revision: 1,
+  source: 'original (CC0)',
+  references: [{ title: 'LSAC — About the LSAT', url: 'https://www.lsac.org/lsat' }],
+  outline: [
+    { level: 2, text: 'How it works', anchor: 'how-it-works' },
+    { level: 2, text: 'Key takeaways', anchor: 'key-takeaways' },
+  ],
+  blocks: [
+    heading('How it works', 'how-it-works'),
+    paragraph(`${title} explains the method.`),
+    {
+      block_type: 'callout' as const,
+      variant: 'example' as const,
+      title: 'A worked example',
+      blocks: [paragraph('An instance of the pattern.')],
+    },
+    {
+      block_type: 'table' as const,
+      headers: [
+        [{ kind: 'text' as const, text: 'Stem' }],
+        [{ kind: 'text' as const, text: 'Job' }],
+      ],
+      rows: [
+        [
+          [{ kind: 'text' as const, text: 'depends on assuming' }],
+          [{ kind: 'text' as const, text: 'supply the missing link' }],
+        ],
+      ],
+    },
+    {
+      block_type: 'notation' as const,
+      lines: ['A → B', '¬B → ¬A'],
+      caption: 'contrapositive',
+    },
+    ...takeaways,
+  ],
+})
+
+export const lsatLibraryDetailFixtures: Record<string, unknown> = {
+  'argument-anatomy': {
+    article: {
+      ...lsatLibraryIndexFixture.articles[0],
+      ...articleBody('Argument Anatomy'),
+      blocks: [
+        heading('How it works', 'how-it-works'),
+        {
+          block_type: 'paragraph' as const,
+          spans: [
+            { kind: 'text', text: 'Read on in ' },
+            {
+              kind: 'article',
+              text: 'The Assumption Family',
+              ref_id: 'lr-assumption-family',
+            },
+            { kind: 'text', text: ' and see ' },
+            { kind: 'concept', text: 'main conclusion', ref_id: 'main-conclusion' },
+            { kind: 'text', text: '.' },
+          ],
+        },
+        {
+          block_type: 'callout' as const,
+          variant: 'example' as const,
+          title: 'A worked example',
+          blocks: [paragraph('An instance of the pattern.')],
+        },
+        ...takeaways,
+      ],
+    },
+    concepts: [
+      {
+        id: 'main-conclusion',
+        name: 'Main Conclusion',
+        sections: ['LR'],
+        summary: 'The claim the author wants you to accept.',
+        examples: [],
+        see_also: [],
+        references: [],
+      },
+    ],
+    prerequisites: [],
+    related: [lsatLibraryIndexFixture.articles[1]],
+    tracks: [{ id: 'start-here', name: 'Start Here' }],
+    drill_question_ids: ['lr-001'],
+    drill_question_count: 1,
+  },
+  'lr-assumption-family': {
+    article: {
+      ...lsatLibraryIndexFixture.articles[1],
+      ...articleBody('The Assumption Family'),
+    },
+    concepts: [],
+    prerequisites: [lsatLibraryIndexFixture.articles[0]],
+    related: [],
+    tracks: [],
+    drill_question_ids: [],
+    drill_question_count: 0,
+  },
+}
+
+export const lsatLibraryTracksFixture = {
+  tracks: [
+    {
+      id: 'start-here',
+      name: 'Start Here',
+      summary: 'Orientation first.',
+      goal: 'Finish with an accurate model of the test.',
+      article_ids: ['argument-anatomy', 'lr-assumption-family'],
+      tags: ['orientation'],
+      article_count: 2,
+      estimated_minutes: 7,
+    },
+  ],
+  count: 1,
+}
+
+export const lsatLibrarySearchFixture = {
+  query: 'negation',
+  results: [
+    {
+      id: 'lr-assumption-family',
+      title: 'The Assumption Family',
+      kind: 'question-type',
+      sections: ['LR'],
+      reading_minutes: 3,
+      score: 12,
+      matched_in: ['tag', 'body'],
+      snippet: '…the negation test settles nearly every hard item…',
+      anchor: null,
+    },
+  ],
+  count: 1,
+}
+
 export const handlers = [
   // Mock LSAT cross-check (spec 045 FR-14): lg-001 agrees with the key,
   // lr-001 disagrees, anything else is offline/unavailable.
@@ -188,6 +384,43 @@ export const handlers = [
       return HttpResponse.json(publicGuideView(spoilers))
     },
   ),
+
+  // Mock LSAT knowledge library (spec 048). Two articles is enough to cover
+  // the index, the detail view, cross-reference navigation and search.
+  http.get('http://localhost:8000/api/lsat/library', ({ request }) => {
+    const url = new URL(request.url)
+    const section = url.searchParams.get('section')
+    const rows = lsatLibraryIndexFixture.articles.filter(
+      (a) => !section || a.sections.includes(section as never),
+    )
+    return HttpResponse.json({ articles: rows, count: rows.length })
+  }),
+
+  http.get('http://localhost:8000/api/lsat/library/tracks', () =>
+    HttpResponse.json(lsatLibraryTracksFixture),
+  ),
+
+  http.get('http://localhost:8000/api/lsat/library/search', ({ request }) => {
+    const q = (new URL(request.url).searchParams.get('q') ?? '').toLowerCase()
+    if (q.length < 2) {
+      return HttpResponse.json(
+        { detail: { q: 'must be between 2 and 100 characters' } },
+        { status: 422 },
+      )
+    }
+    const results = lsatLibrarySearchFixture.results.filter((r) =>
+      (r.title + r.snippet).toLowerCase().includes(q),
+    )
+    return HttpResponse.json({ query: q, results, count: results.length })
+  }),
+
+  http.get('http://localhost:8000/api/lsat/library/:articleId', ({ params }) => {
+    const detail = lsatLibraryDetailFixtures[params.articleId as string]
+    if (!detail) {
+      return HttpResponse.json({ detail: 'article not found' }, { status: 404 })
+    }
+    return HttpResponse.json(detail)
+  }),
 
   // Mock analysis endpoint
   http.post('http://localhost:8000/api/analysis', async ({ request }) => {

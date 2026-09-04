@@ -36,6 +36,17 @@ logger = logging.getLogger("law_ai.lsat.proposals")
 
 ProposalStatus = Literal["pending", "approved", "rejected"]
 
+#: Proposal kinds this store understands. ``question`` and ``guide`` predate
+#: spec 048; the two ``library_*`` kinds carry the librarian's output. A
+#: ``library_finding`` is a review report and is never promoted — it is read,
+#: acted on by a human, and closed.
+PROPOSAL_KINDS = (
+    "question",
+    "guide",
+    "library_finding",
+    "library_article",
+)
+
 _BANK_FILES: dict[Section, str] = {
     "LR": "lr_bank.json",
     "RC": "rc_bank.json",
@@ -402,6 +413,94 @@ def promote_guide_to_bank(
                 "proposal_id": proposal_id,
                 "proposal_kind": "guide",
                 "question_id": guide.question_id,
+                "reviewer": reviewer,
+                "trace_id": row.get("agent_trace_id"),
+            }
+        )
+    except Exception:  # pragma: no cover - audit failures must not block UX
+        logger.warning(
+            "audit_store.record failed for lsat_proposal.approved", exc_info=True
+        )
+    return updated
+
+
+def promote_library_article(
+    proposal_id: str,
+    *,
+    reviewer: str = "anonymous",
+    note: str | None = None,
+) -> dict[str, Any]:
+    """Write an approved library draft into ``data/library/`` (spec 048 FR-16).
+
+    The only code path that mutates library content. ``LSATLibrarian`` itself
+    writes nothing (spec 048 AC-10): a reviewer promotes a specific proposal id
+    by hand, and the draft is re-parsed through the *full* loader validation
+    before it lands, so a promoted article cannot break the load for everyone.
+
+    A ``library_article`` draft carries ``article_id`` and ``markdown``. The
+    file is written whole, so an expansion arrives as the complete revised
+    article rather than as a patch this function has to apply.
+    """
+    from law_ai.lsat.services.library import (
+        LibraryError,
+        load_library,
+        parse_article,
+        reset_library_caches,
+    )
+
+    state = _replay(_tail())
+    row = state.get(proposal_id)
+    if row is None:
+        raise KeyError(f"unknown proposal {proposal_id!r}")
+    if row.get("status") != "pending":
+        raise ValueError(
+            f"proposal {proposal_id!r} cannot be promoted from status "
+            f"{row.get('status')!r}"
+        )
+    if row.get("proposal_kind") != "library_article":
+        raise ValueError(
+            f"proposal {proposal_id!r} is a {row.get('proposal_kind')!r} draft — "
+            "only 'library_article' drafts write to the library"
+        )
+
+    draft = dict(row.get("draft") or {})
+    article_id = str(draft.get("article_id") or "").strip()
+    markdown = str(draft.get("markdown") or "")
+    if not article_id or not markdown.strip():
+        raise ValueError(f"proposal {proposal_id!r} is missing article_id or markdown")
+
+    # Parse before writing, not after: a draft that fails the dialect, the
+    # cross-reference check or a structural gate must never reach the disk.
+    try:
+        parse_article(markdown, article_id=article_id, where=f"library/{article_id}.md")
+    except LibraryError as exc:
+        raise ValueError(f"draft failed library validation: {exc}") from exc
+
+    path = _bank.DATA_DIR / "library" / f"{article_id}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with _LOCK:
+        path.write_text(markdown.rstrip("\n") + "\n", encoding="utf-8")
+        reset_library_caches()
+
+    # A whole-library reload is the real gate: per-file parsing cannot see a
+    # dangling cross-reference or a prerequisite cycle the new text introduces.
+    try:
+        load_library()
+    except LibraryError as exc:
+        path.unlink(missing_ok=True)
+        reset_library_caches()
+        raise ValueError(
+            f"draft broke the library on reload and was rolled back: {exc}"
+        ) from exc
+
+    updated = set_status(proposal_id, "approved", reviewer=reviewer, note=note)
+    try:
+        audit_store.record(
+            {
+                "type": "lsat_proposal.approved",
+                "proposal_id": proposal_id,
+                "proposal_kind": "library_article",
+                "article_id": article_id,
                 "reviewer": reviewer,
                 "trace_id": row.get("agent_trace_id"),
             }

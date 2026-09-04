@@ -9,6 +9,11 @@ Spec 024 FR-6. Three ways to turn a :class:`GenerationJob` into drafts:
   :class:`ExecutorUnavailable` when neither credential is configured.
 * :class:`OllamaExecutor` — the local open-weights path; every tier maps to
   ``OLLAMA_DEFAULT_MODEL``.
+* :class:`SynthExecutor` — no network and no model: fulfills a job from the
+  spec 049 synthesis engine, whose keys are proved by a finite-model checker
+  rather than asserted. Drafts still pass every intake gate and still land in
+  the HITL queue; the proof buys reviewer *confidence*, not a bypass (the
+  bounded bypass lives in ``law_ai.lsat.synth.promote`` and is off by default).
 * :class:`DraftFileExecutor` — no network at all: fulfills jobs from an
   externally produced JSONL of ``{"job_id": …, "drafts": […]}`` records,
   which is how out-of-process generation farms (or a Claude Code session
@@ -210,4 +215,93 @@ class DraftFileExecutor:
             payload=payload,
             model_label=str(record.get("model") or "external"),
             latency_ms=0.0,
+        )
+
+
+class SynthExecutor:
+    """Fulfill a job deterministically from the spec 049 synthesis engine.
+
+    The factory's plan is expressed in *archetypes*; the engine's schemas each
+    declare the archetype they realize, so a job is fulfilled by finding the
+    schemas that match and generating against whichever domain packs can supply
+    the vocabulary. A job whose archetype no schema covers is a legitimate
+    miss — the LLM executors exist for exactly those — and it reports so rather
+    than substituting something else.
+
+    Seeds are derived from the job id, so re-running a manifest reproduces the
+    same drafts instead of flooding the queue with near-duplicates.
+    """
+
+    name = "synth"
+
+    def __init__(self, *, domain: str | None = None) -> None:
+        self._domain = domain
+
+    async def execute(self, job: GenerationJob) -> RawBatch:
+        import time
+
+        from law_ai.lsat.synth import ENGINE_VERSION
+        from law_ai.lsat.synth.generate import generate_batch
+        from law_ai.lsat.synth.lexicon import load_domains
+        from law_ai.lsat.synth.schemas import all_schemas
+
+        started = time.perf_counter()
+        target = job.target
+        matching = [
+            s
+            for s in all_schemas()
+            if s.meta.archetype_id == target.archetype_id
+            and s.meta.section == target.section
+        ]
+        if not matching:
+            raise ExecutionError(
+                f"no synthesis schema covers archetype {target.archetype_id!r} — "
+                "this target needs an LLM executor"
+            )
+
+        domains = load_domains()
+        if self._domain:
+            candidates = [domains[self._domain]] if self._domain in domains else []
+        else:
+            candidates = list(domains.values())
+        if not candidates:
+            raise ExecutionError(
+                f"no domain pack available (asked for {self._domain!r})"
+            )
+
+        # A stable seed per job: the same manifest replays to the same drafts.
+        base_seed = abs(hash(job.job_id)) % 100_000
+        drafts: list[dict[str, Any]] = []
+        for index in range(target.count):
+            schema = matching[index % len(matching)]
+            usable = [d for d in candidates if d.supports(schema.meta.capability)]
+            if not usable:
+                continue
+            domain = usable[index % len(usable)]
+            item = generate_batch(
+                schema.meta.id, domain.id, count=1, start_seed=base_seed + index
+            )[0]
+            payload = item.question.model_dump(mode="json")
+            # The intake gates read a draft, not a bank row: no id, and a
+            # confidence the gates can threshold on. 1.0 here means "a checker
+            # proved this", which is a different claim from a model's own score.
+            payload.pop("id", None)
+            payload.pop("source", None)
+            payload.pop("type", None)
+            payload.pop("references", None)
+            payload["confidence"] = (
+                1.0 if item.provenance.proof_kind == "logical" else 0.5
+            )
+            drafts.append(payload)
+
+        if not drafts:
+            raise ExecutionError(
+                f"no domain pack could supply content for archetype "
+                f"{target.archetype_id!r}"
+            )
+        return RawBatch(
+            job_id=job.job_id,
+            payload={"drafts": drafts},
+            model_label=f"deterministic/{ENGINE_VERSION}",
+            latency_ms=(time.perf_counter() - started) * 1000.0,
         )

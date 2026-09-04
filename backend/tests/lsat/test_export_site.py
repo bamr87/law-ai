@@ -119,3 +119,65 @@ class TestCommand:
         a.pop("generated_at")
         b.pop("generated_at")
         assert a == b
+
+
+# ---------------------------------------------------------------------------
+# Knowledge library (spec 048 T-021: FR-13, NFR-DETERMINISM-1, AC-5)
+# ---------------------------------------------------------------------------
+
+
+class TestLibraryExport:
+    def test_library_and_tracks_ship_whole(self) -> None:
+        from law_ai.lsat.services.library import load_library, load_tracks
+
+        content = build_content()
+        assert content["counts"]["library_articles"] == len(load_library())
+        assert content["counts"]["library_tracks"] == len(load_tracks())
+        assert len(content["library"]) == len(load_library())
+
+    def test_articles_carry_compiled_blocks_not_markdown(self) -> None:
+        """Both clients render typed blocks; neither parses anything."""
+        content = build_content()
+        for article in content["library"]:
+            assert article["blocks"], article["id"]
+            assert "markdown" not in article
+            assert {b["block_type"] for b in article["blocks"]} <= {
+                "heading",
+                "paragraph",
+                "list",
+                "callout",
+                "table",
+                "notation",
+            }
+
+    def test_articles_carry_their_outline(self) -> None:
+        for article in build_content()["library"]:
+            assert article["outline"], article["id"]
+            anchors = {e["anchor"] for e in article["outline"]}
+            assert "key-takeaways" in anchors, article["id"]
+
+    def test_tracks_carry_computed_durations(self) -> None:
+        for track in build_content()["library_tracks"]:
+            assert track["article_count"] == len(track["article_ids"])
+            assert track["estimated_minutes"] > 0
+
+    def test_library_ordering_is_stable(self) -> None:
+        ids = [a["id"] for a in build_content()["library"]]
+        assert ids == sorted(ids)
+
+    def test_tracks_ship_in_curriculum_order_not_id_order(self) -> None:
+        """The authored order is the syllabus; both readers land on its head."""
+        from law_ai.lsat.services.library import load_tracks
+
+        shipped = [t["id"] for t in build_content()["library_tracks"]]
+        assert shipped == list(load_tracks())
+        assert shipped != sorted(shipped), (
+            "id order and file order coincide — this test no longer proves "
+            "the exporter preserves curriculum order"
+        )
+
+    def test_reexport_is_byte_identical_apart_from_the_timestamp(self) -> None:
+        first, second = build_content(), build_content()
+        first.pop("generated_at")
+        second.pop("generated_at")
+        assert json.dumps(first, sort_keys=True) == json.dumps(second, sort_keys=True)

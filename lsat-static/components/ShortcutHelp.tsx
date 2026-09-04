@@ -37,6 +37,14 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    title: 'Knowledge library',
+    rows: [
+      ['/', 'Jump to the library search box'],
+      ['J  /  K', 'Next / previous article in the visible list'],
+      ['Esc', 'Leave the search box'],
+    ],
+  },
+  {
     title: 'Argumentative Writing',
     rows: [
       ['O', 'Open the first prompt, and jump into the editor'],

@@ -10,6 +10,7 @@ never silently lag the approved content.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -61,6 +62,11 @@ class TestSiteStructure:
             "app/layout.tsx",
             # spec 047 FR-3: the writing view is part of the published site.
             "components/Writing.tsx",
+            # spec 048 FR-10: so is the knowledge library, at parity with the
+            # platform reader.
+            "components/Library.tsx",
+            "components/library/BlockRenderer.tsx",
+            "lib/search.ts",
         ):
             assert (APP / name).is_file(), f"missing lsat-static file: {name}"
 
@@ -364,3 +370,204 @@ class TestContentIntegrity:
                     f"{q['id']} has no passage_id — it would render context-free "
                     "in the static app"
                 )
+
+
+# ---------------------------------------------------------------------------
+# Knowledge library (spec 048: FR-10, FR-11, FR-13, NFR-SAFETY-1, AC-5, AC-7)
+# ---------------------------------------------------------------------------
+
+LIBRARY_DIR = BANK_DIR / "library"
+PLATFORM_RENDERER = (
+    REPO / "frontend" / "components" / "lsat" / "library" / "BlockRenderer.tsx"
+)
+STATIC_RENDERER = APP / "components" / "library" / "BlockRenderer.tsx"
+
+#: NFR-PERF-1. The whole bundle, library included, has to stay small enough
+#: that the published site is usable on a phone connection.
+BUNDLE_BUDGET_BYTES = 1_500_000
+
+
+def _library_source_ids() -> set[str]:
+    return {
+        p.stem for p in LIBRARY_DIR.glob("*.md") if not p.name.startswith("_")
+    }
+
+
+class TestLibraryDrift:
+    """The exported library must stay in lockstep with `data/library/`."""
+
+    @pytest.fixture()
+    def artifact(self) -> dict:
+        return _load(CONTENT)
+
+    def test_every_source_article_shipped(self, artifact: dict) -> None:
+        shipped = {a["id"] for a in artifact.get("library", [])}
+        missing = sorted(_library_source_ids() - shipped)
+        assert missing == [], f"not exported — run `make lsat-export`: {missing}"
+
+    def test_no_article_shipped_that_is_not_in_source(self, artifact: dict) -> None:
+        shipped = {a["id"] for a in artifact.get("library", [])}
+        extra = sorted(shipped - _library_source_ids())
+        assert extra == [], f"stale artifact — run `make lsat-export`: {extra}"
+
+    def test_counts_agree_with_the_payload(self, artifact: dict) -> None:
+        counts = artifact["counts"]
+        assert counts["library_articles"] == len(artifact["library"])
+        assert counts["library_tracks"] == len(artifact["library_tracks"])
+
+    def test_titles_have_not_drifted(self, artifact: dict) -> None:
+        """A retitled article without a re-export ships the old name."""
+        for shipped in artifact.get("library", []):
+            source = (LIBRARY_DIR / f"{shipped['id']}.md").read_text(encoding="utf-8")
+            for line in source.splitlines():
+                if line.startswith("title:"):
+                    assert shipped["title"] == line.split(":", 1)[1].strip(), (
+                        f"{shipped['id']}: title drift — run `make lsat-export`"
+                    )
+                    break
+
+    def test_track_members_all_shipped(self, artifact: dict) -> None:
+        shipped = {a["id"] for a in artifact.get("library", [])}
+        for track in artifact.get("library_tracks", []):
+            missing = [a for a in track["article_ids"] if a not in shipped]
+            assert missing == [], f"track {track['id']} references {missing}"
+
+    def test_bundle_stays_within_budget(self) -> None:
+        size = CONTENT.stat().st_size
+        assert size <= BUNDLE_BUDGET_BYTES, (
+            f"content.json is {size:,} bytes, over the "
+            f"{BUNDLE_BUDGET_BYTES:,} budget — shard the library (spec 048 R1)"
+        )
+
+
+class TestLibraryArtifactIntegrity:
+    @pytest.fixture()
+    def artifact(self) -> dict:
+        return _load(CONTENT)
+
+    def test_articles_ship_as_typed_blocks(self, artifact: dict) -> None:
+        for article in artifact.get("library", []):
+            assert article["blocks"], article["id"]
+            assert "markdown" not in article, (
+                f"{article['id']} shipped raw Markdown — clients render blocks"
+            )
+
+    def test_every_cross_reference_resolves_inside_the_bundle(
+        self, artifact: dict
+    ) -> None:
+        """The offline site cannot fetch a missing target, so nothing may dangle."""
+        article_ids = {a["id"] for a in artifact.get("library", [])}
+        concept_ids = {c["id"] for c in artifact["concepts"]}
+        question_ids = {q["id"] for q in artifact["questions"]}
+
+        def _spans(block: dict) -> list:
+            if block["block_type"] == "paragraph":
+                return block["spans"]
+            if block["block_type"] == "list":
+                return [s for item in block["items"] for s in item]
+            if block["block_type"] == "table":
+                cells = list(block["headers"]) + [c for r in block["rows"] for c in r]
+                return [s for cell in cells for s in cell]
+            if block["block_type"] == "callout":
+                return [s for child in block["blocks"] for s in _spans(child)]
+            return []
+
+        targets = {"article": article_ids, "concept": concept_ids,
+                   "question": question_ids}
+        for article in artifact.get("library", []):
+            for block in article["blocks"]:
+                for span in _spans(block):
+                    known = targets.get(span["kind"])
+                    if known is None:
+                        continue
+                    assert span["ref_id"] in known, (
+                        f"{article['id']}: dangling {span['kind']} reference "
+                        f"{span['ref_id']!r} in the offline bundle"
+                    )
+
+    def test_every_article_carries_an_outline_and_takeaways(
+        self, artifact: dict
+    ) -> None:
+        for article in artifact.get("library", []):
+            anchors = {e["anchor"] for e in article["outline"]}
+            assert "key-takeaways" in anchors, article["id"]
+
+
+class TestRendererParity:
+    """FR-11: a block type must ship to both products or to neither.
+
+    `lsat-static/` still has no component-test harness (BL-20260831-18), so
+    this is a source assertion — crude, but it is what stops a block type from
+    rendering in the platform app and silently vanishing offline.
+    """
+
+    def _declared_types(self, path: Path) -> set[str]:
+        text = path.read_text(encoding="utf-8")
+        marker = "export const SUPPORTED_BLOCK_TYPES = ["
+        assert marker in text, f"{path.name} must declare SUPPORTED_BLOCK_TYPES"
+        body = text.split(marker, 1)[1].split("]", 1)[0]
+        return set(re.findall(r"'([a-z_]+)'", body))
+
+    def test_both_renderers_exist(self) -> None:
+        assert PLATFORM_RENDERER.is_file()
+        assert STATIC_RENDERER.is_file()
+
+    def test_the_two_renderers_cover_the_same_block_types(self) -> None:
+        platform = self._declared_types(PLATFORM_RENDERER)
+        static = self._declared_types(STATIC_RENDERER)
+        assert platform == static, (
+            "block-type drift between the platform and static renderers: "
+            f"platform-only={sorted(platform - static)}, "
+            f"static-only={sorted(static - platform)}"
+        )
+
+    def test_declared_types_match_the_exported_artifact(self) -> None:
+        artifact = _load(CONTENT)
+        used = {
+            b["block_type"]
+            for a in artifact.get("library", [])
+            for b in a["blocks"]
+        }
+        assert used <= self._declared_types(PLATFORM_RENDERER)
+
+    def test_no_library_surface_anywhere_injects_html(self) -> None:
+        """AC-7 / NFR-SAFETY-1: article content is never injected as markup.
+
+        Matches the JSX *attribute* (`dangerouslySetInnerHTML=`) rather than
+        the bare identifier, so a comment explaining why the escape hatch is
+        not used does not read as a use of it.
+        """
+        surfaces = [
+            REPO / "frontend" / "components" / "LsatLibrary.tsx",
+            APP / "components" / "Library.tsx",
+            PLATFORM_RENDERER,
+            STATIC_RENDERER,
+        ]
+        for path in surfaces:
+            assert "dangerouslySetInnerHTML=" not in path.read_text(encoding="utf-8"), (
+                f"{path.name} injects HTML — article content must render as "
+                "typed blocks only"
+            )
+
+
+class TestLibraryNavigation:
+    """The offline site must actually expose the library."""
+
+    def test_library_is_a_destination(self) -> None:
+        page = (APP / "app" / "page.tsx").read_text(encoding="utf-8")
+        assert "id: 'library'" in page, "no Library entry in the static site NAV"
+        assert "<Library" in page, "the Library view is never rendered"
+
+    def test_search_runs_offline(self) -> None:
+        """NFR-OFFLINE-1: the offline search index must not call the network."""
+        text = (APP / "lib" / "search.ts").read_text(encoding="utf-8")
+        assert "fetch(" not in text
+        assert "XMLHttpRequest" not in text
+
+    def test_library_shortcuts_are_documented(self) -> None:
+        help_text = (APP / "components" / "ShortcutHelp.tsx").read_text(
+            encoding="utf-8"
+        )
+        assert "Knowledge library" in help_text, (
+            "the library's bindings are undiscoverable in the ? sheet"
+        )

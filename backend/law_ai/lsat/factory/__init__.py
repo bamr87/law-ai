@@ -38,6 +38,7 @@ from law_ai.lsat.factory.executors import (
     Executor,
     ExecutorUnavailable,
     OllamaExecutor,
+    SynthExecutor,
     RawBatch,
 )
 from law_ai.lsat.factory.intake import (
@@ -87,6 +88,7 @@ __all__ = [
     "ModelTier",
     "OllamaExecutor",
     "RawBatch",
+    "SynthExecutor",
     "all_archetypes",
     "archetypes_for",
     "build_manifest",

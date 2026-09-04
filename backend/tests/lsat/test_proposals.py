@@ -388,3 +388,142 @@ class TestGuideProposals:
 
         with pytest.raises(ValidationError):
             proposals.promote_guide_to_bank(pid)
+
+
+# ---------------------------------------------------------------------------
+# Library promotion (spec 048 T-042: FR-16, AC-10)
+# ---------------------------------------------------------------------------
+
+_SANDBOX_ARTICLE = """---
+id: sandbox-note
+title: Sandbox Note
+kind: technique
+level: core
+sections: [LR]
+summary: A promoted sandbox article.
+concepts: []
+prerequisites: []
+related: []
+tags: []
+status: draft
+last_reviewed: 2026-09-03
+revision: 1
+references: []
+---
+
+## One
+
+Body text.
+
+## Two
+
+More body.
+
+> [!example] Worked example
+> An instance.
+
+## Key takeaways
+
+- a takeaway
+"""
+
+
+class TestPromoteLibraryArticle:
+    """`promote_library_article` is the only path that writes to the library.
+
+    Rides on the module's autouse sandbox, which already redirects
+    ``bank.DATA_DIR`` at a tmp copy — this only adds the ``library/``
+    subdirectory and drops the library caches around each test.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _library_dir(self, monkeypatch: pytest.MonkeyPatch) -> Any:
+        from law_ai.lsat.services import bank as bank_mod
+        from law_ai.lsat.services import library as lib
+
+        directory = bank_mod.DATA_DIR / "library"
+        directory.mkdir(parents=True, exist_ok=True)
+        lib.reset_library_caches()
+        yield directory
+        lib.reset_library_caches()
+
+    def _proposal(self, markdown: str, article_id: str = "sandbox-note") -> str:
+        from law_ai.lsat.services import proposals
+
+        return proposals.record_proposal(
+            {"article_id": article_id, "markdown": markdown},
+            agent_trace_id="trace-1",
+            model="test/model",
+            confidence=0.6,
+            proposal_kind="library_article",
+        )
+
+    def test_promotion_writes_the_article_and_it_loads(
+        self, _library_dir: Path
+    ) -> None:
+        from law_ai.lsat.services import proposals
+        from law_ai.lsat.services.library import load_library
+
+        pid = self._proposal(_SANDBOX_ARTICLE)
+        row = proposals.promote_library_article(pid, reviewer="tester")
+        assert row["status"] == "approved"
+        assert (_library_dir / "sandbox-note.md").is_file()
+        assert "sandbox-note" in load_library()
+
+    def test_an_invalid_draft_is_rejected_before_it_reaches_disk(
+        self, _library_dir: Path
+    ) -> None:
+        from law_ai.lsat.services import proposals
+
+        pid = self._proposal(
+            _SANDBOX_ARTICLE.replace("## Key takeaways", "## Wrapping up")
+        )
+        with pytest.raises(ValueError, match="failed library validation"):
+            proposals.promote_library_article(pid)
+        assert list(_library_dir.glob("*.md")) == []
+
+    def test_a_draft_that_breaks_the_library_is_rolled_back(
+        self, _library_dir: Path
+    ) -> None:
+        """Per-file parsing cannot see a dangling cross-reference; the reload can."""
+        from law_ai.lsat.services import proposals
+
+        pid = self._proposal(
+            _SANDBOX_ARTICLE.replace("Body text.", "See [[article:nowhere]].")
+        )
+        with pytest.raises(ValueError, match="rolled back"):
+            proposals.promote_library_article(pid)
+        assert list(_library_dir.glob("*.md")) == []
+
+    def test_a_question_draft_cannot_be_promoted_here(self, _library_dir: Path) -> None:
+        from law_ai.lsat.services import proposals
+
+        pid = proposals.record_proposal(
+            {"section": "LR"},
+            agent_trace_id="t",
+            model="m",
+            confidence=0.5,
+            proposal_kind="question",
+        )
+        with pytest.raises(ValueError, match="only 'library_article' drafts"):
+            proposals.promote_library_article(pid)
+
+    def test_a_review_finding_is_never_promoted(self, _library_dir: Path) -> None:
+        """`library_finding` rows are read and closed by a human, not written."""
+        from law_ai.lsat.services import proposals
+
+        pid = proposals.record_proposal(
+            {"article_id": "sandbox-note", "findings": []},
+            agent_trace_id="t",
+            model="m",
+            confidence=0.5,
+            proposal_kind="library_finding",
+        )
+        with pytest.raises(ValueError, match="only 'library_article' drafts"):
+            proposals.promote_library_article(pid)
+
+    def test_unknown_proposal_raises(self, _library_dir: Path) -> None:
+        from law_ai.lsat.services import proposals
+
+        with pytest.raises(KeyError):
+            proposals.promote_library_article("prop-doesnotexist")
