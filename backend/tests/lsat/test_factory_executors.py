@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
 
-from law_ai.core import claude_code
+from law_ai.core import claude_code, llm, xai_oauth
+from law_ai.core.llm.base import LLMUnavailableError
 from law_ai.lsat.factory.config import FactoryConfig
 from law_ai.lsat.factory.coverage import GenerationTarget
 from law_ai.lsat.factory.executors import (
@@ -17,6 +20,7 @@ from law_ai.lsat.factory.executors import (
     DraftFileExecutor,
     ExecutionError,
     ExecutorUnavailable,
+    XaiExecutor,
     _parse_payload,
 )
 from law_ai.lsat.factory.manifest import GenerationJob
@@ -113,6 +117,68 @@ class TestClaudeCodeExecutor:
         assert fake.await_args is not None
         assert fake.await_args.kwargs["response_schema"] is None
         assert "passage" in batch.payload
+
+
+class TestXaiExecutor:
+    """Spec 050: the factory can generate on the xAI tier.
+
+    The Claude executor calls its transport directly; this one goes through
+    ``law_ai.core.llm`` with the chain pinned to a single provider, which keeps
+    the run just as attributable while staying inside the constitution §4
+    choke point.
+    """
+
+    def test_refuses_without_a_credential(self, tmp_path, settings) -> None:
+        settings.XAI_CREDENTIALS_PATH = str(tmp_path / "missing.json")
+        settings.XAI_ACCESS_TOKEN = ""
+        settings.XAI_REFRESH_TOKEN = ""
+        with pytest.raises(ExecutorUnavailable, match=r"xai-login|XAI_REFRESH_TOKEN"):
+            XaiExecutor(FactoryConfig())
+
+    @pytest.mark.asyncio
+    async def test_pins_the_chain_to_xai_only(
+        self, tmp_path, settings, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A silent fall-through to Claude would make the bank unattributable."""
+        settings.XAI_CREDENTIALS_PATH = str(tmp_path / "creds.json")
+        xai_oauth.save_credentials(
+            xai_oauth.Credentials(access="a", refresh="r", expires_at=time.time() + 999)
+        )
+        captured: dict[str, Any] = {}
+
+        async def fake_aroute(request):
+            captured["providers"] = request.providers
+            captured["schema"] = request.response_schema
+            return SimpleNamespace(
+                text=json.dumps({"drafts": [_DRAFT]}),
+                model_label="xai/grok-4.6",
+                provider="xai",
+            )
+
+        monkeypatch.setattr(llm, "aroute", fake_aroute)
+        batch = await XaiExecutor(FactoryConfig()).execute(_job())
+
+        assert captured["providers"] == ("xai",)
+        assert captured["schema"] is not None  # items mode pins the schema
+        assert batch.model_label == "xai/grok-4.6"
+        assert batch.payload["drafts"][0]["correct"] == "B"
+
+    @pytest.mark.asyncio
+    async def test_chain_failure_becomes_an_execution_error(
+        self, tmp_path, settings, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """One dead job must not abort the whole manifest run."""
+        settings.XAI_CREDENTIALS_PATH = str(tmp_path / "creds.json")
+        xai_oauth.save_credentials(
+            xai_oauth.Credentials(access="a", refresh="r", expires_at=time.time() + 999)
+        )
+
+        async def boom(request):
+            raise LLMUnavailableError("xai is down")
+
+        monkeypatch.setattr(llm, "aroute", boom)
+        with pytest.raises(ExecutionError, match="xAI unavailable"):
+            await XaiExecutor(FactoryConfig()).execute(_job())
 
 
 class TestDraftFileExecutor:

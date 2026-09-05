@@ -98,7 +98,7 @@ ORDER BY last_seen DESC;
 
 ## LLM provider credentials
 
-Runtime model calls route through the ordered chain in `LLM_PROVIDER_CHAIN` (default `claude_code,anthropic_api,ollama`), implemented in `law_ai.core.llm`. The two Claude tiers share one transport, `law_ai.core.claude_code`, with two independent credentials:
+Runtime model calls route through the ordered chain in `LLM_PROVIDER_CHAIN` (default `claude_code,anthropic_api,xai,ollama`), implemented in `law_ai.core.llm`. The two Claude tiers share one transport, `law_ai.core.claude_code`, with two independent credentials:
 
 - **`CLAUDE_CODE_OAUTH_TOKEN`** — a Claude subscription token minted with `claude setup-token`, sent as `Authorization: Bearer <token>` plus the `anthropic-beta: oauth-2025-04-20` header. Tried first.
 - **`ANTHROPIC_API_KEY`** — a standard Anthropic API key, sent as `x-api-key`. Tried second, when the OAuth tier is unset or fails.

@@ -26,11 +26,13 @@ env = environ.Env(
     FALLBACK_MODEL=(str, "mistral:7b-instruct-q4_K_M"),
     OLLAMA_DEFAULT_MODEL=(str, "mistral:7b-instruct-q4_K_M"),
     OLLAMA_REQUEST_TIMEOUT_S=(float, 120.0),
-    # Ordered LLM provider chain (spec 034). Tried left to right; the first
-    # provider that is configured and answers serves the request. Claude is the
-    # product-runtime default (constitution §1, amended 2026-08-11) with the
-    # Anthropic API key and then local Ollama as fallbacks.
-    LLM_PROVIDER_CHAIN=(str, "claude_code,anthropic_api,ollama"),
+    # Ordered LLM provider chain (spec 034, extended by spec 050). Tried left to
+    # right; the first provider that is configured and answers serves the
+    # request. Claude is the product-runtime default (constitution §1, amended
+    # 2026-08-11), then xAI Grok (amended 2026-09-04), then local Ollama. The
+    # xAI tier is inert until an operator runs `make xai-login`, so this default
+    # changes nothing for a deployment that has not authorised it.
+    LLM_PROVIDER_CHAIN=(str, "claude_code,anthropic_api,xai,ollama"),
     # Legacy single-provider pin for the LSAT surface; the chain above is the
     # real selector. Empty = follow the chain.
     LSAT_LLM_PROVIDER=(str, ""),
@@ -49,6 +51,25 @@ env = environ.Env(
     CLAUDE_CODE_REQUEST_TIMEOUT_S=(float, 60.0),
     # Retry attempts for transient Anthropic errors (429/5xx/529 overloaded).
     CLAUDE_CODE_MAX_RETRIES=(int, 3),
+    # xAI Grok — chain tier 3 (spec 050, constitution §1 as amended 2026-09-04).
+    # Auth is a SuperGrok / X Premium+ subscription OAuth token acquired with
+    # `make xai-login`; there is no API-key tier. The credentials file rotates
+    # on every refresh, so it is written (not just read) at runtime — the path
+    # is relative to the process cwd like AUDIT_PATH (/app in Docker).
+    XAI_CREDENTIALS_PATH=(str, ".xai/credentials.json"),
+    # Optional seed for deployments that inject tokens instead of logging in.
+    XAI_ACCESS_TOKEN=(str, ""),
+    XAI_REFRESH_TOKEN=(str, ""),
+    XAI_AUTH_BASE_URL=(str, "https://auth.x.ai"),
+    XAI_BASE_URL=(str, "https://api.x.ai/v1"),
+    XAI_MODEL=(str, "grok-4.6"),
+    XAI_MAX_TOKENS=(int, 8192),
+    # Grok is a reasoning model and is materially slower than Claude on the
+    # work this product does: a full IRAC analysis measured 56-103s live, so
+    # the 60s that suits the Claude tiers guarantees a timeout here. Measured
+    # 2026-09-05 against grok-4.6 (spec 050).
+    XAI_REQUEST_TIMEOUT_S=(float, 240.0),
+    XAI_MAX_RETRIES=(int, 3),
     # LSAT content factory (spec 024). Artifacts dir is relative to BASE_DIR
     # (/app inside Docker = ./backend on host), like AUTONOMY_DIGEST_DIR.
     LSAT_FACTORY_DIR=(str, "var/lsat_factory"),
@@ -136,6 +157,15 @@ CLAUDE_CODE_MAX_TOKENS: int = env.int("CLAUDE_CODE_MAX_TOKENS")
 CLAUDE_EFFORT: str = env("CLAUDE_EFFORT")
 CLAUDE_CODE_REQUEST_TIMEOUT_S: float = env.float("CLAUDE_CODE_REQUEST_TIMEOUT_S")
 CLAUDE_CODE_MAX_RETRIES: int = env.int("CLAUDE_CODE_MAX_RETRIES")
+XAI_CREDENTIALS_PATH: str = env("XAI_CREDENTIALS_PATH")
+XAI_ACCESS_TOKEN: str = env("XAI_ACCESS_TOKEN")
+XAI_REFRESH_TOKEN: str = env("XAI_REFRESH_TOKEN")
+XAI_AUTH_BASE_URL: str = env("XAI_AUTH_BASE_URL")
+XAI_BASE_URL: str = env("XAI_BASE_URL")
+XAI_MODEL: str = env("XAI_MODEL")
+XAI_MAX_TOKENS: int = env.int("XAI_MAX_TOKENS")
+XAI_REQUEST_TIMEOUT_S: float = env.float("XAI_REQUEST_TIMEOUT_S")
+XAI_MAX_RETRIES: int = env.int("XAI_MAX_RETRIES")
 
 # LSAT content factory (spec 024) — see law_ai.lsat.factory.config.
 LSAT_FACTORY_DIR: str = env("LSAT_FACTORY_DIR")

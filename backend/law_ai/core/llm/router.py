@@ -47,7 +47,10 @@ from law_ai.core.settings_proxy import settings_proxy as settings
 logger = logging.getLogger("law_ai.core.llm.router")
 
 #: Chain used when ``LLM_PROVIDER_CHAIN`` is unset or parses to nothing.
-DEFAULT_CHAIN: tuple[str, ...] = ("claude_code", "anthropic_api", "ollama")
+#: xAI joined as tier 3 in spec 050 (constitution §1, amended 2026-09-04); it is
+#: inert until an operator authorises it, so an unconfigured deployment behaves
+#: exactly as it did before.
+DEFAULT_CHAIN: tuple[str, ...] = ("claude_code", "anthropic_api", "xai", "ollama")
 
 
 def chain_names(override: Sequence[str] | None = None) -> tuple[str, ...]:

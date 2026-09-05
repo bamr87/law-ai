@@ -28,9 +28,9 @@ Repo-level instructions for Copilot live in [.github/copilot-instructions.md](.g
 | Layer | Tool | Why |
 |-------|------|-----|
 | Dev orchestration (writing/refactoring this repo) | GitHub Copilot or Claude Code | Sanctioned surfaces; shared custom instructions + prompt templates; CI integration |
-| Product runtime (what the deployed app uses to answer legal questions) | `LLM_PROVIDER_CHAIN` — Claude (OAuth), then Claude (API key), then Ollama | Constitution §1 as amended: highest-capability answers by default, local-first still reachable by pinning `ollama` |
+| Product runtime (what the deployed app uses to answer legal questions) | `LLM_PROVIDER_CHAIN` — Claude (OAuth), then Claude (API key), then xAI Grok (subscription OAuth, `make xai-login`), then Ollama | Constitution §1 as amended: highest-capability answers by default, a hosted fallback before the quality cliff, local-first still reachable by pinning `ollama` |
 
-**Privileged data caveat**: the Claude tiers send prompt text to a third party. Deployments handling data under a confidentiality obligation that forbids third-party processing must pin `LLM_PROVIDER_CHAIN=ollama` (constitution §1).
+**Privileged data caveat**: the Claude tiers — and the xAI tier, once it ships — send prompt text to a third party. `LLM_PROVIDER_CHAIN=ollama` is the only configuration that keeps prompt text on the host, and deployments handling data under a confidentiality obligation that forbids third-party processing must pin it (constitution §1).
 
 
 **Jurisprudential Stance** — *the premise underneath the principles*
@@ -43,7 +43,7 @@ Full argument in [docs/philosophy.md](docs/philosophy.md); enforced as [docs/con
 
 **Core Principles for All Code Changes**
 - **Open Source First**: Every *code* dependency must be MIT/AGPL compatible — no proprietary libraries in the codebase itself. This governs what we build with, not which model answers end users: the product-runtime LLM vendor is a separate, independently governed decision (see Development Orchestration above and constitution §1), and its default tier is the closed-source Claude API.
-- **Privacy by Choice**: local DBs always; the LLM tier is operator-selected via `LLM_PROVIDER_CHAIN`. Claude is the default for answer quality; a fully local run (`LLM_PROVIDER_CHAIN=ollama`) stays a first-class, supported configuration.
+- **Privacy by Choice**: local DBs always; the LLM tier is operator-selected via `LLM_PROVIDER_CHAIN`. Claude is the default for answer quality, with xAI Grok as a further hosted tier before the local fallback; a fully local run (`LLM_PROVIDER_CHAIN=ollama`) stays a first-class, supported configuration.
 - **Auditability**: Every agent decision, prompt, tool call, and retrieval must be logged with full provenance.
 - **Legal Accuracy**: All outputs must be grounded in retrieved sources + citations. Use LegalBench for regression testing.
 - **Power-Aware Output**: Attribute every legal proposition to its issuing authority (court, jurisdiction, date, binding/persuasive). Never present citation counts or centrality as a correctness score, and never let "no results in our corpus" read as "no such law." Label asymmetry; do not filter by it.
@@ -287,7 +287,7 @@ When responding to user requests:
 - End with **"Ready for review. LegalBench delta: +X% on relevant tasks"** when applicable
 
 **Never**:
-- Bypass `LLM_PROVIDER_CHAIN` to call a provider transport directly, or add a third-party model vendor (OpenAI, Gemini, …) to the product runtime without a constitution §1 amendment
+- Bypass `LLM_PROVIDER_CHAIN` to call a provider transport directly, or add a model vendor beyond Anthropic / xAI / Ollama (OpenAI, Gemini, …) to the product runtime without a constitution §1 amendment
 - Bypass the provenance/audit layer
 - Create nodes without `source` and `confidence` properties
 - Ignore HITL requirements for ingestion or high-stakes analysis

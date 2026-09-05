@@ -6,7 +6,7 @@ No gate exists anymore. Earlier revisions of this module required an explicit `L
 
 ## How Claude fits into the runtime chain
 
-[`law_ai.core.llm.router`](../backend/law_ai/core/llm/router.py) reads `LLM_PROVIDER_CHAIN` (default `claude_code,anthropic_api,ollama`) and tries each named provider in order until one is configured and answers:
+[`law_ai.core.llm.router`](../backend/law_ai/core/llm/router.py) reads `LLM_PROVIDER_CHAIN` (default `claude_code,anthropic_api,xai,ollama`) and tries each named provider in order until one is configured and answers:
 
 1. `claude_code` — Claude via `CLAUDE_CODE_OAUTH_TOKEN` (this module, `oauth` mode).
 2. `anthropic_api` — Claude via `ANTHROPIC_API_KEY` (this module, `api_key` mode).
@@ -99,7 +99,7 @@ All three agents — LSAT tutor, LSAT content author, and `LegalAnalyst` — rou
 
 | Env var | Default | Purpose |
 |---|---|---|
-| `LLM_PROVIDER_CHAIN` | `claude_code,anthropic_api,ollama` | Ordered provider list; pin to `ollama` for local-only. |
+| `LLM_PROVIDER_CHAIN` | `claude_code,anthropic_api,xai,ollama` | Ordered provider list; pin to `ollama` for local-only. The `xai` tier is documented in [specs/050-xai-oauth-provider](../specs/050-xai-oauth-provider/spec.md). |
 | `CLAUDE_CODE_OAUTH_TOKEN` | _(unset)_ | OAuth token from `claude setup-token` (tier 1). |
 | `ANTHROPIC_API_KEY` | _(unset)_ | Standard API key (tier 2). |
 | `CLAUDE_CODE_MODEL` | `claude-opus-5` | Model id for both Claude tiers. |

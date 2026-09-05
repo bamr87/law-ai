@@ -39,6 +39,18 @@ CLAUDE_CODE_OAUTH_TOKEN = ""
 ANTHROPIC_API_KEY = ""
 OLLAMA_BASE_URL = "http://127.0.0.1:1"  # closed port — fails instantly
 
+# Spec 050: the same lockout for the xAI tier. Blanking the seed tokens is not
+# enough on its own — a developer who has run `make xai-login` has a live
+# credentials *file*, and the store falls back to it. Point the path at a
+# location that cannot exist so `is_configured()` is False in the suite no
+# matter what is on the developer's disk, and aim both base URLs at a closed
+# port so even a test that forces a credential in cannot reach xAI.
+XAI_ACCESS_TOKEN = ""
+XAI_REFRESH_TOKEN = ""
+XAI_CREDENTIALS_PATH = "/nonexistent/law-ai-test/xai-credentials.json"
+XAI_AUTH_BASE_URL = "http://127.0.0.1:1"
+XAI_BASE_URL = "http://127.0.0.1:1/v1"
+
 # Throttling is effectively disabled for the suite (BL-20260810-11): the API
 # tests fire many requests at the LLM-scoped endpoints in well under a
 # minute and would otherwise trip the production 20/min limit. Tests that

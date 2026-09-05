@@ -82,17 +82,20 @@ Django 5 (ASGI/daphne) + DRF + Channels + Celery backend; Next.js 15 frontend; N
 Every model call in the product flows through [backend/law_ai/core/llm/](backend/law_ai/core/llm/):
 
 ```
-LLM_PROVIDER_CHAIN = claude_code, anthropic_api, ollama   (default order)
+LLM_PROVIDER_CHAIN = claude_code, anthropic_api, xai, ollama   (default order)
 
  1. claude_code    Claude via subscription OAuth token (`claude setup-token`)
  2. anthropic_api  Claude via ANTHROPIC_API_KEY
- 3. ollama         local open-weights model (last resort; also the privacy pin)
+ 3. xai            Grok via subscription OAuth token (`make xai-login`;
+                   SuperGrok / X Premium+, no API-key mode). Spec 050.
+ 4. ollama         local open-weights model (last resort; also the privacy pin)
 ```
 
 - The router tries tiers in order; unconfigured tiers are skipped with a recorded reason, failing tiers fall through, and total failure raises `LLMUnavailableError` so callers degrade to an **honest refusal** (§13) — never a fabricated answer.
 - Every routed call writes an `llm_call` provenance event (provider, model, latency, full attempt chain) through `core.provenance` (§4/§5). A fallback is always visible in the audit trail.
 - `LLM_PROVIDER_CHAIN=ollama` pins the runtime fully local — the required configuration for privileged client data.
-- Only Anthropic and Ollama are sanctioned providers; adding a third vendor requires a constitution amendment.
+- Anthropic, xAI and Ollama are the sanctioned providers (xAI added 2026-09-04, [ADR 0007](docs/adr/0007-xai-runtime-provider.md), implemented in spec 050); adding any further vendor requires a constitution amendment.
+- Two of the four default tiers send prompt text to a third party. `LLM_PROVIDER_CHAIN=ollama` is the only zero-egress configuration.
 - The LegalBench eval harness deliberately bypasses the chain and stays pinned to Ollama: a benchmark that silently changes model measures nothing.
 
 ### 4.2 LangChain + LangGraph as core stack (spec 035)
@@ -189,7 +192,7 @@ Re-run this table after any change to the provider chain, the LangChain layer, t
 
 - **New feature** → append a `BL-*` item, then `/specify` (or let `/evolve` pick it up).
 - **New agent** → [prompts/new-agent.md](prompts/new-agent.md) scaffolds the `run()` contract, Pydantic output, provenance logging, and test.
-- **New LLM provider** → constitution amendment first (§1 names Anthropic and Ollama only), then a provider class in [core/llm/providers.py](backend/law_ai/core/llm/providers.py) registered in `PROVIDER_REGISTRY`, then a `settings/test.py` blank so the suite can't reach it.
+- **New LLM provider** → constitution amendment first (§1 names Anthropic, xAI and Ollama only), then a provider class in [core/llm/providers.py](backend/law_ai/core/llm/providers.py) registered in `PROVIDER_REGISTRY`, then a `settings/test.py` blank so the suite can't reach it.
 - **Raising autonomy** → constitution amendment (§5/§10–12), not a config change.
 - **This guide** → update it in the same PR as the mechanism it describes; CI's structural suite checks doc/spec consistency, and a guide that drifts from the gates is worse than no guide.
 

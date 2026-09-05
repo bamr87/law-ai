@@ -5,6 +5,7 @@
 	evolve-audit lint-specs ux-audit ui-sync \
 	autonomy-run autonomy-status autonomy-stop \
 	local-ai-up local-ai-down local-ai-pull local-ai-verify local-ai-health validate-claude-code \
+	xai-login validate-xai \
 	lsat-author-demo lsat-export lsat-static-build lsat-library-audit lsat-library-review \
 	lsat-synth-list lsat-synth-preview lsat-synth-generate lsat-synth-sweep \
 	legal-analyst-demo host-setup host-test clean
@@ -67,6 +68,8 @@ help:
 	@echo "  make local-ai-pull     - Pull default Ollama models"
 	@echo "  make local-ai-health   - Hit /api/agents/health/local-ai"
 	@echo "  make validate-claude-code - Validate the dev-time Claude Code OAuth integration (LSAT)"
+	@echo "  make xai-login       - Authorise the xAI Grok tier (subscription OAuth, device code)"
+	@echo "  make validate-xai    - Validate the xAI Grok tier end-to-end"
 	@echo "  make lsat-author-demo  - Run the LSATContentAuthor agent live (via Claude Code when opted in)"
 	@echo "  make lsat-library-audit  - Deterministic knowledge-library health report (no LLM)"
 	@echo "  make lsat-library-review - HITL-gated LSATLibrarian review pass over the library"
@@ -254,6 +257,15 @@ local-ai-health:
 
 validate-claude-code:
 	$(RUN_BACKEND_FULL) python manage.py validate_claude_code
+
+# xAI Grok tier (spec 050). Device-code flow by default, which is the one that
+# works from inside a container; ARGS='--loopback' is for a host with a browser
+# and ARGS='--status' reports the stored credential without changing it.
+xai-login:
+	$(RUN_BACKEND_FULL) python manage.py xai_login $(ARGS)
+
+validate-xai:
+	$(RUN_BACKEND_FULL) python manage.py validate_xai $(ARGS)
 
 # Regenerate the static LSAT practice-site artifact (spec 025): export the
 # bank in Docker, then copy it into the committed site directory that GitHub

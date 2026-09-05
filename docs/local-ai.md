@@ -2,7 +2,7 @@
 
 > Companion to [specs/010-local-ai-stack/](../specs/010-local-ai-stack/). This page is the operator-facing manual for running Law AI's LangGraph + Ollama + Phoenix substrate locally.
 
-**LLM selection note.** This page documents the local *infrastructure* (Neo4j, Postgres, Redis, Ollama, Phoenix). It does not, by itself, determine which model answers a request: `LegalWorkflow`'s LLM is `ChatProviderChain`, which tries the constitution-§1 provider chain — Claude (OAuth), then Claude (API key), then Ollama — in that order (`LLM_PROVIDER_CHAIN`, default `claude_code,anthropic_api,ollama`). Bringing this stack up does **not** make Ollama the default; it makes Ollama *available* as the chain's last tier. To guarantee every request stays local (required for data under a confidentiality obligation that forbids third-party processing — see [docs/constitution.md](constitution.md) §1), pin the chain explicitly:
+**LLM selection note.** This page documents the local *infrastructure* (Neo4j, Postgres, Redis, Ollama, Phoenix). It does not, by itself, determine which model answers a request: `LegalWorkflow`'s LLM is `ChatProviderChain`, which tries the constitution-§1 provider chain — Claude (OAuth), then Claude (API key), then xAI Grok, then Ollama — in that order (`LLM_PROVIDER_CHAIN`, default `claude_code,anthropic_api,xai,ollama`). Bringing this stack up does **not** make Ollama the default; it makes Ollama *available* as the chain's last tier. To guarantee every request stays local (required for data under a confidentiality obligation that forbids third-party processing — see [docs/constitution.md](constitution.md) §1), pin the chain explicitly:
 
 ```dotenv
 LLM_PROVIDER_CHAIN=ollama
@@ -75,7 +75,7 @@ The response includes `phoenix_trace_url` and `langgraph_thread_id` — paste ei
 
 | Variable | Default | Notes |
 |----------|---------|-------|
-| `LLM_PROVIDER_CHAIN` | `claude_code,anthropic_api,ollama` | Ordered LLM provider list `ChatProviderChain` reads (constitution §1). Pin to `ollama` to force local-only. See [docs/claude-code-dev-llm.md](claude-code-dev-llm.md) for the Claude tiers. |
+| `LLM_PROVIDER_CHAIN` | `claude_code,anthropic_api,xai,ollama` | Ordered LLM provider list `ChatProviderChain` reads (constitution §1). Pin to `ollama` to force local-only. See [docs/claude-code-dev-llm.md](claude-code-dev-llm.md) for the Claude tiers. |
 | `OLLAMA_BASE_URL` | `http://ollama:11434` | Override to `http://localhost:11434` for host runs. |
 | `OLLAMA_DEFAULT_MODEL` | `mistral:7b-instruct-q4_K_M` | Bump to `llama3.1:8b-instruct-q4_K_M` on 64 GB+. |
 | `OLLAMA_REQUEST_TIMEOUT_S` | `120.0` | Raise for very long contexts. |
