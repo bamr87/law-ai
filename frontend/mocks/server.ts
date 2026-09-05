@@ -62,10 +62,17 @@ function publicGuideView(spoilers: boolean) {
   }
 }
 
-/** Concept catalog fixture (spec 045 FR-12): note the external reference —
- *  the UI must resolve concepts WITHOUT ever rendering that link. */
+/**
+ * Concept catalog fixture (spec 045 FR-12): note the external reference — the
+ * post-grade block must resolve concepts WITHOUT ever rendering that link.
+ *
+ * Three concepts, not one, because the catalog is now a browsable view of the
+ * library: `main-conclusion` is tagged on a fixture article (so `taught_in`
+ * has something to resolve), `necessary-assumption` is not, and the pair
+ * cross-reference each other through `see_also`.
+ */
 export const lsatConceptsFixture = {
-  count: 1,
+  count: 3,
   concepts: [
     {
       id: 'modus-tollens',
@@ -76,6 +83,26 @@ export const lsatConceptsFixture = {
       examples: ['If P then Q. Not Q. Therefore not P.'],
       see_also: [],
       references: [{ title: 'SEP — Logic', url: 'https://plato.stanford.edu/' }],
+    },
+    {
+      id: 'main-conclusion',
+      name: 'Main Conclusion',
+      sections: ['LR'],
+      summary: 'The claim the author wants you to accept.',
+      detail: 'Everything else in the stimulus is there to support it.',
+      examples: ['Therefore, X.'],
+      see_also: ['necessary-assumption'],
+      references: [],
+    },
+    {
+      id: 'necessary-assumption',
+      name: 'Necessary Assumption',
+      sections: ['LR'],
+      summary: 'A premise the argument cannot survive without.',
+      detail: null,
+      examples: [],
+      see_also: ['main-conclusion', 'retired-concept'],
+      references: [],
     },
   ],
 }
@@ -367,6 +394,27 @@ export const handlers = [
   // Mock LSAT concept catalog (spec 045 FR-12 references).
   http.get('http://localhost:8000/api/lsat/concepts', () =>
     HttpResponse.json(lsatConceptsFixture),
+  ),
+
+  // One concept plus both of its inverses. `taught_in` is derived from the
+  // library index rather than hard-coded, so a fixture article gaining or
+  // losing a concept tag stays consistent here for free.
+  http.get(
+    'http://localhost:8000/api/lsat/concepts/:conceptId',
+    ({ params }) => {
+      const id = params.conceptId as string
+      const concept = lsatConceptsFixture.concepts.find((c) => c.id === id)
+      if (!concept) {
+        return HttpResponse.json({ detail: 'concept not found' }, { status: 404 })
+      }
+      return HttpResponse.json({
+        concept,
+        used_in_questions: id === 'main-conclusion' ? ['lr-001', 'lr-002'] : [],
+        taught_in: lsatLibraryIndexFixture.articles
+          .filter((a) => (a.concepts as string[]).includes(id))
+          .map((a) => a.id),
+      })
+    },
   ),
 
   // Mock LSAT solve-guide endpoint (spec 045): lg-001 has a guide, every

@@ -8,7 +8,7 @@ import {
   subscribeSettings,
   upsertSettingValue,
 } from '@/lib/scope/store'
-import type { SettingDefinition } from '@/lib/scope/types'
+import type { Effective, SettingDefinition } from '@/lib/scope/types'
 import { useCallback, useSyncExternalStore } from 'react'
 
 /**
@@ -20,13 +20,19 @@ import { useCallback, useSyncExternalStore } from 'react'
  * preference changes from somewhere else on the page — which is exactly what
  * the timer's own "Move" menu does.
  */
-export function useSetting<T>(def: SettingDefinition<T>): [T, (v: T) => void] {
+export function useSetting<T>(
+  def: SettingDefinition<T>,
+): [T, (v: T) => void, Effective<T>] {
   const rows = useSyncExternalStore(
     subscribeSettings,
     listSettingValues,
     getSettingsServerSnapshot,
   )
-  const value = resolveEffective(def, [INSTANCE_SCOPE], rows, false).value
+  // The third element says where the value came from. The shell needs it to
+  // tell "the user chose closed" from "nothing is stored" — a stored layout
+  // choice wins over a route's default, an absent one does not.
+  const effective = resolveEffective(def, [INSTANCE_SCOPE], rows, false)
+  const value = effective.value
 
   const set = useCallback(
     (next: T) => {
@@ -40,5 +46,5 @@ export function useSetting<T>(def: SettingDefinition<T>): [T, (v: T) => void] {
     [def.key],
   )
 
-  return [value, set]
+  return [value, set, effective]
 }

@@ -2,9 +2,13 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import SectionTimerWidget from '@/components/lsat/SectionTimerWidget'
 import { resolveDock } from '@/lib/shell/docks'
-import { deleteSettingValue } from '@/lib/scope/store'
+import { deleteSettingValue, upsertSettingValue } from '@/lib/scope/store'
 import { INSTANCE_SCOPE } from '@/lib/scope/instance'
-import { lsatTimerDock, type Dock } from '@/lib/settings/catalog'
+import {
+  lsatTimerDock,
+  lsatTimerVisible,
+  type Dock,
+} from '@/lib/settings/catalog'
 import {
   __resetTimerStore,
   getTimerSnapshot,
@@ -21,6 +25,7 @@ beforeEach(() => {
   __resetTimerStore()
   window.localStorage.clear()
   deleteSettingValue(INSTANCE_SCOPE.id, lsatTimerDock.key)
+  deleteSettingValue(INSTANCE_SCOPE.id, lsatTimerVisible.key)
 })
 afterEach(() => {
   __resetTimerStore()
@@ -124,8 +129,8 @@ describe('timer store', () => {
   })
 })
 
-function renderDocks(onOwnRoute = true) {
-  return render(
+function zones(onOwnRoute = true) {
+  return (
     <>
       <div data-testid="zone-sidebar">
         <SectionTimerWidget
@@ -148,8 +153,12 @@ function renderDocks(onOwnRoute = true) {
           openDocks={ALL}
         />
       </div>
-    </>,
+    </>
   )
+}
+
+function renderDocks(onOwnRoute = true) {
+  return render(zones(onOwnRoute))
 }
 
 describe('SectionTimerWidget docking', () => {
@@ -221,5 +230,34 @@ describe('SectionTimerWidget docking', () => {
     expect(
       screen.getByRole('menuitemradio', { name: /Inspector/ }),
     ).toHaveAttribute('aria-checked', 'false')
+  })
+})
+
+describe('SectionTimerWidget visibility (spec 050)', () => {
+  it('hides an idle clock by preference but never a running one', () => {
+    upsertSettingValue({
+      scopeId: INSTANCE_SCOPE.id,
+      key: lsatTimerVisible.key,
+      value: false,
+      locked: false,
+    })
+    const { rerender } = renderDocks()
+    expect(screen.queryByTestId('lsat-timer')).not.toBeInTheDocument()
+
+    act(() => {
+      startTimer()
+    })
+    rerender(zones())
+    // Spec 043 FR-5 still holds: a section in progress shows its clock.
+    expect(screen.getByTestId('lsat-timer')).toBeInTheDocument()
+  })
+
+  it('offers the same choice from its own menu', () => {
+    renderDocks()
+    fireEvent.click(screen.getByRole('button', { name: /move the section timer/i }))
+    const row = screen.getByRole('menuitemcheckbox', { name: /Show when idle/ })
+    expect(row).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(row)
+    expect(screen.queryByTestId('lsat-timer')).not.toBeInTheDocument()
   })
 })

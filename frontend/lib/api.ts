@@ -498,8 +498,24 @@ export function fetchLsatConcepts(section?: LsatSection) {
   )
 }
 
+/**
+ * One concept plus both of its inverses.
+ *
+ * `taught_in` is the concept → article direction of spec 048 FR-7 (article
+ * ids, resolved against the library index client-side). The API has returned
+ * it since the library shipped; the catalog is the first surface to render
+ * it, which is the point of living inside the library rather than beside it.
+ */
+export interface LsatConceptDetail {
+  concept: LsatConcept
+  /** Bank question ids tagged with this concept — capped at 10 server-side. */
+  used_in_questions: string[]
+  /** Ids of library articles that teach it, by tag or by inline reference. */
+  taught_in: string[]
+}
+
 export function fetchLsatConcept(id: string) {
-  return getJson<{ concept: LsatConcept; used_in_questions: string[] }>(
+  return getJson<LsatConceptDetail>(
     `/api/lsat/concepts/${encodeURIComponent(id)}`,
   )
 }

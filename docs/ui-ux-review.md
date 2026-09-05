@@ -100,6 +100,31 @@ Ask each pass: **who does this design advantage?** A more confident-looking UI a
 
 ---
 
+## Visual evidence
+
+**Every change to `frontend/` or `lsat-static/` that a user could see ships with screenshots**, in the PR and — for anything worth keeping — committed under `docs/images/`. This is a gate, not a courtesy. `ux_audit.py` proves a `<nav>` has a name; it cannot tell you the heading is clipped, the column is a third of the monitor, or the page still advertises a tab that was removed. Only a picture does, and every one of those was caught by a screenshot rather than by a passing suite.
+
+**What to capture**, at minimum:
+
+- **The changed surface** at a normal laptop width (1440px is the house default).
+- **Before and after**, side by side, whenever the change is layout, spacing, density or width. "It looks better" is not reviewable; two images are.
+- **Each state you added or changed** — a new view, an empty state, an error state, a loading state. A view switcher means one shot per view.
+- **The width the change is about.** A responsive change proven only at 1440px is not proven; capture the breakpoint it targets.
+
+**How to capture it.** The app needs an API, so `make dev` is the straightforward route. When the backend cannot run, a stub that serves the real exported corpus (`lsat-static/content.json`) behind `NEXT_PUBLIC_API_BASE_URL` gives faithful content without inventing fixtures — screenshots of lorem ipsum hide exactly the overflow and truncation bugs you are looking for. Then drive Chromium with Playwright (pre-installed; pin `executablePath` if the browser build is older than the `@playwright/test` in `package.json`).
+
+Three things that make a screenshot honest rather than decorative:
+
+- Park `<main>` at `scrollTop = 0` before capturing. The shell is `h-dvh overflow-hidden` with one scroller, so a shot taken mid-scroll hides the sticky header and toolbar the change is usually about.
+- Hide the dev overlay (`nextjs-portal { display: none }`). It is not part of the product.
+- Use `reducedMotion: 'reduce'` and `await document.fonts.ready`, so the image is deterministic rather than whatever the animation happened to be doing.
+
+**Naming.** `docs/images/<area>-<what>.png`, e.g. `lsat-library-concepts-view.png`, `lsat-library-width-before.png`. Reference them from the PR body with `https://raw.githubusercontent.com/bamr87/law-ai/<branch>/docs/images/<file>` — a repo-relative path does not render in a PR description.
+
+**Look at what you captured before you attach it.** A screenshot you did not open is not evidence, and reading them is where the misses turn up.
+
+---
+
 ## The mechanical contract
 
 `scripts/ux_audit.py` enforces the structural rules — stdlib only, no container, runs in CI's Spec Drift Gate (which has no path filter, so it covers static-site-only changes too) and in `make lint-specs`.

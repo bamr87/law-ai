@@ -16,7 +16,14 @@ export interface ShellCommand {
   hint?: string
   /** Navigation commands carry an href; action commands carry an action. */
   href?: string
-  action?: 'toggle-sidebar' | 'toggle-inspector' | 'toggle-help' | 'back-to-top'
+  action?:
+    | 'toggle-sidebar'
+    | 'toggle-inspector'
+    | 'toggle-rail'
+    | 'toggle-breadcrumbs'
+    | 'reset-layout'
+    | 'toggle-help'
+    | 'back-to-top'
   /** Matched at label strength — the names a user would actually type. */
   aliases?: string[]
   /** Matched at substring strength only — supporting prose. */
@@ -75,6 +82,30 @@ export function buildCommands(modules: AppModule[]): ShellCommand[] {
       hint: ']',
       action: 'toggle-inspector',
       keywords: ['panel', 'details', 'collapse'],
+      rank: 2,
+    },
+    {
+      id: 'act:toggle-rail',
+      label: 'Toggle navigation rail',
+      group: 'Layout',
+      action: 'toggle-rail',
+      keywords: ['rail', 'nav', 'hide', 'show', 'modules'],
+      rank: 2,
+    },
+    {
+      id: 'act:toggle-breadcrumbs',
+      label: 'Toggle breadcrumb trail',
+      group: 'Layout',
+      action: 'toggle-breadcrumbs',
+      keywords: ['masthead', 'trail', 'hide', 'show'],
+      rank: 2,
+    },
+    {
+      id: 'act:reset-layout',
+      label: 'Reset layout to defaults',
+      group: 'Layout',
+      action: 'reset-layout',
+      keywords: ['panels', 'rail', 'default', 'restore'],
       rank: 2,
     },
     {

@@ -260,16 +260,17 @@ describe('LsatLab', () => {
     expect(screen.getByText(/Review sampling bias/)).toBeInTheDocument()
   })
 
-  it('lists concepts in the catalog', async () => {
+  // The concept catalog is no longer a tab here — it moved into the library,
+  // next to the articles that teach those concepts. Covered by
+  // `__tests__/components/lsat/LsatLibrary.test.tsx`.
+  it('offers no concept catalog tab, and points at the library instead', async () => {
     render(<LsatLab />)
-    fireEvent.click(screen.getByRole('tab', { name: /^Concepts$/ }))
-    await waitFor(() =>
-      expect(screen.getByText('Modus tollens')).toBeInTheDocument(),
-    )
-    fireEvent.click(screen.getByText('Modus tollens'))
     expect(
-      screen.getByText(/Deeper detail about modus tollens/),
-    ).toBeInTheDocument()
+      screen.queryByRole('tab', { name: /^Concepts$/ }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /knowledge library/i }),
+    ).toHaveAttribute('href', '/lsat/library')
   })
 
   it('renders RC passage + questions side by side', async () => {

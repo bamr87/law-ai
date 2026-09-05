@@ -1,6 +1,8 @@
 'use client'
 
+import { pageHeaderMode } from '@/lib/settings/catalog'
 import { useShellScroll } from './ShellScroll'
+import { useSetting } from './useSetting'
 import type { ReactNode } from 'react'
 
 /**
@@ -20,10 +22,26 @@ import type { ReactNode } from 'react'
 
 export type PageWidth = 'wide' | 'roomy' | 'regular' | 'narrow'
 
+/**
+ * Page measures, in two or three steps.
+ *
+ * The shell eats a fixed 36.5rem of the viewport whenever both side panels
+ * are docked (rail 3.5 + sidebar 14 + inspector 19), so below roughly 1900px
+ * the caps here never bind — the content column is already narrower than
+ * `max-w-7xl` and the page fills it. The extra steps are what a large
+ * monitor actually gets: at 2560px a `wide` page now runs to 1760px of the
+ * 1976px available instead of stopping at 1280 and leaving a 350px dead
+ * gutter down each side.
+ *
+ * Reading-first widths grow far less, and `narrow` not at all: a settings
+ * form at 1600px is not a better settings form. Anything whose job is prose
+ * caps its own measure inside the container (the library reader holds ~70ch)
+ * — the page frame's job is to stop wasting the screen, not to stretch text.
+ */
 const WIDTH: Record<PageWidth, string> = {
-  wide: 'max-w-7xl',
-  roomy: 'max-w-6xl',
-  regular: 'max-w-5xl',
+  wide: 'max-w-7xl min-[1800px]:max-w-[96rem] min-[2200px]:max-w-[110rem]',
+  roomy: 'max-w-6xl min-[1800px]:max-w-[84rem] min-[2200px]:max-w-[96rem]',
+  regular: 'max-w-5xl min-[1800px]:max-w-6xl',
   narrow: 'max-w-3xl',
 }
 
@@ -56,24 +74,29 @@ export default function PageLayout({
   children: ReactNode
 }) {
   const { scrolled } = useShellScroll()
+  // `ui.page_header` (spec 050): "compact" keeps the header in its condensed
+  // form from the first paint. The sticky stack already measures the
+  // condensed height, so nothing below the header has to know.
+  const [headerMode] = useSetting(pageHeaderMode)
+  const condensed = scrolled || headerMode === 'compact'
   const tone = ACCENT[accent]
-  const container = `mx-auto w-full ${WIDTH[width]} px-4 sm:px-6`
+  const container = `mx-auto w-full ${WIDTH[width]} px-4 sm:px-6 min-[1800px]:px-10`
 
   return (
     <div className="flex min-h-full flex-col">
       <header
         data-testid="page-header"
-        data-condensed={scrolled ? 'true' : 'false'}
+        data-condensed={condensed ? 'true' : 'false'}
         className={
           'shell-sticky-header shell-motion border-b bg-slate-950/85 backdrop-blur transition-[padding,border-color] duration-200 ' +
-          (scrolled ? 'border-slate-800' : 'border-transparent')
+          (condensed ? 'border-slate-800' : 'border-transparent')
         }
       >
         <div
           className={
             container +
             ' flex items-center justify-between gap-4 transition-[padding] duration-200 ' +
-            (scrolled ? 'py-2.5' : 'py-6')
+            (condensed ? 'py-2.5' : 'py-6')
           }
         >
           <div className="min-w-0">
@@ -83,11 +106,11 @@ export default function PageLayout({
               className={
                 'flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] transition-all duration-200 ' +
                 tone.text +
-                (scrolled
+                (condensed
                   ? ' h-0 overflow-hidden opacity-0'
                   : ' mb-1.5 opacity-100')
               }
-              aria-hidden={scrolled}
+              aria-hidden={condensed}
             >
               <span
                 className={'inline-block h-1.5 w-1.5 rounded-full ' + tone.dot}
@@ -97,7 +120,7 @@ export default function PageLayout({
             <h1
               className={
                 'truncate font-bold tracking-tight text-slate-100 transition-all duration-200 ' +
-                (scrolled ? 'text-base' : 'text-3xl sm:text-4xl')
+                (condensed ? 'text-base' : 'text-3xl sm:text-4xl')
               }
             >
               {title}
@@ -106,11 +129,11 @@ export default function PageLayout({
               <div
                 className={
                   'max-w-3xl text-sm leading-relaxed text-slate-400 transition-all duration-200 ' +
-                  (scrolled
+                  (condensed
                     ? 'h-0 overflow-hidden opacity-0'
                     : 'mt-2 opacity-100')
                 }
-                aria-hidden={scrolled}
+                aria-hidden={condensed}
               >
                 {description}
               </div>
@@ -151,7 +174,11 @@ export function StickyToolbar({
       aria-label={label}
       data-testid="sticky-toolbar"
       className={
-        'shell-sticky-sub -mx-4 border-y border-slate-800/80 bg-slate-950/85 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 ' +
+        // Negative margins that match the container's gutter at every step of
+        // it: the bar bleeds to the edge of the page frame, so a gutter that
+        // grows on a large monitor has to grow here too or the toolbar stops
+        // short of its own page.
+        'shell-sticky-sub -mx-4 border-y border-slate-800/80 bg-slate-950/85 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 min-[1800px]:-mx-10 min-[1800px]:px-10 ' +
         className
       }
     >

@@ -2,27 +2,40 @@
 
 import { breadcrumbsForPath } from '@/lib/modules/catalog'
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import ScopeSwitcher from './ScopeSwitcher'
 
 /**
  * The one bar that is always on screen. It is a flex row of the shell, not a
  * `position: sticky` element inside a scrolling document — so it cannot be
  * scrolled away even momentarily on a rubber-band overscroll.
+ *
+ * Its own parts are preferences too (spec 050): the breadcrumb trail and the
+ * scope switcher can be hidden. The home link, the palette button, and the
+ * layout controls cannot — they are how a user gets out of a layout they do
+ * not like.
  */
 export default function Masthead({
   pathname,
+  breadcrumbs = true,
+  scopeSwitcher = true,
   sidebarOpen,
   inspectorOpen,
   onToggleSidebar,
   onToggleInspector,
   onOpenPalette,
+  layoutMenu,
 }: {
   pathname: string
+  breadcrumbs?: boolean
+  scopeSwitcher?: boolean
   sidebarOpen: boolean
   inspectorOpen: boolean
   onToggleSidebar: () => void
   onToggleInspector: () => void
   onOpenPalette: () => void
+  /** The Layout menu, rendered beside the panel toggles. */
+  layoutMenu?: ReactNode
 }) {
   const crumbs = breadcrumbsForPath(pathname)
 
@@ -47,6 +60,7 @@ export default function Masthead({
 
       {/* Where am I. Hidden on the narrowest viewports, where the compact tab
        * bar already names the section and horizontal room is scarce. */}
+      {breadcrumbs && (
       <nav aria-label="Breadcrumb" className="hidden min-w-0 flex-1 md:block">
         <ol className="flex items-center gap-1.5 text-xs text-slate-500">
           {crumbs.map((c) => (
@@ -70,15 +84,18 @@ export default function Masthead({
           ))}
         </ol>
       </nav>
+      )}
 
       {/* Spacer so the control cluster stays right-aligned once the
-       * breadcrumb trail is hidden. */}
-      <div className="min-w-0 flex-1 md:hidden" />
+       * breadcrumb trail is hidden — by the viewport or by preference. */}
+      <div className={'min-w-0 flex-1' + (breadcrumbs ? ' md:hidden' : '')} />
 
       <div className="flex shrink-0 items-center gap-2">
-        <div className="hidden lg:block">
-          <ScopeSwitcher />
-        </div>
+        {scopeSwitcher && (
+          <div className="hidden lg:block">
+            <ScopeSwitcher />
+          </div>
+        )}
 
         <button
           type="button"
@@ -91,6 +108,8 @@ export default function Masthead({
             ⌘K
           </kbd>
         </button>
+
+        {layoutMenu}
 
         <PanelToggle
           controls="shell-sidebar"

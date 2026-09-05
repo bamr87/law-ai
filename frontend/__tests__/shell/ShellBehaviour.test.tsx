@@ -11,6 +11,10 @@ import CommandPalette from '@/components/shell/CommandPalette'
 import PageLayout, { StickyToolbar } from '@/components/shell/PageLayout'
 import ShortcutsHelp from '@/components/shell/ShortcutsHelp'
 import { ShellScrollProvider } from '@/components/shell/ShellScroll'
+import { INSTANCE_SCOPE } from '@/lib/scope/instance'
+import { upsertSettingValue } from '@/lib/scope/store'
+import { breadcrumbsVisible, pageHeaderMode } from '@/lib/settings/catalog'
+import { resetLayout } from '@/lib/shell/layout'
 
 const nav = {
   path: '/agents',
@@ -55,6 +59,8 @@ beforeEach(() => {
   nav.push.mockClear()
   window.localStorage.clear()
   window.sessionStorage.clear()
+  // The settings store caches its snapshot; clearing storage is not enough.
+  resetLayout()
 })
 
 describe('shell scroll contract (spec 041 FR-1)', () => {
@@ -160,6 +166,35 @@ describe('masthead (spec 041 FR-5)', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     expect(document.getElementById('shell-sidebar')).not.toBeNull()
   })
+
+  it('drops the breadcrumb trail by preference but never the way home', async () => {
+    upsertSettingValue({
+      scopeId: INSTANCE_SCOPE.id,
+      key: breadcrumbsVisible.key,
+      value: false,
+      locked: false,
+    })
+    renderShell()
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('navigation', { name: 'Breadcrumb' }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(screen.getByRole('link', { name: 'Law AI home' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Layout' })).toBeInTheDocument()
+  })
+
+  it('toggles the rail from the palette (spec 050)', async () => {
+    renderShell()
+    expect(screen.getByTestId('nav-rail')).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'k', metaKey: true })
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'navigation rail' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() =>
+      expect(screen.queryByTestId('nav-rail')).not.toBeInTheDocument(),
+    )
+  })
 })
 
 describe('PageLayout (spec 041 FR-2)', () => {
@@ -199,6 +234,33 @@ describe('PageLayout (spec 041 FR-2)', () => {
       'true',
     )
     // The title survives condensing; it is the whole point of the bar.
+    expect(
+      screen.getByRole('heading', { name: 'Agent Operations' }),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps the header condensed from the first paint on "compact" (spec 050)', async () => {
+    upsertSettingValue({
+      scopeId: INSTANCE_SCOPE.id,
+      key: pageHeaderMode.key,
+      value: 'compact',
+      locked: false,
+    })
+    render(
+      <ShellScrollProvider
+        value={{ scrolled: false, scrollTop: 0, scrollToTop: () => {} }}
+      >
+        <PageLayout eyebrow="Ops" title="Agent Operations" description="Body">
+          <p>content</p>
+        </PageLayout>
+      </ShellScrollProvider>,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('page-header')).toHaveAttribute(
+        'data-condensed',
+        'true',
+      ),
+    )
     expect(
       screen.getByRole('heading', { name: 'Agent Operations' }),
     ).toBeInTheDocument()

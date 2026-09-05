@@ -30,9 +30,46 @@ This file is the source of truth for **what the UI is today**. The spec is the s
 
 The document does not scroll. `AppShell` is `h-dvh overflow-hidden`, so the masthead, rail, sidebar, inspector, and compact tab bar are flex children of a viewport-height row and are structurally incapable of scrolling away. Exactly one element scrolls page content — `<main class="shell-scroll">` — and panels that need to scroll use `.shell-panel-scroll`. Inside main, `PageLayout` pins a page header that condenses once the region scrolls, and `StickyToolbar` parks control bars directly beneath it against `--shell-pageheader-h`. Scroll position is remembered per route in `sessionStorage`, because a locked viewport means the browser's own restoration has nothing to restore. Below `md`, the sidebar and inspector become focus-trapped drawers and the rail becomes a bottom tab bar.
 
+### Layout preferences (spec 050)
+
+What the shell shows, and where, is the user's to choose. Every part of the chrome except the UPL disclaimer footer has a preference behind it — an ordinary setting in the instance-scoped store, so it persists like the timer's dock does, appears on `/settings` under a "Layout" heading, and can be reset as a group. The masthead's **Layout** menu is the one place to do it: `menuitemcheckbox` rows show or hide the navigation rail, the contextual sidebar, the inspector, the breadcrumb trail, the scope switcher, the back-to-top button, and — on their own routes — the section timer and the library's contents rail and outline; `menuitemradio` groups put each side panel on either edge (the sidebar is always outermost, the inspector always innermost) and pick whether the page header condenses on scroll or is always compact; one `menuitem` resets everything. The palette mirrors the rail and breadcrumb toggles and the reset. Panel toggles now write the preference as well as the URL, so a collapsed panel stays collapsed across a navigation; the URL still wins for the page it names, and a stored inspector choice beats the UPL-route auto-open. A running section clock is never hidden by anything (spec 043 FR-5). Defaults reproduce the previous fixed layout, so a fresh profile cannot tell the feature shipped.
+
+| | |
+|---|---|
+| The Layout menu, open on the library — module rows appear only on their routes | ![Layout menu](images/shell-layout-menu.png) |
+| A moved and thinned shell: rail and breadcrumbs hidden, sidebar docked on the right beside the inspector, page header compact | ![Moved and hidden](images/shell-layout-moved.png) |
+| `/settings`, grouped by key prefix — every preference editable with provenance | ![Settings, Layout group](images/shell-settings-layout.png) |
+
+The default layout, for comparison, is the first capture in the entry-template table above.
+
 **Feature parity (spec 046).** The published site renders the same solve guides, hint carousel, five diagram types, and post-grade concept references as the lab — the guides are hand-authored static data, so they ship in `content.json` and are locked client-side until a question is graded. What it will never have, because a serverless site cannot: the AI tutor, answer cross-check, HITL authoring, the validation report, and server-side stats. `ux_audit.py` R13 fails the build when a `frontend/components/lsat/` component gains no counterpart and no `static-parity: none — <reason>`.
 
-`lsat-static/` is a single-page tab router (`Overview`, `LR`, `RC`, `LG`, `Concepts`, `Stats`) driven by a HITL-approved `content.json`. It is **not** on the `make dev` compose network.
+`lsat-static/` is a single-page tab router (`Overview`, `LR`, `RC`, `LG`, `Writing`, `Library`, `Stats`) driven by a HITL-approved `content.json`. It is **not** on the `make dev` compose network. `Library` carries two views, `Articles` and `Concepts` — the catalog was its own destination until the concepts merge moved it next to the material that teaches it, on both products.
+
+### The library, both products
+
+| | |
+|---|---|
+| Platform, Concepts view — a concept naming the articles that teach it | ![Concepts view](images/lsat-library-concepts-view.png) |
+| Platform, an article's glossary — each name opens that concept in the catalog | ![Article glossary](images/lsat-library-article-glossary.png) |
+| Practice lab, with no concept catalog of its own | ![LSAT Lab tabs](images/lsat-lab-without-concepts-tab.png) |
+| Offline site, same two views | ![Static library](images/lsat-static-library-concepts.png) |
+
+Page measures at 2560px, before and after the large-screen step (`PageLayout`'s `WIDTH` map). The shell's docked chrome eats 36.5rem, so the caps only bind past ~1900px — and there they were leaving ~350px of dead gutter down each side:
+
+| Before | After |
+|---|---|
+| ![2560px before](images/lsat-library-width-before.png) | ![2560px after](images/lsat-library-width-after.png) |
+
+The entry template ([lsat-library.md](lsat-library.md) § "The entry template") at 1440px with both panels docked. Before, an article and a concept were two unrelated shapes — different heading levels, a different section order (`Concepts in this article` → `References` → `Related` on one, `Where to learn it` → `See also` → `References` on the other), a drill link on one and a drill button on the other — and the reader was squeezed to a ~230px column because the grid keyed off the viewport rather than the region it actually sits in. After, both readers render the same header → actions → body → cross-references sequence with fixed `#entry-*` anchors, one read-state store, and a grid driven by container queries:
+
+| | Before | After |
+|---|---|---|
+| Article header | ![article header before](images/lsat-library-entry-article-header-before.png) | ![article header after](images/lsat-library-entry-article-header.png) |
+| Article cross-references | ![article sections before](images/lsat-library-entry-article-sections-before.png) | ![article sections after](images/lsat-library-entry-article-sections.png) |
+| Concept header | ![concept before](images/lsat-library-entry-concept-before.png) | ![concept after](images/lsat-library-entry-concept.png) |
+| Concept cross-references | ![concept sections before](images/lsat-library-entry-concept-sections-before.png) | ![concept sections after](images/lsat-library-entry-concept-sections.png) |
+| Offline site, concept card | ![static concept before](images/lsat-static-library-concepts-before.png) | ![static concept after](images/lsat-static-library-concepts.png) |
 
 ---
 
@@ -89,7 +126,8 @@ Shared hex coincidence: both canvases are `#0f172a` / `#e2e8f0`. That is the ent
 | `AnalysisStudio.tsx` | Screen | IRAC form, live WS trace, coverage envelope, citation verified badges, UPL banner. |
 | `KnowledgeGraph.tsx` | Screen | Case search + neighborhood fetch. |
 | `GraphViewer.tsx` | Widget | Cytoscape canvas. Open: [BL-20260803-03](../BACKLOG.md) (do not label centrality as correctness). |
-| `LsatLab.tsx` | Screen (~1611 lines) | God component: overview, LR/RC/LG drills, concepts, stats, HITL authoring. Parallel to `lsat-static/`, not shared. |
+| `LsatLab.tsx` | Screen (~1750 lines) | God component: overview, LR/RC/LG drills, stats, HITL authoring. The concept catalog left for the library. Parallel to `lsat-static/`, not shared. |
+| `LsatLibrary.tsx` | Screen | The study surface: `Articles` and `Concepts` as two views of one shelf, both rendered through one entry template (header · actions · body · concepts/articles · related · reading tracks · references · provenance, fixed anchors, shared card component) — see [docs/lsat-library.md](lsat-library.md) § "The entry template". Same three-column grid, same rail row shape, one read-state store for both. |
 | `lsat/SectionTimerWidget.tsx` | Docked widget | The section clock. Docks in the sidebar (default), inspector, or in page — moved from its own menu or `/settings`, persisted per instance. A view over `lib/lsat/timerStore.ts`, so moving it never resets a running section; it follows you to other modules while a section is in progress and survives a reload with the elapsed time counted (spec 043). |
 | `LsatTimer.tsx` | Primitive | Now only `QuestionElapsed` (per-question clock). Section timing moved to the docked widget above; the file is a leftover name (BL-20260831-15). |
 
@@ -104,7 +142,8 @@ Shared hex coincidence: both canvases are `#0f172a` / `#e2e8f0`. That is the ent
 | `QuestionCard.tsx` | Primitive-ish | Accessible radiogroup (roving tabindex, arrows, Space/Enter). The strongest a11y implementation in the repo. |
 | `PassagePanel.tsx` | Widget | Sticky RC/LG passage. |
 | `SectionTimer.tsx` | Primitive | Warn / urgent / expired states via semantic classes. |
-| `Concepts.tsx` | Screen | Filterable concept catalog. |
+| `Library.tsx` | Screen | Reading surface, two views: contents rail + block-rendered article, or the concept catalog. |
+| `Concepts.tsx` | View | Filterable concept catalog, rendered by `Library.tsx` as its Concepts view. |
 | `Stats.tsx` | Screen | `localStorage` attempt history. |
 
 ---

@@ -42,3 +42,10 @@ export function withPanel(
 export function panelHref(pathname: string, query: string): string {
   return query ? `${pathname}?${query}` : pathname
 }
+
+/** Next query string with both panel params dropped — the URL half of a layout reset. */
+export function withoutPanels(params: URLSearchParams): string {
+  const next = new URLSearchParams(params.toString())
+  for (const key of PANEL_KEYS) next.delete(key)
+  return next.toString()
+}
