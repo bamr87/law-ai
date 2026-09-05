@@ -187,6 +187,10 @@ law-ai/                                 # workspace root (GitHub slug stays `law
 - All graph interactions must go through typed API routes (no direct Neo4j from client)
 - UI tokens and primitives live under `frontend/ui/` once spec 039 lands. Until then, do not add shadcn or a second palette — read [docs/ui-ux.md](docs/ui-ux.md) first.
 
+### Markdown
+- **One paragraph per line.** Do not hard-wrap prose. The [markdown-oneline](.github/workflows/markdown-oneline.yml) workflow unwraps soft-wrapped paragraphs and pushes the repair back onto the PR branch, so a hard-wrapped paragraph costs a bot commit and a head SHA that CI did not run against. Tables, code fences, front-matter and HTML are left alone.
+- Fix locally before pushing with `python3 tools/unwrap-prose.py --write`.
+
 ### Neo4j / Graph
 - Use Cypher for all relationship-heavy queries
 - Always return provenance (`source_url`, `ingest_timestamp`, `agent_version`)
