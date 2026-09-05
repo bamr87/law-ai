@@ -23,7 +23,7 @@
 - **BL-20260904-06** — *test-gap, med* — Nothing asserts the loopback PKCE path end-to-end; `_serve_one_callback` and the state-mismatch rejection are untested because they need a real socket. Only the authorize-URL builder is covered.
 - **BL-20260904-07** — *doc-gap, low* — `docs/claude-code-dev-llm.md` is now a misnomer: it documents the whole chain including a non-Claude tier. Rename to `docs/llm-provider-chain.md` and fix the inbound links.
 - **BL-20260904-08** — *feature, low* — The xAI tier has no streaming path, same gap as the Claude tiers (`BL-20260811-20`). The WebSocket consumer still cannot stream from any hosted provider.
-- **BL-20260905-01** — *tech-debt, med* — Live-measured xAI latency is 5-10x the Claude tiers (IRAC 56-103s), which forced `XAI_REQUEST_TIMEOUT_S=240`. Fine for a fallback, slow for interactive paths; evaluate a faster Grok model or ship streaming.
-- **BL-20260905-02** — *test-gap, med* — `core.llm.__init__` re-exported every provider constant except `XAI`/`XaiProvider`; no test asserts the package surface matches `PROVIDER_REGISTRY`.
+- **BL-20260905-11** — *tech-debt, med* — Live-measured xAI latency is 5-10x the Claude tiers (IRAC 56-103s), which forced `XAI_REQUEST_TIMEOUT_S=240`. Fine for a fallback, slow for interactive paths; evaluate a faster Grok model or ship streaming.
+- **BL-20260905-12** — *test-gap, med* — `core.llm.__init__` re-exported every provider constant except `XAI`/`XaiProvider`; no test asserts the package surface matches `PROVIDER_REGISTRY`.
 
 Mirrored into [BACKLOG.md](../../BACKLOG.md). Live end-to-end verification against a real SuperGrok subscription ran 2026-09-05; two defects it caught (the 60s timeout and the read-timeout retry) are fixed in this spec.
