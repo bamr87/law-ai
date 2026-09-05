@@ -34,6 +34,21 @@ The document does not scroll. `AppShell` is `h-dvh overflow-hidden`, so the mast
 
 `lsat-static/` is a single-page tab router (`Overview`, `LR`, `RC`, `LG`, `Writing`, `Library`, `Stats`) driven by a HITL-approved `content.json`. It is **not** on the `make dev` compose network. `Library` carries two views, `Articles` and `Concepts` — the catalog was its own destination until the concepts merge moved it next to the material that teaches it, on both products.
 
+### The library, both products
+
+| | |
+|---|---|
+| Platform, Concepts view — a concept naming the articles that teach it | ![Concepts view](images/lsat-library-concepts-view.png) |
+| Platform, an article's glossary — each name opens that concept in the catalog | ![Article glossary](images/lsat-library-article-glossary.png) |
+| Practice lab, with no concept catalog of its own | ![LSAT Lab tabs](images/lsat-lab-without-concepts-tab.png) |
+| Offline site, same two views | ![Static library](images/lsat-static-library-concepts.png) |
+
+Page measures at 2560px, before and after the large-screen step (`PageLayout`'s `WIDTH` map). The shell's docked chrome eats 36.5rem, so the caps only bind past ~1900px — and there they were leaving ~350px of dead gutter down each side:
+
+| Before | After |
+|---|---|
+| ![2560px before](images/lsat-library-width-before.png) | ![2560px after](images/lsat-library-width-after.png) |
+
 ---
 
 ## What actually ships (vs what docs claim)
