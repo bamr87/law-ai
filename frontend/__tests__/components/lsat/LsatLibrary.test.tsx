@@ -291,7 +291,7 @@ describe('LsatLibrary', () => {
  * is a second view of this library, so the vocabulary and the material that
  * teaches it live on one screen.
  */
-describe('LsatLibrary — layout preferences (spec 050)', () => {
+describe('LsatLibrary — layout preferences (spec 051)', () => {
   beforeEach(() => {
     window.localStorage.clear()
     window.history.replaceState(null, '', '/')

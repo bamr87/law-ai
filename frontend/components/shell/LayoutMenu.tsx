@@ -48,7 +48,7 @@ const HEADER_LABEL: Record<PageHeaderMode, string> = {
 
 /**
  * The masthead's Layout menu: one place to show, hide, and move the shell's
- * parts (spec 050).
+ * parts (spec 051).
  *
  * A menu rather than drag handles, for the reason the timer's dock picker is
  * one (spec 043 NG1): a `role="menu"` of `menuitemcheckbox` and

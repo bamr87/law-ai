@@ -1,6 +1,6 @@
 # Spec: Layout preferences — show, hide, and move the shell's parts
 
-- **ID**: 050-layout-preferences
+- **ID**: 051-layout-preferences
 - **Status**: shipped
 - **Owner**: @bamr87
 - **Created**: 2026-09-05

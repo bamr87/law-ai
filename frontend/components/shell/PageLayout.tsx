@@ -74,7 +74,7 @@ export default function PageLayout({
   children: ReactNode
 }) {
   const { scrolled } = useShellScroll()
-  // `ui.page_header` (spec 050): "compact" keeps the header in its condensed
+  // `ui.page_header` (spec 051): "compact" keeps the header in its condensed
   // form from the first paint. The sticky stack already measures the
   // condensed height, so nothing below the header has to know.
   const [headerMode] = useSetting(pageHeaderMode)
