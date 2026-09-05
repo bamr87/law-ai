@@ -1,7 +1,24 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { breadcrumbsForPath, MODULE_CATALOG } from '@/lib/modules/catalog'
 import { buildCommands, filterCommands } from '@/lib/shell/commands'
-import { panelHref, panelOpen, withPanel } from '@/lib/shell/panels'
+import { INSTANCE_SCOPE } from '@/lib/scope/instance'
+import { listSettingValues, upsertSettingValue } from '@/lib/scope/store'
+import {
+  railVisible,
+  SETTING_CATALOG,
+  sidebarSide,
+} from '@/lib/settings/catalog'
+import {
+  LAYOUT_SETTINGS,
+  resetLayout,
+  resolvePanelSides,
+} from '@/lib/shell/layout'
+import {
+  panelHref,
+  panelOpen,
+  withoutPanels,
+  withPanel,
+} from '@/lib/shell/panels'
 import {
   clearScrollMemory,
   recallScroll,
@@ -135,6 +152,9 @@ describe('command palette model', () => {
     const actions = commands.filter((c) => c.action).map((c) => c.action)
     expect(actions).toContain('toggle-sidebar')
     expect(actions).toContain('toggle-inspector')
+    expect(actions).toContain('toggle-rail')
+    expect(actions).toContain('toggle-breadcrumbs')
+    expect(actions).toContain('reset-layout')
     expect(actions).toContain('back-to-top')
   })
 
@@ -180,5 +200,56 @@ describe('breadcrumbs', () => {
       label: 'LSAT Lab',
       current: true,
     })
+  })
+})
+
+describe('layout preferences (spec 050)', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+  })
+
+  it('keeps the sidebar outermost and the inspector innermost on either edge', () => {
+    expect(resolvePanelSides({ sidebar: 'left', inspector: 'right' })).toEqual({
+      left: ['sidebar'],
+      right: ['inspector'],
+    })
+    expect(resolvePanelSides({ sidebar: 'right', inspector: 'right' })).toEqual({
+      left: [],
+      right: ['inspector', 'sidebar'],
+    })
+    expect(resolvePanelSides({ sidebar: 'left', inspector: 'left' })).toEqual({
+      left: ['sidebar', 'inspector'],
+      right: [],
+    })
+    expect(resolvePanelSides({ sidebar: 'right', inspector: 'left' })).toEqual({
+      left: ['inspector'],
+      right: ['sidebar'],
+    })
+  })
+
+  it('resets by deleting rows, and only layout rows', () => {
+    const write = (key: string, value: unknown) =>
+      upsertSettingValue({ scopeId: INSTANCE_SCOPE.id, key, value, locked: false })
+    write(railVisible.key, false)
+    write(sidebarSide.key, 'right')
+    write('analysis.hitl_threshold', 0.9)
+    resetLayout()
+    expect(listSettingValues().map((r) => r.key)).toEqual([
+      'analysis.hitl_threshold',
+    ])
+  })
+
+  it('owns every ui.* setting in the catalog', () => {
+    const owned = LAYOUT_SETTINGS.map((d) => d.key)
+    for (const def of SETTING_CATALOG) {
+      if (def.key.startsWith('ui.')) expect(owned).toContain(def.key)
+    }
+  })
+
+  it('drops both panel params from a URL and nothing else', () => {
+    expect(
+      withoutPanels(new URLSearchParams('sidebar=0&inspector=1&concept=x')),
+    ).toBe('concept=x')
+    expect(withoutPanels(new URLSearchParams('sidebar=0'))).toBe('')
   })
 })

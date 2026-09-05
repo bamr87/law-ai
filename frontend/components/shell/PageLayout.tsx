@@ -1,6 +1,8 @@
 'use client'
 
+import { pageHeaderMode } from '@/lib/settings/catalog'
 import { useShellScroll } from './ShellScroll'
+import { useSetting } from './useSetting'
 import type { ReactNode } from 'react'
 
 /**
@@ -72,6 +74,11 @@ export default function PageLayout({
   children: ReactNode
 }) {
   const { scrolled } = useShellScroll()
+  // `ui.page_header` (spec 050): "compact" keeps the header in its condensed
+  // form from the first paint. The sticky stack already measures the
+  // condensed height, so nothing below the header has to know.
+  const [headerMode] = useSetting(pageHeaderMode)
+  const condensed = scrolled || headerMode === 'compact'
   const tone = ACCENT[accent]
   const container = `mx-auto w-full ${WIDTH[width]} px-4 sm:px-6 min-[1800px]:px-10`
 
@@ -79,17 +86,17 @@ export default function PageLayout({
     <div className="flex min-h-full flex-col">
       <header
         data-testid="page-header"
-        data-condensed={scrolled ? 'true' : 'false'}
+        data-condensed={condensed ? 'true' : 'false'}
         className={
           'shell-sticky-header shell-motion border-b bg-slate-950/85 backdrop-blur transition-[padding,border-color] duration-200 ' +
-          (scrolled ? 'border-slate-800' : 'border-transparent')
+          (condensed ? 'border-slate-800' : 'border-transparent')
         }
       >
         <div
           className={
             container +
             ' flex items-center justify-between gap-4 transition-[padding] duration-200 ' +
-            (scrolled ? 'py-2.5' : 'py-6')
+            (condensed ? 'py-2.5' : 'py-6')
           }
         >
           <div className="min-w-0">
@@ -99,11 +106,11 @@ export default function PageLayout({
               className={
                 'flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] transition-all duration-200 ' +
                 tone.text +
-                (scrolled
+                (condensed
                   ? ' h-0 overflow-hidden opacity-0'
                   : ' mb-1.5 opacity-100')
               }
-              aria-hidden={scrolled}
+              aria-hidden={condensed}
             >
               <span
                 className={'inline-block h-1.5 w-1.5 rounded-full ' + tone.dot}
@@ -113,7 +120,7 @@ export default function PageLayout({
             <h1
               className={
                 'truncate font-bold tracking-tight text-slate-100 transition-all duration-200 ' +
-                (scrolled ? 'text-base' : 'text-3xl sm:text-4xl')
+                (condensed ? 'text-base' : 'text-3xl sm:text-4xl')
               }
             >
               {title}
@@ -122,11 +129,11 @@ export default function PageLayout({
               <div
                 className={
                   'max-w-3xl text-sm leading-relaxed text-slate-400 transition-all duration-200 ' +
-                  (scrolled
+                  (condensed
                     ? 'h-0 overflow-hidden opacity-0'
                     : 'mt-2 opacity-100')
                 }
-                aria-hidden={scrolled}
+                aria-hidden={condensed}
               >
                 {description}
               </div>

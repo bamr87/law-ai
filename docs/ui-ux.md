@@ -30,6 +30,18 @@ This file is the source of truth for **what the UI is today**. The spec is the s
 
 The document does not scroll. `AppShell` is `h-dvh overflow-hidden`, so the masthead, rail, sidebar, inspector, and compact tab bar are flex children of a viewport-height row and are structurally incapable of scrolling away. Exactly one element scrolls page content — `<main class="shell-scroll">` — and panels that need to scroll use `.shell-panel-scroll`. Inside main, `PageLayout` pins a page header that condenses once the region scrolls, and `StickyToolbar` parks control bars directly beneath it against `--shell-pageheader-h`. Scroll position is remembered per route in `sessionStorage`, because a locked viewport means the browser's own restoration has nothing to restore. Below `md`, the sidebar and inspector become focus-trapped drawers and the rail becomes a bottom tab bar.
 
+### Layout preferences (spec 050)
+
+What the shell shows, and where, is the user's to choose. Every part of the chrome except the UPL disclaimer footer has a preference behind it — an ordinary setting in the instance-scoped store, so it persists like the timer's dock does, appears on `/settings` under a "Layout" heading, and can be reset as a group. The masthead's **Layout** menu is the one place to do it: `menuitemcheckbox` rows show or hide the navigation rail, the contextual sidebar, the inspector, the breadcrumb trail, the scope switcher, the back-to-top button, and — on their own routes — the section timer and the library's contents rail and outline; `menuitemradio` groups put each side panel on either edge (the sidebar is always outermost, the inspector always innermost) and pick whether the page header condenses on scroll or is always compact; one `menuitem` resets everything. The palette mirrors the rail and breadcrumb toggles and the reset. Panel toggles now write the preference as well as the URL, so a collapsed panel stays collapsed across a navigation; the URL still wins for the page it names, and a stored inspector choice beats the UPL-route auto-open. A running section clock is never hidden by anything (spec 043 FR-5). Defaults reproduce the previous fixed layout, so a fresh profile cannot tell the feature shipped.
+
+| | |
+|---|---|
+| The Layout menu, open on the library — module rows appear only on their routes | ![Layout menu](images/shell-layout-menu.png) |
+| A moved and thinned shell: rail and breadcrumbs hidden, sidebar docked on the right beside the inspector, page header compact | ![Moved and hidden](images/shell-layout-moved.png) |
+| `/settings`, grouped by key prefix — every preference editable with provenance | ![Settings, Layout group](images/shell-settings-layout.png) |
+
+The default layout, for comparison, is the first capture in the entry-template table above.
+
 **Feature parity (spec 046).** The published site renders the same solve guides, hint carousel, five diagram types, and post-grade concept references as the lab — the guides are hand-authored static data, so they ship in `content.json` and are locked client-side until a question is graded. What it will never have, because a serverless site cannot: the AI tutor, answer cross-check, HITL authoring, the validation report, and server-side stats. `ux_audit.py` R13 fails the build when a `frontend/components/lsat/` component gains no counterpart and no `static-parity: none — <reason>`.
 
 `lsat-static/` is a single-page tab router (`Overview`, `LR`, `RC`, `LG`, `Writing`, `Library`, `Stats`) driven by a HITL-approved `content.json`. It is **not** on the `make dev` compose network. `Library` carries two views, `Articles` and `Concepts` — the catalog was its own destination until the concepts merge moved it next to the material that teaches it, on both products.

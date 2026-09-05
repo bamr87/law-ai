@@ -3,13 +3,17 @@
  * NFR-A11Y-1, AC-6, AC-7).
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import LsatLibrary from '@/components/LsatLibrary'
 import BlockRenderer, {
   SUPPORTED_BLOCK_TYPES,
 } from '@/components/lsat/library/BlockRenderer'
 import type { LsatBlock } from '@/lib/api'
+import { INSTANCE_SCOPE } from '@/lib/scope/instance'
+import { upsertSettingValue } from '@/lib/scope/store'
+import { libraryContents, libraryOutline } from '@/lib/settings/catalog'
+import { resetLayout } from '@/lib/shell/layout'
 
 describe('BlockRenderer', () => {
   it('renders every declared block type', () => {
@@ -287,6 +291,44 @@ describe('LsatLibrary', () => {
  * is a second view of this library, so the vocabulary and the material that
  * teaches it live on one screen.
  */
+describe('LsatLibrary — layout preferences (spec 050)', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    window.history.replaceState(null, '', '/')
+  })
+  // The settings store caches its snapshot, so clearing storage is not enough.
+  afterEach(() => resetLayout())
+
+  it('drops the side columns by preference and keeps the contents reachable', async () => {
+    for (const def of [libraryOutline, libraryContents]) {
+      upsertSettingValue({
+        scopeId: INSTANCE_SCOPE.id,
+        key: def.key,
+        value: false,
+        locked: false,
+      })
+    }
+    render(<LsatLibrary />)
+    await waitFor(() => screen.getByRole('heading', { name: 'Argument Anatomy' }))
+
+    expect(
+      screen.queryByRole('navigation', { name: 'On this page' }),
+    ).not.toBeInTheDocument()
+
+    // The rail waits to be asked for, and the disclosure that asks serves
+    // every width now — not only the narrow one.
+    const rail = screen.getByRole('navigation', { name: /library contents/i })
+    expect(rail.className).toContain('hidden')
+    const disclosure = screen.getByRole('button', { name: /Browse contents/ })
+    expect(disclosure.className).not.toContain('@min-[48rem]:hidden')
+    fireEvent.click(disclosure)
+    expect(rail.className).toContain('block')
+    expect(
+      within(rail).getByRole('button', { name: /Argument Anatomy/ }),
+    ).toBeInTheDocument()
+  })
+})
+
 describe('LsatLibrary — concept catalog', () => {
   beforeEach(() => {
     window.localStorage.clear()

@@ -16,7 +16,12 @@ import {
   subscribeTimer,
 } from '@/lib/lsat/timerStore'
 import { resolveDock } from '@/lib/shell/docks'
-import { DOCKS, lsatTimerDock, type Dock } from '@/lib/settings/catalog'
+import {
+  DOCKS,
+  lsatTimerDock,
+  lsatTimerVisible,
+  type Dock,
+} from '@/lib/settings/catalog'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 const DOCK_LABEL: Record<Dock, string> = {
@@ -60,6 +65,7 @@ export default function SectionTimerWidget({
   remainingQuestions?: number
 }) {
   const [preferred, setPreferred] = useSetting(lsatTimerDock)
+  const [shownWhenIdle, setShownWhenIdle] = useSetting(lsatTimerVisible)
   const timer = useLsatTimer()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
@@ -82,8 +88,11 @@ export default function SectionTimerWidget({
 
   // Off the LSAT routes the clock only follows you while a section is
   // actually in progress — otherwise every other module would carry a stopped
-  // 35:00 for no reason.
-  if (!onOwnRoute && !isSectionInProgress(timer)) return null
+  // 35:00 for no reason. The same rule serves `lsat.timer.visible` (spec 050):
+  // a user may hide an idle clock, never a running one.
+  const inProgress = isSectionInProgress(timer)
+  if (!onOwnRoute && !inProgress) return null
+  if (!shownWhenIdle && !inProgress) return null
   if (dock !== resolveDock(preferred, { onOwnRoute, openDocks })) return null
 
   const { remainingSeconds, running, durationSeconds } = timer
@@ -161,6 +170,27 @@ export default function SectionTimerWidget({
                     {d === preferred && <span aria-hidden="true">✓</span>}
                   </button>
                 ))}
+                {/* Hiding is a layout choice like docking, so it lives in the
+                    same menu. It only applies while idle — the clock of a
+                    section in progress is never hidden by anything. */}
+                <button
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={shownWhenIdle}
+                  onClick={() => {
+                    setShownWhenIdle(!shownWhenIdle)
+                    setMenuOpen(false)
+                  }}
+                  className={
+                    'flex w-full items-center justify-between border-t border-slate-800 px-3 py-1.5 text-left text-xs transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-amber-400 ' +
+                    (shownWhenIdle
+                      ? 'text-slate-300 hover:bg-slate-800'
+                      : 'bg-amber-500/10 text-amber-200')
+                  }
+                >
+                  Show when idle
+                  {shownWhenIdle && <span aria-hidden="true">✓</span>}
+                </button>
               </div>
             )}
           </div>

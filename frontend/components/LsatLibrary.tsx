@@ -49,6 +49,8 @@ import {
 import BlockRenderer from '@/components/lsat/library/BlockRenderer'
 import { StickyToolbar } from '@/components/shell/PageLayout'
 import { useRovingTabIndex } from '@/components/shell/useRovingTabIndex'
+import { useSetting } from '@/components/shell/useSetting'
+import { libraryContents, libraryOutline } from '@/lib/settings/catalog'
 import {
   KIND_LABEL,
   KIND_ORDER,
@@ -151,6 +153,8 @@ export default function LsatLibrary() {
   const [sectionFilter, setSectionFilter] = useState<SectionFilter>('all')
   const [trackFilter, setTrackFilter] = useState<string>('')
   const [railOpen, setRailOpen] = useState(false)
+  const [contentsShown] = useSetting(libraryContents)
+  const [outlineShown] = useSetting(libraryOutline)
 
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
   const readerRef = useRef<HTMLDivElement | null>(null)
@@ -508,8 +512,11 @@ export default function LsatLibrary() {
   // leave the prose ~230px. The root below is the container, so the columns
   // follow the width that is actually there — one column under 48rem, the
   // rail from 48rem, the outline from 72rem, and wider gutters from 96rem.
-  const grid =
-    '@min-[48rem]:grid @min-[48rem]:grid-cols-[17rem_minmax(0,1fr)] @min-[48rem]:gap-8 @min-[72rem]:grid-cols-[17rem_minmax(0,1fr)_15rem] @min-[96rem]:grid-cols-[20rem_minmax(0,1fr)_18rem] @min-[96rem]:gap-12'
+  //
+  // Both side columns are preferences (spec 050, `lsat.library.contents` and
+  // `lsat.library.outline`). The grid is picked from the four combinations
+  // rather than composed, because Tailwind only ships classes it can read.
+  const grid = libraryGrid(contentsShown, outlineShown)
 
   const railCount =
     view === 'articles' ? (index?.length ?? 0) : (concepts?.length ?? 0)
@@ -530,18 +537,30 @@ export default function LsatLibrary() {
         }
       >
         {/* ---------------------------------------------------------- rail */}
+        {/* With the rail hidden by preference, the narrow-width disclosure
+            serves every width and both it and the rail span the whole row,
+            so an opened rail sits above the reader rather than in a column
+            the grid no longer has. */}
         <button
           type="button"
           onClick={() => setRailOpen((v) => !v)}
           aria-expanded={railOpen}
-          className="mb-4 w-full rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-2 text-left text-sm text-slate-300 @min-[48rem]:hidden"
+          className={
+            'mb-4 w-full rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-2 text-left text-sm text-slate-300 ' +
+            (contentsShown ? '@min-[48rem]:hidden' : 'col-span-full')
+          }
         >
           {railOpen ? 'Hide' : 'Browse'} contents · {railCount} {railNoun}
         </button>
 
         <nav
           aria-label="Library contents"
-          className={`${railOpen ? 'block' : 'hidden'} shell-sticky-aside shell-panel-scroll max-h-[calc(100dvh-var(--shell-masthead-h)-var(--shell-pageheader-h)-var(--shell-toolbar-h)-3rem)] mb-6 @min-[48rem]:mb-0 @min-[48rem]:block @min-[48rem]:pr-2`}
+          className={
+            `${railOpen ? 'block' : 'hidden'} shell-sticky-aside shell-panel-scroll max-h-[calc(100dvh-var(--shell-masthead-h)-var(--shell-pageheader-h)-var(--shell-toolbar-h)-3rem)] mb-6 ` +
+            (contentsShown
+              ? '@min-[48rem]:mb-0 @min-[48rem]:block @min-[48rem]:pr-2'
+              : 'col-span-full')
+          }
         >
           <label className="block">
             <span className="sr-only">
@@ -650,10 +669,28 @@ export default function LsatLibrary() {
         </div>
 
         {/* ------------------------------------------------------- outline */}
-        <OutlineNav outline={outline} />
+        {outlineShown && <OutlineNav outline={outline} />}
       </div>
     </div>
   )
+}
+
+/**
+ * The library's column grid, by which side columns are shown. Container
+ * queries, not viewport ones (see the note at the call site); every class is
+ * spelled out so Tailwind can see it.
+ */
+function libraryGrid(contents: boolean, outline: boolean): string {
+  if (contents && outline) {
+    return '@min-[48rem]:grid @min-[48rem]:grid-cols-[17rem_minmax(0,1fr)] @min-[48rem]:gap-8 @min-[72rem]:grid-cols-[17rem_minmax(0,1fr)_15rem] @min-[96rem]:grid-cols-[20rem_minmax(0,1fr)_18rem] @min-[96rem]:gap-12'
+  }
+  if (contents) {
+    return '@min-[48rem]:grid @min-[48rem]:grid-cols-[17rem_minmax(0,1fr)] @min-[48rem]:gap-8 @min-[96rem]:grid-cols-[20rem_minmax(0,1fr)] @min-[96rem]:gap-12'
+  }
+  if (outline) {
+    return '@min-[72rem]:grid @min-[72rem]:grid-cols-[minmax(0,1fr)_15rem] @min-[72rem]:gap-8 @min-[96rem]:grid-cols-[minmax(0,1fr)_18rem] @min-[96rem]:gap-12'
+  }
+  return ''
 }
 
 // ---------------------------------------------------------------------------

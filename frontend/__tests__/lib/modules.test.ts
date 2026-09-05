@@ -28,8 +28,20 @@ describe('SETTING_CATALOG', () => {
     expect(SETTING_CATALOG.map((s) => s.key)).toEqual([
       'analysis.hitl_threshold',
       'graph.show_citation_counts',
+      // Layout preferences (spec 050), contiguous so /settings heads them once.
+      'ui.rail.visible',
+      'ui.sidebar.default_open',
+      'ui.sidebar.side',
       'ui.inspector.default_open',
+      'ui.inspector.side',
+      'ui.masthead.breadcrumbs',
+      'ui.masthead.scope_switcher',
+      'ui.back_to_top',
+      'ui.page_header',
       'lsat.timer.dock',
+      'lsat.timer.visible',
+      'lsat.library.contents',
+      'lsat.library.outline',
     ])
   })
 
