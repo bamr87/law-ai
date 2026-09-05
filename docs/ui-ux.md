@@ -49,6 +49,16 @@ Page measures at 2560px, before and after the large-screen step (`PageLayout`'s 
 |---|---|
 | ![2560px before](images/lsat-library-width-before.png) | ![2560px after](images/lsat-library-width-after.png) |
 
+The entry template ([lsat-library.md](lsat-library.md) § "The entry template") at 1440px with both panels docked. Before, an article and a concept were two unrelated shapes — different heading levels, a different section order (`Concepts in this article` → `References` → `Related` on one, `Where to learn it` → `See also` → `References` on the other), a drill link on one and a drill button on the other — and the reader was squeezed to a ~230px column because the grid keyed off the viewport rather than the region it actually sits in. After, both readers render the same header → actions → body → cross-references sequence with fixed `#entry-*` anchors, one read-state store, and a grid driven by container queries:
+
+| | Before | After |
+|---|---|---|
+| Article header | ![article header before](images/lsat-library-entry-article-header-before.png) | ![article header after](images/lsat-library-entry-article-header.png) |
+| Article cross-references | ![article sections before](images/lsat-library-entry-article-sections-before.png) | ![article sections after](images/lsat-library-entry-article-sections.png) |
+| Concept header | ![concept before](images/lsat-library-entry-concept-before.png) | ![concept after](images/lsat-library-entry-concept.png) |
+| Concept cross-references | ![concept sections before](images/lsat-library-entry-concept-sections-before.png) | ![concept sections after](images/lsat-library-entry-concept-sections.png) |
+| Offline site, concept card | ![static concept before](images/lsat-static-library-concepts-before.png) | ![static concept after](images/lsat-static-library-concepts.png) |
+
 ---
 
 ## What actually ships (vs what docs claim)
@@ -105,7 +115,7 @@ Shared hex coincidence: both canvases are `#0f172a` / `#e2e8f0`. That is the ent
 | `KnowledgeGraph.tsx` | Screen | Case search + neighborhood fetch. |
 | `GraphViewer.tsx` | Widget | Cytoscape canvas. Open: [BL-20260803-03](../BACKLOG.md) (do not label centrality as correctness). |
 | `LsatLab.tsx` | Screen (~1750 lines) | God component: overview, LR/RC/LG drills, stats, HITL authoring. The concept catalog left for the library. Parallel to `lsat-static/`, not shared. |
-| `LsatLibrary.tsx` | Screen | The study surface: `Articles` (contents rail, block-rendered reader, in-page outline) and `Concepts` (the catalog, with the `taught_in` inverse — every concept names the articles that teach it and the questions that drill it). |
+| `LsatLibrary.tsx` | Screen | The study surface: `Articles` and `Concepts` as two views of one shelf, both rendered through one entry template (header · actions · body · concepts/articles · related · reading tracks · references · provenance, fixed anchors, shared card component) — see [docs/lsat-library.md](lsat-library.md) § "The entry template". Same three-column grid, same rail row shape, one read-state store for both. |
 | `lsat/SectionTimerWidget.tsx` | Docked widget | The section clock. Docks in the sidebar (default), inspector, or in page — moved from its own menu or `/settings`, persisted per instance. A view over `lib/lsat/timerStore.ts`, so moving it never resets a running section; it follows you to other modules while a section is in progress and survives a reload with the elapsed time counted (spec 043). |
 | `LsatTimer.tsx` | Primitive | Now only `QuestionElapsed` (per-question clock). Section timing moved to the docked widget above; the file is a leftover name (BL-20260831-15). |
 

@@ -667,8 +667,35 @@ main#view {
 }
 .concept-drills {
   display: block;
-  margin-top: 0.4rem;
+  margin: 0.4rem 0 0.75rem;
   font-size: 0.8rem;
+}
+
+/* A card follows the same entry template as the article reader: header,
+   actions, body, then the cross-references in a fixed order. Each block is a
+   titled step of that order. */
+.concept-block {
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.concept-block > .lib-eyebrow {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+.concept-block .concept-examples {
+  margin-top: 0.25rem;
+}
+.concept-block .lib-refs {
+  margin: 0.25rem 0 0;
+}
+.concept-dangling {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--text-muted);
+}
+.concept .lib-meta {
+  margin-bottom: 0.35rem;
 }
 
 /* ---- Stats ---- */
@@ -1831,6 +1858,46 @@ kbd {
 
 .lib-meta-section {
   color: var(--accent);
+}
+
+/* Tags and archetypes under the summary, on both entry types. */
+.lib-tags {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.lib-tag-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 500;
+}
+
+/* Reading-track chips: one click makes the track the rail's curriculum. */
+.lib-tracks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.lib-track {
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.lib-track:hover {
+  border-color: var(--accent);
+}
+.lib-track-meta {
+  color: var(--text-muted);
 }
 
 .lib-title {

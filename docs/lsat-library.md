@@ -20,6 +20,28 @@ Introduced by [specs/048-lsat-knowledge-library](../specs/048-lsat-knowledge-lib
 | Maintenance agent | `backend/law_ai/agents_runtime/crews/lsat_librarian.py` |
 | Command | `backend/law_ai/lsat/management/commands/lsat_library.py` |
 
+## The entry template
+
+An article and a concept are different data but the same kind of thing to a reader: an entry on a shelf. Both readers on both products therefore render through one template, in one order, and every cross-reference section carries a fixed anchor (`#entry-<section>`) so the outline column lists it whichever view is open. A section with nothing to show is omitted rather than rendered empty — with one exception, noted below.
+
+| Step | Article | Concept |
+| ---- | ------- | ------- |
+| Header | kind · level · reading time · word count · sections; title; summary; tag and archetype chips | "Concept" · example count · articles taught in · sections; title; summary |
+| Actions | Mark as read · Drill this (N questions) | Mark as read · Drill this (N questions) |
+| Read first | prerequisites | — |
+| Body | the typed blocks | the detail paragraph |
+| Schema & examples | — | `#entry-examples` |
+| Concepts in this article | `#entry-concepts` — cards, each also the `#concept-<id>` landing spot for inline references | — |
+| Articles on this concept | — | `#entry-articles` — `taught_in`, resolved against the index. **Always rendered**: a learner who missed a tagged question arrives here needing the material, so "no article covers this concept yet" is an answer where an omitted section is not |
+| Related | `#entry-related` — `related` articles | `#entry-related` — `see_also`, resolved against the catalog; an id the catalog no longer holds is shown as text, not a dead button |
+| Reading tracks | `#entry-tracks` — tracks containing the article | `#entry-tracks` — tracks reaching any article that teaches it |
+| References | `#entry-references` | `#entry-references` |
+| Provenance | source · revision · last reviewed · status | concept catalog · sections |
+
+The two cross-reference directions use the same card component, so an article's concepts and a concept's articles look alike and open alike. Read state is one `localStorage` set for both kinds of entry — articles under their bare id (what every existing entry already holds), concepts under `concept:<id>` — and each rail reports its own "N of M read". The rails share one row shape too: read-state dot, title, and a second line that says what you get (reading time for an article, "taught in N articles" for a concept).
+
+The static site renders the same template with its own layout: the article reader section for section, and the concept catalog as cards that carry the same header facts and the same cross-reference blocks in the same order.
+
 ## Markdown in, typed blocks out
 
 Articles are authored as Markdown because that is what a human reviews in a diff and what an agent can patch one section at a time. **Neither client ever sees Markdown.** `library.py` compiles each body into a typed block tree at load time, and both readers render blocks.

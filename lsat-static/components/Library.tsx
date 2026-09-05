@@ -47,6 +47,12 @@ const KIND_LABEL: Record<ArticleKind, string> = {
   'review-method': 'Review method',
 }
 
+const LEVEL_LABEL: Record<Article['level'], string> = {
+  foundation: 'Foundation',
+  core: 'Core',
+  advanced: 'Advanced',
+}
+
 /** Reading order for the contents rail: foundations before families. */
 const KIND_ORDER: ArticleKind[] = [
   'orientation',
@@ -233,6 +239,23 @@ export default function Library({
   // catalog is a view of this component now — bailing here would take it down
   // with the reader.
   const drills = article ? drillsForArticle(article) : []
+  const inTracks = article
+    ? tracks.filter((t) => t.article_ids.includes(article.id))
+    : []
+
+  const openTrack = useCallback(
+    (id: string) => {
+      const track = tracks.find((t) => t.id === id)
+      if (!track) return
+      setTrackFilter(id)
+      setQuery('')
+      if (!track.article_ids.includes(selectedId)) {
+        const first = track.article_ids[0]
+        if (first) open(first)
+      }
+    },
+    [selectedId, open],
+  )
   const related = article
     ? [
         ...article.related.map(articleById),
@@ -284,7 +307,7 @@ export default function Library({
           id="lib-panel-concepts"
           aria-labelledby="lib-view-concepts"
         >
-          <Concepts onOpenArticle={open} />
+          <Concepts onOpenArticle={open} onOpenTrack={openTrack} />
         </div>
       ) : !article ? (
         <div
@@ -448,7 +471,11 @@ export default function Library({
           >
             <div className="lib-meta">
               <span className="pill pill-muted">{KIND_LABEL[article.kind]}</span>
+              <span>{LEVEL_LABEL[article.level]}</span>
+              <span aria-hidden="true">·</span>
               <span>{article.reading_minutes} min read</span>
+              <span aria-hidden="true">·</span>
+              <span>{article.word_count.toLocaleString()} words</span>
               {article.sections.map((s) => (
                 <span key={s} className="lib-meta-section">
                   {s}
@@ -460,6 +487,21 @@ export default function Library({
               {article.title}
             </h3>
             <p className="lib-summary">{article.summary}</p>
+
+            {(article.tags.length > 0 || article.archetypes.length > 0) && (
+              <ul className="lib-tags" aria-label="Tags">
+                {article.tags.map((t) => (
+                  <li key={t} className="pill pill-muted">
+                    {t}
+                  </li>
+                ))}
+                {article.archetypes.map((a) => (
+                  <li key={a} className="pill pill-muted lib-tag-mono">
+                    {a}
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <div className="lib-actions">
               <button
@@ -536,6 +578,45 @@ export default function Library({
               </section>
             )}
 
+            {related.length > 0 && (
+              <section className="lib-section">
+                <h3>Related</h3>
+                <ul className="lib-related">
+                  {related.map((r) => (
+                    <li key={r.id}>
+                      <button type="button" onClick={() => open(r.id)}>
+                        <span className="lib-related-title">{r.title}</span>
+                        <span className="lib-related-summary">{r.summary}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {inTracks.length > 0 && (
+              <section className="lib-section">
+                <h3>Reading tracks</h3>
+                <ul className="lib-tracks">
+                  {inTracks.map((t) => (
+                    <li key={t.id}>
+                      <button
+                        type="button"
+                        className="lib-track"
+                        onClick={() => openTrack(t.id)}
+                      >
+                        {t.name}
+                        <span className="lib-track-meta">
+                          {' '}
+                          · {t.article_count} articles · {t.estimated_minutes} min
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
             {(article.references ?? []).length > 0 && (
               <section className="lib-section">
                 <h3>References</h3>
@@ -555,26 +636,10 @@ export default function Library({
               </section>
             )}
 
-            {related.length > 0 && (
-              <section className="lib-section">
-                <h3>Related</h3>
-                <ul className="lib-related">
-                  {related.map((r) => (
-                    <li key={r.id}>
-                      <button type="button" onClick={() => open(r.id)}>
-                        <span className="lib-related-title">{r.title}</span>
-                        <span className="lib-related-summary">{r.summary}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
             <p className="lib-provenance">
               {article.source ?? 'original (CC0)'} · revision {article.revision} · last
-              reviewed {article.last_reviewed} · study aid for LSAT preparation, not
-              legal advice.
+              reviewed {article.last_reviewed} · {article.status} · study aid for LSAT
+              preparation, not legal advice.
             </p>
           </article>
         </div>

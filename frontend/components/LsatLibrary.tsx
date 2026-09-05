@@ -17,6 +17,11 @@
  * surface rendered) and the bank questions that drill it. One rail, one
  * reader, one search box.
  *
+ * Both entry types render through one template — header, actions, body,
+ * cross-references, provenance, in a fixed order with fixed anchors — see
+ * "The entry template" below. An article and a concept are different data
+ * but the same kind of thing to a reader, and the page should say so.
+ *
  * Below `xl` the outline folds into the reader; below `lg` the rail becomes a
  * disclosure so the reading column keeps a comfortable measure on a phone.
  *
@@ -57,7 +62,14 @@ import {
   saveReadIds,
 } from '@/lib/lsat/library'
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 
 type View = 'articles' | 'concepts'
 type SectionFilter = 'all' | LsatSectionCode
@@ -324,15 +336,36 @@ export default function LsatLibrary() {
     if (next === 'concepts') setSectionFilter((s) => (s === 'WS' ? 'all' : s))
   }, [])
 
-  const toggleRead = useCallback((id: string) => {
+  const toggleRead = useCallback((key: string) => {
     setReadIds((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
       saveReadIds(next)
       return next
     })
   }, [])
+
+  // A track chip on either entry type: switch to the reader with that track
+  // as the rail's curriculum, and land on its first article unless the one
+  // already open is part of it.
+  const openTrack = useCallback(
+    (id: string) => {
+      const track = tracks.find((t) => t.id === id)
+      if (!track) return
+      setTrackFilter(id)
+      setView('articles')
+      setQuery('')
+      setSelectedId((current) =>
+        current && track.article_ids.includes(current)
+          ? current
+          : (track.article_ids[0] ?? current),
+      )
+      setRailOpen(false)
+      scrollToReader()
+    },
+    [tracks, scrollToReader],
+  )
 
   // --- derived ------------------------------------------------------------
 
@@ -400,9 +433,59 @@ export default function LsatLibrary() {
     activeConceptDetail?.concept ??
     null
 
-  const progress = index?.length
-    ? Math.round((readIds.size / index.length) * 100)
-    : 0
+  // Read progress is per view. The one set holds both kinds of key, so the
+  // count has to be taken against each list rather than off the set's size.
+  const articleReadCount = useMemo(
+    () => (index ?? []).filter((a) => readIds.has(readKey('articles', a.id))).length,
+    [index, readIds],
+  )
+  const conceptReadCount = useMemo(
+    () =>
+      (concepts ?? []).filter((c) => readIds.has(readKey('concepts', c.id)))
+        .length,
+    [concepts, readIds],
+  )
+
+  // Concept id → indexed articles tagged with it. The rail's second line,
+  // and the tag half of what `taught_in` reports (the API also counts inline
+  // references, which the index cannot see).
+  const taughtBy = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const a of index ?? []) {
+      for (const c of a.concepts) counts.set(c, (counts.get(c) ?? 0) + 1)
+    }
+    return counts
+  }, [index])
+
+  // The outline lists the body's own headings plus whichever template
+  // sections rendered, so the third column reads the same on both views.
+  const outline = useMemo<LsatOutlineEntry[]>(() => {
+    if (view === 'articles') {
+      return detail
+        ? entryOutline(detail.article.outline, articleSections(detail, tracks))
+        : []
+    }
+    return selectedConcept
+      ? entryOutline(
+          [],
+          conceptSections(
+            selectedConcept,
+            activeConceptDetail,
+            index,
+            catalog,
+            tracks,
+          ),
+        )
+      : []
+  }, [
+    view,
+    detail,
+    tracks,
+    selectedConcept,
+    activeConceptDetail,
+    index,
+    catalog,
+  ])
 
   if (loadError && !index) {
     return (
@@ -416,21 +499,24 @@ export default function LsatLibrary() {
     )
   }
 
-  // Three columns while reading (the outline is article-only), two in the
-  // catalog — a concept has no in-page outline, and giving its cross-links
-  // the whole width beats parking them in a 15rem gutter. Both grow past
-  // 1800px, where the page frame itself stops capping at `max-w-7xl`.
+  // The same three columns on both views — rail, entry, outline — so
+  // switching between an article and a concept moves nothing but the words.
+  //
+  // Container queries, not viewport breakpoints: with the sidebar and the
+  // inspector docked the shell leaves this region ~850px wide on a 1440px
+  // screen, and a viewport `xl:` rule would still deal out three columns and
+  // leave the prose ~230px. The root below is the container, so the columns
+  // follow the width that is actually there — one column under 48rem, the
+  // rail from 48rem, the outline from 72rem, and wider gutters from 96rem.
   const grid =
-    view === 'articles'
-      ? 'lg:grid lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-8 xl:grid-cols-[17rem_minmax(0,1fr)_15rem] min-[1800px]:grid-cols-[20rem_minmax(0,1fr)_18rem] min-[1800px]:gap-12'
-      : 'lg:grid lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-8 min-[1800px]:grid-cols-[20rem_minmax(0,1fr)] min-[1800px]:gap-12'
+    '@min-[48rem]:grid @min-[48rem]:grid-cols-[17rem_minmax(0,1fr)] @min-[48rem]:gap-8 @min-[72rem]:grid-cols-[17rem_minmax(0,1fr)_15rem] @min-[96rem]:grid-cols-[20rem_minmax(0,1fr)_18rem] @min-[96rem]:gap-12'
 
   const railCount =
     view === 'articles' ? (index?.length ?? 0) : (concepts?.length ?? 0)
   const railNoun = view === 'articles' ? 'articles' : 'concepts'
 
   return (
-    <div className="space-y-4">
+    <div className="@container space-y-4">
       <ViewTabs view={view} onChange={changeView} />
 
       <div
@@ -448,14 +534,14 @@ export default function LsatLibrary() {
           type="button"
           onClick={() => setRailOpen((v) => !v)}
           aria-expanded={railOpen}
-          className="mb-4 w-full rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-2 text-left text-sm text-slate-300 lg:hidden"
+          className="mb-4 w-full rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-2 text-left text-sm text-slate-300 @min-[48rem]:hidden"
         >
           {railOpen ? 'Hide' : 'Browse'} contents · {railCount} {railNoun}
         </button>
 
         <nav
           aria-label="Library contents"
-          className={`${railOpen ? 'block' : 'hidden'} shell-sticky-aside shell-panel-scroll max-h-[calc(100dvh-var(--shell-masthead-h)-var(--shell-pageheader-h)-var(--shell-toolbar-h)-3rem)] mb-6 lg:mb-0 lg:block lg:pr-2`}
+          className={`${railOpen ? 'block' : 'hidden'} shell-sticky-aside shell-panel-scroll max-h-[calc(100dvh-var(--shell-masthead-h)-var(--shell-pageheader-h)-var(--shell-toolbar-h)-3rem)] mb-6 @min-[48rem]:mb-0 @min-[48rem]:block @min-[48rem]:pr-2`}
         >
           <label className="block">
             <span className="sr-only">
@@ -502,8 +588,8 @@ export default function LsatLibrary() {
               index={index}
               onOpen={openArticle}
               onTrackChange={setTrackFilter}
-              progress={progress}
               query={query}
+              readCount={articleReadCount}
               readIds={readIds}
               selectedId={selectedId}
               trackFilter={trackFilter}
@@ -517,7 +603,10 @@ export default function LsatLibrary() {
               loaded={concepts !== null}
               onOpen={openConcept}
               query={query}
+              readCount={conceptReadCount}
+              readIds={readIds}
               selectedId={conceptId}
+              taughtBy={taughtBy}
               total={concepts?.length ?? 0}
             />
           )}
@@ -530,8 +619,14 @@ export default function LsatLibrary() {
               detail={detail}
               onOpenArticle={openArticle}
               onOpenConcept={openConcept}
-              onToggleRead={toggleRead}
-              readIds={readIds}
+              onOpenTrack={openTrack}
+              onToggleRead={() =>
+                selectedId && toggleRead(readKey('articles', selectedId))
+              }
+              read={
+                selectedId ? readIds.has(readKey('articles', selectedId)) : false
+              }
+              tracks={tracks}
             />
           ) : (
             <ConceptReader
@@ -542,14 +637,20 @@ export default function LsatLibrary() {
               index={index}
               onOpenArticle={openArticle}
               onOpenConcept={openConcept}
+              onOpenTrack={openTrack}
+              onToggleRead={() =>
+                conceptId && toggleRead(readKey('concepts', conceptId))
+              }
+              read={
+                conceptId ? readIds.has(readKey('concepts', conceptId)) : false
+              }
+              tracks={tracks}
             />
           )}
         </div>
 
         {/* ------------------------------------------------------- outline */}
-        {view === 'articles' && (
-          <OutlineNav outline={detail?.article.outline ?? []} />
-        )}
+        <OutlineNav outline={outline} />
       </div>
     </div>
   )
@@ -609,6 +710,62 @@ function ViewTabs({
 // Rails
 // ---------------------------------------------------------------------------
 
+/**
+ * One row shape for both rails: a read-state dot, the title, and one line of
+ * metadata underneath. Articles put their reading time there; concepts, the
+ * number of articles that teach them. Whatever the second line says, the eye
+ * learns one row and reads both lists.
+ */
+function RailRow({
+  meta,
+  onClick,
+  read,
+  selected,
+  title,
+}: {
+  meta: string
+  onClick: () => void
+  read: boolean
+  selected: boolean
+  title: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={selected ? 'true' : undefined}
+      className={
+        'flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm transition ' +
+        (selected
+          ? 'bg-amber-500/15 text-amber-100'
+          : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200')
+      }
+    >
+      <span
+        aria-hidden="true"
+        className={
+          'mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ' +
+          (read ? 'bg-emerald-400' : 'bg-slate-700')
+        }
+      />
+      <span className="min-w-0">
+        <span className="block truncate">{title}</span>
+        <span className="text-[10px] text-slate-600">{meta}</span>
+      </span>
+    </button>
+  )
+}
+
+/** "3 of 35 read · 9%" — the same progress line under both rails. */
+function RailProgress({ read, total }: { read: number; total: number }) {
+  const pct = total ? Math.round((read / total) * 100) : 0
+  return (
+    <div className="mt-3 text-[11px] text-slate-500">
+      {read} of {total} read · {pct}%
+    </div>
+  )
+}
+
 function ArticleRail({
   activeTrack,
   grouped,
@@ -616,8 +773,8 @@ function ArticleRail({
   index,
   onOpen,
   onTrackChange,
-  progress,
   query,
+  readCount,
   readIds,
   selectedId,
   trackFilter,
@@ -630,8 +787,8 @@ function ArticleRail({
   index: LsatArticleSummary[] | null
   onOpen: (id: string) => void
   onTrackChange: (id: string) => void
-  progress: number
   query: string
+  readCount: number
   readIds: Set<string>
   selectedId: string | null
   trackFilter: string
@@ -664,9 +821,7 @@ function ArticleRail({
         </p>
       )}
 
-      <div className="mt-3 text-[11px] text-slate-500">
-        {readIds.size} of {index?.length ?? 0} read · {progress}%
-      </div>
+      <RailProgress read={readCount} total={index?.length ?? 0} />
 
       {hits ? (
         <div className="mt-4">
@@ -712,35 +867,13 @@ function ArticleRail({
               <ul className="mt-1.5 space-y-0.5">
                 {group.articles.map((article) => (
                   <li key={article.id}>
-                    <button
-                      type="button"
+                    <RailRow
+                      title={article.title}
+                      meta={readingLabel(article.reading_minutes)}
+                      read={readIds.has(article.id)}
+                      selected={article.id === selectedId}
                       onClick={() => onOpen(article.id)}
-                      aria-current={
-                        article.id === selectedId ? 'true' : undefined
-                      }
-                      className={
-                        'flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm transition ' +
-                        (article.id === selectedId
-                          ? 'bg-amber-500/15 text-amber-100'
-                          : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200')
-                      }
-                    >
-                      <span
-                        aria-hidden="true"
-                        className={
-                          'mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ' +
-                          (readIds.has(article.id)
-                            ? 'bg-emerald-400'
-                            : 'bg-slate-700')
-                        }
-                      />
-                      <span className="min-w-0">
-                        <span className="block truncate">{article.title}</span>
-                        <span className="text-[10px] text-slate-600">
-                          {readingLabel(article.reading_minutes)}
-                        </span>
-                      </span>
-                    </button>
+                    />
                   </li>
                 ))}
               </ul>
@@ -758,7 +891,10 @@ function ConceptRail({
   loaded,
   onOpen,
   query,
+  readCount,
+  readIds,
   selectedId,
+  taughtBy,
   total,
 }: {
   error: string | null
@@ -766,18 +902,24 @@ function ConceptRail({
   loaded: boolean
   onOpen: (id: string) => void
   query: string
+  readCount: number
+  readIds: Set<string>
   selectedId: string | null
+  /** Concept id → how many indexed articles tag it. */
+  taughtBy: Map<string, number>
   total: number
 }) {
   const shown = groups.reduce((n, [, items]) => n + items.length, 0)
 
   return (
     <>
-      <div className="mt-3 text-[11px] text-slate-500">
+      <div className="mt-3 text-[11px] uppercase tracking-wider text-slate-500">
         {shown === total
           ? `${total} concept${total === 1 ? '' : 's'}`
           : `${shown} of ${total} concepts`}
       </div>
+
+      <RailProgress read={readCount} total={total} />
 
       {error && (
         <p className="mt-4 rounded-lg border border-rose-900/60 bg-rose-950/30 p-3 text-xs text-rose-200">
@@ -804,21 +946,13 @@ function ConceptRail({
             <ul className="mt-1.5 space-y-0.5">
               {items.map((concept) => (
                 <li key={concept.id}>
-                  <button
-                    type="button"
+                  <RailRow
+                    title={concept.name}
+                    meta={articlesLabel(taughtBy.get(concept.id) ?? 0)}
+                    read={readIds.has(readKey('concepts', concept.id))}
+                    selected={concept.id === selectedId}
                     onClick={() => onOpen(concept.id)}
-                    aria-current={
-                      concept.id === selectedId ? 'true' : undefined
-                    }
-                    className={
-                      'block w-full rounded-md px-2 py-1.5 text-left text-sm transition ' +
-                      (concept.id === selectedId
-                        ? 'bg-amber-500/15 text-amber-100'
-                        : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200')
-                    }
-                  >
-                    <span className="block truncate">{concept.name}</span>
-                  </button>
+                  />
                 </li>
               ))}
             </ul>
@@ -830,24 +964,346 @@ function ConceptRail({
 }
 
 // ---------------------------------------------------------------------------
+// The entry template
+// ---------------------------------------------------------------------------
+//
+// An article and a concept are different data but the same *kind of thing* to
+// a reader: an entry on a shelf, with a header, something to do with it, a
+// body, and the things it connects to. So both readers are assembled from the
+// same parts in the same order, and every section carries a fixed anchor so
+// the outline column can list it whichever view is open:
+//
+//   header       type pill · badges · stats · sections; title; summary; chips
+//   actions      Mark as read · Drill this (N questions)
+//   read first   articles: prerequisites
+//   body         articles: the typed blocks · concepts: the detail
+//   examples     concepts: schema & examples             #entry-examples
+//   concepts     Concepts in this article                #entry-concepts
+//   articles     Articles on this concept                #entry-articles
+//   related      Related                                 #entry-related
+//   tracks       Reading tracks                          #entry-tracks
+//   references   References                              #entry-references
+//   provenance   source · revision · reviewed · status | catalog · sections
+//
+// A section that has nothing to show is omitted, not rendered empty — except
+// the one cross-reference a learner arrives needing ("Articles on this
+// concept"), which says so in words when the corpus has not caught up.
+
+/**
+ * The prose measure, widened a little where the page frame widens too. The
+ * entry is also a query container, so its card grids can go two-up on the
+ * width the column really has rather than on a viewport guess.
+ */
+const MEASURE = '@container max-w-[68ch] min-[1800px]:max-w-[76ch]'
+
+/** Fixed anchors for the template's sections, shared with the outline. */
+const ENTRY_ANCHOR = {
+  examples: 'entry-examples',
+  concepts: 'entry-concepts',
+  articles: 'entry-articles',
+  related: 'entry-related',
+  tracks: 'entry-tracks',
+  references: 'entry-references',
+} as const
+
+type EntryAnchor = (typeof ENTRY_ANCHOR)[keyof typeof ENTRY_ANCHOR]
+
+/** Something an entry points at: an article or a concept, as a card. */
+interface RefItem {
+  id: string
+  title: string
+  summary: string
+  meta?: string
+}
+
+/**
+ * Read-state key. Articles keep their bare id — that is what every existing
+ * `localStorage` entry holds — and concepts get a prefix, so the one set
+ * covers both without a migration and without an article and a concept that
+ * happen to share an id colliding.
+ */
+export function readKey(view: View, id: string): string {
+  return view === 'concepts' ? `concept:${id}` : id
+}
+
+function articlesLabel(n: number): string {
+  return n === 1 ? 'taught in 1 article' : `taught in ${n} articles`
+}
+
+function EntryHeader({
+  badges,
+  chips,
+  pill,
+  sections,
+  summary,
+  title,
+}: {
+  /** Secondary facts after the pill: level, reading time, example count. */
+  badges: string[]
+  /** Tags, archetypes — the entry's vocabulary, rendered as chips. */
+  chips?: { label: string; mono?: boolean }[]
+  pill: string
+  sections: LsatSectionCode[]
+  summary: string
+  title: string
+}) {
+  return (
+    <header>
+      <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-500">
+        <span className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-300">
+          {pill}
+        </span>
+        {badges.map((b, i) => (
+          <span key={b} className="contents">
+            {i > 0 && <span aria-hidden="true">·</span>}
+            <span>{b}</span>
+          </span>
+        ))}
+        {sections.map((s) => (
+          <span key={s} className="text-amber-400/80">
+            {SECTION_LABEL[s]}
+          </span>
+        ))}
+      </div>
+
+      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-100">
+        {title}
+      </h2>
+      <p className="mt-2 leading-7 text-slate-400">{summary}</p>
+
+      {chips && chips.length > 0 && (
+        <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Tags">
+          {chips.map((c) => (
+            <li
+              key={c.label}
+              className={
+                'rounded-full bg-slate-900/70 px-2.5 py-0.5 text-[11px] text-slate-400 ring-1 ring-inset ring-slate-800 ' +
+                (c.mono ? 'font-mono' : '')
+              }
+            >
+              {c.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </header>
+  )
+}
+
+function EntryActions({
+  drillCount,
+  drillCapped = false,
+  onToggleRead,
+  read,
+}: {
+  /** Bank questions this entry leads to; undefined while still loading. */
+  drillCount?: number
+  /** The API caps `used_in_questions` at 10, so 10 means "at least 10". */
+  drillCapped?: boolean
+  onToggleRead: () => void
+  read: boolean
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-3">
+      <button
+        type="button"
+        onClick={onToggleRead}
+        className={
+          'rounded-lg px-3 py-1.5 text-xs font-medium transition ' +
+          (read
+            ? 'bg-emerald-500/15 text-emerald-200 ring-1 ring-inset ring-emerald-500/30'
+            : 'bg-slate-800 text-slate-300 hover:bg-slate-700')
+        }
+      >
+        {read ? '✓ Read' : 'Mark as read'}
+      </button>
+      {drillCount !== undefined && drillCount > 0 && (
+        <Link
+          href="/lsat"
+          className="rounded-lg bg-amber-500/15 px-3 py-1.5 text-xs font-medium text-amber-200 ring-1 ring-inset ring-amber-500/30 hover:bg-amber-500/25"
+        >
+          Drill this ({drillCapped ? `${drillCount}+` : drillCount}{' '}
+          question{drillCount === 1 && !drillCapped ? '' : 's'})
+        </Link>
+      )}
+    </div>
+  )
+}
+
+/** A titled, anchored block of the template. Same rule for every section. */
+function EntrySection({
+  children,
+  id,
+  subtitle,
+  title,
+}: {
+  children: ReactNode
+  id: EntryAnchor
+  subtitle?: string
+  title: string
+}) {
+  return (
+    <section id={id} className="mt-10 scroll-mt-24 border-t border-slate-800 pt-6">
+      <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
+      {subtitle && (
+        <p className="mt-0.5 text-[11px] uppercase tracking-wider text-slate-500">
+          {subtitle}
+        </p>
+      )}
+      {children}
+    </section>
+  )
+}
+
+/**
+ * Cross-reference cards. One component in both directions — an article's
+ * concepts and a concept's articles look the same and open the same way.
+ * `anchorPrefix` gives each card an id, which is how an article's concept
+ * cards stay the landing spot for the inline `#concept-<id>` references.
+ */
+function RefCards({
+  anchorPrefix,
+  items,
+  onOpen,
+}: {
+  anchorPrefix?: string
+  items: RefItem[]
+  onOpen: (id: string) => void
+}) {
+  return (
+    <ul className="mt-3 grid gap-2 @2xl:grid-cols-2">
+      {items.map((item) => (
+        <li
+          key={item.id}
+          id={anchorPrefix ? `${anchorPrefix}${item.id}` : undefined}
+          className="scroll-mt-24"
+        >
+          <button
+            type="button"
+            onClick={() => onOpen(item.id)}
+            className="h-full w-full rounded-lg border border-slate-800 bg-slate-900/40 p-3 text-left hover:border-amber-500/40"
+          >
+            <span className="block text-sm font-medium text-slate-200">
+              {item.title}
+            </span>
+            <span className="mt-1 block text-xs leading-relaxed text-slate-500">
+              {item.summary}
+            </span>
+            {item.meta && (
+              <span className="mt-2 block text-[10px] uppercase tracking-wider text-slate-600">
+                {item.meta}
+              </span>
+            )}
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** External references, identically on both entry types. */
+function RefLinks({
+  refs,
+}: {
+  refs: { title: string; url?: string | null }[]
+}) {
+  return (
+    <ul className="mt-2 space-y-1 text-sm">
+      {refs.map((r) => (
+        <li key={r.title}>
+          {r.url ? (
+            <a
+              href={r.url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sky-300 underline underline-offset-2 hover:text-sky-200"
+            >
+              {r.title}
+            </a>
+          ) : (
+            <span className="text-slate-400">{r.title}</span>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** The curated reading tracks an entry belongs to, each one click to open. */
+function TrackChips({
+  onOpen,
+  tracks,
+}: {
+  onOpen: (id: string) => void
+  tracks: LsatTrack[]
+}) {
+  return (
+    <ul className="mt-3 flex flex-wrap gap-2">
+      {tracks.map((t) => (
+        <li key={t.id}>
+          <button
+            type="button"
+            onClick={() => onOpen(t.id)}
+            className="rounded-full bg-slate-800/60 px-3 py-1 text-xs text-slate-300 transition hover:bg-slate-700 hover:text-slate-100"
+          >
+            {t.name}
+            <span className="text-slate-500">
+              {' '}
+              · {t.article_count} articles · {t.estimated_minutes} min
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function Provenance({ parts }: { parts: string[] }) {
+  return (
+    <p className="mt-10 border-t border-slate-800 pt-4 text-xs text-slate-600">
+      {[...parts, 'study aid for LSAT preparation, not legal advice'].join(
+        ' · ',
+      )}
+      .
+    </p>
+  )
+}
+
+/**
+ * The outline column's entries for an entry: the body's own headings (an
+ * article's, from the API) followed by whichever template sections rendered,
+ * in template order — so the outline reads the same way on both views.
+ */
+function entryOutline(
+  body: LsatOutlineEntry[],
+  present: { anchor: EntryAnchor; text: string }[],
+): LsatOutlineEntry[] {
+  return [
+    ...body,
+    ...present.map((p) => ({ level: 2, text: p.text, anchor: p.anchor })),
+  ]
+}
+
+// ---------------------------------------------------------------------------
 // Readers
 // ---------------------------------------------------------------------------
-
-/** The prose measure. Widened a little where the page frame widens too. */
-const MEASURE = 'max-w-[68ch] min-[1800px]:max-w-[76ch]'
 
 function ArticleReader({
   detail,
   onOpenArticle,
   onOpenConcept,
+  onOpenTrack,
   onToggleRead,
-  readIds,
+  read,
+  tracks,
 }: {
   detail: LsatArticleDetail | null
   onOpenArticle: (id: string) => void
   onOpenConcept: (id: string) => void
-  onToggleRead: (id: string) => void
-  readIds: Set<string>
+  onOpenTrack: (id: string) => void
+  onToggleRead: () => void
+  read: boolean
+  tracks: LsatTrack[]
 }) {
   if (!detail) {
     return (
@@ -857,49 +1313,35 @@ function ArticleReader({
     )
   }
 
+  const { article } = detail
+  const byId = new Map(tracks.map((t) => [t.id, t]))
+  const inTracks = detail.tracks
+    .map((t) => byId.get(t.id))
+    .filter((t): t is LsatTrack => Boolean(t))
+
   return (
     <article className={MEASURE}>
-      <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-500">
-        <span className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-300">
-          {KIND_LABEL[detail.article.kind]}
-        </span>
-        <span>{LEVEL_LABEL[detail.article.level]}</span>
-        <span aria-hidden="true">·</span>
-        <span>{readingLabel(detail.article.reading_minutes)}</span>
-        {detail.article.sections.map((s) => (
-          <span key={s} className="text-amber-400/80">
-            {SECTION_LABEL[s]}
-          </span>
-        ))}
-      </div>
+      <EntryHeader
+        pill={KIND_LABEL[article.kind]}
+        badges={[
+          LEVEL_LABEL[article.level],
+          readingLabel(article.reading_minutes),
+          `${article.word_count.toLocaleString()} words`,
+        ]}
+        sections={article.sections}
+        title={article.title}
+        summary={article.summary}
+        chips={[
+          ...article.tags.map((t) => ({ label: t })),
+          ...article.archetypes.map((a) => ({ label: a, mono: true })),
+        ]}
+      />
 
-      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-100">
-        {detail.article.title}
-      </h2>
-      <p className="mt-2 leading-7 text-slate-400">{detail.article.summary}</p>
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => onToggleRead(detail.article.id)}
-          className={
-            'rounded-lg px-3 py-1.5 text-xs font-medium transition ' +
-            (readIds.has(detail.article.id)
-              ? 'bg-emerald-500/15 text-emerald-200 ring-1 ring-inset ring-emerald-500/30'
-              : 'bg-slate-800 text-slate-300 hover:bg-slate-700')
-          }
-        >
-          {readIds.has(detail.article.id) ? '✓ Read' : 'Mark as read'}
-        </button>
-        {detail.drill_question_count > 0 && (
-          <Link
-            href="/lsat"
-            className="rounded-lg bg-amber-500/15 px-3 py-1.5 text-xs font-medium text-amber-200 ring-1 ring-inset ring-amber-500/30 hover:bg-amber-500/25"
-          >
-            Drill this ({detail.drill_question_count} questions)
-          </Link>
-        )}
-      </div>
+      <EntryActions
+        read={read}
+        onToggleRead={onToggleRead}
+        drillCount={detail.drill_question_count}
+      />
 
       {detail.prerequisites.length > 0 && (
         <div className="mt-5 rounded-lg border border-slate-800 bg-slate-900/40 p-3">
@@ -924,97 +1366,99 @@ function ArticleReader({
 
       <div className="mt-2">
         <BlockRenderer
-          blocks={detail.article.blocks}
+          blocks={article.blocks}
           handlers={{ onArticle: onOpenArticle }}
         />
       </div>
 
       {detail.concepts.length > 0 && (
-        <section className="mt-10 border-t border-slate-800 pt-6">
-          <h2 className="text-lg font-semibold text-slate-100">
-            Concepts in this article
-          </h2>
-          {/* The glossary keeps its `concept-<id>` anchors — an inline concept
-            * span still lands here rather than leaving the article. The name
-            * is the way *out* to the catalog, for a reader who wants the
-            * examples, the cross-references and everything else that teaches
-            * it. */}
-          <dl className="mt-3 space-y-3">
-            {detail.concepts.map((c) => (
-              <div key={c.id} id={`concept-${c.id}`} className="scroll-mt-24">
-                <dt>
-                  <button
-                    type="button"
-                    onClick={() => onOpenConcept(c.id)}
-                    className="text-sm font-medium text-emerald-300 underline-offset-4 hover:underline"
-                  >
-                    {c.name}
-                  </button>
-                </dt>
-                <dd className="text-sm leading-relaxed text-slate-400">
-                  {c.summary}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      )}
-
-      {detail.article.references.length > 0 && (
-        <section className="mt-8 border-t border-slate-800 pt-6">
-          <h2 className="text-lg font-semibold text-slate-100">References</h2>
-          <ul className="mt-2 space-y-1 text-sm">
-            {detail.article.references.map((r) => (
-              <li key={r.title}>
-                {r.url ? (
-                  <a
-                    href={r.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sky-300 underline underline-offset-2 hover:text-sky-200"
-                  >
-                    {r.title}
-                  </a>
-                ) : (
-                  <span className="text-slate-400">{r.title}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
+        <EntrySection
+          id={ENTRY_ANCHOR.concepts}
+          title="Concepts in this article"
+          subtitle="the reasoning patterns it teaches"
+        >
+          {/* `concept-` anchors: an inline concept span still lands on its
+            * card here rather than leaving the article. The card is the way
+            * *out* to the catalog. */}
+          <RefCards
+            anchorPrefix="concept-"
+            items={detail.concepts.map((c) => ({
+              id: c.id,
+              title: c.name,
+              summary: c.summary,
+              meta: c.sections.map((s) => SECTION_LABEL[s]).join(' · '),
+            }))}
+            onOpen={onOpenConcept}
+          />
+        </EntrySection>
       )}
 
       {detail.related.length > 0 && (
-        <section className="mt-8 border-t border-slate-800 pt-6">
-          <h2 className="text-lg font-semibold text-slate-100">Related</h2>
-          <ul className="mt-2 grid gap-2 sm:grid-cols-2">
-            {detail.related.map((r) => (
-              <li key={r.id}>
-                <button
-                  type="button"
-                  onClick={() => onOpenArticle(r.id)}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-900/40 p-3 text-left hover:border-amber-500/40"
-                >
-                  <span className="block text-sm font-medium text-slate-200">
-                    {r.title}
-                  </span>
-                  <span className="mt-1 block text-xs leading-relaxed text-slate-500">
-                    {r.summary}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <EntrySection
+          id={ENTRY_ANCHOR.related}
+          title="Related"
+          subtitle="articles this one points to"
+        >
+          <RefCards
+            items={detail.related.map((r) => ({
+              id: r.id,
+              title: r.title,
+              summary: r.summary,
+              meta: `${KIND_LABEL[r.kind]} · ${readingLabel(r.reading_minutes)}`,
+            }))}
+            onOpen={onOpenArticle}
+          />
+        </EntrySection>
       )}
 
-      <p className="mt-10 border-t border-slate-800 pt-4 text-xs text-slate-600">
-        {detail.article.source} · revision {detail.article.revision} · last
-        reviewed {detail.article.last_reviewed} · study aid for LSAT
-        preparation, not legal advice.
-      </p>
+      {inTracks.length > 0 && (
+        <EntrySection
+          id={ENTRY_ANCHOR.tracks}
+          title="Reading tracks"
+          subtitle="curated orders this article appears in"
+        >
+          <TrackChips tracks={inTracks} onOpen={onOpenTrack} />
+        </EntrySection>
+      )}
+
+      {article.references.length > 0 && (
+        <EntrySection id={ENTRY_ANCHOR.references} title="References">
+          <RefLinks refs={article.references} />
+        </EntrySection>
+      )}
+
+      <Provenance
+        parts={[
+          article.source,
+          `revision ${article.revision}`,
+          `last reviewed ${article.last_reviewed}`,
+          article.status,
+        ]}
+      />
     </article>
   )
+}
+
+/** Which template sections an article renders, for the outline. */
+function articleSections(
+  detail: LsatArticleDetail,
+  tracks: LsatTrack[],
+): { anchor: EntryAnchor; text: string }[] {
+  const known = new Set(tracks.map((t) => t.id))
+  const out: { anchor: EntryAnchor; text: string }[] = []
+  if (detail.concepts.length > 0) {
+    out.push({ anchor: ENTRY_ANCHOR.concepts, text: 'Concepts in this article' })
+  }
+  if (detail.related.length > 0) {
+    out.push({ anchor: ENTRY_ANCHOR.related, text: 'Related' })
+  }
+  if (detail.tracks.some((t) => known.has(t.id))) {
+    out.push({ anchor: ENTRY_ANCHOR.tracks, text: 'Reading tracks' })
+  }
+  if (detail.article.references.length > 0) {
+    out.push({ anchor: ENTRY_ANCHOR.references, text: 'References' })
+  }
+  return out
 }
 
 function ConceptReader({
@@ -1025,6 +1469,10 @@ function ConceptReader({
   index,
   onOpenArticle,
   onOpenConcept,
+  onOpenTrack,
+  onToggleRead,
+  read,
+  tracks,
 }: {
   catalog: Map<string, LsatConcept>
   concept: LsatConcept | null
@@ -1033,6 +1481,10 @@ function ConceptReader({
   index: LsatArticleSummary[] | null
   onOpenArticle: (id: string) => void
   onOpenConcept: (id: string) => void
+  onOpenTrack: (id: string) => void
+  onToggleRead: () => void
+  read: boolean
+  tracks: LsatTrack[]
 }) {
   if (error) {
     return (
@@ -1054,39 +1506,38 @@ function ConceptReader({
     )
   }
 
-  const byId = new Map((index ?? []).map((a) => [a.id, a]))
-  const taughtIn = (detail?.taught_in ?? [])
-    .map((id) => byId.get(id))
-    .filter((a): a is LsatArticleSummary => Boolean(a))
-  const drills = detail?.used_in_questions ?? []
+  const links = conceptLinks(concept, detail, index, catalog, tracks)
 
   return (
     <article className={MEASURE}>
-      <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-500">
-        <span className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-300">
-          Concept
-        </span>
-        {concept.sections.map((s) => (
-          <span key={s} className="text-amber-400/80">
-            {SECTION_LABEL[s]}
-          </span>
-        ))}
-      </div>
+      <EntryHeader
+        pill="Concept"
+        badges={[
+          concept.examples.length === 1
+            ? '1 example'
+            : `${concept.examples.length} examples`,
+          ...(detail ? [articlesLabel(links.taughtIn.length)] : []),
+        ]}
+        sections={concept.sections}
+        title={concept.name}
+        summary={concept.summary}
+      />
 
-      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-100">
-        {concept.name}
-      </h2>
-      <p className="mt-2 leading-7 text-slate-400">{concept.summary}</p>
+      <EntryActions
+        read={read}
+        onToggleRead={onToggleRead}
+        drillCount={detail?.used_in_questions.length}
+        drillCapped={(detail?.used_in_questions.length ?? 0) >= 10}
+      />
 
       {concept.detail && (
-        <p className="mt-4 leading-7 text-slate-300">{concept.detail}</p>
+        <div className="mt-6">
+          <p className="leading-7 text-slate-300">{concept.detail}</p>
+        </div>
       )}
 
       {concept.examples.length > 0 && (
-        <section className="mt-8 border-t border-slate-800 pt-6">
-          <h3 className="text-lg font-semibold text-slate-100">
-            Schema &amp; examples
-          </h3>
+        <EntrySection id={ENTRY_ANCHOR.examples} title="Schema & examples">
           <ul className="mt-3 space-y-2">
             {concept.examples.map((ex) => (
               <li
@@ -1097,127 +1548,159 @@ function ConceptReader({
               </li>
             ))}
           </ul>
-        </section>
+        </EntrySection>
       )}
 
-      {/* The merge's payoff: the concept → material direction the API has
-        * always exposed as `taught_in` and no screen ever rendered. A learner
-        * who misses a concept-tagged question lands on the tag and leaves
-        * with the article that teaches it. */}
-      <section className="mt-8 border-t border-slate-800 pt-6">
-        <h3 className="text-lg font-semibold text-slate-100">Where to learn it</h3>
-        {taughtIn.length > 0 ? (
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {taughtIn.map((a) => (
-              <li key={a.id}>
-                <button
-                  type="button"
-                  onClick={() => onOpenArticle(a.id)}
-                  className="h-full w-full rounded-lg border border-slate-800 bg-slate-900/40 p-3 text-left hover:border-amber-500/40"
-                >
-                  <span className="block text-sm font-medium text-slate-200">
-                    {a.title}
-                  </span>
-                  <span className="mt-1 block text-xs leading-relaxed text-slate-500">
-                    {a.summary}
-                  </span>
-                  <span className="mt-2 block text-[10px] uppercase tracking-wider text-slate-600">
-                    {KIND_LABEL[a.kind]} · {readingLabel(a.reading_minutes)}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+      {/* The merge's payoff, and the one section that speaks even when empty:
+        * a learner who missed a concept-tagged question lands here needing
+        * the material, so "none yet" is an answer where silence is not. */}
+      <EntrySection
+        id={ENTRY_ANCHOR.articles}
+        title="Articles on this concept"
+        subtitle="the material that teaches it"
+      >
+        {!detail ? (
+          <p className="mt-2 text-sm text-slate-500">Looking up articles…</p>
+        ) : links.taughtIn.length > 0 ? (
+          <RefCards items={links.taughtIn} onOpen={onOpenArticle} />
         ) : (
           <p className="mt-2 text-sm text-slate-500">
             No article covers this concept yet — it is still only a tag on the
             question bank.
           </p>
         )}
+      </EntrySection>
 
-        {drills.length > 0 && (
-          <p className="mt-3 text-sm text-slate-400">
-            Tagged on {drills.length} bank question
-            {drills.length === 1 ? '' : 's'} —{' '}
-            <Link
-              href="/lsat"
-              className="text-amber-300 underline underline-offset-2 hover:text-amber-200"
-            >
-              drill them in the lab
-            </Link>
-            .
-          </p>
-        )}
-      </section>
+      {(links.related.length > 0 || links.dangling.length > 0) && (
+        <EntrySection
+          id={ENTRY_ANCHOR.related}
+          title="Related"
+          subtitle="concepts this one points to"
+        >
+          {links.related.length > 0 && (
+            <RefCards items={links.related} onOpen={onOpenConcept} />
+          )}
+          {/* A `see_also` the catalog no longer holds reads as a dangling
+            * reference, not as a button into a reader that will never load. */}
+          {links.dangling.length > 0 && (
+            <p className="mt-3 text-xs text-slate-600">
+              Also referenced:{' '}
+              {links.dangling.map((id) => (
+                <span key={id} className="mr-2 font-mono">
+                  {id}
+                </span>
+              ))}
+            </p>
+          )}
+        </EntrySection>
+      )}
 
-      {concept.see_also.length > 0 && (
-        <section className="mt-8 border-t border-slate-800 pt-6">
-          <h3 className="text-lg font-semibold text-slate-100">See also</h3>
-          {/* Only a concept the catalog actually holds becomes a link: a
-            * `see_also` naming something that was renamed or removed should
-            * read as a dangling reference, not as a button into a reader
-            * that will never load. */}
-          <ul className="mt-2 flex flex-wrap gap-2">
-            {concept.see_also.map((id) => {
-              const target = catalog.get(id)
-              return (
-                <li key={id}>
-                  {target ? (
-                    <button
-                      type="button"
-                      onClick={() => onOpenConcept(id)}
-                      className="rounded-full bg-slate-800/60 px-3 py-1 text-xs text-slate-300 transition hover:bg-slate-700 hover:text-slate-100"
-                    >
-                      {target.name}
-                    </button>
-                  ) : (
-                    <span className="rounded-full bg-slate-900/60 px-3 py-1 font-mono text-xs text-slate-600">
-                      {id}
-                    </span>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        </section>
+      {links.tracks.length > 0 && (
+        <EntrySection
+          id={ENTRY_ANCHOR.tracks}
+          title="Reading tracks"
+          subtitle="curated orders that reach this concept"
+        >
+          <TrackChips tracks={links.tracks} onOpen={onOpenTrack} />
+        </EntrySection>
       )}
 
       {concept.references.length > 0 && (
-        <section className="mt-8 border-t border-slate-800 pt-6">
-          <h3 className="text-lg font-semibold text-slate-100">References</h3>
-          <ul className="mt-2 space-y-1 text-sm">
-            {concept.references.map((r) => (
-              <li key={r.title}>
-                {r.url ? (
-                  <a
-                    href={r.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sky-300 underline underline-offset-2 hover:text-sky-200"
-                  >
-                    {r.title}
-                  </a>
-                ) : (
-                  <span className="text-slate-400">{r.title}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
+        <EntrySection id={ENTRY_ANCHOR.references} title="References">
+          <RefLinks refs={concept.references} />
+        </EntrySection>
       )}
 
-      <p className="mt-10 border-t border-slate-800 pt-4 text-xs text-slate-600">
-        Concept catalog · study aid for LSAT preparation, not legal advice.
-      </p>
+      <Provenance
+        parts={[
+          'concept catalog',
+          `${concept.sections.length === 1 ? 'section' : 'sections'} ${concept.sections.join(', ')}`,
+        ]}
+      />
     </article>
   )
+}
+
+/**
+ * Everything a concept connects to, resolved once: the articles that teach
+ * it (`taught_in` against the index), its `see_also` against the catalog —
+ * split into the ones that resolve and the ones that no longer do — and the
+ * reading tracks that reach any of those articles.
+ */
+function conceptLinks(
+  concept: LsatConcept,
+  detail: LsatConceptDetail | null,
+  index: LsatArticleSummary[] | null,
+  catalog: Map<string, LsatConcept>,
+  tracks: LsatTrack[],
+) {
+  const byId = new Map((index ?? []).map((a) => [a.id, a]))
+  const taughtIds = detail?.taught_in ?? []
+  const taughtIn: RefItem[] = taughtIds
+    .map((id) => byId.get(id))
+    .filter((a): a is LsatArticleSummary => Boolean(a))
+    .map((a) => ({
+      id: a.id,
+      title: a.title,
+      summary: a.summary,
+      meta: `${KIND_LABEL[a.kind]} · ${readingLabel(a.reading_minutes)}`,
+    }))
+
+  const related: RefItem[] = []
+  const dangling: string[] = []
+  for (const id of concept.see_also) {
+    const target = catalog.get(id)
+    if (target) {
+      related.push({
+        id,
+        title: target.name,
+        summary: target.summary,
+        meta: target.sections.map((s) => SECTION_LABEL[s]).join(' · '),
+      })
+    } else {
+      dangling.push(id)
+    }
+  }
+
+  const taughtSet = new Set(taughtIds)
+  const inTracks = tracks.filter((t) =>
+    t.article_ids.some((id) => taughtSet.has(id)),
+  )
+
+  return { taughtIn, related, dangling, tracks: inTracks }
+}
+
+/** Which template sections a concept renders, for the outline. */
+function conceptSections(
+  concept: LsatConcept,
+  detail: LsatConceptDetail | null,
+  index: LsatArticleSummary[] | null,
+  catalog: Map<string, LsatConcept>,
+  tracks: LsatTrack[],
+): { anchor: EntryAnchor; text: string }[] {
+  const links = conceptLinks(concept, detail, index, catalog, tracks)
+  const out: { anchor: EntryAnchor; text: string }[] = []
+  if (concept.examples.length > 0) {
+    out.push({ anchor: ENTRY_ANCHOR.examples, text: 'Schema & examples' })
+  }
+  out.push({ anchor: ENTRY_ANCHOR.articles, text: 'Articles on this concept' })
+  if (links.related.length > 0 || links.dangling.length > 0) {
+    out.push({ anchor: ENTRY_ANCHOR.related, text: 'Related' })
+  }
+  if (links.tracks.length > 0) {
+    out.push({ anchor: ENTRY_ANCHOR.tracks, text: 'Reading tracks' })
+  }
+  if (concept.references.length > 0) {
+    out.push({ anchor: ENTRY_ANCHOR.references, text: 'References' })
+  }
+  return out
 }
 
 function OutlineNav({ outline }: { outline: LsatOutlineEntry[] }) {
   return (
     <nav
       aria-label="On this page"
-      className="shell-sticky-aside shell-panel-scroll max-h-[calc(100dvh-var(--shell-masthead-h)-var(--shell-pageheader-h)-var(--shell-toolbar-h)-3rem)] hidden xl:block"
+      className="shell-sticky-aside shell-panel-scroll max-h-[calc(100dvh-var(--shell-masthead-h)-var(--shell-pageheader-h)-var(--shell-toolbar-h)-3rem)] hidden @min-[72rem]:block"
     >
       {outline.length > 0 && (
         <>

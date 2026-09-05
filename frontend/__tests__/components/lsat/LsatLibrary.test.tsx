@@ -221,11 +221,64 @@ describe('LsatLibrary', () => {
     render(<LsatLibrary />)
     await waitFor(() => screen.getByRole('heading', { name: 'Argument Anatomy' }))
 
-    expect(screen.getByText(/Concepts in this article/i)).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Concepts in this article' }),
+    ).toBeInTheDocument()
     expect(screen.getByText('Main Conclusion')).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: /LSAC — About the LSAT/ }),
     ).toBeInTheDocument()
+  })
+
+  it('renders every field the article carries, in the template order', async () => {
+    render(<LsatLibrary />)
+    await waitFor(() => screen.getByRole('heading', { name: 'Argument Anatomy' }))
+
+    // Header: kind · level · reading time · word count · sections, then tags.
+    // Scoped to the entry: the rail groups articles under the same kind label.
+    const entry = screen.getByRole('article')
+    expect(within(entry).getByText('Foundations')).toBeInTheDocument()
+    expect(within(entry).getByText('Foundation')).toBeInTheDocument()
+    expect(within(entry).getByText('700 words')).toBeInTheDocument()
+    expect(
+      within(within(entry).getByRole('list', { name: 'Tags' })).getByText('conclusion'),
+    ).toBeInTheDocument()
+
+    // Cross-reference sections in order, each anchored for the outline.
+    const headings = screen
+      .getAllByRole('heading', { level: 2 })
+      .map((h) => h.textContent)
+    const order = ['Concepts in this article', 'Related', 'Reading tracks', 'References']
+    expect(order.map((t) => headings.indexOf(t))).toEqual(
+      [...order.map((t) => headings.indexOf(t))].sort((a, b) => a - b),
+    )
+    expect(document.getElementById('entry-concepts')).not.toBeNull()
+    expect(document.getElementById('entry-references')).not.toBeNull()
+
+    // Provenance carries the status too.
+    expect(screen.getByText(/revision 1 · last reviewed 2026-09-03 · reviewed/)).toBeInTheDocument()
+  })
+
+  it('lists the template sections in the outline, after the body headings', async () => {
+    render(<LsatLibrary />)
+    await waitFor(() => screen.getByRole('heading', { name: 'Argument Anatomy' }))
+
+    const outline = screen.getByRole('navigation', { name: /on this page/i })
+    const links = within(outline)
+      .getAllByRole('link')
+      .map((a) => a.getAttribute('href'))
+    expect(links.slice(0, 2)).toEqual(['#how-it-works', '#key-takeaways'])
+    expect(links).toContain('#entry-concepts')
+    expect(links).toContain('#entry-tracks')
+  })
+
+  it('opens a reading track from the article that belongs to it', async () => {
+    render(<LsatLibrary />)
+    await waitFor(() => screen.getByRole('heading', { name: 'Argument Anatomy' }))
+
+    fireEvent.click(screen.getByRole('button', { name: /^Start Here/ }))
+    expect(screen.getByRole('combobox')).toHaveValue('start-here')
+    expect(screen.getByText('Finish with an accurate model of the test.')).toBeInTheDocument()
   })
 })
 
@@ -257,12 +310,21 @@ describe('LsatLibrary — concept catalog', () => {
     // The rail is the same rail — one list of contents, two kinds of content.
     const rail = screen.getByRole('navigation', { name: /library contents/i })
     expect(
-      within(rail).getByRole('button', { name: 'Main Conclusion' }),
+      within(rail).getByRole('button', { name: /^Main Conclusion/ }),
     ).toBeInTheDocument()
-    // The article outline is article-only; a concept has no headings.
+    // Same row shape as the article rail: the second line says what you get.
+    // (`\s*`: jsdom applies no stylesheet, so the two lines concatenate
+    // without the space a browser's block layout would put between them.)
     expect(
-      screen.queryByRole('navigation', { name: /on this page/i }),
-    ).not.toBeInTheDocument()
+      within(rail).getByRole('button', {
+        name: /^Main Conclusion\s*taught in 1 article/,
+      }),
+    ).toBeInTheDocument()
+    // The outline column lists the template's sections on this view too.
+    const outline = screen.getByRole('navigation', { name: /on this page/i })
+    expect(
+      within(outline).getByRole('link', { name: 'Articles on this concept' }),
+    ).toHaveAttribute('href', '#entry-articles')
     // Modus tollens tags questions but no article — the catalog says so
     // rather than showing an empty heading.
     await waitFor(() =>
@@ -272,21 +334,49 @@ describe('LsatLibrary — concept catalog', () => {
     )
   })
 
+  it('marks a concept as read, in the same store as the articles', async () => {
+    await openCatalog()
+    await waitFor(() => screen.getByRole('heading', { name: 'Modus tollens' }))
+
+    fireEvent.click(screen.getByRole('button', { name: /mark as read/i }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /✓ Read/ })).toBeInTheDocument(),
+    )
+    const stored = JSON.parse(
+      window.localStorage.getItem('lsat:library:read') ?? '[]',
+    )
+    // Prefixed, so a concept and an article sharing an id never collide and
+    // the existing bare article ids stay valid.
+    expect(stored).toContain('concept:modus-tollens')
+    const rail = screen.getByRole('navigation', { name: /library contents/i })
+    expect(within(rail).getByText(/1 of 3 read/)).toBeInTheDocument()
+  })
+
   it('lists the articles that teach a concept and the drills that use it', async () => {
     await openCatalog()
     await waitFor(() => screen.getByRole('heading', { name: 'Modus tollens' }))
 
     const rail = screen.getByRole('navigation', { name: /library contents/i })
-    fireEvent.click(within(rail).getByRole('button', { name: 'Main Conclusion' }))
+    fireEvent.click(within(rail).getByRole('button', { name: /^Main Conclusion/ }))
 
     // `taught_in` — the concept → article direction, rendered for the first
-    // time by the merge.
+    // time by the merge — under the same heading shape as the article side.
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /Argument Anatomy/ }),
+        screen.getByRole('heading', { name: 'Articles on this concept' }),
       ).toBeInTheDocument(),
     )
-    expect(screen.getByText(/Tagged on 2 bank questions/i)).toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /^Argument Anatomy/ }),
+      ).toBeInTheDocument(),
+    )
+    // The drill count is an action, exactly where an article puts it.
+    expect(
+      screen.getByRole('link', { name: 'Drill this (2 questions)' }),
+    ).toHaveAttribute('href', '/lsat')
+    // The concept reaches a track through the article that teaches it.
+    expect(screen.getByRole('button', { name: /^Start Here/ })).toBeInTheDocument()
   })
 
   it('follows a taught-in article back into the reader', async () => {
@@ -294,10 +384,10 @@ describe('LsatLibrary — concept catalog', () => {
     await waitFor(() => screen.getByRole('heading', { name: 'Modus tollens' }))
 
     const rail = screen.getByRole('navigation', { name: /library contents/i })
-    fireEvent.click(within(rail).getByRole('button', { name: 'Main Conclusion' }))
-    await waitFor(() => screen.getByRole('heading', { name: /Where to learn it/ }))
+    fireEvent.click(within(rail).getByRole('button', { name: /^Main Conclusion/ }))
+    await waitFor(() => screen.getByRole('button', { name: /^Argument Anatomy/ }))
 
-    fireEvent.click(screen.getByRole('button', { name: /Argument Anatomy/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Argument Anatomy/ }))
     await waitFor(() =>
       expect(
         screen.getByRole('heading', { name: 'Argument Anatomy' }),
@@ -313,12 +403,13 @@ describe('LsatLibrary — concept catalog', () => {
     render(<LsatLibrary />)
     await waitFor(() => screen.getByRole('heading', { name: 'Argument Anatomy' }))
 
-    // The glossary entry's name is the way out to the catalog; the
-    // `#concept-<id>` anchor it sits on stays put for inline references.
-    fireEvent.click(screen.getByRole('button', { name: 'Main Conclusion' }))
+    // The concept card is the way out to the catalog; the `#concept-<id>`
+    // anchor it sits on stays put for inline references.
+    expect(document.getElementById('concept-main-conclusion')).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /^Main Conclusion/ }))
     await waitFor(() =>
       expect(
-        screen.getByRole('heading', { name: /Where to learn it/ }),
+        screen.getByRole('heading', { name: 'Articles on this concept' }),
       ).toBeInTheDocument(),
     )
     expect(screen.getByRole('tab', { name: 'Concepts' })).toHaveAttribute(
@@ -349,22 +440,23 @@ describe('LsatLibrary — concept catalog', () => {
 
     const rail = screen.getByRole('navigation', { name: /library contents/i })
     fireEvent.click(
-      within(rail).getByRole('button', { name: 'Necessary Assumption' }),
+      within(rail).getByRole('button', { name: /^Necessary Assumption/ }),
     )
+    // "Related" on a concept is `see_also`, under the same heading and card
+    // shape as an article's related articles.
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: 'See also' })).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { name: 'Related' })).toBeInTheDocument(),
     )
 
-    const seeAlso = screen.getByRole('heading', { name: 'See also' })
-      .parentElement as HTMLElement
-    // Resolved: linked, and named rather than shown as a raw id.
+    const related = document.getElementById('entry-related') as HTMLElement
+    // Resolved: a card, named rather than shown as a raw id.
     expect(
-      within(seeAlso).getByRole('button', { name: 'Main Conclusion' }),
+      within(related).getByRole('button', { name: /^Main Conclusion/ }),
     ).toBeInTheDocument()
     // Dangling: rendered as its id, with nothing to click through to.
-    expect(within(seeAlso).getByText('retired-concept')).toBeInTheDocument()
+    expect(within(related).getByText('retired-concept')).toBeInTheDocument()
     expect(
-      within(seeAlso).queryByRole('button', { name: 'retired-concept' }),
+      within(related).queryByRole('button', { name: /retired-concept/ }),
     ).not.toBeInTheDocument()
   })
 

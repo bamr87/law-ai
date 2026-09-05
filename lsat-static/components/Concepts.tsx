@@ -3,8 +3,10 @@
 import { useMemo, useState } from 'react'
 import {
   articlesTeaching,
+  conceptById,
   content,
   questionsForConcept,
+  tracks,
 } from '@/lib/data'
 import type { SectionCode } from '@/lib/types'
 
@@ -14,9 +16,11 @@ import type { SectionCode } from '@/lib/types'
  * It used to be its own destination in the header nav, one along from the
  * library, which put the vocabulary and the material that teaches it on
  * opposite sides of the site. It is now the library's second view (see
- * `Library.tsx`), and every concept carries the inverse link the split made
- * impossible: the articles that teach it, and how many bank questions drill
- * it. Parity with the platform's merged library.
+ * `Library.tsx`), and each card follows the same entry template the article
+ * reader does — header, body, then the cross-references in a fixed order:
+ * articles on this concept, related, reading tracks, references — so a
+ * learner reads one shape whichever kind of entry is in front of them.
+ * Parity with the platform's merged library.
  */
 
 const SECTION_FILTERS: { id: 'all' | SectionCode; label: string; full: string }[] = [
@@ -28,9 +32,12 @@ const SECTION_FILTERS: { id: 'all' | SectionCode; label: string; full: string }[
 
 export default function Concepts({
   onOpenArticle,
+  onOpenTrack,
 }: {
   /** Hands the reader back to the Articles view on the chosen article. */
   onOpenArticle?: (id: string) => void
+  /** Hands the reader back to the Articles view with a track as the rail. */
+  onOpenTrack?: (id: string) => void
 }) {
   const [q, setQ] = useState('')
   const [section, setSection] = useState<'all' | SectionCode>('all')
@@ -91,59 +98,145 @@ export default function Concepts({
           {filtered.map((c) => {
             const taughtIn = articlesTeaching(c.id)
             const drills = questionsForConcept(c.id)
+            const taughtIds = new Set(taughtIn.map((a) => a.id))
+            const inTracks = tracks.filter((t) =>
+              t.article_ids.some((id) => taughtIds.has(id)),
+            )
+            const seeAlso = (c.see_also ?? []).map((id) => ({
+              id,
+              target: conceptById(id),
+            }))
+            const examples = c.examples ?? []
             return (
               <li key={c.id} className="concept" id={`catalog-${c.id}`}>
+                {/* header: the same facts an article's header carries */}
+                <div className="lib-meta">
+                  <span className="pill pill-muted">Concept</span>
+                  <span>
+                    {examples.length === 1 ? '1 example' : `${examples.length} examples`}
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span>
+                    {taughtIn.length === 1
+                      ? 'taught in 1 article'
+                      : `taught in ${taughtIn.length} articles`}
+                  </span>
+                  {(c.sections ?? []).map((s) => (
+                    <span key={s} className="lib-meta-section">
+                      {s}
+                    </span>
+                  ))}
+                </div>
                 <h3>{c.name}</h3>
                 {c.summary && <p className="concept-summary">{c.summary}</p>}
+
+                {/* actions: the drill count is an action, as on an article */}
+                {drills.length > 0 && (
+                  <p className="concept-drills">
+                    {drills.length} bank question{drills.length === 1 ? '' : 's'}{' '}
+                    drill this concept
+                  </p>
+                )}
+
+                {/* body */}
                 {c.detail && <p className="concept-detail">{c.detail}</p>}
-                {c.examples && c.examples.length > 0 && (
-                  <ul className="concept-examples">
-                    {c.examples.map((ex, i) => (
-                      <li key={i}>{ex}</li>
-                    ))}
-                  </ul>
+                {examples.length > 0 && (
+                  <div className="concept-block">
+                    <span className="lib-eyebrow">Schema &amp; examples</span>
+                    <ul className="concept-examples">
+                      {examples.map((ex, i) => (
+                        <li key={i}>{ex}</li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
 
                 {/* The whole point of living inside the library: a concept
-                    that names the material teaching it. */}
-                <div className="concept-teaches">
+                    that names the material teaching it — and says so in words
+                    when the corpus has not caught up. */}
+                <div className="concept-block concept-teaches">
+                  <span className="lib-eyebrow">Articles on this concept</span>
                   {taughtIn.length > 0 ? (
-                    <>
-                      <span className="lib-eyebrow">Where to learn it</span>
-                      <ul className="concept-teaches-list">
-                        {taughtIn.map((a) => (
-                          <li key={a.id}>
-                            <button
-                              type="button"
-                              className="linklike"
-                              onClick={() => onOpenArticle?.(a.id)}
-                            >
-                              {a.title}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
+                    <ul className="concept-teaches-list">
+                      {taughtIn.map((a) => (
+                        <li key={a.id}>
+                          <button
+                            type="button"
+                            className="linklike"
+                            onClick={() => onOpenArticle?.(a.id)}
+                          >
+                            {a.title}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
                   ) : (
                     <span className="concept-teaches-none">
                       No article covers this concept yet.
                     </span>
                   )}
-                  {drills.length > 0 && (
-                    <span className="concept-drills">
-                      {drills.length} bank question
-                      {drills.length === 1 ? '' : 's'}
-                    </span>
-                  )}
                 </div>
 
-                {c.sections && c.sections.length > 0 && (
-                  <div className="concept-tags">
-                    {c.sections.map((s) => (
-                      <span key={s} className="pill pill-muted">
-                        {s}
-                      </span>
-                    ))}
+                {seeAlso.length > 0 && (
+                  <div className="concept-block">
+                    <span className="lib-eyebrow">Related</span>
+                    <ul className="concept-teaches-list">
+                      {seeAlso.map(({ id, target }) =>
+                        target ? (
+                          <li key={id}>
+                            {/* A sibling card on this same list: an anchor,
+                                so it works with no script at all. */}
+                            <a href={`#catalog-${id}`}>{target.name}</a>
+                          </li>
+                        ) : (
+                          <li key={id} className="concept-dangling">
+                            {id}
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                  </div>
+                )}
+
+                {inTracks.length > 0 && (
+                  <div className="concept-block">
+                    <span className="lib-eyebrow">Reading tracks</span>
+                    <ul className="lib-tracks">
+                      {inTracks.map((t) => (
+                        <li key={t.id}>
+                          <button
+                            type="button"
+                            className="lib-track"
+                            onClick={() => onOpenTrack?.(t.id)}
+                          >
+                            {t.name}
+                            <span className="lib-track-meta">
+                              {' '}
+                              · {t.article_count} articles · {t.estimated_minutes} min
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {(c.references ?? []).length > 0 && (
+                  <div className="concept-block">
+                    <span className="lib-eyebrow">References</span>
+                    <ul className="lib-refs">
+                      {(c.references ?? []).map((r) => (
+                        <li key={r.title}>
+                          {r.url ? (
+                            <a href={r.url} target="_blank" rel="noreferrer">
+                              {r.title}
+                            </a>
+                          ) : (
+                            r.title
+                          )}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </li>
