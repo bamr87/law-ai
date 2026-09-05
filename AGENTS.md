@@ -251,9 +251,7 @@ Before any PR — every command runs in Docker:
 3. `make test-legalbench` when reasoning logic changed
 4. Manual smoke test of Analysis Studio + Knowledge Graph in the browser (against `make dev`)
 5. **Visual evidence gate** — any change to `frontend/` or `lsat-static/` that a user could
-   *see* ships with screenshots. See [docs/ui-ux-review.md](docs/ui-ux-review.md) §"Visual
-   evidence" for what to capture and how. A passing `ux_audit.py` is not evidence: it checks
-   landmarks and contracts, not whether the screen reads correctly.
+*see* ships with screenshots. See [docs/ui-ux-review.md](docs/ui-ux-review.md) §"Visual evidence" for what to capture and how. A passing `ux_audit.py` is not evidence: it checks landmarks and contracts, not whether the screen reads correctly.
 6. **Continuous-evolution gate** ([docs/constitution.md](docs/constitution.md) §11):
    - `tasks.md` for the spec must end with a populated `## Follow-ups Discovered` section.
    - Each follow-up is mirrored into [BACKLOG.md](BACKLOG.md) with a `BL-YYYYMMDD-NN` id.
