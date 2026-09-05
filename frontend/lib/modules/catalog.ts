@@ -63,12 +63,12 @@ export const lsatModule = defineModule({
   nav: { label: 'LSAT Lab', short: 'LSAT', href: '/lsat', glyph: 'LS' },
   sidebar: [
     { href: '/lsat', label: 'Practice lab' },
-    { href: '/lsat/library', label: 'Knowledge library' },
+    { href: '/lsat/library', label: 'Library & concepts' },
     { href: '/settings', label: 'Instance settings' },
   ],
   inspectorTitle: 'LSAT Lab',
   inspectorBody:
-    'API-backed drills, concepts, and HITL authoring, plus a reading library on exam structure and method. Study aid, not legal advice.',
+    'API-backed drills and HITL authoring in the lab; long-form articles and the concept catalog in the library. Study aid, not legal advice.',
   upl: true,
 })
 

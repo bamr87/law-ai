@@ -9,7 +9,8 @@ import { conceptById } from '@/lib/data'
  * state, and no bare-id fallback for an unreachable API.
  *
  * Deliberately links to nothing external, matching the platform: the concepts
- * are named and summarised here, and deeper reading lives on the Concepts tab.
+ * are named and summarised here, and deeper reading lives in the library's
+ * Concepts view, next to the articles that teach them.
  */
 export default function ConceptRefs({ conceptIds }: { conceptIds: string[] }) {
   if (conceptIds.length === 0) return null

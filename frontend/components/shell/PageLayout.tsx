@@ -20,10 +20,26 @@ import type { ReactNode } from 'react'
 
 export type PageWidth = 'wide' | 'roomy' | 'regular' | 'narrow'
 
+/**
+ * Page measures, in two or three steps.
+ *
+ * The shell eats a fixed 36.5rem of the viewport whenever both side panels
+ * are docked (rail 3.5 + sidebar 14 + inspector 19), so below roughly 1900px
+ * the caps here never bind — the content column is already narrower than
+ * `max-w-7xl` and the page fills it. The extra steps are what a large
+ * monitor actually gets: at 2560px a `wide` page now runs to 1760px of the
+ * 1976px available instead of stopping at 1280 and leaving a 350px dead
+ * gutter down each side.
+ *
+ * Reading-first widths grow far less, and `narrow` not at all: a settings
+ * form at 1600px is not a better settings form. Anything whose job is prose
+ * caps its own measure inside the container (the library reader holds ~70ch)
+ * — the page frame's job is to stop wasting the screen, not to stretch text.
+ */
 const WIDTH: Record<PageWidth, string> = {
-  wide: 'max-w-7xl',
-  roomy: 'max-w-6xl',
-  regular: 'max-w-5xl',
+  wide: 'max-w-7xl min-[1800px]:max-w-[96rem] min-[2200px]:max-w-[110rem]',
+  roomy: 'max-w-6xl min-[1800px]:max-w-[84rem] min-[2200px]:max-w-[96rem]',
+  regular: 'max-w-5xl min-[1800px]:max-w-6xl',
   narrow: 'max-w-3xl',
 }
 
@@ -57,7 +73,7 @@ export default function PageLayout({
 }) {
   const { scrolled } = useShellScroll()
   const tone = ACCENT[accent]
-  const container = `mx-auto w-full ${WIDTH[width]} px-4 sm:px-6`
+  const container = `mx-auto w-full ${WIDTH[width]} px-4 sm:px-6 min-[1800px]:px-10`
 
   return (
     <div className="flex min-h-full flex-col">
@@ -151,7 +167,11 @@ export function StickyToolbar({
       aria-label={label}
       data-testid="sticky-toolbar"
       className={
-        'shell-sticky-sub -mx-4 border-y border-slate-800/80 bg-slate-950/85 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 ' +
+        // Negative margins that match the container's gutter at every step of
+        // it: the bar bleeds to the edge of the page frame, so a gutter that
+        // grows on a large monitor has to grow here too or the toolbar stops
+        // short of its own page.
+        'shell-sticky-sub -mx-4 border-y border-slate-800/80 bg-slate-950/85 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 min-[1800px]:-mx-10 min-[1800px]:px-10 ' +
         className
       }
     >

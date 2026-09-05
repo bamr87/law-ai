@@ -1,21 +1,29 @@
 'use client'
 
 /**
- * LSAT Lab — multi-section practice + concept catalog + AI tutor.
+ * LSAT Lab — multi-section practice + AI tutor.
  *
  * The component is a top-level tab router. Each section gets its own
  * subview specialised for the question format (LR isolated stems, RC
- * passages, LG game setup + rules). Concepts and Overview are static
- * documentation surfaces. Stats hangs off the global header so it follows
- * the learner across tabs.
+ * passages, LG game setup + rules). Overview is a static documentation
+ * surface. Stats hangs off the global header so it follows the learner
+ * across tabs.
+ *
+ * Study material is deliberately *not* here. The concept catalog used to be a
+ * seventh tab in this bar; it now lives in the library
+ * (`/lsat/library`, `components/LsatLibrary.tsx`) next to the articles that
+ * teach those concepts, so the lab is the place you practise and the library
+ * is the place you read. Post-grade concept references still resolve inline
+ * (`ConceptRefs`) — leaving a graded question to look a term up was never the
+ * point.
  */
 
+import Link from 'next/link'
 import { useRovingTabIndex } from '@/components/shell/useRovingTabIndex'
 import { StickyToolbar } from '@/components/shell/PageLayout'
 import {
     approveLsatProposal,
     askLsatTutor,
-    fetchLsatConcepts,
     fetchLsatGaps,
     fetchLsatPassage,
     fetchLsatPassages,
@@ -27,7 +35,6 @@ import {
     gradeLsat,
     rejectLsatProposal,
     type LsatChoiceLabel,
-    type LsatConcept,
     type LsatDifficulty,
     type LsatGapRow,
     type LsatGradeResponse,
@@ -48,14 +55,13 @@ import SolveAssist from '@/components/lsat/SolveAssist'
 import ValidationReport from '@/components/lsat/ValidationReport'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-type Tab = 'overview' | 'LR' | 'RC' | 'LG' | 'concepts' | 'stats' | 'authoring'
+type Tab = 'overview' | 'LR' | 'RC' | 'LG' | 'stats' | 'authoring'
 
 const TABS: { id: Tab; label: string; hint: string }[] = [
   { id: 'overview', label: 'Overview', hint: 'How the LSAT is built' },
   { id: 'LR', label: 'Logical Reasoning', hint: 'Drill short-argument questions' },
   { id: 'RC', label: 'Reading Comprehension', hint: 'Practice passage sets' },
   { id: 'LG', label: 'Logic Games', hint: 'Sequencing & grouping setups' },
-  { id: 'concepts', label: 'Concepts', hint: 'Catalog of LSAT reasoning patterns' },
   { id: 'stats', label: 'Stats', hint: 'Your practice history' },
   { id: 'authoring', label: 'Authoring (HITL)', hint: 'Review AI-drafted questions' },
 ]
@@ -137,7 +143,6 @@ export default function LsatLab() {
         {tab === 'LR' && <LrPanel onAttempt={onAttempt} />}
         {tab === 'RC' && <PassagePanel section="RC" onAttempt={onAttempt} />}
         {tab === 'LG' && <PassagePanel section="LG" onAttempt={onAttempt} />}
-        {tab === 'concepts' && <ConceptsPanel />}
         {tab === 'stats' && <StatsPanel session={session} stats={globalStats} />}
         {tab === 'authoring' && <AuthoringPanel />}
       </div>
@@ -287,8 +292,15 @@ function OverviewPanel({ onJump }: { onJump: (t: Tab) => void }) {
           skills that drive law-school success: identifying conclusions,
           spotting flawed arguments, mapping passage structure, and translating
           dense prose into compact constraints. Pick a section below to drill
-          questions, or open the Concepts tab for a catalog of every reasoning
-          pattern the test recycles.
+          questions, or read up first in the{' '}
+          <Link
+            href="/lsat/library"
+            className="text-amber-300 underline underline-offset-2 hover:text-amber-200"
+          >
+            knowledge library
+          </Link>{' '}
+          — long-form articles on how the exam works, plus the catalog of every
+          reasoning pattern it recycles.
         </p>
       </div>
 
@@ -1161,160 +1173,6 @@ function TutorPane({
         </button>
       </div>
     </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Concepts panel
-// ---------------------------------------------------------------------------
-
-function ConceptsPanel() {
-  const [section, setSection] = useState<LsatSection | 'any'>('any')
-  const [concepts, setConcepts] = useState<LsatConcept[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [openId, setOpenId] = useState<string | null>(null)
-
-  useEffect(() => {
-    void (async () => {
-      setConcepts(null)
-      setError(null)
-      try {
-        const body = await fetchLsatConcepts(
-          section === 'any' ? undefined : section,
-        )
-        setConcepts(body.concepts)
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load')
-      }
-    })()
-  }, [section])
-
-  const grouped = useMemo(() => {
-    if (!concepts) return []
-    const map = new Map<string, LsatConcept[]>()
-    for (const c of concepts) {
-      const key = c.sections[0] ?? 'misc'
-      map.set(key, [...(map.get(key) ?? []), c])
-    }
-    return Array.from(map.entries())
-  }, [concepts])
-
-  return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 backdrop-blur">
-        <div>
-          <div className="text-xs uppercase tracking-wider text-amber-400">
-            Concept catalog
-          </div>
-          <p className="mt-1 max-w-2xl text-sm text-slate-400">
-            The reasoning patterns the LSAT recycles. Each concept ships a
-            short summary, worked examples, and links to deeper material.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <label
-            htmlFor="concepts-section"
-            className="text-xs uppercase tracking-wider text-slate-500"
-          >
-            Filter
-          </label>
-          <select
-            id="concepts-section"
-            value={section}
-            onChange={(e) =>
-              setSection(e.target.value as LsatSection | 'any')
-            }
-            className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-blue-500 focus-ring"
-          >
-            <option value="any">All sections</option>
-            <option value="LR">Logical Reasoning</option>
-            <option value="RC">Reading Comprehension</option>
-            <option value="LG">Logic Games</option>
-          </select>
-        </div>
-      </div>
-
-      {error && <ErrorBanner message={error} />}
-      {!concepts && !error && <SkeletonGrid />}
-      {concepts && grouped.length === 0 && (
-        <p className="text-sm text-slate-400">No concepts match this filter.</p>
-      )}
-      {concepts &&
-        grouped.map(([sec, items]) => (
-          <div key={sec} className="space-y-2">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
-              {sec}
-            </h3>
-            <div className="grid gap-3 md:grid-cols-2">
-              {items.map((c) => {
-                const open = openId === c.id
-                return (
-                  <article
-                    key={c.id}
-                    className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 backdrop-blur transition hover:border-slate-600"
-                  >
-                    <button
-                      onClick={() => setOpenId(open ? null : c.id)}
-                      className="flex w-full items-start justify-between gap-2 text-left"
-                    >
-                      <div>
-                        <h4 className="text-sm font-semibold text-slate-100">
-                          {c.name}
-                        </h4>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {c.summary}
-                        </p>
-                      </div>
-                      <span className="text-slate-500">{open ? '−' : '+'}</span>
-                    </button>
-                    {open && (
-                      <div className="mt-3 space-y-2 border-t border-slate-800 pt-3 text-sm">
-                        {c.detail && (
-                          <p className="leading-relaxed text-slate-300">
-                            {c.detail}
-                          </p>
-                        )}
-                        {c.examples.length > 0 && (
-                          <div>
-                            <div className="text-[11px] uppercase tracking-wider text-slate-500">
-                              Example
-                            </div>
-                            <p className="mt-1 italic text-slate-300">
-                              {c.examples[0]}
-                            </p>
-                          </div>
-                        )}
-                        {c.see_also.length > 0 && (
-                          <div className="text-xs text-slate-400">
-                            See also: {c.see_also.join(', ')}
-                          </div>
-                        )}
-                        {c.references.length > 0 && (
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            {c.references.map((r) =>
-                              r.url ? (
-                                <a
-                                  key={r.url}
-                                  href={r.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-xs text-slate-400 underline hover:text-slate-200"
-                                >
-                                  ↗ {r.title}
-                                </a>
-                              ) : null,
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </article>
-                )
-              })}
-            </div>
-          </div>
-        ))}
-    </section>
   )
 }
 

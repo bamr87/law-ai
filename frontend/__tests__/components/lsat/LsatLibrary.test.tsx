@@ -228,3 +228,165 @@ describe('LsatLibrary', () => {
     ).toBeInTheDocument()
   })
 })
+
+/**
+ * The concepts merge: the catalog that used to be a tab in the practice lab
+ * is a second view of this library, so the vocabulary and the material that
+ * teaches it live on one screen.
+ */
+describe('LsatLibrary — concept catalog', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    window.history.replaceState(null, '', '/')
+  })
+
+  const openCatalog = async () => {
+    render(<LsatLibrary />)
+    await waitFor(() => screen.getByRole('heading', { name: 'Argument Anatomy' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Concepts' }))
+  }
+
+  it('switches to the catalog and opens the first concept', async () => {
+    await openCatalog()
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: 'Modus tollens' }),
+      ).toBeInTheDocument(),
+    )
+    // The rail is the same rail — one list of contents, two kinds of content.
+    const rail = screen.getByRole('navigation', { name: /library contents/i })
+    expect(
+      within(rail).getByRole('button', { name: 'Main Conclusion' }),
+    ).toBeInTheDocument()
+    // The article outline is article-only; a concept has no headings.
+    expect(
+      screen.queryByRole('navigation', { name: /on this page/i }),
+    ).not.toBeInTheDocument()
+    // Modus tollens tags questions but no article — the catalog says so
+    // rather than showing an empty heading.
+    await waitFor(() =>
+      expect(
+        screen.getByText(/No article covers this concept yet/i),
+      ).toBeInTheDocument(),
+    )
+  })
+
+  it('lists the articles that teach a concept and the drills that use it', async () => {
+    await openCatalog()
+    await waitFor(() => screen.getByRole('heading', { name: 'Modus tollens' }))
+
+    const rail = screen.getByRole('navigation', { name: /library contents/i })
+    fireEvent.click(within(rail).getByRole('button', { name: 'Main Conclusion' }))
+
+    // `taught_in` — the concept → article direction, rendered for the first
+    // time by the merge.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /Argument Anatomy/ }),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.getByText(/Tagged on 2 bank questions/i)).toBeInTheDocument()
+  })
+
+  it('follows a taught-in article back into the reader', async () => {
+    await openCatalog()
+    await waitFor(() => screen.getByRole('heading', { name: 'Modus tollens' }))
+
+    const rail = screen.getByRole('navigation', { name: /library contents/i })
+    fireEvent.click(within(rail).getByRole('button', { name: 'Main Conclusion' }))
+    await waitFor(() => screen.getByRole('heading', { name: /Where to learn it/ }))
+
+    fireEvent.click(screen.getByRole('button', { name: /Argument Anatomy/ }))
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: 'Argument Anatomy' }),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('tab', { name: 'Articles' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+  })
+
+  it('opens a concept from the article it appears in', async () => {
+    render(<LsatLibrary />)
+    await waitFor(() => screen.getByRole('heading', { name: 'Argument Anatomy' }))
+
+    // The glossary entry's name is the way out to the catalog; the
+    // `#concept-<id>` anchor it sits on stays put for inline references.
+    fireEvent.click(screen.getByRole('button', { name: 'Main Conclusion' }))
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: /Where to learn it/ }),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('tab', { name: 'Concepts' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+  })
+
+  it('filters the catalog with the shared search box', async () => {
+    await openCatalog()
+    await waitFor(() => screen.getByRole('heading', { name: 'Modus tollens' }))
+
+    fireEvent.change(screen.getByRole('searchbox', { name: /search/i }), {
+      target: { value: 'consequent' },
+    })
+    const rail = screen.getByRole('navigation', { name: /library contents/i })
+    await waitFor(() =>
+      expect(within(rail).getByText(/1 of 3 concepts/)).toBeInTheDocument(),
+    )
+    expect(
+      within(rail).queryByRole('button', { name: 'Main Conclusion' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('links a see-also that resolves and leaves a dangling one as text', async () => {
+    await openCatalog()
+    await waitFor(() => screen.getByRole('heading', { name: 'Modus tollens' }))
+
+    const rail = screen.getByRole('navigation', { name: /library contents/i })
+    fireEvent.click(
+      within(rail).getByRole('button', { name: 'Necessary Assumption' }),
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'See also' })).toBeInTheDocument(),
+    )
+
+    const seeAlso = screen.getByRole('heading', { name: 'See also' })
+      .parentElement as HTMLElement
+    // Resolved: linked, and named rather than shown as a raw id.
+    expect(
+      within(seeAlso).getByRole('button', { name: 'Main Conclusion' }),
+    ).toBeInTheDocument()
+    // Dangling: rendered as its id, with nothing to click through to.
+    expect(within(seeAlso).getByText('retired-concept')).toBeInTheDocument()
+    expect(
+      within(seeAlso).queryByRole('button', { name: 'retired-concept' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('deep-links a concept through its own URL fragment', async () => {
+    // `catalog-`, not `concept-`: the latter names the glossary anchor inside
+    // an article, which inline concept references still point at.
+    window.history.replaceState(null, '', '#catalog-necessary-assumption')
+    render(<LsatLibrary />)
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: 'Necessary Assumption' }),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('tab', { name: 'Concepts' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /The Assumption Family/ }),
+      ).toBeInTheDocument(),
+    )
+  })
+})

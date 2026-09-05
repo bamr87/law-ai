@@ -56,6 +56,23 @@ a {
   padding: 0 1.25rem;
 }
 
+/* Large monitors. 960px of a 2560px screen is a third of the viewport doing
+   the work and 800px of dead gutter down each side; the steps below start
+   well above every other breakpoint in this file (900px and down), so nothing
+   about the phone, tablet or laptop layout moves. Prose keeps its own measure
+   inside the column — this widens the container, not the line length. */
+@media (min-width: 1440px) {
+  .wrap {
+    max-width: 1200px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .wrap {
+    max-width: 1440px;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -626,6 +643,32 @@ main#view {
   display: flex;
   gap: 0.3rem;
   margin-top: 0.6rem;
+}
+
+/* The inverse link that living inside the library buys: from a reasoning
+   pattern to the article that teaches it. */
+.concept-teaches {
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.concept-teaches-list {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.9rem;
+}
+.concept-teaches-none,
+.concept-drills {
+  color: var(--text-muted);
+}
+.concept-drills {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
 }
 
 /* ---- Stats ---- */
@@ -1544,6 +1587,42 @@ kbd {
    reader arriving on a phone should see what the library contains.
    ========================================================================== */
 
+/* ---- view switcher ----
+   Articles and Concepts are two views of one shelf. The catalog used to be
+   its own header destination; the switcher lives here instead so the
+   vocabulary sits next to the material that teaches it. */
+
+.lib-views {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0 0 1.25rem;
+}
+
+.lib-view {
+  flex: 0 0 auto;
+  min-width: 7rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lib-view:hover {
+  color: var(--text);
+}
+
+.lib-view-active,
+.lib-view-active:hover {
+  background: var(--accent-dim);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: var(--accent);
+}
+
 .lib-grid {
   display: grid;
   gap: 1.5rem;
@@ -1564,6 +1643,16 @@ kbd {
     max-height: calc(100vh - var(--site-header-h) - 2rem);
     overflow-y: auto;
     padding-right: 0.5rem;
+  }
+}
+
+/* The extra container width goes to the rail and the gutter between the
+   columns. The article measure grows too, but far less — see `.lib-article`,
+   where the override has to live to come after the base rule. */
+@media (min-width: 1440px) {
+  .lib-grid {
+    grid-template-columns: 19rem minmax(0, 1fr);
+    gap: 2.5rem;
   }
 }
 
@@ -1714,6 +1803,16 @@ kbd {
      eye loses the line return; the drill views can fill the column, a 700-word
      article cannot. */
   max-width: 68ch;
+}
+
+/* A little wider where the container is, and no more: a 90ch line is harder
+   to read than a 68ch one however much room there is for it. Placed after the
+   base rule rather than beside the `.lib-grid` override — a media query adds
+   no specificity, so source order is what decides this. */
+@media (min-width: 1440px) {
+  .lib-article {
+    max-width: 76ch;
+  }
 }
 
 .lib-article:focus-visible {

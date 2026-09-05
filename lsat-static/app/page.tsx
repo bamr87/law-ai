@@ -6,27 +6,23 @@ import { content, SECTIONS, sectionMeta } from '@/lib/data'
 import Overview from '@/components/Overview'
 import Drill from '@/components/Drill'
 import Writing from '@/components/Writing'
-import Concepts from '@/components/Concepts'
 import Library from '@/components/Library'
 import Stats from '@/components/Stats'
 import ShortcutHelp from '@/components/ShortcutHelp'
 import { useShortcuts } from '@/lib/keyboard'
 
-type View =
-  | 'overview'
-  | SectionCode
-  | 'writing'
-  | 'library'
-  | 'concepts'
-  | 'stats'
+type View = 'overview' | SectionCode | 'writing' | 'library' | 'stats'
 
 /**
- * Eight destinations at full length do not fit one row at ANY width: even at
+ * Seven destinations at full length do not fit one row at ANY width: even at
  * 1280px "Logical Reasoning · Reading Comprehension · Logic Games ·
- * Argumentative Writing" plus the brand exceeds the 960px content column, and
- * the row wrapped — which pushed the header to 101px on desktop and 136px on
- * a phone, and desynchronised the `--site-header-h` sticky offset the drill
+ * Argumentative Writing" plus the brand exceeds the content column, and the
+ * row wrapped — which pushed the header to 101px on desktop and 136px on a
+ * phone, and desynchronised the `--site-header-h` sticky offset the drill
  * head and passage column hang from.
+ *
+ * (Eight before the concept catalog moved inside the library, which is where
+ * the vocabulary belongs anyway — next to the articles that teach it.)
  *
  * So the bar is compact everywhere and the section codes carry the sections,
  * which is how test-takers refer to them anyway. `full` is the accessible
@@ -40,8 +36,7 @@ const NAV: { id: View; label: string; full: string }[] = [
   { id: 'RC', label: 'RC', full: 'Reading Comprehension' },
   { id: 'LG', label: 'LG', full: 'Logic Games' },
   { id: 'writing', label: 'Writing', full: 'Argumentative Writing' },
-  { id: 'library', label: 'Library', full: 'Knowledge library' },
-  { id: 'concepts', label: 'Concepts', full: 'Concepts' },
+  { id: 'library', label: 'Library', full: 'Library & concepts' },
   { id: 'stats', label: 'Stats', full: 'Stats' },
 ]
 
@@ -212,7 +207,6 @@ export default function Page() {
           )}
           {view === 'writing' && <Writing onAnnounce={setAnnouncement} />}
           {view === 'library' && <Library onAnnounce={setAnnouncement} />}
-          {view === 'concepts' && <Concepts />}
           {view === 'stats' && <Stats />}
         </div>
       </main>

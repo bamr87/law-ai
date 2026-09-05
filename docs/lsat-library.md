@@ -4,6 +4,8 @@ The library is the LSAT module's **prose layer**: long-form, cross-linked study 
 
 Introduced by [specs/048-lsat-knowledge-library](../specs/048-lsat-knowledge-library/spec.md).
 
+**Two views, one surface.** The library reads in two modes on both products — **Articles** (the reader) and **Concepts** (the catalog of recurring reasoning patterns that `concepts.json` defines and every article and bank question is tagged with). The catalog used to be a tab in the practice lab and a separate destination on the static site, which meant an article could name a concept but a concept named nothing. In the library it carries `taught_in` — the concept → article inverse `/api/lsat/concepts/<id>` has always returned — so a learner who misses a concept-tagged question can go tag → material in one hop. This does not merge the *data*: `concepts.json` is still the tagging vocabulary and articles reference concepts rather than absorbing them (spec 048 NG5).
+
 ## Where it lives
 
 | Thing | Path |
@@ -14,6 +16,7 @@ Introduced by [specs/048-lsat-knowledge-library](../specs/048-lsat-knowledge-lib
 | API | `backend/law_ai/lsat/urls.py` → `/api/lsat/library/*` |
 | Platform reader | `frontend/components/LsatLibrary.tsx` + `components/lsat/library/` |
 | Offline reader | `lsat-static/components/Library.tsx` + `components/library/` |
+| Concept catalog | `frontend/components/LsatLibrary.tsx` (Concepts view) · `lsat-static/components/Concepts.tsx` |
 | Maintenance agent | `backend/law_ai/agents_runtime/crews/lsat_librarian.py` |
 | Command | `backend/law_ai/lsat/management/commands/lsat_library.py` |
 

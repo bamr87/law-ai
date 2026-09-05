@@ -32,7 +32,7 @@ The document does not scroll. `AppShell` is `h-dvh overflow-hidden`, so the mast
 
 **Feature parity (spec 046).** The published site renders the same solve guides, hint carousel, five diagram types, and post-grade concept references as the lab — the guides are hand-authored static data, so they ship in `content.json` and are locked client-side until a question is graded. What it will never have, because a serverless site cannot: the AI tutor, answer cross-check, HITL authoring, the validation report, and server-side stats. `ux_audit.py` R13 fails the build when a `frontend/components/lsat/` component gains no counterpart and no `static-parity: none — <reason>`.
 
-`lsat-static/` is a single-page tab router (`Overview`, `LR`, `RC`, `LG`, `Concepts`, `Stats`) driven by a HITL-approved `content.json`. It is **not** on the `make dev` compose network.
+`lsat-static/` is a single-page tab router (`Overview`, `LR`, `RC`, `LG`, `Writing`, `Library`, `Stats`) driven by a HITL-approved `content.json`. It is **not** on the `make dev` compose network. `Library` carries two views, `Articles` and `Concepts` — the catalog was its own destination until the concepts merge moved it next to the material that teaches it, on both products.
 
 ---
 
@@ -89,7 +89,8 @@ Shared hex coincidence: both canvases are `#0f172a` / `#e2e8f0`. That is the ent
 | `AnalysisStudio.tsx` | Screen | IRAC form, live WS trace, coverage envelope, citation verified badges, UPL banner. |
 | `KnowledgeGraph.tsx` | Screen | Case search + neighborhood fetch. |
 | `GraphViewer.tsx` | Widget | Cytoscape canvas. Open: [BL-20260803-03](../BACKLOG.md) (do not label centrality as correctness). |
-| `LsatLab.tsx` | Screen (~1611 lines) | God component: overview, LR/RC/LG drills, concepts, stats, HITL authoring. Parallel to `lsat-static/`, not shared. |
+| `LsatLab.tsx` | Screen (~1750 lines) | God component: overview, LR/RC/LG drills, stats, HITL authoring. The concept catalog left for the library. Parallel to `lsat-static/`, not shared. |
+| `LsatLibrary.tsx` | Screen | The study surface: `Articles` (contents rail, block-rendered reader, in-page outline) and `Concepts` (the catalog, with the `taught_in` inverse — every concept names the articles that teach it and the questions that drill it). |
 | `lsat/SectionTimerWidget.tsx` | Docked widget | The section clock. Docks in the sidebar (default), inspector, or in page — moved from its own menu or `/settings`, persisted per instance. A view over `lib/lsat/timerStore.ts`, so moving it never resets a running section; it follows you to other modules while a section is in progress and survives a reload with the elapsed time counted (spec 043). |
 | `LsatTimer.tsx` | Primitive | Now only `QuestionElapsed` (per-question clock). Section timing moved to the docked widget above; the file is a leftover name (BL-20260831-15). |
 
@@ -104,7 +105,8 @@ Shared hex coincidence: both canvases are `#0f172a` / `#e2e8f0`. That is the ent
 | `QuestionCard.tsx` | Primitive-ish | Accessible radiogroup (roving tabindex, arrows, Space/Enter). The strongest a11y implementation in the repo. |
 | `PassagePanel.tsx` | Widget | Sticky RC/LG passage. |
 | `SectionTimer.tsx` | Primitive | Warn / urgent / expired states via semantic classes. |
-| `Concepts.tsx` | Screen | Filterable concept catalog. |
+| `Library.tsx` | Screen | Reading surface, two views: contents rail + block-rendered article, or the concept catalog. |
+| `Concepts.tsx` | View | Filterable concept catalog, rendered by `Library.tsx` as its Concepts view. |
 | `Stats.tsx` | Screen | `localStorage` attempt history. |
 
 ---
