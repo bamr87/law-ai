@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > Orchestration policy: GitHub Copilot and Claude Code are both sanctioned dev surfaces ([AGENTS.md](AGENTS.md) § "Development Orchestration", [docs/constitution.md](docs/constitution.md) §1). Cursor, Continue.dev, Aider, Codex, and Gemini CLI remain forbidden.
 >
-> Runtime LLM policy (constitution §1, amended 2026-08-11): the product runtime is the ordered chain in `LLM_PROVIDER_CHAIN` — Claude over OAuth, then Claude over `ANTHROPIC_API_KEY`, then local Ollama — implemented in `law_ai.core.llm`. Claude is the default. Local-first remains supported by pinning `LLM_PROVIDER_CHAIN=ollama`, which is **required** for data under a confidentiality obligation that forbids third-party processing. Adding any third vendor (OpenAI, Gemini, …) needs a further constitution amendment.
+> Runtime LLM policy (constitution §1, amended 2026-08-11 and 2026-09-04): the product runtime is the ordered chain in `LLM_PROVIDER_CHAIN` — Claude over OAuth, then Claude over `ANTHROPIC_API_KEY`, then xAI Grok over a subscription OAuth token, then local Ollama — implemented in `law_ai.core.llm`. Claude is the default. Local-first remains supported by pinning `LLM_PROVIDER_CHAIN=ollama`, which is **required** for data under a confidentiality obligation that forbids third-party processing — note the default chain now has **two** third-party tiers. The xAI tier ([ADR 0007](docs/adr/0007-xai-runtime-provider.md), spec 050) is inert until an operator runs `make xai-login`; it has no API-key mode. Adding any further vendor (OpenAI, Gemini, …) needs a further constitution amendment.
 
 ## Docker-first (the rule you will trip on)
 

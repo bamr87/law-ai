@@ -40,6 +40,7 @@ from law_ai.lsat.factory.executors import (
     OllamaExecutor,
     SynthExecutor,
     RawBatch,
+    XaiExecutor,
 )
 from law_ai.lsat.factory.intake import (
     GateRejection,
@@ -89,6 +90,7 @@ __all__ = [
     "OllamaExecutor",
     "RawBatch",
     "SynthExecutor",
+    "XaiExecutor",
     "all_archetypes",
     "archetypes_for",
     "build_manifest",

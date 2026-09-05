@@ -21,7 +21,7 @@ from typing import Any
 
 import httpx
 
-from law_ai.core import claude_code
+from law_ai.core import claude_code, xai, xai_oauth
 from law_ai.core.llm.base import LLMRequest, LLMUnavailableError
 from law_ai.core.settings_proxy import settings_proxy as settings
 
@@ -30,6 +30,7 @@ logger = logging.getLogger("law_ai.core.llm.providers")
 #: Provider names, also the tokens accepted in ``LLM_PROVIDER_CHAIN``.
 CLAUDE_OAUTH = "claude_code"
 ANTHROPIC_API = "anthropic_api"
+XAI = "xai"
 OLLAMA = "ollama"
 
 
@@ -98,6 +99,56 @@ class AnthropicAPIProvider(_AnthropicProvider):
             return override
         configured = str(getattr(settings, "ANTHROPIC_MODEL", "") or "").strip()
         return configured or claude_code.model()
+
+
+class XaiProvider:
+    """xAI Grok over a subscription OAuth token (chain tier 3, spec 050).
+
+    Sits between the Anthropic tiers and the local model: a hosted fallback so
+    an Anthropic outage costs a vendor rather than most of the answer quality.
+    Sanctioned by constitution §1 as amended 2026-09-04 (ADR 0007).
+
+    The credential lifecycle — device-code / loopback acquisition, rotation,
+    cross-process refresh — lives in :mod:`law_ai.core.xai_oauth`; this adapter
+    only knows how to make one call.
+    """
+
+    name = XAI
+
+    def configured(self) -> bool:
+        return xai_oauth.is_configured()
+
+    def unconfigured_reason(self) -> str | None:
+        return xai_oauth.unconfigured_reason()
+
+    def model_for(self, request: LLMRequest) -> str:
+        return request.model_for(self.name) or xai.model()
+
+    async def agenerate(self, request: LLMRequest) -> str:
+        """One chat-completions call.
+
+        ``temperature`` **is** forwarded here, unlike the Claude tiers: those
+        models removed sampling params and 400 on them, while xAI is
+        OpenAI-compatible and honours the value the caller asked for.
+        """
+        try:
+            return await xai.generate(
+                request.prompt,
+                system=request.system,
+                model_id=self.model_for(request),
+                max_tokens=request.max_tokens,
+                temperature=request.temperature,
+                response_schema=request.response_schema,
+                json_mode=request.json_mode,
+            )
+        except xai_oauth.XaiAuthError as exc:
+            # A dead or absent credential is this tier being unavailable, not
+            # the request failing — surface it as such so the router records a
+            # reason and falls through to Ollama.
+            raise LLMUnavailableError(str(exc)) from exc
+
+    async def probe(self) -> dict[str, Any]:
+        return await xai.probe()
 
 
 class OllamaProvider:
@@ -181,6 +232,7 @@ def _with_system(request: LLMRequest) -> str:
 PROVIDER_REGISTRY: dict[str, type[Any]] = {
     CLAUDE_OAUTH: ClaudeOAuthProvider,
     ANTHROPIC_API: AnthropicAPIProvider,
+    XAI: XaiProvider,
     OLLAMA: OllamaProvider,
 }
 
@@ -190,7 +242,9 @@ __all__ = [
     "CLAUDE_OAUTH",
     "OLLAMA",
     "PROVIDER_REGISTRY",
+    "XAI",
     "AnthropicAPIProvider",
     "ClaudeOAuthProvider",
     "OllamaProvider",
+    "XaiProvider",
 ]

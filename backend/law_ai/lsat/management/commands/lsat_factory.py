@@ -44,7 +44,7 @@ class Command(BaseCommand):
         p_run = sub.add_parser("run", help="fulfill a manifest and ingest")
         p_run.add_argument(
             "--executor",
-            choices=("ollama", "claude_code", "drafts", "synth"),
+            choices=("ollama", "claude_code", "xai", "drafts", "synth"),
             default="ollama",
         )
         p_run.add_argument(
@@ -172,6 +172,8 @@ class Command(BaseCommand):
         try:
             if name == "claude_code":
                 return factory.ClaudeCodeExecutor(config)
+            if name == "xai":
+                return factory.XaiExecutor(config)
             if name == "synth":
                 # No provider gate: the synthesis engine calls nothing.
                 return factory.SynthExecutor(domain=opts.get("synth_domain"))

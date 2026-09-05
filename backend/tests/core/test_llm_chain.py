@@ -68,7 +68,7 @@ def _chain(*providers: _StubProvider):
 class TestChainNames:
     def test_defaults_to_claude_first_ollama_last(self, settings) -> None:
         settings.LLM_PROVIDER_CHAIN = ""
-        assert llm.chain_names() == ("claude_code", "anthropic_api", "ollama")
+        assert llm.chain_names() == ("claude_code", "anthropic_api", "xai", "ollama")
 
     def test_parses_configured_order(self, settings) -> None:
         settings.LLM_PROVIDER_CHAIN = "ollama, claude_code"

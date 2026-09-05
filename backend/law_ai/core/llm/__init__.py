@@ -8,9 +8,10 @@ Import this package, not a specific transport::
     payload = llm.loads_first_json(result.text)
     label = result.model_label            # "claude_code/claude-opus-4-8"
 
-The chain (``LLM_PROVIDER_CHAIN``, default ``claude_code,anthropic_api,ollama``)
-tries Claude over an OAuth subscription token first, Claude over
-``ANTHROPIC_API_KEY`` second, and the local Ollama model last. See
+The chain (``LLM_PROVIDER_CHAIN``, default
+``claude_code,anthropic_api,xai,ollama``) tries Claude over an OAuth
+subscription token first, Claude over ``ANTHROPIC_API_KEY`` second, xAI Grok
+over a subscription OAuth token third, and the local Ollama model last. See
 :mod:`law_ai.core.llm.router` for routing/fallback semantics and
 :mod:`law_ai.core.llm.providers` for the transports.
 """
@@ -38,9 +39,11 @@ from law_ai.core.llm.providers import (
     CLAUDE_OAUTH,
     OLLAMA,
     PROVIDER_REGISTRY,
+    XAI,
     AnthropicAPIProvider,
     ClaudeOAuthProvider,
     OllamaProvider,
+    XaiProvider,
 )
 from law_ai.core.llm.router import (
     DEFAULT_CHAIN,
@@ -60,6 +63,7 @@ __all__ = [
     "DEFAULT_CHAIN",
     "OLLAMA",
     "PROVIDER_REGISTRY",
+    "XAI",
     "AnthropicAPIProvider",
     "ChainRunnable",
     "ChatProviderChain",
@@ -72,6 +76,7 @@ __all__ = [
     "LLMResult",
     "LLMUnavailableError",
     "OllamaProvider",
+    "XaiProvider",
     "agenerate",
     "aroute",
     "build_chain",
