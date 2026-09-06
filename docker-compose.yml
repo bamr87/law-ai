@@ -338,6 +338,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      # This sidecar shares `backend`'s database, its staticfiles directory
+      # (both mount ./backend:/app) and its checkpointer schema, and runs the
+      # same collectstatic + migrate + ensure_checkpointer chain. `make
+      # test-e2e` brings both up at once — frontend depends on backend — so on
+      # a cold runner the two raced and this one lost, exiting 1 in the same
+      # second backend reported healthy. Waiting for backend means the
+      # migrations run once, and this container starts against a database
+      # that is already migrated.
+      backend:
+        condition: service_healthy
     volumes:
       - ./backend:/app
       - ./:/repo

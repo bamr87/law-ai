@@ -395,6 +395,12 @@ jobs:
           df -h /
       - name: Run the axe-core smoke over every catalog route
         run: make test-e2e E2E_ARGS='e2e/a11y.spec.ts'
+      - name: Dump container logs
+        # `compose up --wait` reports "container X exited (1)" and nothing
+        # else, so a stack that dies on boot is undiagnosable from the run
+        # log alone — which cost a full round trip the first time it happened.
+        if: failure()
+        run: docker compose --profile e2e logs --no-color --tail=120 || true
       - name: Upload the Playwright report
         if: failure()
         uses: actions/upload-artifact@v7
