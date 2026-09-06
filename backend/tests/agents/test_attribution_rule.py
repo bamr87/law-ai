@@ -252,6 +252,43 @@ class TestPrecedentHunterAttribution:
             attribution = Attribution.model_validate(precedent.attribution)
             assert attribution.complete, precedent.case_id
             assert attribution.authority == "binding"
+        # A fully attributed set needs no reviewer for §13 reasons.
+        assert out.requires_review is False
+
+    @pytest.mark.asyncio
+    async def test_an_under_attributed_precedent_pins_review(self) -> None:
+        """Carrying an attribution is not the same as having one.
+
+        A :Case node with no court (or no date) yields
+        ``Attribution(complete=False)``. The set used to ship anyway with
+        ``degraded=False`` and no flag at all — an unattributed statement of
+        law presented as a search result.
+        """
+        from unittest.mock import patch
+
+        from law_ai.agents_runtime.crews.precedent_hunter import PrecedentHunter
+
+        class _Retriever:
+            last_coverage = None
+
+            async def __call__(self, state):  # type: ignore[no-untyped-def]
+                return [_passage(score=2.0, court="", decided_at="")]
+
+        with patch(
+            "law_ai.agents_runtime.crews.precedent_hunter.provenance.log_agent_call",
+            return_value="t",
+        ):
+            out = await PrecedentHunter(retriever=_Retriever()).run(
+                {"text": "judicial review", "jurisdiction": "us"}
+            )
+
+        assert out.precedents  # retrieval worked…
+        assert out.degraded is False  # …so this is not the degraded path…
+        assert out.requires_review is True  # …but a human still has to look.
+        assert "Attribution incomplete" in out.summary
+        assert check_attribution(
+            [{"text": p.title, "attribution": p.attribution} for p in out.precedents]
+        )
 
 
 class TestLegalAnalystAttribution:

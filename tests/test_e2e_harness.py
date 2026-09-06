@@ -128,6 +128,27 @@ def test_the_static_site_has_its_own_harness(repo_root: Path) -> None:
         assert "import.meta" not in "\n".join(code), name
 
 
+def test_the_static_viewport_suite_is_run_by_a_workflow(repo_root: Path) -> None:
+    """BL-20260901-03: a measurement nothing runs is not an automated check.
+
+    The static site's responsive numbers were verified by hand; the point of
+    the harness is that they stop being verified by hand. ``make
+    lsat-static-e2e`` is a build plus a browser image, so it runs nightly
+    alongside the frontend suite rather than per-PR — but it has to run
+    *somewhere*, which is what this pins.
+    """
+    workflows = repo_root / ".github" / "workflows"
+    runners = [
+        path.name
+        for path in sorted(workflows.glob("*.yml"))
+        if "make lsat-static-e2e" in path.read_text(encoding="utf-8")
+    ]
+    assert runners, (
+        "no workflow runs `make lsat-static-e2e` — the viewport measurements "
+        "would be automatable but never automatic"
+    )
+
+
 def test_static_playwright_version_matches_the_frontend(repo_root: Path) -> None:
     """One Playwright version across the repo, so one browser image serves both."""
     static_lock = json.loads(
@@ -156,3 +177,164 @@ def test_the_harness_is_documented(repo_root: Path) -> None:
     assert "make test-e2e" in doc
     for item in sorted(set(EXPECTED_SPECS.values())):
         assert item in doc, f"docs/e2e-testing.md should mention {item}"
+
+
+def test_the_analysis_spec_has_a_healthy_run_to_render(repo_root: Path) -> None:
+    """BL-20260429-27: the IRAC/precedents/trace-id assertions need a real result.
+
+    The e2e sidecar is pinned to an unreachable Ollama on purpose, so a live
+    ``POST /api/analysis`` there can only produce the degraded engine-state
+    panel — which renders no IRAC card, no precedent list and no trace-id copy
+    control. The healthy branch is reached by replaying a *persisted* run, so
+    ``make test-e2e`` has to seed one and the specs have to name the same id.
+    """
+    makefile = (repo_root / "Makefile").read_text(encoding="utf-8")
+    target = makefile.split("\ntest-e2e:", 1)[1].split("\n\n", 1)[0]
+    assert "seed_analysis_run" in target, (
+        "make test-e2e must seed the persisted analysis the specs replay"
+    )
+
+    command = (
+        repo_root
+        / "backend"
+        / "law_ai"
+        / "analysis"
+        / "management"
+        / "commands"
+        / "seed_analysis_run.py"
+    )
+    assert command.is_file(), "the seeded run's management command is missing"
+    source = command.read_text(encoding="utf-8")
+    analysis_id = re.search(r'^ANALYSIS_ID = "([^"]+)"', source, re.M)
+    trace_id = re.search(r'^TRACE_ID = "([^"]+)"', source, re.M)
+    assert analysis_id and trace_id, "seed_analysis_run must pin both ids"
+    # The chip elides to eight characters, so a shorter id would make the
+    # "the clipboard carries the whole id" assertion vacuous.
+    assert len(trace_id.group(1)) > 8
+
+    e2e_dir = repo_root / "frontend" / "e2e"
+    analysis_spec = (e2e_dir / "analysis.spec.ts").read_text(encoding="utf-8")
+    assert analysis_id.group(1) in analysis_spec
+    assert trace_id.group(1) in analysis_spec
+    # The live half must assert the panel the pinned sidecar really produces.
+    assert "engine-state" in analysis_spec
+    assert (e2e_dir / "api-auth.spec.ts").read_text(encoding="utf-8").count(
+        analysis_id.group(1)
+    ) >= 1
+
+
+def test_the_auth_spec_covers_every_scope_and_page(repo_root: Path) -> None:
+    """BL-20260430-11: a page that calls nothing cannot prove a key was attached."""
+    spec = (repo_root / "frontend" / "e2e" / "api-auth.spec.ts").read_text(
+        encoding="utf-8"
+    )
+    endpoints = spec.split("const ENDPOINTS = [", 1)[1].split("]", 1)[0]
+    # All four scopes law_ai/core/auth.py defines, analysis included.
+    for fragment in ("/api/agents/", "/api/analysis/", "/api/graph/", "/api/lsat/"):
+        assert fragment in endpoints, f"ENDPOINTS is missing the {fragment} scope"
+    # Each page names the router it must actually have reached.
+    pages = spec.split("const PAGES = [", 1)[1].split("\n]", 1)[0]
+    assert pages.count("served:") == 4, "every page needs a `served` endpoint"
+    assert spec.count("await expectReachedItsRouter(") == 2, (
+        "both postures must assert the page really called its router — "
+        "otherwise the 'no 401' assertion passes on a page that called nothing"
+    )
+    # The wait has to outlast `next dev`'s first compile of the proxy route,
+    # which is what made the original assertion vacuous.
+    assert "expect\n    .poll(" in spec or "expect.poll" in spec, (
+        "a fixed networkidle wait can settle before the page's first API call"
+    )
+
+
+def test_the_gated_auth_posture_runs_in_ci(repo_root: Path) -> None:
+    """BL-20260430-11: the gated half is skipped unless CI supplies a key.
+
+    ``test.skip(!KEY, …)`` means a bare ``make test-e2e`` never exercises the
+    gate. Nothing would go red if the backend check or the proxy's server-side
+    key injection regressed, so the nightly needs a second, keyed leg.
+    """
+    workflow = (repo_root / ".github" / "workflows" / "nightly-tests.yml").read_text(
+        encoding="utf-8"
+    )
+    steps = workflow.split("\n      - name: ")
+    gated = [
+        step
+        for step in steps
+        if "api-auth.spec.ts" in step
+        and re.search(r'E2E_AGENT_API_KEY="([^"]+)"', step)
+    ]
+    assert gated, "no nightly step runs the api-auth spec with a key"
+    body = gated[0]
+    assert "make test-e2e" in body
+    key = re.search(r'E2E_AGENT_API_KEY="([^"]+)"', body)
+    assert key and key.group(1).strip(), (
+        "the gated leg must pass a non-empty E2E_AGENT_API_KEY"
+    )
+
+
+def test_the_a11y_smoke_runs_on_every_pull_request(repo_root: Path) -> None:
+    """BL-20260831-09 asked for CI on every PR, not a weekly nightly.
+
+    ``scripts/ux_audit.py`` cannot compute a contrast ratio or watch focus
+    move; axe-core in a browser can. A gate that only fires once a week finds
+    the regression after it shipped.
+    """
+    ci = (repo_root / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert "\n  pull_request:" in ci, "ci.yml must still be a pull_request workflow"
+    assert "a11y.spec.ts" in ci, (
+        "no ci.yml job runs the axe-core smoke — a nightly-only a11y gate is "
+        "not 'checked on every PR'"
+    )
+    job = ci.split("\n  a11y:", 1)
+    assert len(job) == 2, "ci.yml is missing the `a11y` job"
+    body = job[1].split("\n  # ---", 1)[0]
+    assert "make test-e2e" in body
+    # Gated on the frontend paths filter so docs-only PRs stay cheap.
+    assert "needs.changes.outputs.frontend == 'true'" in body
+
+
+def test_the_a11y_baseline_gates_contrast_not_just_rule_ids(repo_root: Path) -> None:
+    """A baselined rule id must not be a permanent amnesty for new failures.
+
+    With a rule-id-only gate, `color-contrast` was baselined on every route, so
+    a PR adding low-contrast text could not fail. The baseline now records the
+    signatures already accepted (for contrast: the colour pair and type size),
+    and an unrecorded signature fails.
+    """
+    spec = (repo_root / "frontend" / "e2e" / "a11y.spec.ts").read_text(
+        encoding="utf-8"
+    )
+    assert "fgColor" in spec and "bgColor" in spec, (
+        "the contrast signature must carry the colour pair"
+    )
+    assert "unrecorded" in spec, "no assertion on unrecorded failure signatures"
+
+    baseline = json.loads(
+        (repo_root / "frontend" / "e2e" / "a11y-baseline.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    for route, rules in baseline.items():
+        for rule, signatures in rules.items():
+            assert isinstance(signatures, list), (
+                f"{route}/{rule}: the baseline records signatures, not counts — "
+                "re-record with E2E_A11Y_UPDATE_BASELINE=1"
+            )
+
+
+def test_the_a11y_spec_covers_every_catalog_route(repo_root: Path) -> None:
+    """`/matters` shipped as a seventh module and went unchecked for a release."""
+    catalog = (repo_root / "frontend" / "lib" / "modules" / "catalog.ts").read_text(
+        encoding="utf-8"
+    )
+    hrefs = set(re.findall(r"nav:\s*\{[^}]*?href:\s*'([^']+)'", catalog, re.S))
+    assert hrefs, "no nav hrefs found — did catalog.ts move?"
+
+    spec = (repo_root / "frontend" / "e2e" / "a11y.spec.ts").read_text(
+        encoding="utf-8"
+    )
+    routes = set(re.findall(r"'(/[^']*)'", spec.split("const ROUTES = [", 1)[1]
+                            .split("]", 1)[0]))
+    assert routes == hrefs, (
+        f"a11y.spec.ts covers {sorted(routes)} but the catalog has {sorted(hrefs)}"
+    )

@@ -7,12 +7,13 @@ substantive scanners had exactly one test between them, in the backend suite,
 and both of those *skipped inside Docker* — which is where the backend suite
 runs — so in practice neither had ever executed in CI.
 
-This module is the host tier's copy of that coverage. It lives here rather
-than in ``make lint-specs`` on purpose: that target is documented as three
-stdlib scripts with no pytest (`tests/README.md`, `CLAUDE.md`), and wiring a
-test runner into it would break a contract people rely on. CI's
-repo-structural job already runs the root suite bare, which is the same
-guarantee without the contract change.
+This module is the host tier's copy of that coverage, and ``make lint-specs``
+runs it (BL-20260511-14) right after the three stdlib validators — so the
+person editing ``scripts/evolve_audit.py`` finds a broken scanner in the same
+command that checks their spec, not in a CI run later. That target's recipe
+checks for pytest first and explains itself if it is missing; CI's
+repo-structural job runs the root suite bare as well, so the gate holds on
+both surfaces.
 
 Stdlib + pytest only, per ``tests/conftest.py``: nothing here imports Django
 or ``law_ai``. ``_scan_coverage`` reaches for
@@ -217,3 +218,25 @@ def test_rendered_bullet_carries_the_severity_the_nightly_greps_for(
     bullet = candidate.render("BL-20260901-01")
     assert "*test-gap, high*" in bullet
     assert bullet.startswith("- **BL-20260901-01**")
+
+
+def test_lint_specs_runs_this_module_on_the_host(repo_root: Path) -> None:
+    """BL-20260511-14's second clause: `make lint-specs` has to run these.
+
+    The file existing and passing is only half the ask. Until the target ran
+    it, the only place this coverage executed was a CI job — so someone
+    editing `scripts/evolve_audit.py` and running the gate they are told to
+    run got no signal at all.
+    """
+    makefile = (repo_root / "Makefile").read_text(encoding="utf-8")
+    recipe = makefile.split("\nlint-specs:", 1)[1].split("\n\n", 1)[0]
+    assert "tests/test_evolve_audit.py" in recipe, (
+        "`make lint-specs` no longer runs this module — the gate is back to "
+        "three scripts and this coverage is CI-only again"
+    )
+    assert "pytest" in recipe
+    # pytest is the one non-stdlib thing the target needs; a missing
+    # interpreter package must produce a sentence, not a traceback.
+    assert "import pytest" in recipe, (
+        "the recipe must check for pytest and explain itself when it is absent"
+    )

@@ -527,6 +527,47 @@ class TestInteractiveModel:
 
         assert captured["models"] == {}
 
+    async def test_the_authoring_path_sends_it(self, settings) -> None:
+        """LSAT authoring measured 68s on this tier and was skipping the knob."""
+        from law_ai.agents_runtime.crews import lsat_content_author
+
+        settings.XAI_INTERACTIVE_MODEL = "grok-4-fast"
+        captured: dict[str, Any] = {}
+
+        async def fake_agenerate(prompt: str, **kwargs: Any) -> Any:
+            captured.update(kwargs)
+            return LLMResult(
+                text="{}", provider="ollama", model="mistral", latency_ms=1.0
+            )
+
+        with patch.object(lsat_content_author.llm, "agenerate", fake_agenerate):
+            await lsat_content_author._generate("prompt")
+
+        assert captured["models"] == {"xai": "grok-4-fast"}
+
+    def test_no_user_facing_caller_is_left_out(self) -> None:
+        """Every call a person waits on passes the override.
+
+        Source-level on purpose: driving cross-check and the writing evaluator
+        end to end needs a question bank and a graded essay, and the thing
+        worth pinning is that none of these call sites silently loses the
+        argument again (BL-20260905-11).
+        """
+        import inspect
+
+        from law_ai.agents_runtime.crews.legal_analyst import LegalAnalyst
+        from law_ai.agents_runtime.crews.lsat_writing_evaluator import (
+            LSATWritingEvaluator,
+        )
+        from law_ai.lsat.services.crosscheck import cross_check
+
+        for func in (
+            cross_check,
+            LSATWritingEvaluator.run,
+            LegalAnalyst._irac_text,
+        ):
+            assert "xai.interactive_overrides()" in inspect.getsource(func), func
+
 
 # ---------------------------------------------------------------------------
 # Streaming (BL-20260811-20)

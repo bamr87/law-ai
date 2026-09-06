@@ -30,7 +30,12 @@
 
 import { useRovingTabIndex } from '@/components/shell/useRovingTabIndex'
 import { StickyToolbar } from '@/components/shell/PageLayout'
-import { fetchLsatStats, type LsatStats } from '@/lib/api'
+import {
+  fetchLsatQuestions,
+  fetchLsatStats,
+  type LsatQuestion,
+  type LsatStats,
+} from '@/lib/api'
 import SectionTimerWidget from '@/components/lsat/SectionTimerWidget'
 import { recordAnswer } from '@/lib/lsat/timerStore'
 import AuthoringPanel from '@/components/lsat/AuthoringPanel'
@@ -49,6 +54,7 @@ import {
   type Tab,
 } from '@/components/lsat/labTabs'
 import { useUrlState, useUrlWrite } from '@/lib/shell/viewState'
+import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 
 // The ARIA id helpers stay importable from here for anything that linked a
@@ -65,8 +71,46 @@ export default function LsatLab() {
   // also decides where the lab opens — on the drill, not on Overview — while
   // an explicit `?tab=` still wins, so a link can name both.
   const [concept] = useUrlState<string>('concept', { fallback: '' })
+  // Where a concept-only link opens. The section is asked of the bank rather
+  // than assumed: two thirds of the concepts the bank tags carry no Logical
+  // Reasoning question at all, so the old hard-coded 'LR' sent `sequencing`
+  // (21 Logic Games questions) to a panel that answered "no Logical Reasoning
+  // questions are tagged sequencing yet" — a false statement, and exactly the
+  // broken-link impression the empty state was written to avoid.
+  const params = useSearchParams()
+  const namedTab = (TAB_IDS as readonly string[]).includes(
+    params?.get('tab') ?? '',
+  )
+  const [conceptTab, setConceptTab] = useState<Tab | null>(null)
+  const [findingConcept, setFindingConcept] = useState(false)
+  useEffect(() => {
+    // An explicit `?tab=` is the learner's own choice and needs no lookup.
+    if (!concept || namedTab) {
+      setConceptTab(null)
+      setFindingConcept(false)
+      return
+    }
+    let live = true
+    setFindingConcept(true)
+    void (async () => {
+      try {
+        const body = await fetchLsatQuestions({ concept, limit: 25 })
+        if (live) setConceptTab(drillSectionOf(body.questions))
+      } catch {
+        /* the LR fallback below still opens a drill */
+      } finally {
+        if (live) setFindingConcept(false)
+      }
+    })()
+    return () => {
+      live = false
+    }
+  }, [concept, namedTab])
   const [tab, setTab] = useUrlState<Tab>('tab', {
-    fallback: concept ? 'LR' : 'overview',
+    // The resolved section is a *fallback*, not a URL write: the lab opens on
+    // the right drill without spending a history entry on a decision the
+    // learner did not make.
+    fallback: concept ? (conceptTab ?? 'LR') : 'overview',
     allowed: TAB_IDS,
   })
   // Dropping the filter has to pin the tab in the same navigation: the concept
@@ -116,7 +160,7 @@ export default function LsatLab() {
       <Header session={session} globalStats={globalStats} />
       <TabBar tab={tab} onChange={setTab} />
       {/* tabIndex 0: the panel is scrollable content, so it has to be
-        * reachable by keyboard once the tab bar hands focus on. */}
+       * reachable by keyboard once the tab bar hands focus on. */}
       <div
         role="tabpanel"
         id={tabPanelId(tab)}
@@ -124,22 +168,66 @@ export default function LsatLab() {
         tabIndex={0}
         className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
       >
-        {tab === 'overview' && <OverviewPanel onJump={setTab} />}
-        {tab === 'LR' && (
-          <LrPanel
-            onAttempt={onAttempt}
-            concept={concept || undefined}
-            onClearConcept={concept ? clearConcept : undefined}
-          />
+        {findingConcept ? (
+          // One beat while the bank says which section carries the tag.
+          // Rendering a drill first would fire a request for the wrong section
+          // and flash its empty state on the way past.
+          <p
+            role="status"
+            className="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-6 text-sm text-slate-400"
+          >
+            Finding questions tagged {concept}…
+          </p>
+        ) : (
+          <>
+            {tab === 'overview' && <OverviewPanel onJump={setTab} />}
+            {tab === 'LR' && (
+              <LrPanel
+                onAttempt={onAttempt}
+                concept={concept || undefined}
+                onClearConcept={concept ? clearConcept : undefined}
+              />
+            )}
+            {tab === 'RC' && (
+              <PassagePanel
+                section="RC"
+                onAttempt={onAttempt}
+                concept={concept || undefined}
+                onClearConcept={concept ? clearConcept : undefined}
+              />
+            )}
+            {tab === 'LG' && (
+              <PassagePanel
+                section="LG"
+                onAttempt={onAttempt}
+                concept={concept || undefined}
+                onClearConcept={concept ? clearConcept : undefined}
+              />
+            )}
+            {tab === 'WS' && <WritingPanel />}
+            {tab === 'stats' && (
+              <StatsPanel session={session} stats={globalStats} />
+            )}
+            {tab === 'authoring' && <AuthoringPanel />}
+          </>
         )}
-        {tab === 'RC' && <PassagePanel section="RC" onAttempt={onAttempt} />}
-        {tab === 'LG' && <PassagePanel section="LG" onAttempt={onAttempt} />}
-        {tab === 'WS' && <WritingPanel />}
-        {tab === 'stats' && <StatsPanel session={session} stats={globalStats} />}
-        {tab === 'authoring' && <AuthoringPanel />}
       </div>
     </div>
   )
+}
+
+/**
+ * Which drill a concept opens on, read off the questions that actually carry
+ * the tag (BL-20260905-01).
+ *
+ * The concept catalog declares `sections`, but that is what the concept is
+ * *about*, not where the bank has items for it — `analogous-situation` claims
+ * RC and LR and has only RC questions. Precedence when a tag spans sections:
+ * the section with the most questions in the bank comes first.
+ */
+export function drillSectionOf(questions: LsatQuestion[]): Tab | null {
+  const present = new Set(questions.map((q) => String(q.section)))
+  return (['LR', 'RC', 'LG'] as const).find((s) => present.has(s)) ?? null
 }
 
 // ---------------------------------------------------------------------------
@@ -160,8 +248,8 @@ function Header({
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 text-sm backdrop-blur">
       {/* The timer is dockable (spec 043). It renders here only when the user
-        * has chosen the "In page" dock; otherwise it lives in a side panel and
-        * this slot collapses. */}
+       * has chosen the "In page" dock; otherwise it lives in a side panel and
+       * this slot collapses. */}
       <SectionTimerWidget
         dock="inline"
         onOwnRoute

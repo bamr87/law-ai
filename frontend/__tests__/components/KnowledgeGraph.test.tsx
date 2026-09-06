@@ -196,6 +196,25 @@ describe('KnowledgeGraph', () => {
     expect(nav.push).not.toHaveBeenCalled()
   })
 
+  it('replaces rather than pushes the auto-selected first case', async () => {
+    // Nobody *chose* the first case, so it must not become a history entry
+    // (BL-20260831-02). Pushing it made Back inside the screen land back on
+    // `/graph` with nothing selected and nothing to re-select it — a dead end
+    // the reader had to press Back twice to leave.
+    render(<KnowledgeGraph />)
+    const list = await screen.findByTestId('case-list')
+    await waitFor(() => expect(nav.read().get('case')).toBe('case-a'))
+    expect(nav.replace).toHaveBeenCalled()
+    expect(nav.push).not.toHaveBeenCalled()
+    // Exactly one navigation, and it did not add to history.
+    expect(nav.hrefs).toEqual(['/graph?case=case-a'])
+    // The auto-selected case really is the selected row.
+    const selected = within(list)
+      .getAllByText('Roe v. Wade')[0]
+      .closest('button') as HTMLElement
+    expect(selected.className).toContain('bg-blue-500/10')
+  })
+
   it('puts a chosen case in the URL so Back walks the cases', async () => {
     render(<KnowledgeGraph />)
     const list = await screen.findByTestId('case-list')

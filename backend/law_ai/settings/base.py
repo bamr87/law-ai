@@ -165,6 +165,13 @@ env = environ.Env(
     LSAT_API_KEY=(str, ""),
     INGESTION_API_KEY=(str, ""),
     ACCESS_TOKEN_EXPIRE_MINUTES=(int, 60 * 24 * 7),
+    # BL-20260503-13: the OAuth2 bearer grant over `core.ApiToken`. The
+    # access token is a stateless JWT, so nothing can recall one early —
+    # that is why the default life is 15 minutes and the revocable half
+    # is the refresh token.
+    JWT_ISSUER=(str, "law-ai"),
+    JWT_ACCESS_TTL_SECONDS=(int, 900),
+    JWT_REFRESH_TTL_SECONDS=(int, 60 * 60 * 24 * 14),
     # Audit
     AUDIT_PATH=(str, ".audit/provenance.jsonl"),
     MAX_AUDIT_LINES=(int, 10_000),
@@ -188,6 +195,11 @@ env = environ.Env(
     # Repo root for BACKLOG.md + specs/ (outside the backend/ volume mount in Docker).
     # Set REPO_ROOT=/repo in docker-compose when mounting the full repo at /repo.
     REPO_ROOT=(str, ""),
+    # Governance triage (BL-20260503-14). Both default to "off": the weekly
+    # beat job still runs both validators and logs what they said, it just has
+    # nowhere to file an issue. The token is a bearer secret — env only.
+    GOVERNANCE_TRIAGE_GITHUB_REPO=(str, ""),
+    GOVERNANCE_TRIAGE_GITHUB_TOKEN=(str, ""),
 )
 
 env.read_env(str(BASE_DIR / ".env"), overwrite=False)
@@ -202,10 +214,14 @@ ENVIRONMENT: str = env("ENVIRONMENT")
 DEBUG: bool = env.bool("DEBUG")
 
 OLLAMA_BASE_URL: str = env("OLLAMA_BASE_URL")
-# NOTE (BL-20260502-02): nothing reads DEFAULT_MODEL / FALLBACK_MODEL — the
-# Ollama providers select on OLLAMA_DEFAULT_MODEL. Kept for compatibility with
-# existing .env files, but do not reach for them when changing which model a
-# tier serves; the GPU overlay sets OLLAMA_DEFAULT_MODEL for that reason.
+# NOTE (BL-20260502-02): nothing reads DEFAULT_MODEL — the Ollama provider
+# selects on OLLAMA_DEFAULT_MODEL. Kept for compatibility with existing .env
+# files, but do not reach for it when changing which model a tier serves; the
+# GPU overlay sets OLLAMA_DEFAULT_MODEL for that reason.
+# FALLBACK_MODEL *is* read (BL-20260810-05): it is the second model the Ollama
+# provider tries when the primary answers 404 (not pulled on this box). Blank
+# it, or leave it equal to OLLAMA_DEFAULT_MODEL, to make the local tier a
+# single-model call.
 DEFAULT_MODEL: str = env("DEFAULT_MODEL")
 FALLBACK_MODEL: str = env("FALLBACK_MODEL")
 OLLAMA_DEFAULT_MODEL: str = env("OLLAMA_DEFAULT_MODEL")
@@ -332,6 +348,10 @@ LSAT_API_KEY: str | None = env("LSAT_API_KEY") or None
 # agent key. Blank falls back to AGENT_API_KEY, then to the open local posture.
 INGESTION_API_KEY: str | None = env("INGESTION_API_KEY") or None
 ACCESS_TOKEN_EXPIRE_MINUTES: int = env.int("ACCESS_TOKEN_EXPIRE_MINUTES")
+# BL-20260503-13: signed with SECRET_KEY (HS256) by law_ai.core.jwt_auth.
+JWT_ISSUER: str = env("JWT_ISSUER")
+JWT_ACCESS_TTL_SECONDS: int = env.int("JWT_ACCESS_TTL_SECONDS")
+JWT_REFRESH_TTL_SECONDS: int = env.int("JWT_REFRESH_TTL_SECONDS")
 
 # BL-20260429-26 / spec 036 NFR-PRIV-1: whether a newly persisted analysis may
 # ever be given a public share slug. Deployments handling matters under a
@@ -379,6 +399,12 @@ EMAIL_BACKEND: str = env("EMAIL_BACKEND")
 # three directories above BASE_DIR for host/venv runs.
 _repo_root_env: str = env("REPO_ROOT")
 REPO_ROOT: Path = Path(_repo_root_env) if _repo_root_env else BASE_DIR.parent
+
+# Governance triage (BL-20260503-14): the weekly `governance-triage` beat job
+# opens/updates one issue when spec_validator or backlog_lint has something to
+# say. Unset = report to the log and provenance only.
+GOVERNANCE_TRIAGE_GITHUB_REPO: str = env("GOVERNANCE_TRIAGE_GITHUB_REPO")
+GOVERNANCE_TRIAGE_GITHUB_TOKEN: str = env("GOVERNANCE_TRIAGE_GITHUB_TOKEN")
 
 
 # ---------------------------------------------------------------------------
@@ -503,6 +529,15 @@ REST_FRAMEWORK = {
         # anonymous rate. A single ApiToken may override both via its
         # `rate_limit` column.
         "llm_keyed": env("LLM_KEYED_THROTTLE_RATE", default="60/min"),
+        # BL-20260503-12 (which absorbed BL-20260430-09): the `/api/agents/*`
+        # reads are cheap — no model call — but they serve the audit log, so
+        # a leaked key must not be able to scrape it at line speed. Hence a
+        # scope of its own, an order of magnitude more generous than `llm`
+        # rather than unthrottled. The ops dashboard polls a handful of these
+        # endpoints every few seconds, so the anonymous rate has to clear
+        # that comfortably.
+        "audit": env("AUDIT_THROTTLE_RATE", default="120/min"),
+        "audit_keyed": env("AUDIT_KEYED_THROTTLE_RATE", default="600/min"),
     },
 }
 

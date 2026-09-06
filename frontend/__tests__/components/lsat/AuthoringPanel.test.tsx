@@ -64,6 +64,35 @@ const crossCheckProposal = {
   },
 }
 
+// BL-20260831-28: the factory drafts writing prompts into the same queue.
+// A WS draft carries no `choices`, so before it had a card of its own it fell
+// through to the question card and threw inside `choices.map`.
+const writingProposal = {
+  ...questionProposal,
+  id: 'prop-w-1',
+  proposal_kind: 'writing_prompt',
+  section: 'WS',
+  draft: {
+    id: 'ws-004',
+    title: 'Ferry or bridge',
+    rubric_id: 'ws-argumentative-v1',
+    difficulty: 'med',
+    issue: 'Should the county fund the ferry or the bridge?',
+    context: 'The county has one grant and two shovel-ready projects.',
+    task: 'Argue for one position and answer the other.',
+    positions: [
+      { id: 'fund-ferry', name: 'Fund the ferry', summary: 'Serves the isles.' },
+      { id: 'fund-bridge', name: 'Fund the bridge', summary: 'Serves commuters.' },
+    ],
+    perspectives: [
+      { id: 'p1', text: 'The harbourmaster notes ferry ridership is seasonal.' },
+      { id: 'p2', text: 'A planner notes the bridge locks in car traffic.' },
+      { id: 'p3', text: 'An islander has no other winter route.' },
+    ],
+    concepts: ['thesis-position'],
+  },
+}
+
 beforeEach(() => {
   server.use(
     http.get('http://localhost:8000/api/lsat/proposals', () =>
@@ -239,6 +268,58 @@ describe('AuthoringPanel', () => {
       )
       await waitFor(() => expect(rejected).toEqual(['prop-g-1']))
       expect(screen.queryByText('solve guide')).not.toBeInTheDocument()
+    })
+  })
+
+  // BL-20260831-28: a writing draft must survive the queue it is now filed in.
+  describe('writing-prompt drafts', () => {
+    beforeEach(() => {
+      server.use(
+        http.get('http://localhost:8000/api/lsat/proposals', () =>
+          HttpResponse.json({
+            proposals: [writingProposal, questionProposal],
+            count: 2,
+            status: 'pending',
+          }),
+        ),
+        http.post(
+          'http://localhost:8000/api/lsat/proposals/:id/approve',
+          ({ params }) =>
+            HttpResponse.json({
+              ...writingProposal,
+              id: params.id,
+              status: 'approved',
+              writing_prompt_id: 'ws-004',
+            }),
+        ),
+      )
+    })
+
+    it('renders a writing draft on its own card without breaking the queue', async () => {
+      render(<AuthoringPanel />)
+      expect(await screen.findByText('Pending review (2)')).toBeInTheDocument()
+      const card = screen.getByTestId('writing-proposal-card')
+      expect(within(card).getByText('writing prompt')).toBeInTheDocument()
+      expect(within(card).getByText('Ferry or bridge')).toBeInTheDocument()
+      expect(
+        within(card).getByText('Should the county fund the ferry or the bridge?'),
+      ).toBeInTheDocument()
+      // And the question draft next to it still renders — the crash used to
+      // take the whole list down, not just the writing row.
+      expect(screen.getByText('Drafted stem about swans.')).toBeInTheDocument()
+    })
+
+    it('offers an approve button that names the writing library', async () => {
+      render(<AuthoringPanel />)
+      await screen.findByText('Pending review (2)')
+      const approve = screen.getByRole('button', {
+        name: /Approve → writing library/,
+      })
+      fireEvent.click(approve)
+      await waitFor(() =>
+        expect(screen.getByText('Pending review (1)')).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('writing-proposal-card')).not.toBeInTheDocument()
     })
   })
 

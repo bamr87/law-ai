@@ -202,6 +202,17 @@ curl -X POST http://localhost:8000/api/analysis \
 }
 ```
 
+### Scope a round to a matter (BL-20260817-05)
+
+```bash
+curl -X POST http://localhost:8000/api/analysis \
+  -H 'Content-Type: application/json' \
+  -b cookies.txt -H "X-CSRFToken: $CSRF" \
+  -d '{"text": "Is the lease enforceable?", "matter_id": 12}'
+```
+
+`matter_id` feeds the authorities that matter has already had *verified* into GraphRAG as a boost set, so a later round inside one matter ranks known-good citations first. The bias is always reported back in `irac.retrieval.boosted_count` and `irac.retrieval.boost_source` (`"matter:<slug>"`) — a promoted passage is never presented as the corpus's own ordering. The field is **session-only and owner-scoped**: a matter you do not own answers `404` and an anonymous caller `401`, because the boost set is another account's verified work.
+
 ### Live progress via WebSocket (spec 032)
 
 `stream_id` is **client-chosen**, not server-generated — the response's `id` field is returned too late to subscribe to. The contract (`backend/law_ai/agentsapi/consumers.py`):
@@ -209,7 +220,8 @@ curl -X POST http://localhost:8000/api/analysis \
 1. Client picks a `stream_id` itself (`^[A-Za-z0-9._-]{1,64}$`).
 2. Client connects to `/ws/agents/<stream_id>` and waits for a `{"type": "ready"}` event.
 3. Client **then** POSTs `/api/analysis` with that same `stream_id` in the request body.
-4. Two `agent_step` events arrive as each agent finishes, followed by one `complete` event, all published to the `agent-run-<stream_id>` channel-layer group.
+4. `analysis_token` events arrive while the analyst is still writing (BL-20260905-11): `{"type": "analysis_token", "agent": "LegalAnalyst", "text": "…", "chars": 128, "model": "xai/grok-4.6"}`, where `chars` is the running total produced so far. They are progress, not the result — the deltas are a JSON payload being written, so render the count (or a spinner) rather than the fragments.
+5. Two `agent_step` events arrive as each agent finishes, followed by one `complete` event, all published to the `agent-run-<stream_id>` channel-layer group.
 
 ```javascript
 const streamId = crypto.randomUUID();
@@ -228,7 +240,9 @@ ws.onmessage = (e) => {
     });
     return;
   }
-  console.log(event); // {"type": "agent_step", ...} x2, then {"type": "complete", ...}
+  // {"type": "analysis_token", ...} while the analyst writes, then
+  // {"type": "agent_step", ...} x2, then {"type": "complete", ...}
+  console.log(event);
 };
 ```
 

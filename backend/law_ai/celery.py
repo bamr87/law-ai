@@ -98,6 +98,24 @@ app.conf.beat_schedule = {
         "task": "law_ai.matters.sweep_task_reminders",
         "schedule": 3600,
     },
+    # Repo governance — weekly spec + backlog triage (Monday 08:00 UTC,
+    # BL-20260503-14). Runs scripts/spec_validator.py AND
+    # scripts/backlog_lint.py over the mounted repo and, when
+    # GOVERNANCE_TRIAGE_GITHUB_* are configured, keeps one idempotent triage
+    # issue up to date. CI runs both validators against the diff in front of
+    # it; nothing was watching the parts nobody diffs — a spec left
+    # inconsistent for a month, an `## Open` item untouched since spring.
+    #
+    # Not on the autonomy queue and not routed through `autonomy_cycle`: this
+    # takes no autonomous action, and it must keep working on an instance with
+    # AUTONOMY_ENABLED=false. It needs the repo bind-mounted (REPO_ROOT=/repo)
+    # and says so plainly in the log when it is not — "could not look" is
+    # never reported as "found nothing".
+    "governance-triage": {
+        "task": "law_ai.core.tasks.governance_triage",
+        "schedule": crontab(hour=8, minute=0, day_of_week=1),
+        "kwargs": {"stale_days": 60},
+    },
 }
 app.conf.beat_schedule_filename = "celerybeat-schedule"
 

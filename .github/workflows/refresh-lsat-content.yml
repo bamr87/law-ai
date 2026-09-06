@@ -11,14 +11,30 @@
 # container directory whose host-side git state it has no business touching.
 # The export is a pure function of the data files, so CI is the right home.
 #
-# The root drift gate stays as the safety net — this workflow is the
-# convenience, not the guarantee.
+# It also runs on pull requests from this repository, where it pushes the
+# refreshed artifact onto the PR branch. That half is what actually *removes*
+# the manual step: while this only ran on main, the root drift gate
+# (tests/test_lsat_site.py) still red-built any PR that edited the bank without
+# running `make lsat-export`, so the developer had to run it anyway and the
+# push-to-main job was structurally a no-op by the time it fired. With the PR
+# leg in place, ci.yml's repo-structural job defers the drift assertions under
+# exactly the conditions this job runs (see LSAT_CONTENT_AUTOEXPORT there),
+# and the export happens here instead of in someone's terminal.
+#
+# The drift gate is NOT gone: it still enforces on pushes to main, on fork
+# pull requests (where this job cannot push and is skipped), and locally. It is
+# deferred only where this job is guaranteed to fix the same thing minutes
+# later, in the same run.
 
 name: refresh-lsat-content
 
 on:
   push:
     branches: [main]
+    paths:
+      - "backend/law_ai/lsat/services/data/**"
+      - ".github/workflows/refresh-lsat-content.yml"
+  pull_request:
     paths:
       - "backend/law_ai/lsat/services/data/**"
       - ".github/workflows/refresh-lsat-content.yml"
@@ -31,9 +47,10 @@ permissions:
   # explicitly or the commit would land and the site would stay stale.
   actions: write
 
-# Never race the Pages deploy, and never run two refreshes at once.
+# Never race the Pages deploy, and never run two refreshes at once *on the
+# same ref* — PR branches must not cancel main's refresh or each other's.
 concurrency:
-  group: refresh-lsat-content
+  group: refresh-lsat-content-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -41,8 +58,18 @@ jobs:
     name: Re-export lsat-static/content.json
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # A fork PR's GITHUB_TOKEN is read-only, so the push below would fail. Skip
+    # rather than fail: the drift gate is not deferred for forks, so those PRs
+    # still get the old, explicit "run `make lsat-export`" signal.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v7
+        with:
+          # On a pull_request the default checkout is the detached merge ref,
+          # which cannot be pushed. Check out the PR's own branch instead.
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
 
       - uses: actions/setup-python@v7
         with:
@@ -52,7 +79,7 @@ jobs:
       - name: Install backend dependencies
         working-directory: backend
         # BL-20260815-02: superset of backend/Dockerfile's extras.
-        run: pip install -e ".[dev,local-ai]"
+        run: pip install -e ".[dev,local-ai,future-auth]"
 
       - name: Export the bank
         working-directory: backend
@@ -98,10 +125,15 @@ jobs:
 
           Automated by .github/workflows/refresh-lsat-content.yml after a change
           under backend/law_ai/lsat/services/data/ (BL-20260702-11)."
-          git push
+          git push origin HEAD:"${TARGET_BRANCH}"
+        env:
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
 
       - name: Trigger the Pages build
-        if: steps.refresh.outputs.changed == 'true'
+        # Only main publishes; a PR branch's refresh must not deploy the site.
+        if: >-
+          steps.refresh.outputs.changed == 'true' &&
+          github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # A GITHUB_TOKEN push raises no `push` event, so deploy-lsat-pages.yml

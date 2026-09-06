@@ -14,6 +14,7 @@ import {
   disableServerSync,
   hydrateSettingValues,
   listSettingValues,
+  readSettingsScopeCookie,
   serverSyncScope,
   upsertSettingValue,
   SETTINGS_STORAGE_KEY,
@@ -85,6 +86,23 @@ describe('hydrateSettingValues', () => {
     )
     await hydrateSettingValues()
     expect(serverSyncScope()).toBe('user:7')
+  })
+
+  it('mirrors the scope id so the server render resolves the same chain', async () => {
+    // BL-20260905-10: layout rows live at `user:<pk>`, and the server cannot
+    // see the session. Without the id in a cookie it resolves `[instance]`,
+    // drops every user row, and the chosen layout reflows in after hydration.
+    server.use(
+      http.get(VALUES_URL, () =>
+        HttpResponse.json({ scopes: ['instance:local', 'user:7'], values: [] }),
+      ),
+    )
+    await hydrateSettingValues()
+    expect(readSettingsScopeCookie()).toBe('user:7')
+
+    // Signing out takes it away again.
+    disableServerSync()
+    expect(readSettingsScopeCookie()).toBeNull()
   })
 
   it('is a no-op when the backend is unreachable', async () => {

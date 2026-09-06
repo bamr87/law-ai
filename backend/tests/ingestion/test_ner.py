@@ -204,3 +204,50 @@ def test_ner_never_changes_confidence(
     enriched = IngestionScout().extract(dict(PAYLOAD))
     assert enriched.confidence == baseline
     assert len(enriched.entities) > 3
+
+
+# ---------------------------------------------------------------------------
+# The real pipeline (BL-20260429-03). Marked ``nlp`` so it can be deselected
+# with ``-m "not nlp"``; it is NOT skipped when the model is missing, because
+# a silently-absent model is exactly the failure this test exists to catch —
+# backend/Dockerfile installs the wheel, so an image that cannot load it is a
+# broken image, not an unsupported environment.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.nlp
+def test_the_shipped_image_can_load_the_real_pipeline() -> None:
+    """``spacy.load`` actually works in the sanctioned runtime."""
+    nlp = get_nlp()
+    assert nlp is not None, (
+        "en_core_web_sm is missing from the backend image — rebuild it "
+        "(docker compose build backend); ENABLE_NER is inert without it"
+    )
+    assert "ner" in nlp.pipe_names
+
+
+@pytest.mark.nlp
+def test_real_pipeline_finds_entities_end_to_end(settings: Any) -> None:
+    """With ENABLE_NER on and the real model, the scout gains NER entities."""
+    settings.ENABLE_NER = True
+    text = (
+        "Jane Smith sued Acme Corporation in the Supreme Court of Colorado, "
+        "which applied the Fair Labor Standards Act."
+    )
+    entities = extract_ner_entities(text)
+    assert entities, "the real pipeline must produce at least one entity"
+    labels = {(e.text, e.label) for e in entities}
+    assert any(label == "PARTY" for _, label in labels)
+    # The scout merges them in without dropping the structured fields.
+    merged = _extract_entities({**PAYLOAD, "plain_text": text}, text=text)
+    assert ("Supreme Court of Colorado", "COURT") in [(e.text, e.label) for e in merged]
+    assert len(merged) > 3
+
+
+@pytest.mark.nlp
+def test_the_real_model_is_only_loaded_once(settings: Any) -> None:
+    """The lru_cache shim is what keeps the load off the import path."""
+    settings.ENABLE_NER = True
+    first = get_nlp()
+    assert first is get_nlp()
+    assert get_nlp.cache_info().hits >= 1

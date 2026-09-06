@@ -69,7 +69,12 @@ SECTION_TEXT_SELECTOR = "div.section-text"
 EFFECTIVE_DATE_SELECTOR = "p.effective-date"
 TITLE_HEADING_SELECTOR = "h1.codes-title"
 
-_SECTION_NUMBER_RE = re.compile(r"§\s*([\d\-]+(?:\.\d+)?)")
+# CRS section numbers are title-article-section, and Colorado uses *decimal
+# articles* freely ("18-1.3-401", "18-1.4-102"). The earlier `[\d\-]+(\.\d+)?`
+# stopped at the decimal — "§ 18-1.3-401." parsed as "18-1.3", which produced
+# a wrong section id, a wrong citation, and a false drift signal in the live
+# smoke test (BL-20260511-07). Each dotted part is now allowed its own decimal.
+_SECTION_NUMBER_RE = re.compile(r"§\s*(\d+[A-Z]?(?:\.\d+)?(?:-\d+(?:\.\d+)?)*)")
 _TITLE_NUMBER_RE = re.compile(r"Title\s+(\d+[A-Z]?)", re.IGNORECASE)
 _EFFECTIVE_DATE_RE = re.compile(
     r"Effective:\s*([A-Za-z]+\s+\d{1,2},\s+\d{4})", re.IGNORECASE

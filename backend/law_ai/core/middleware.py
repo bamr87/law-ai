@@ -1,8 +1,8 @@
 """ASGI middleware (spec 011 FR-7).
 
-* ``CorsHeadersMiddleware`` — minimal CORS for the Next.js dev origins
-  in ``app/main.py`` so the frontend dev server keeps working without a new
-  third-party dep.
+* ``CorsHeadersMiddleware`` — minimal CORS for the Next.js dev origins listed
+  in ``settings.CORS_ALLOWED_ORIGINS`` so the frontend dev server keeps
+  working without a new third-party dep.
 * ``ProvenanceMiddleware`` — wraps every request and records an audit event
   via :func:`law_ai.core.provenance.ProvenanceLogger.log_request`.
 """

@@ -72,7 +72,7 @@ from law_ai.core.llm.base import (
 )
 from law_ai.core.llm.providers import PROVIDER_REGISTRY
 from law_ai.core.settings_proxy import settings_proxy as settings
-from law_ai.core.usage import LLMUsage, usage_of
+from law_ai.core.usage import LLMUsage, model_of, usage_of
 
 logger = logging.getLogger("law_ai.core.llm.router")
 
@@ -405,7 +405,10 @@ async def aroute(request: LLMRequest, *, agent: str | None = None) -> LLMResult:
         result = LLMResult(
             text=str(reply),
             provider=provider.name,
-            model=provider.model_for(request),
+            # The model the transport says answered, when it says: Ollama can
+            # fall back to FALLBACK_MODEL mid-call (BL-20260810-05), and the
+            # audit event must name the model that really ran.
+            model=model_of(reply) or provider.model_for(request),
             latency_ms=(time.monotonic() - started) * 1000.0,
             attempts=tuple(attempts),
             usage=usage_of(reply),

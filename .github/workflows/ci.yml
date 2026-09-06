@@ -25,6 +25,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       lsat-static: ${{ steps.filter.outputs.lsat-static }}
       visual: ${{ steps.filter.outputs.visual }}
+      lsat-content: ${{ steps.filter.outputs.lsat-content }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -43,6 +44,12 @@ jobs:
             lsat-static:
               - 'lsat-static/**'
               - '.github/workflows/ci.yml'
+            # BL-20260702-11: the LSAT source bank. refresh-lsat-content.yml
+            # re-exports lsat-static/content.json and pushes it onto the PR
+            # branch for exactly this diff, so the drift gate below defers
+            # instead of demanding a manual `make lsat-export`.
+            lsat-content:
+              - 'backend/law_ai/lsat/services/data/**'
             # BL-20260905-05: anything a reviewer would need to *see*.
             # Deliberately does NOT include ci.yml — a workflow edit is not a
             # visual change, and including it would demand a screenshot of
@@ -85,7 +92,7 @@ jobs:
     # frontend subprocess suites are excluded via markers.
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: spec-gate
+    needs: [spec-gate, changes]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -93,6 +100,20 @@ jobs:
           python-version: "3.12"
       - run: pip install pytest
       - name: Run root structural suite (smoke + specs)
+        env:
+          # BL-20260702-11: on a same-repo PR that edits the LSAT bank,
+          # refresh-lsat-content.yml re-exports content.json and pushes it onto
+          # this very branch. Failing here as well would mean the developer
+          # still has to run `make lsat-export` by hand to get a green run —
+          # which is the manual step the item asked to remove. So the drift
+          # assertions defer to that job, and ONLY there: a fork PR (where the
+          # job cannot push), a push to main, and every local run still
+          # enforce them.
+          LSAT_CONTENT_AUTOEXPORT: >-
+            ${{ (github.event_name == 'pull_request' &&
+                 needs.changes.outputs.lsat-content == 'true' &&
+                 github.event.pull_request.head.repo.full_name ==
+                 github.repository) && '1' || '' }}
         run: pytest tests/ -m "not backend and not frontend" -q
 
   clean-install-smoke:
@@ -180,7 +201,7 @@ jobs:
       # backend/Dockerfile's, or an extras-only import (core.telemetry's
       # lazy Phoenix/OTel imports) passes in the container and dies here.
       # tests/test_configs.py::test_ci_extras_match_dockerfile enforces it.
-      - run: pip install -e ".[dev,local-ai]"
+      - run: pip install -e ".[dev,local-ai,future-auth]"
       - run: ruff check .
       - run: black --check .
       # BL-20260429-04: this used to be a bare `mypy law_ai --strict` with
@@ -233,7 +254,12 @@ jobs:
       # backend/Dockerfile's, or an extras-only import (core.telemetry's
       # lazy Phoenix/OTel imports) passes in the container and dies here.
       # tests/test_configs.py::test_ci_extras_match_dockerfile enforces it.
-      - run: pip install -e ".[dev,local-ai]"
+      # `nlp` (BL-20260429-03) is on top of that superset: backend/Dockerfile
+      # installs the same en_core_web_sm wheel in its own `--no-deps` layer, and
+      # the `nlp`-marked tests load the real pipeline rather than skipping when
+      # it is absent — a silently missing model is the failure they exist to
+      # catch. Extras beyond the Dockerfile's are allowed by that same test.
+      - run: pip install -e ".[dev,local-ai,nlp,future-auth]"
       - name: Run pytest with coverage
         # Integration tests require Docker fixtures that aren't available here;
         # they run in the dedicated 'Docker-backed Integration Tests' workflow.
@@ -315,7 +341,7 @@ jobs:
       # backend/Dockerfile's, or an extras-only import (core.telemetry's
       # lazy Phoenix/OTel imports) passes in the container and dies here.
       # tests/test_configs.py::test_ci_extras_match_dockerfile enforces it.
-      - run: pip install -e ".[dev,local-ai]"
+      - run: pip install -e ".[dev,local-ai,future-auth]"
       - name: Verify the eval harness (scoring, paths, regression gate)
         run: pytest tests/eval -q
       - name: Remind reviewers where the real measurement runs
@@ -323,6 +349,47 @@ jobs:
           echo "::notice::Harness verified. The scored LegalBench run with a" \
                "real model happens in the nightly workflow" \
                "(make test-legalbench), which gates on --check-regression."
+
+  # ---------------------------------------------------------------------------
+  # Accessibility gate (BL-20260831-09). `scripts/ux_audit.py` in spec-gate is
+  # a stdlib grep: it cannot compute a contrast ratio, resolve an accessible
+  # name through ARIA, or watch focus move. axe-core in a real browser can, and
+  # the item asked for that on every PR — not once a week in a nightly nobody
+  # reads. It runs only when the diff touches frontend/, and it runs the same
+  # `make test-e2e` path a developer runs locally, against the same pinned
+  # `backend-e2e` sidecar (unreachable Ollama ⇒ no model is ever called).
+  #
+  # The disk-reclaim step is not superstition: the nightly workflow had to drop
+  # from daily to weekly after 37 consecutive runs died with 0 MB free while
+  # building both app images. Deleting the preinstalled toolchains the runner
+  # image ships buys ~25 GB, which is the difference between this gate working
+  # and this gate being switched off.
+  # ---------------------------------------------------------------------------
+  a11y:
+    name: Accessibility Smoke (axe-core, catalog routes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [spec-gate, changes]
+    if: needs.changes.outputs.frontend == 'true'
+    steps:
+      - uses: actions/checkout@v7
+      - name: Reclaim runner disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          docker image prune -af || true
+          df -h /
+      - name: Run the axe-core smoke over every catalog route
+        run: make test-e2e E2E_ARGS='e2e/a11y.spec.ts'
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: a11y-report-${{ github.run_id }}
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 14
 
   # ---------------------------------------------------------------------------
   # Visual-evidence gate (BL-20260905-05). The screenshot convention was prose

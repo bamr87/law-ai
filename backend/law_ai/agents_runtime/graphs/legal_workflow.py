@@ -36,8 +36,10 @@ from law_ai.core.telemetry import phoenix_trace_url
 logger = logging.getLogger("law_ai.graphs.legal_workflow")
 
 # Bumped to 2 by BL-20260803-02 (coverage relayed into the analyze prompt)
-# and BL-20260803-04 (per-citation §13 attribution in cite_check).
-PROMPT_VERSION = "2"
+# and BL-20260803-04 (per-citation §13 attribution in cite_check); to 3 by
+# BL-20260511-06, which asks the analyze node for the IRAC split (issue, rule,
+# conclusion) instead of leaving LegalAnalyst to stub those fields.
+PROMPT_VERSION = "3"
 
 #: Static provenance label for the LLM nodes. ``logged_node`` binds ``model``
 #: at decoration time, before any provider has been chosen, so the node event
@@ -104,10 +106,30 @@ class RetrievalStats(BaseModel):
         default="",
         description="Human-readable caveat about corpus coverage for this run.",
     )
+    # BL-20260817-05: a matter's already-verified authorities can be promoted
+    # to the front of the ranking. That is a deliberate bias, so it belongs in
+    # the envelope as structured data and not only as prose in `coverage_note`
+    # — a caller has to be able to *check* it, not parse a sentence.
+    boosted_count: int = Field(
+        default=0,
+        description="Passages promoted because a matter had already verified them.",
+    )
+    boost_source: str = Field(
+        default="",
+        description="Where the boost set came from, e.g. 'matter:<slug>'.",
+    )
 
 
 class LegalWorkflowOutput(BaseModel):
     answer: str
+    # IRAC split (BL-20260511-06). The analyze node is asked for these
+    # alongside the prose answer so LegalAnalyst can surface a real
+    # issue/rule/conclusion from the retrieval-backed workflow instead of
+    # stubbing them. Empty when the model omitted them or the workflow
+    # refused: the caller keeps its own placeholder rather than inventing one.
+    issue: str = ""
+    rule: str = ""
+    conclusion: str = ""
     citations: list[WorkflowCitation] = Field(default_factory=list)
     confidence: float = Field(0.0, ge=0.0, le=1.0)
     human_approval_required: bool = False
@@ -137,6 +159,10 @@ class LegalWorkflowState(TypedDict, total=False):
     # (see agents_runtime.tools.graph_rag) — merged into RetrievalStats.
     retrieval_coverage: dict[str, Any]
     answer: str
+    # IRAC split produced by the analyze node (BL-20260511-06).
+    issue: str
+    rule: str
+    conclusion: str
     citations: list[dict[str, Any]]
     confidence: float
     human_approval_required: bool
@@ -158,6 +184,12 @@ class _LLMLike(Protocol):
     async def ainvoke(self, prompt: str, /) -> Any:  # pragma: no cover - structural
         ...
 
+
+#: Where streamed deltas go while a node is generating. Supplied by the
+#: caller (``LegalAnalyst`` relays them to the run's WebSocket group) so a
+#: person waiting on /api/analysis sees the answer being written instead of a
+#: blank panel for a minute or more (BL-20260905-11).
+DeltaSink = Callable[[str], Awaitable[None]]
 
 CiteResolver = Callable[[list[str]], Awaitable[dict[str, str | None]]]
 Retriever = Callable[[LegalWorkflowState], Awaitable[list[dict[str, Any]]]]
@@ -307,8 +339,10 @@ class LegalWorkflow:
         cite_resolver: CiteResolver | None = None,
         retriever: Retriever | None = None,
         checkpointer: Any | None = None,
+        on_delta: DeltaSink | None = None,
     ) -> None:
         self._llm_factory = llm_factory or _default_llm_factory
+        self._on_delta = on_delta
         self._cite_resolver = cite_resolver or _default_cite_resolver
         # Built eagerly (no connection is opened until first query) so the
         # instance can publish `last_coverage` after each retrieval.
@@ -365,8 +399,39 @@ class LegalWorkflow:
                 "date_earliest": getattr(coverage, "date_earliest", None),
                 "date_latest": getattr(coverage, "date_latest", None),
                 "coverage_note": coverage.note() if hasattr(coverage, "note") else "",
+                "boosted_count": getattr(coverage, "boosted_count", 0),
+                "boost_source": getattr(coverage, "boost_source", ""),
             }
         return out
+
+    async def _drafted(self, llm: Any, prompt: str) -> tuple[str, str]:
+        """Run one LLM node, streaming deltas to the sink when there is one.
+
+        The analyze pass is the long one — live xAI runs measured 56-103s on
+        real IRAC questions — and a buffered call shows a person nothing until
+        it finishes. With an ``on_delta`` sink the node streams through the
+        same chain (``ChatProviderChain.astream`` → ``router.astream``, one
+        ``llm_call`` event marked ``streamed``), so the wait is visible
+        (BL-20260905-11). Without one — every batch caller, and every test
+        double that has no ``astream`` — the call stays buffered and the
+        result is byte-identical.
+        """
+        stream = getattr(llm, "astream", None)
+        if self._on_delta is None or stream is None:
+            reply = await llm.ainvoke(prompt)
+            return _coerce_text(reply), _coerce_model_label(reply)
+        parts: list[str] = []
+        label = CHAIN_MODEL_LABEL
+        async for chunk in stream(prompt):
+            chunk_label = _coerce_model_label(chunk)
+            if chunk_label != CHAIN_MODEL_LABEL:
+                label = chunk_label
+            text = _coerce_text(chunk)
+            if not text:
+                continue
+            parts.append(text)
+            await self._on_delta(text)
+        return "".join(parts), label
 
     @logged_node(
         "analyze",
@@ -434,13 +499,17 @@ class LegalWorkflow:
             "legal proposition, naming the issuing authority (court and date) "
             "for each. If the passages do not answer the question, say so "
             "instead of answering from general knowledge. Return strict JSON "
-            "with keys answer, citations (array of {text, source_url}), "
-            "confidence (0..1).\n\n"
+            "with keys issue (the legal question in one sentence), rule (the "
+            "black-letter rule the passages supply, naming its authority), "
+            "answer (the full analysis applying that rule to these facts), "
+            "conclusion (the bottom line, hedged to what the passages "
+            "support), citations (array of {text, source_url}), confidence "
+            "(0..1). Leave issue, rule or conclusion empty rather than "
+            "filling them from general knowledge.\n\n"
             f"{coverage_block}"
             f"Question: {question}\n\nPassages:\n{passages}"
         )
-        reply = await llm.ainvoke(prompt)
-        raw = _coerce_text(reply)
+        raw, model_label = await self._drafted(llm, prompt)
         parsed = _parse_json(
             raw,
             {
@@ -475,8 +544,14 @@ class LegalWorkflow:
             ).model_dump()
         return {
             "answer": str(parsed.get("answer", "")).strip(),
+            # BL-20260511-06: the IRAC split, when the model supplied one. A
+            # missing key stays empty — LegalAnalyst then keeps its own
+            # placeholder instead of presenting an invented rule as the law.
+            "issue": str(parsed.get("issue") or "").strip(),
+            "rule": str(parsed.get("rule") or "").strip(),
+            "conclusion": str(parsed.get("conclusion") or "").strip(),
             "citations": citations,
-            "model_label": _coerce_model_label(reply),
+            "model_label": model_label,
             "confidence": _clamp01(parsed.get("confidence")),
         }
 
@@ -545,9 +620,19 @@ class LegalWorkflow:
         jurisdiction: str | None = None,
         case_id: str | None = None,
         thread_id: str | None = None,
+        matter_id: int | None = None,
         checkpointer: Any | None = None,
     ) -> LegalWorkflowOutput:
-        """Run the workflow end-to-end and return the structured output."""
+        """Run the workflow end-to-end and return the structured output.
+
+        ``matter_id`` is what makes BL-20260817-05 reachable: the retriever
+        resolves it to the authorities that matter has already had verified
+        and promotes them, so a later round inside one matter ranks
+        known-good citations first. Omitted (the default) the run is
+        matter-blind and byte-identical to before. The caller is responsible
+        for proving the requester owns the matter — the workflow trusts the
+        id it is handed.
+        """
         from opentelemetry import trace as otel_trace
 
         thread = thread_id or f"lwf-{secrets.token_hex(6)}"
@@ -557,6 +642,8 @@ class LegalWorkflow:
             "jurisdiction": jurisdiction,
             "case_id": case_id,
         }
+        if matter_id:
+            state["matter_id"] = int(matter_id)
         cp = checkpointer if checkpointer is not None else self._checkpointer
         graph = self._build_graph(cp)
 
@@ -599,9 +686,14 @@ class LegalWorkflow:
             date_earliest=cov.get("date_earliest"),
             date_latest=cov.get("date_latest"),
             coverage_note=str(cov.get("coverage_note") or default_note),
+            boosted_count=int(cov.get("boosted_count", 0)),
+            boost_source=str(cov.get("boost_source") or ""),
         )
         return LegalWorkflowOutput(
             answer=result.get("answer", ""),
+            issue=str(result.get("issue") or ""),
+            rule=str(result.get("rule") or ""),
+            conclusion=str(result.get("conclusion") or ""),
             citations=citations,
             confidence=_clamp01(result.get("confidence"), default=0.0),
             human_approval_required=bool(result.get("human_approval_required", False)),

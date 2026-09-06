@@ -318,7 +318,9 @@ function ShellInner({
           onOpenPalette={() => setPaletteOpen(true)}
           // With the rail hidden, a mouse user who does not know ⌘K would be
           // left navigating by the (also hideable) breadcrumb trail alone.
-          modulesMenu={!railShown ? <ModulesMenu pathname={pathname} /> : undefined}
+          modulesMenu={
+            !railShown ? <ModulesMenu pathname={pathname} /> : undefined
+          }
           layoutMenu={
             <LayoutMenu
               pathname={pathname}
@@ -430,6 +432,7 @@ function DockedPanel({
 
 export default function AppShell({
   initialSettings,
+  initialUserScopeId,
   ...props
 }: {
   children: ReactNode
@@ -442,22 +445,31 @@ export default function AppShell({
    * (BL-20260905-09).
    */
   initialSettings?: SettingValue[]
+  /**
+   * The scope those rows were written at, from the mirrored scope cookie. A
+   * layout row lives at `user:<pk>` once someone is signed in, so the server
+   * needs the id to resolve the same chain the client does (BL-20260905-10).
+   */
+  initialUserScopeId?: string | null
 }) {
   return (
-    <SettingsSnapshotProvider rows={initialSettings}>
-    <Suspense
-      fallback={
-        <div className="flex h-dvh flex-col overflow-hidden">
-          <div className="h-[var(--shell-masthead-h)] shrink-0 border-b border-slate-800" />
-          <div className="flex min-h-0 flex-1">
-            <div className="hidden w-[var(--shell-rail-w)] shrink-0 border-r border-slate-800 md:block" />
-            <div className="min-w-0 flex-1" />
-          </div>
-        </div>
-      }
+    <SettingsSnapshotProvider
+      rows={initialSettings}
+      userScopeId={initialUserScopeId}
     >
-      <ShellInner {...props} />
-    </Suspense>
+      <Suspense
+        fallback={
+          <div className="flex h-dvh flex-col overflow-hidden">
+            <div className="h-[var(--shell-masthead-h)] shrink-0 border-b border-slate-800" />
+            <div className="flex min-h-0 flex-1">
+              <div className="hidden w-[var(--shell-rail-w)] shrink-0 border-r border-slate-800 md:block" />
+              <div className="min-w-0 flex-1" />
+            </div>
+          </div>
+        }
+      >
+        <ShellInner {...props} />
+      </Suspense>
     </SettingsSnapshotProvider>
   )
 }

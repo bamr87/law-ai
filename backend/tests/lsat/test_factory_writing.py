@@ -12,6 +12,8 @@ import json
 from typing import Any
 
 import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 
 from law_ai.lsat.factory import taxonomy
 from law_ai.lsat.factory.blueprints import (
@@ -284,3 +286,85 @@ class TestWritingPromotion:
         snapshot = status(factory_env)
         assert snapshot["writing_prompts"] == len(load_writing_prompts())
         assert snapshot["writing_by_difficulty"]
+
+
+@pytest_asyncio.fixture
+async def client() -> Any:
+    from law_ai.asgi import application as app
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        yield ac
+
+
+class TestWritingPromotionSurfaces:
+    """The reviewer's Approve button, and the gate that protects the library.
+
+    BL-20260831-28's point is that the slice-7 loop can *grow* the writing
+    section. Growing it means a queued draft leaving the queue through a
+    surface a reviewer actually has — the approve endpoint — not through a
+    Django shell, so that path is asserted end to end here.
+    """
+
+    @pytest.mark.asyncio
+    async def test_approve_endpoint_promotes_a_queued_writing_draft(
+        self, factory_env: FactoryConfig, client: AsyncClient
+    ) -> None:
+        before = set(load_writing_prompts())
+        result = _ingest({"drafts": [_draft()]}, factory_env)
+        proposal_id = result.accepted[0]
+
+        listed = await client.get("/api/lsat/proposals", params={"status": "pending"})
+        assert listed.status_code == 200, listed.text
+        queued = next(r for r in listed.json()["proposals"] if r["id"] == proposal_id)
+        assert queued["proposal_kind"] == "writing_prompt"
+
+        res = await client.post(
+            f"/api/lsat/proposals/{proposal_id}/approve",
+            json={"reviewer": "dana", "note": "reads like a real WS task"},
+        )
+        assert res.status_code == 200, res.text
+        body = res.json()
+        assert body["status"] == "approved"
+        prompt_id = body["writing_prompt_id"]
+
+        prompts = load_writing_prompts()
+        assert set(prompts) - before == {prompt_id}
+        assert "LSATContentFactory" in prompts[prompt_id].source
+        # And it is gone from the reviewer's queue.
+        after = await client.get("/api/lsat/proposals", params={"status": "pending"})
+        assert all(r["id"] != proposal_id for r in after.json()["proposals"])
+
+    def test_a_draft_that_breaks_the_library_is_rolled_back(
+        self, factory_env: FactoryConfig
+    ) -> None:
+        """Per-model validation cannot see a dangling rubric; the reload can.
+
+        ``rubric_id`` is a bare string on ``WritingPrompt``, so a draft naming a
+        rubric that does not exist validates fine on its own and only explodes
+        when the whole library is re-read. The write must not survive that.
+        """
+        from law_ai.lsat.services import bank as bank_mod
+
+        path = bank_mod.DATA_DIR / "writing_prompts.json"
+        before_blob = path.read_text(encoding="utf-8")
+        before = set(load_writing_prompts())
+
+        draft = _draft()
+        draft.update(
+            {"id": "ws-000", "difficulty": "med", "rubric_id": "ws-rubric-nowhere"}
+        )
+        pid = proposals.record_proposal(
+            draft,
+            agent_trace_id="t",
+            model="test",
+            confidence=0.0,
+            proposal_kind="writing_prompt",
+        )
+        with pytest.raises(ValueError, match="rolled back"):
+            proposals.promote_writing_prompt(pid)
+
+        assert set(load_writing_prompts()) == before
+        assert json.loads(path.read_text(encoding="utf-8")) == json.loads(before_blob)
+        assert proposals.get_proposal(pid)["status"] == "pending"

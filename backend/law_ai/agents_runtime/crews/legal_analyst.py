@@ -30,11 +30,16 @@ from contextlib import (
     AsyncExitStack,
     asynccontextmanager,
 )
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 import httpx
 from pydantic import BaseModel, Field
 
+from law_ai.agents_runtime.attribution import (
+    Attribution,
+    attribution_from_passage,
+    check_attribution,
+)
 from law_ai.core import claude_code, llm, xai
 from law_ai.core.provenance import provenance
 
@@ -247,6 +252,20 @@ async def _engine_ready() -> tuple[bool, str]:
     return True, ""
 
 
+def _coerce_matter_id(raw: Any) -> int | None:
+    """``matter_id`` as an int, or ``None`` for anything unusable.
+
+    The payload is a plain dict assembled by whichever caller ran the analyst,
+    so a string id or a stray empty value must degrade to "no matter" rather
+    than raising inside the resilience boundary.
+    """
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
+
+
 def _langgraph_fallback_irac(question: str, reason: str) -> IRACOutput:
     """Honest degraded output when the LangGraph engine cannot run."""
     return IRACOutput(
@@ -277,6 +296,22 @@ def _langgraph_fallback_irac(question: str, reason: str) -> IRACOutput:
 # Authority grounding (BL-20260615-03)
 # ---------------------------------------------------------------------------
 
+
+class DeltaSink(Protocol):
+    """Where streamed IRAC deltas go while the model is writing.
+
+    Two optional halves — the text, and the tier that produced it — so the
+    same sink satisfies :data:`law_ai.agents_runtime.graphs.legal_workflow.DeltaSink`
+    (which passes text alone) and the direct-LLM path (which knows the model
+    from the first chunk).
+    """
+
+    async def __call__(
+        self, text: str, model: str | None = None
+    ) -> None:  # pragma: no cover - structural
+        ...
+
+
 CiteResolver = Callable[[list[str]], Awaitable[dict[str, str | None]]]
 
 
@@ -287,16 +322,23 @@ async def _default_cite_resolver(names: list[str]) -> dict[str, str | None]:
     return await resolve_with_default_driver(names)
 
 
-async def _name_lookup(names: list[str], retriever: Any) -> dict[str, str]:
-    """Fulltext fallback for authorities the alias resolver could not match.
+async def _name_lookup(
+    names: list[str], retriever: Any
+) -> dict[str, tuple[str, dict[str, Any]]]:
+    """Fulltext lookup of the authorities the model named, by case name.
 
     ``resolve_citations`` matches ``Case.aliases`` — normalized reporter
     citations — while the IRAC prompt asks for *case names*, so the alias leg
     misses almost everything on its own. One lexical GraphRAG query per name
     closes that gap: a passage whose title matches the model's name grounds it
     in a real ``:Case`` node. Never invents a match; a miss stays a miss.
+
+    Returns the matched ``(case_id, passage)`` per name: the passage carries
+    the court and decision date the §13 attribution is built from
+    (BL-20260803-04), which is why every named authority is looked up now, not
+    only the ones the alias resolver missed.
     """
-    found: dict[str, str] = {}
+    found: dict[str, tuple[str, dict[str, Any]]] = {}
     for name in names:
         try:
             passages = await retriever({"question": name, "queries": [name]})
@@ -310,7 +352,7 @@ async def _name_lookup(names: list[str], retriever: Any) -> dict[str, str]:
             if not case_id or not title:
                 continue
             if wanted in title or title in wanted:
-                found[name] = case_id
+                found[name] = (case_id, dict(passage))
                 break
     return found
 
@@ -395,8 +437,10 @@ class LegalAnalyst:
             self._name_retriever = build_default_retriever()
         return self._name_retriever
 
-    async def _ground_authorities(self, output: IRACOutput) -> None:
-        """Resolve model-named authorities against the graph, in place.
+    async def _ground_authorities(
+        self, output: IRACOutput, jurisdiction: str | None = None
+    ) -> None:
+        """Resolve and attribute model-named authorities, in place.
 
         Constitution §1 source-grounding: the direct-LLM path must not present
         model-generated case names as authorities. Each name is resolved to a
@@ -404,6 +448,13 @@ class LegalAnalyst:
         anything that does not resolve is marked ``verified: False`` and keeps
         the output pinned for human review. A graph fault degrades to "resolver
         unavailable" and never raises.
+
+        §13 attribution rides on the same lookup (BL-20260803-04): the matched
+        passage supplies court, jurisdiction, decision date and
+        binding/persuasive, so every emitted proposition names its issuing
+        authority. An authority that resolves to a ``:Case`` id but carries no
+        court or date is *not* good enough — it pins the output for human
+        review exactly as an unresolved one does.
         """
         names = [str(src.get("title") or "").strip() for src in output.sources]
         names = [n for n in names if n]
@@ -427,20 +478,32 @@ class LegalAnalyst:
             ]
             return
 
-        unresolved = [n for n in names if not mapping.get(n)]
-        if unresolved:
-            mapping.update(await _name_lookup(unresolved, self._get_name_retriever()))
+        # Every name is looked up, not only the ones the alias resolver
+        # missed: the resolver returns ids, and §13 needs the passage behind
+        # the id to say which court decided what, and when.
+        matched = await _name_lookup(names, self._get_name_retriever())
+        for name, (case_id, _passage) in matched.items():
+            if not mapping.get(name):
+                mapping[name] = case_id
 
         output.sources = [
             {
                 "title": name,
                 "verified": bool(mapping.get(name)),
+                "attribution": attribution_from_passage(
+                    (matched.get(name) or (None, None))[1], jurisdiction
+                ).model_dump(),
                 "resolved_case_id": mapping.get(name),
             }
             for name in names
         ]
         still_unverified = sum(1 for name in names if not mapping.get(name))
-        output.requires_review = still_unverified > 0
+        # §13: "resolved" and "attributed" are different guarantees, and either
+        # gap needs a human before this output is relied on.
+        unattributed = check_attribution(
+            [{**src, "text": src["title"]} for src in output.sources]
+        )
+        output.requires_review = still_unverified > 0 or bool(unattributed)
         output.reasoning_trace[-1:] = [
             f"Grounded {len(names) - still_unverified}/{len(names)} authorities "
             "against the knowledge graph (alias resolver + case-name lookup)."
@@ -449,7 +512,91 @@ class LegalAnalyst:
                 if still_unverified
                 else ""
             )
+            + (
+                " Attribution incomplete (constitution §13): "
+                + "; ".join(unattributed[:5])
+                + " — human review required."
+                if unattributed
+                else ""
+            )
         ]
+
+    def _delta_sink(self, input_data: dict[str, Any]) -> DeltaSink | None:
+        """Relay generated deltas to this run's WebSocket group, or ``None``.
+
+        The IRAC pass is the slowest interactive call this product makes —
+        live xAI runs measured 56-103s — and until BL-20260905-11 the client
+        saw nothing at all until it finished, because ``/api/analysis`` only
+        emitted an ``agent_step`` event *after* each agent returned. With a
+        ``stream_id`` the answer now arrives as it is written.
+
+        Fire-and-forget, like every other event on this socket: a Redis outage
+        must not fail an analysis that otherwise succeeded (spec 021 AC-2).
+        """
+        stream_key = str(input_data.get("stream_id") or "").strip()
+        if not stream_key:
+            return None
+        from law_ai.agentsapi.streaming import emit_stream_event
+
+        analysis_id = str(input_data.get("analysis_id") or "") or None
+        state = {"chars": 0}
+
+        async def sink(text: str, model: str | None = None) -> None:
+            state["chars"] += len(text)
+            payload: dict[str, Any] = {
+                "type": "analysis_token",
+                "agent": self.name,
+                "text": text,
+                "chars": state["chars"],
+            }
+            if analysis_id:
+                payload["analysis_id"] = analysis_id
+            if model:
+                payload["model"] = model
+            try:
+                await emit_stream_event(stream_key, payload, source="analysis")
+            except Exception:  # pragma: no cover - defensive
+                logger.debug("analysis delta not delivered", exc_info=True)
+
+        return sink
+
+    async def _irac_text(
+        self, prompt: str, input_data: dict[str, Any]
+    ) -> tuple[str, str]:
+        """The IRAC JSON plus the tier that served it, streamed when possible.
+
+        Buffered by default (batch callers, tests, anything without a
+        ``stream_id``); streamed through the same chain when the request
+        carries one, so the person waiting sees tokens instead of a spinner
+        (BL-20260905-11). Either way the caller parses one complete JSON
+        payload — the deltas are progress, never the result.
+        """
+        # /api/analysis is a person waiting on a page; use the faster Grok id
+        # when one is configured (BL-20260905-11).
+        overrides = xai.interactive_overrides()
+        sink = self._delta_sink(input_data)
+        if sink is None:
+            result = await llm.agenerate(
+                prompt,
+                system=_IRAC_SYSTEM,
+                response_schema=_IRAC_SCHEMA,
+                agent=self.name,
+                models=overrides,
+            )
+            return result.text, result.model_label
+        parts: list[str] = []
+        label = "(provider chain)"
+        async for chunk in llm.astream(
+            prompt,
+            system=_IRAC_SYSTEM,
+            response_schema=_IRAC_SCHEMA,
+            agent=self.name,
+            models=overrides,
+        ):
+            parts.append(chunk.text)
+            label = chunk.model_label
+            await sink(chunk.text, chunk.model_label)
+        return "".join(parts), label
 
     async def run(self, input_data: dict[str, Any]) -> IRACOutput:
         # Spec 027: LangGraph is the DEFAULT engine (AnalysisRequest defaults
@@ -475,20 +622,14 @@ class LegalAnalyst:
             jurisdiction=str(input_data.get("jurisdiction") or ""),
         )
         try:
-            result = await llm.agenerate(
-                prompt,
-                system=_IRAC_SYSTEM,
-                response_schema=_IRAC_SCHEMA,
-                agent=self.name,
-                # /api/analysis is a person waiting on a page; use the faster
-                # Grok id when one is configured (BL-20260905-11).
-                models=xai.interactive_overrides(),
-            )
-            output = _irac_from_payload(llm.loads_first_json(result.text), question)
+            text, model_used = await self._irac_text(prompt, input_data)
+            output = _irac_from_payload(llm.loads_first_json(text), question)
             # Constitution §1: model-named authorities are not sources until
-            # the graph confirms them (BL-20260615-03).
-            await self._ground_authorities(output)
-            model_used = result.model_label
+            # the graph confirms them (BL-20260615-03), and §13: they are not
+            # authorities until they name a court and a date (BL-20260803-04).
+            await self._ground_authorities(
+                output, str(input_data.get("jurisdiction") or "") or None
+            )
         except (
             TimeoutError,
             httpx.HTTPError,
@@ -516,11 +657,18 @@ class LegalAnalyst:
     async def _run_via_langgraph(self, input_data: dict[str, Any]) -> IRACOutput:
         """Spec 010 T-006: delegate to LegalWorkflow.
 
-        We map the workflow's free-form ``answer`` into the IRAC fields by
-        copying the answer text into ``application`` and surfacing the
-        confidence + citations + Phoenix trace url. The richer
-        issue/rule/conclusion split lands in BL-20260502-04 (LegalAnalyst
-        backfill onto LegalWorkflow).
+        BL-20260511-06 finished the backfill: the workflow's analyze node now
+        returns the IRAC split (``issue``/``rule``/``conclusion``) next to the
+        prose answer, so this maps real workflow content into every IRAC field
+        — ``application`` from ``answer``, the rest from the split — instead of
+        stubbing issue and rule. A model that omits part of the split leaves it
+        empty and the placeholder below stands in, because an invented rule is
+        worse than an honest "see the cited authorities".
+
+        Per-citation §13 attribution (court, jurisdiction, decided_at,
+        binding/persuasive) rides along on each source (BL-20260803-04), and
+        deltas are relayed to the run's WebSocket group while the analyze node
+        generates (BL-20260905-11).
         """
         question = input_data.get("text") or input_data.get("question") or ""
 
@@ -548,7 +696,9 @@ class LegalAnalyst:
             from law_ai.agents_runtime.graphs import LegalWorkflow
 
             async with _analysis_checkpointer() as saver:
-                workflow = LegalWorkflow(checkpointer=saver)
+                workflow = LegalWorkflow(
+                    checkpointer=saver, on_delta=self._delta_sink(input_data)
+                )
                 if thread_id and saver is not None:
                     resumed = await _thread_has_state(workflow, str(thread_id))
                 result = await workflow.invoke(
@@ -556,6 +706,11 @@ class LegalAnalyst:
                     jurisdiction=input_data.get("jurisdiction"),
                     case_id=input_data.get("case_id"),
                     thread_id=str(thread_id) if thread_id else None,
+                    # BL-20260817-05: when the caller says which matter this
+                    # round belongs to, the retriever promotes the authorities
+                    # that matter has already had verified. The API layer has
+                    # already proved ownership; this just carries the id.
+                    matter_id=_coerce_matter_id(input_data.get("matter_id")),
                 )
         except Exception as exc:
             # Deliberately broad: this is the resilience boundary for the
@@ -589,6 +744,11 @@ class LegalAnalyst:
                 "title": c.text[:120],
                 "url": c.source_url or "",
                 "verified": c.resolved_case_id is not None,
+                # §13 (BL-20260803-04): the issuing authority the workflow
+                # read off the :Case node this citation points at. Dropping it
+                # here is what used to leave /api/analysis emitting statements
+                # of law with no court, jurisdiction or date.
+                "attribution": c.attribution or Attribution().model_dump(),
                 "resolved_case_id": c.resolved_case_id,
             }
             for c in result.citations
@@ -620,10 +780,17 @@ class LegalAnalyst:
                 "against the knowledge graph."
             )
         output = IRACOutput(
-            issue=question[:200] or "(no question provided)",
-            rule="See cited authorities below.",
+            # BL-20260511-06: prefer the workflow's own split; fall back to the
+            # question / a pointer at the authorities when the model left one
+            # empty, never to invented black-letter law.
+            issue=result.issue or question[:200] or "(no question provided)",
+            rule=result.rule or "See cited authorities below.",
             application=result.answer,
-            conclusion=conclusion,
+            conclusion=(
+                f"{result.conclusion}\n\n{conclusion}"
+                if result.conclusion
+                else conclusion
+            ),
             sources=sources,
             confidence=result.confidence,
             requires_review=result.human_approval_required,

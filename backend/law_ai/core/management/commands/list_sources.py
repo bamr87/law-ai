@@ -21,7 +21,9 @@ class Command(BaseCommand):
         self.stdout.write(sep)
         for name, adapter in sorted(SOURCE_REGISTRY.items()):
             hitl = "yes" if adapter.requires_human_approval else "no"
-            rps = f"{adapter.rate_limit_rps:.1f}"
+            # ``:g`` keeps sub-0.5 limits honest: ``:.1f`` printed the Denver
+            # adapter's 0.25 rps as "0.2" (BL-20260511-09).
+            rps = f"{adapter.rate_limit_rps:g}"
             allowlisted = "yes" if name in allowed else "no"
             license_str = adapter.license[:45]
             self.stdout.write(

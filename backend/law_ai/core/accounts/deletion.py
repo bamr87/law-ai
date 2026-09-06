@@ -18,8 +18,11 @@ The path implemented here separates the two kinds of data an account holds:
 Matters are soft-archived (§5) and their ``PROTECT`` ownership is reassigned
 to a tombstone account, so the deletion cannot be blocked by them and a later
 genuine purge (a retention job, not this function) has a single owner to work
-from. Every step is counted and logged as one ``account.deleted`` provenance
-event.
+from. Their slugs are rewritten on the way over — ``Matter`` is unique on
+``(owner, slug)`` and slugs are auto-derived from the matter's name, so
+without that the *second* account to delete a matter called "Lease" would
+collide on the shared tombstone and roll the whole de-identification back.
+Every step is counted and logged as one ``account.deleted`` provenance event.
 """
 
 from __future__ import annotations
@@ -50,17 +53,56 @@ def tombstone_user() -> Any:
     return user
 
 
+#: ``Matter.slug`` is a CharField(max_length=64); the rewritten tombstone slug
+#: has to fit in it.
+_SLUG_MAX = 64
+
+
+def _tombstone_slug(matter: Any, taken: set[str]) -> str:
+    """A slug that is unique *on the tombstone account*.
+
+    ``Matter`` carries an unconditional ``UniqueConstraint(owner, slug)`` and
+    slugs are only unique per owner — they are auto-derived from the matter's
+    name, so "lease", "divorce" and "eviction" collide between accounts as a
+    matter of course. Reassigning every deleted account's matters to the one
+    shared tombstone therefore made the *second* deletion of a colliding slug
+    raise ``IntegrityError``, and since the whole of :func:`delete_account`
+    runs in one ``transaction.atomic()`` block that rolled back the entire
+    de-identification: the account stayed live, its tokens stayed valid, and
+    the endpoint 500'd.
+
+    Suffixing the matter's own pk fixes it and stays readable. The pk is
+    globally unique and contains no ``-``, so ``<slug>-<pk>`` is injective and
+    the original slug is still recoverable by a human reading the row. ``taken``
+    guards the one case suffixing cannot: truncation to fit ``max_length``.
+    """
+    import secrets
+
+    base = str(matter.slug or "matter")
+    suffix = f"-{matter.pk}"
+    candidate = base[: _SLUG_MAX - len(suffix)] + suffix
+    while candidate in taken:  # pragma: no cover - only reachable via truncation
+        suffix = f"-{secrets.token_hex(4)}"
+        candidate = base[: _SLUG_MAX - len(suffix)] + suffix
+    return candidate
+
+
 def _archive_matters(user: Any, tombstone: Any, now: datetime) -> int:
     try:
         from law_ai.matters.models import Matter
     except Exception:  # pragma: no cover - app not installed
         return 0
     rows = list(Matter.objects.filter(owner=user))
+    if not rows:
+        return 0
+    taken = set(Matter.objects.filter(owner=tombstone).values_list("slug", flat=True))
     for matter in rows:
         if matter.archived_at is None:
             matter.archived_at = now
         matter.owner = tombstone
-        matter.save(update_fields=["archived_at", "owner"])
+        matter.slug = _tombstone_slug(matter, taken)
+        taken.add(matter.slug)
+        matter.save(update_fields=["archived_at", "owner", "slug"])
     return len(rows)
 
 

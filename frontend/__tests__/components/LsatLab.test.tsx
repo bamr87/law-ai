@@ -1,13 +1,16 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createNavStore } from '../support/urlNav'
 import LsatLab from '@/components/LsatLab'
-import {
-  __resetTimerStore,
-  getTimerSnapshot,
-} from '@/lib/lsat/timerStore'
+import { __resetTimerStore, getTimerSnapshot } from '@/lib/lsat/timerStore'
 import { server } from '@/mocks/server'
 
 const nav = createNavStore('/lsat')
@@ -35,7 +38,9 @@ const sampleSections = {
       skills: ['identify conclusions'],
       tips: ['Diagram conditionals'],
       concepts: ['modus-tollens'],
-      references: [{ title: 'LSAC LR overview', url: 'https://example.test/lr' }],
+      references: [
+        { title: 'LSAC LR overview', url: 'https://example.test/lr' },
+      ],
       question_count: 7,
     },
     {
@@ -83,6 +88,73 @@ const sampleQuestion = {
   concepts: ['flaw-in-reasoning'],
   references: [],
   passage_id: null,
+}
+
+const lgGames = [
+  {
+    id: 'lg-game-001',
+    section: 'LG',
+    title: 'Concert scheduling',
+    summary: 'Seven acts, one stage.',
+    passage: null,
+    setup: 'Seven acts perform one at a time.',
+    rules: ['A performs before B.'],
+    source: 'Test',
+  },
+  {
+    id: 'lg-game-002',
+    section: 'LG',
+    title: 'Office assignment',
+    summary: 'Six staff, three rooms.',
+    passage: null,
+    setup: 'Six staff share three rooms.',
+    rules: ['C shares with D.'],
+    source: 'Test',
+  },
+]
+
+const lgTagged = {
+  ...sampleQuestion,
+  id: 'lg-001',
+  section: 'LG',
+  type: 'LG',
+  stem: 'Which order is possible?',
+  concepts: ['sequencing'],
+  passage_id: 'lg-game-001',
+}
+
+const lgUntagged = {
+  ...sampleQuestion,
+  id: 'lg-002',
+  section: 'LG',
+  type: 'LG',
+  stem: 'Which pair must be grouped?',
+  concepts: ['grouping-game'],
+  passage_id: 'lg-game-001',
+}
+
+/**
+ * A Logic Games bank where `sequencing` tags one question of one game
+ * (BL-20260905-01). `/api/lsat/questions` answers the tag the way the API
+ * does — with and without a `section`, since the lab asks it which section
+ * carries the tag and the panel asks it which games do.
+ */
+function useLgConceptBank() {
+  server.use(
+    http.get('http://localhost:8000/api/lsat/questions', () =>
+      HttpResponse.json({ count: 1, questions: [lgTagged] }),
+    ),
+    http.get('http://localhost:8000/api/lsat/passages', () =>
+      HttpResponse.json({ count: 2, passages: lgGames }),
+    ),
+    http.get('http://localhost:8000/api/lsat/passages/lg-game-001', () =>
+      HttpResponse.json({
+        count: 2,
+        passage: lgGames[0],
+        questions: [lgTagged, lgUntagged],
+      }),
+    ),
+  )
 }
 
 beforeEach(() => {
@@ -193,7 +265,9 @@ beforeEach(() => {
           rules: [],
           source: 'Test',
         },
-        questions: [{ ...sampleQuestion, id: 'rc-001', section: 'RC', type: 'RC' }],
+        questions: [
+          { ...sampleQuestion, id: 'rc-001', section: 'RC', type: 'RC' },
+        ],
       }),
     ),
   )
@@ -241,7 +315,9 @@ describe('LsatLab', () => {
       expect(screen.getAllByText('Logical Reasoning').length).toBeGreaterThan(0)
     })
     expect(screen.getByText(/four-section roadmap/i)).toBeInTheDocument()
-    expect(screen.getAllByText('Reading Comprehension').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Reading Comprehension').length).toBeGreaterThan(
+      0,
+    )
     expect(screen.getByText('Analytical Reasoning')).toBeInTheDocument()
     // The section timer is docked in the sidebar by default (spec 043), so the
     // page itself no longer renders it. Dock behaviour is covered by
@@ -310,9 +386,9 @@ describe('LsatLab', () => {
         ).toHaveAttribute('aria-selected', 'true'),
       )
       await waitFor(() =>
-        expect(
-          seen.some((u) => u.includes('concept=flaw-in-reasoning')),
-        ).toBe(true),
+        expect(seen.some((u) => u.includes('concept=flaw-in-reasoning'))).toBe(
+          true,
+        ),
       )
       expect(screen.getByText(/Drilling flaw-in-reasoning/)).toBeInTheDocument()
     })
@@ -321,13 +397,17 @@ describe('LsatLab', () => {
       nav.reset('concept=flaw-in-reasoning')
       render(<LsatLab />)
       await waitFor(() =>
-        expect(screen.getByText(/Drilling flaw-in-reasoning/)).toBeInTheDocument(),
+        expect(
+          screen.getByText(/Drilling flaw-in-reasoning/),
+        ).toBeInTheDocument(),
       )
       fireEvent.click(
         screen.getByRole('button', { name: 'Stop drilling flaw-in-reasoning' }),
       )
       await waitFor(() =>
-        expect(screen.queryByText(/Drilling flaw-in-reasoning/)).not.toBeInTheDocument(),
+        expect(
+          screen.queryByText(/Drilling flaw-in-reasoning/),
+        ).not.toBeInTheDocument(),
       )
       // Dropping the filter is not navigation: it replaces rather than pushes,
       // so Back still leaves the lab rather than re-applying a filter the
@@ -360,6 +440,97 @@ describe('LsatLab', () => {
           'true',
         ),
       )
+    })
+
+    // Two thirds of the concepts the bank tags carry no LR question at all,
+    // and the library advertises a count over the whole bank — so a concept
+    // link that always opened LR told the learner "no questions are tagged
+    // sequencing" about a tag with 21 Logic Games questions behind it.
+    it('opens the Logic Games drill for an LG-tagged concept, and drills only the tagged questions', async () => {
+      useLgConceptBank()
+      nav.reset('concept=sequencing')
+      render(<LsatLab />)
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole('tab', { name: /Logic Games/i }),
+        ).toHaveAttribute('aria-selected', 'true'),
+      )
+      expect(screen.getByText(/Drilling sequencing/)).toBeInTheDocument()
+      // Never the LR panel's "nothing is tagged that" — the lie this fixes.
+      expect(
+        screen.queryByText(/No Logical Reasoning questions are tagged/),
+      ).not.toBeInTheDocument()
+
+      // Only the game that carries the tag is on offer…
+      const select = await screen.findByLabelText('Game')
+      await waitFor(() =>
+        expect(within(select).getAllByRole('option')).toHaveLength(1),
+      )
+      expect(within(select).getByRole('option')).toHaveTextContent(
+        'Concert scheduling',
+      )
+      // …and inside it, only the tagged question.
+      expect(
+        await screen.findByText(/Which order is possible/),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText(/Which pair must be grouped/),
+      ).not.toBeInTheDocument()
+      expect(screen.getByText('Question 1 of 1.')).toBeInTheDocument()
+    })
+
+    it('opens the Reading Comprehension drill for an RC-tagged concept', async () => {
+      server.use(
+        http.get('http://localhost:8000/api/lsat/questions', () =>
+          HttpResponse.json({
+            count: 1,
+            questions: [
+              {
+                ...sampleQuestion,
+                id: 'rc-001',
+                section: 'RC',
+                type: 'RC',
+                concepts: ['rc-structure'],
+                passage_id: 'rc-passage-001',
+              },
+            ],
+          }),
+        ),
+      )
+      nav.reset('concept=rc-structure')
+      render(<LsatLab />)
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole('tab', { name: /Reading Comprehension/i }),
+        ).toHaveAttribute('aria-selected', 'true'),
+      )
+      expect(screen.getByText(/Drilling rc-structure/)).toBeInTheDocument()
+      expect(
+        await screen.findByText('Federal pleading evolution'),
+      ).toBeInTheDocument()
+    })
+
+    it('says so when no set in the section carries the tag', async () => {
+      server.use(
+        http.get('http://localhost:8000/api/lsat/questions', () =>
+          HttpResponse.json({ count: 0, questions: [] }),
+        ),
+      )
+      // An explicit tab, so this is the passage panel's own empty state and
+      // not the section resolver falling back.
+      nav.reset('concept=unused-concept&tab=RC')
+      render(<LsatLab />)
+      expect(
+        await screen.findByText(
+          /No Reading Comprehension questions are tagged unused-concept yet/,
+        ),
+      ).toBeInTheDocument()
+      // With the way out the LR panel already offered.
+      expect(
+        screen.getByRole('button', { name: 'Drill the whole section instead' }),
+      ).toBeInTheDocument()
     })
   })
 
@@ -487,11 +658,11 @@ describe('LsatLab', () => {
 
   it('renders RC passage + questions side by side', async () => {
     render(<LsatLab />)
-    fireEvent.click(
-      screen.getByRole('tab', { name: /Reading Comprehension/i }),
-    )
+    fireEvent.click(screen.getByRole('tab', { name: /Reading Comprehension/i }))
     await waitFor(() =>
-      expect(screen.getByText('Federal pleading evolution')).toBeInTheDocument(),
+      expect(
+        screen.getByText('Federal pleading evolution'),
+      ).toBeInTheDocument(),
     )
     // Passage detail loads via a second fetch after the list resolves —
     // wait for the body text instead of asserting synchronously.
@@ -528,9 +699,7 @@ describe('LsatLab', () => {
 
   it('stops quoting a pace once the student leaves the stack', async () => {
     render(<LsatLab />)
-    fireEvent.click(
-      screen.getByRole('tab', { name: /Reading Comprehension/i }),
-    )
+    fireEvent.click(screen.getByRole('tab', { name: /Reading Comprehension/i }))
     await waitFor(() => expect(getTimerSnapshot().remainingQuestions).toBe(1), {
       timeout: 5000,
     })
@@ -623,8 +792,12 @@ describe('LsatLab', () => {
     )
     // WS used to have no tab, so its card said "No drill in the lab yet" and
     // the section was practisable only on the published static site.
-    expect(screen.queryByText(/No drill in the lab yet/i)).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Practice LR/i })).toBeInTheDocument()
+    expect(
+      screen.queryByText(/No drill in the lab yet/i),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Practice LR/i }),
+    ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Practice WS/i }))
     // The jump selects the real tab and mounts the real panel.
     expect(

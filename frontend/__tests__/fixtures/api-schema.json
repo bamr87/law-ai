@@ -29,6 +29,19 @@
           "default": null,
           "title": "Jurisdiction"
         },
+        "matter_id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Matter Id"
+        },
         "stream_id": {
           "anyOf": [
             {
@@ -356,6 +369,12 @@
               },
               "title": "Precedents",
               "type": "array"
+            },
+            "requires_review": {
+              "default": false,
+              "description": "Structured HITL flag: True when at least one retrieved precedent is emitted without a complete issuing authority (court + jurisdiction + decided_at). Carrying attribution is not the same as having it \u2014 an under-attributed precedent must be looked at before it is relied on (constitution \u00a713, BL-20260803-04).",
+              "title": "Requires Review",
+              "type": "boolean"
             },
             "summary": {
               "title": "Summary",
@@ -1227,6 +1246,19 @@
           "description": "None when ``user_choice`` was omitted.",
           "title": "Is Correct"
         },
+        "langgraph_thread_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Always null on this endpoint, and present so the tutor contract mirrors the analysis one field for field (BL-20260503-06): a client can render the same trace strip against either response without special-casing. The tutor calls the provider chain directly rather than running a LangGraph graph, so there is no checkpointed thread to resume \u2014 and null says exactly that, the same way the analysis response says it when no graph ran.",
+          "title": "Langgraph Thread Id"
+        },
         "latency_ms": {
           "default": 0.0,
           "title": "Latency Ms",
@@ -1254,7 +1286,7 @@
             }
           ],
           "default": null,
-          "description": "Deep link to the trace in the configured viewer, mirroring the analysis path (BL-20260502-05). There is deliberately no ``langgraph_thread_id`` beside it: the tutor calls the provider chain directly rather than running a LangGraph graph, so there is no checkpointed thread to resume or to name.",
+          "description": "Deep link to the trace in the configured viewer, mirroring the analysis path (BL-20260502-05).",
           "title": "Phoenix Trace Url"
         },
         "question_id": {
@@ -1424,6 +1456,12 @@
           },
           "title": "Precedents",
           "type": "array"
+        },
+        "requires_review": {
+          "default": false,
+          "description": "Structured HITL flag: True when at least one retrieved precedent is emitted without a complete issuing authority (court + jurisdiction + decided_at). Carrying attribution is not the same as having it \u2014 an under-attributed precedent must be looked at before it is relied on (constitution \u00a713, BL-20260803-04).",
+          "title": "Requires Review",
+          "type": "boolean"
         },
         "summary": {
           "title": "Summary",

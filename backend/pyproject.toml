@@ -73,11 +73,18 @@ dev = [
     "factory-boy>=3.3.0",
     "respx>=0.23.0",           # HTTP mocking
 ]
-# Spec 011: planned per-user JWT/OAuth (BL-20260503-13). Not wired yet; install
-# explicitly when implementing that spec.
+# BL-20260503-13: the OAuth2 bearer grant over `core.ApiToken`
+# (`law_ai/core/jwt_auth.py`). No longer optional in practice — backend/Dockerfile
+# installs this extra, and `law_ai.core.auth.ApiKeyAuthentication` degrades to
+# key+session only when it is absent. It stays an extra so a deployment that
+# wants neither library can still build without them.
 future-auth = [
     "python-jose[cryptography]>=3.5.0",
-    "passlib[bcrypt]>=1.7.4",
+    # Not `passlib[bcrypt]`: passlib 1.7.4 probes its bcrypt backend with a
+    # 73-byte password and bcrypt>=4.1 raises on that, so importing the
+    # bcrypt scheme fails outright. core/jwt_auth.py uses passlib's own
+    # pbkdf2_sha256 instead, which needs no compiled backend.
+    "passlib>=1.7.4",
 ]
 test = [
     "pytest>=9.0.0",
@@ -103,7 +110,9 @@ local-ai = [
 ]
 nlp = [
     # Optional NER pass for IngestionScout (BL-20260429-03), gated behind
-    # ENABLE_NER. Install with: pip install -e ".[nlp]"
+    # ENABLE_NER. backend/Dockerfile installs this wheel into the image, so the
+    # Docker-first workflow needs no extra step; `pip install -e ".[nlp]"` is
+    # the equivalent for a non-container install.
     #
     # This extra used to carry Blackstone. It cannot be installed here:
     # Blackstone pins spacy==2.1.8 against this project's spacy>=3.8.0, and
@@ -161,7 +170,7 @@ django_settings_module = "law_ai.settings.test"
 
 [[tool.mypy.overrides]]
 # `celery` and `lxml` publish no py.typed marker and no first-party stubs.
-module = ["neo4j.*", "crewai.*", "langgraph.*", "eyecite.*", "spacy.*", "pypdf.*", "drf_pydantic.*", "channels.*", "channels_redis.*", "daphne.*", "environ.*", "celery.*", "lxml.*"]
+module = ["neo4j.*", "crewai.*", "langgraph.*", "eyecite.*", "spacy.*", "pypdf.*", "drf_pydantic.*", "channels.*", "channels_redis.*", "daphne.*", "environ.*", "celery.*", "lxml.*", "jose.*", "passlib.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -176,6 +185,7 @@ markers = [
     "legalbench: tests using LegalBench benchmark",
     "slow: tests that take >5s",
     "network: live upstream fetch (nightly only; needs LIVE_NETWORK=1)",
+    "nlp: loads the real spaCy pipeline shipped in the backend image",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",

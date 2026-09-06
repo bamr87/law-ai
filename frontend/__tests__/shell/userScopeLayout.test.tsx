@@ -2,8 +2,12 @@ import { renderHook, act } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { useSetting } from '@/components/shell/useSetting'
-import { INSTANCE_SCOPE, settingsChain, userScopeFor } from '@/lib/scope/instance'
-import { resolveEffective } from '@/lib/scope/resolver'
+import {
+  INSTANCE_SCOPE,
+  settingsChain,
+  userScopeFor,
+} from '@/lib/scope/instance'
+import { resolveEffective, writeTargetIn } from '@/lib/scope/resolver'
 import {
   disableServerSync,
   hydrateSettingValues,
@@ -128,6 +132,37 @@ describe('layout settings at user scope', () => {
     expect(effective.isInherited).toBe(true)
     expect(effective.source).toMatchObject({ type: 'instance' })
     expect(effective.canOverride).toBe(true)
+  })
+
+  it('an instance-only setting is written at the instance, not the chain leaf', () => {
+    // The chain leaf is the user once someone signs in, but a policy value is
+    // not theirs to hold. Reading "can I edit this?" off the leaf made the two
+    // instance-only settings permanently read-only in /settings for every
+    // signed-in caller (BL-20260905-10).
+    const chain = settingsChain(userScopeFor('user:7'))
+    expect(writeTargetIn(hitlThreshold, chain)?.id).toBe(INSTANCE_SCOPE.id)
+    expect(writeTargetIn(railExpanded, chain)?.id).toBe('user:7')
+
+    const unset = resolveEffective(hitlThreshold, chain, [], true)
+    expect(unset.canOverride).toBe(true)
+
+    const set = resolveEffective(
+      hitlThreshold,
+      chain,
+      [
+        {
+          scopeId: INSTANCE_SCOPE.id,
+          key: hitlThreshold.key,
+          value: 0.9,
+          locked: false,
+        },
+      ],
+      true,
+    )
+    // The value is at the scope it is edited at, so it is not "inherited"
+    // and the control is live rather than disabled behind an Override.
+    expect(set.isInherited).toBe(false)
+    expect(set.canOverride).toBe(true)
   })
 
   it('a locked instance value still wins over a user row', () => {

@@ -288,3 +288,104 @@ def test_llm_views_use_the_per_principal_throttle() -> None:
 
     assert AnalysisView.throttle_classes == [ScopedActorRateThrottle]
     assert TutorView.throttle_classes == [ScopedActorRateThrottle]
+
+
+# ---------------------------------------------------------------------------
+# /api/agents/* — the audit-log surface (BL-20260503-12, absorbing
+# BL-20260430-09: "a leaked key must not scrape the audit log at line speed")
+# ---------------------------------------------------------------------------
+def _force_audit_rate(monkeypatch: pytest.MonkeyPatch, rate: str) -> None:
+    from law_ai.core.throttling import ScopedActorRateThrottle
+
+    monkeypatch.setattr(ScopedActorRateThrottle, "get_rate", lambda self: rate)
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_a_keyed_burst_at_the_audit_log_is_throttled(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The exact scenario BL-20260430-09 named: scraping `/api/agents/runs`."""
+    from asgiref.sync import sync_to_async
+
+    _force_audit_rate(monkeypatch, "2/min")
+    _token, raw = await sync_to_async(_seed_key)("agent")
+    headers = {"X-API-Key": raw}
+
+    first = await client.get("/api/agents/runs", headers=headers)
+    second = await client.get("/api/agents/runs", headers=headers)
+    third = await client.get("/api/agents/runs", headers=headers)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert third.status_code == 429
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_the_run_detail_and_metrics_reads_share_the_audit_quota(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One key, one bucket across the whole `/api/agents/*` audit surface."""
+    from asgiref.sync import sync_to_async
+
+    _force_audit_rate(monkeypatch, "2/min")
+    _token, raw = await sync_to_async(_seed_key)("agent")
+    headers = {"X-API-Key": raw}
+
+    assert (await client.get("/api/agents/runs", headers=headers)).status_code == 200
+    assert (
+        await client.get("/api/agents/runs/abc123", headers=headers)
+    ).status_code == 200
+    assert (await client.get("/api/agents/metrics", headers=headers)).status_code == 429
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_one_scraping_key_does_not_starve_another_at_the_audit_log(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from asgiref.sync import sync_to_async
+
+    _force_audit_rate(monkeypatch, "1/min")
+    _t1, first_key = await sync_to_async(_seed_key)("agent")
+    _t2, second_key = await sync_to_async(_seed_key)("agent")
+
+    a1 = await client.get("/api/agents/runs", headers={"X-API-Key": first_key})
+    a2 = await client.get("/api/agents/runs", headers={"X-API-Key": first_key})
+    b1 = await client.get("/api/agents/runs", headers={"X-API-Key": second_key})
+
+    assert a1.status_code == 200
+    assert a2.status_code == 429
+    assert b1.status_code == 200
+
+
+def test_agents_views_carry_the_audit_throttle() -> None:
+    from law_ai.agentsapi.autonomy_views import _Base as AutonomyBase
+    from law_ai.agentsapi.urls import (
+        AgentListView,
+        AgentMetricsView,
+        AgentRunDetailView,
+        AgentRunsView,
+    )
+    from law_ai.core.throttling import ScopedActorRateThrottle
+
+    for view in (
+        AgentListView,
+        AgentRunsView,
+        AgentRunDetailView,
+        AgentMetricsView,
+        AutonomyBase,
+    ):
+        assert view.throttle_classes == [ScopedActorRateThrottle], view
+        assert view.throttle_scope == "audit", view
+
+
+def test_production_audit_rate_is_configured() -> None:
+    from law_ai.settings import base
+
+    rates = base.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
+    assert rates["audit"] == "120/min"
+    assert rates["audit_keyed"] == "600/min"
+    # Cheap reads, so more generous than `llm` — but finite, which is the point.
+    assert int(rates["audit"].split("/")[0]) > int(rates["llm"].split("/")[0])

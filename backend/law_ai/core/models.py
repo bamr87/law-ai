@@ -119,3 +119,43 @@ class SettingValue(models.Model):
             "value": self.value,
             "locked": self.locked,
         }
+
+
+class OAuthRefreshToken(models.Model):
+    """A rotating refresh credential for the OAuth2 grant (BL-20260503-13).
+
+    The access half of that grant is a stateless ``python-jose`` JWT signed
+    with ``SECRET_KEY``; it cannot be revoked before it expires, which is why
+    its lifetime is minutes. The refresh half is this row, and it *is*
+    revocable — so a leaked laptop is recoverable without rotating the
+    signing key for every client at once.
+
+    Storage follows the selector/verifier pattern: ``handle`` is a public,
+    indexed lookup key and ``secret_hash`` is a ``passlib`` pbkdf2-sha256
+    digest of the secret half. That digest is salted, so the row cannot be
+    found *by* the hash — the handle is what makes a constant-work
+    verification possible instead of a table scan. The plaintext ``<handle>.<secret>`` pair is
+    returned once at issue time and never persisted, exactly as
+    :meth:`ApiToken.generate` treats a raw key.
+    """
+
+    handle = models.CharField(max_length=64, unique=True)
+    secret_hash = models.CharField(max_length=255)
+    api_token = models.ForeignKey(
+        ApiToken,
+        on_delete=models.CASCADE,
+        related_name="refresh_tokens",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    # Rotation and revocation are the same operation on this row: a used
+    # refresh token is retired, never re-presentable (constitution §4 — the
+    # row survives as history rather than being deleted).
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    rotated_to = models.CharField(max_length=64, default="", blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:  # pragma: no cover - admin/debug convenience
+        return f"OAuthRefreshToken({self.handle})"

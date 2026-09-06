@@ -12,7 +12,10 @@ import pytest
 
 from law_ai.agents_runtime.tools.graph_rag import (
     CASE_FULLTEXT_CYPHER,
+    CASE_VECTOR_CYPHER,
     EXPAND_CITES_CYPHER,
+    STATUTE_FULLTEXT_CYPHER,
+    STATUTE_VECTOR_CYPHER,
     GraphRAGRetriever,
     RetrievalCoverage,
     escape_lucene,
@@ -320,7 +323,7 @@ class TestVectorLeg:
         self._patch_embedder(monkeypatch, [0.1] * 768)
         session = FakeSession(
             {
-                "db.index.vector.queryNodes": [_VECTOR_ROW],
+                CASE_VECTOR_CYPHER: [_VECTOR_ROW],
                 "node.holding_summary AS holding_summary": [_CASE_ROW],
                 "MATCH (seed:Case)-[r:CITES]": [],
             }
@@ -335,9 +338,7 @@ class TestVectorLeg:
         assert retriever.last_coverage.vector_count == 1
         # The query embedding is bound as a parameter, never interpolated.
         vector_call = next(
-            params
-            for cypher, params in session.calls
-            if "db.index.vector.queryNodes" in cypher
+            params for cypher, params in session.calls if cypher == CASE_VECTOR_CYPHER
         )
         assert vector_call["embedding"] == [0.1] * 768
         assert vector_call["index"] == "case_embedding_vec"
@@ -374,7 +375,7 @@ class TestVectorLeg:
         self._patch_embedder(monkeypatch, [0.2] * 768)
         session = FakeSession(
             {
-                "db.index.vector.queryNodes": RuntimeError("no such index"),
+                CASE_VECTOR_CYPHER: RuntimeError("no such index"),
                 "node.holding_summary AS holding_summary": [_CASE_ROW],
                 "MATCH (seed:Case)-[r:CITES]": [],
             }
@@ -392,7 +393,7 @@ class TestVectorLeg:
         self._patch_embedder(monkeypatch, [0.3] * 768)
         session = FakeSession(
             {
-                "db.index.vector.queryNodes": [_VECTOR_ROW],
+                CASE_VECTOR_CYPHER: [_VECTOR_ROW],
                 "node.holding_summary AS holding_summary": [_CASE_ROW],
                 "MATCH (seed:Case)-[r:CITES]": [_NEIGHBOR_ROW],
             }
@@ -402,3 +403,176 @@ class TestVectorLeg:
         note = retriever.last_coverage.note()
         assert "semantic" in note
         assert "via citation expansion" in note
+
+
+# ---------------------------------------------------------------------------
+# BL-20260810-17: the :StatuteSection half of the vector leg
+# ---------------------------------------------------------------------------
+
+
+_STATUTE_ROW = {
+    "citation": "C.R.S. § 38-12-103",
+    "heading": "Return of security deposit",
+    "text": "A landlord shall return the security deposit within one month.",
+    "jurisdiction_code": "us-co",
+    "source": "colorado_statutes",
+    "source_url": "https://example.test/38-12-103",
+    "confidence": 0.9,
+    "score": 2.1,
+}
+
+_STATUTE_VECTOR_ROW = {
+    "citation": "C.R.S. § 38-12-104",
+    "heading": "Wrongful withholding",
+    "text": "Wilful retention of a deposit exposes the landlord to treble damages.",
+    "jurisdiction_code": "us-co",
+    "source": "colorado_statutes",
+    "source_url": "https://example.test/38-12-104",
+    "confidence": 0.88,
+    "score": 0.77,
+}
+
+
+def _statute_routes(vector: Any, lexical: Any) -> dict[str, Any]:
+    """Route the two statute queries apart.
+
+    Both Cypher strings contain ``db.index.vector.queryNodes`` /
+    ``node.citation AS citation``, so the exact constants are used as the
+    markers; :class:`FakeSession` matches them in insertion order.
+    """
+    return {
+        STATUTE_VECTOR_CYPHER: vector,
+        STATUTE_FULLTEXT_CYPHER: lexical,
+        "db.index.vector.queryNodes": [],
+        "node.holding_summary AS holding_summary": [_CASE_ROW],
+        "MATCH (seed:Case)-[r:CITES]": [],
+    }
+
+
+class TestStatuteVectorLeg:
+    @staticmethod
+    def _patch_embedder(monkeypatch: pytest.MonkeyPatch, vector: Any) -> None:
+        from law_ai.core.llm import embeddings
+
+        async def fake_embed(text: str, *, component: str = "graph") -> Any:
+            return vector
+
+        monkeypatch.setattr(embeddings, "embed_text", fake_embed)
+
+    @pytest.mark.asyncio
+    async def test_vector_only_section_survives_fusion(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A section only the embeddings found is retrieved and counted."""
+        self._patch_embedder(monkeypatch, [0.5] * 768)
+        session = FakeSession(_statute_routes([_STATUTE_VECTOR_ROW], [_STATUTE_ROW]))
+        retriever = GraphRAGRetriever(session_factory=_session_factory(session))
+        passages = await retriever({"queries": ["can my landlord keep the deposit"]})
+
+        by_id = {p["id"]: p for p in passages}
+        assert "C.R.S. § 38-12-104" in by_id, "vector-only section must survive fusion"
+        assert by_id["C.R.S. § 38-12-104"]["retrieval_mode"] == "vector"
+        assert by_id["C.R.S. § 38-12-104"]["type"] == "StatuteSection"
+        assert by_id["C.R.S. § 38-12-103"]["retrieval_mode"] == "lexical"
+        assert retriever.last_coverage.vector_available is True
+        # Both statute passages plus the lexical case; one came from vectors.
+        assert retriever.last_coverage.vector_count == 1
+
+    @pytest.mark.asyncio
+    async def test_query_is_bound_to_the_statute_vector_index(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The statute index is actually queried, with the embedding bound."""
+        self._patch_embedder(monkeypatch, [0.5] * 768)
+        session = FakeSession(_statute_routes([_STATUTE_VECTOR_ROW], [_STATUTE_ROW]))
+        retriever = GraphRAGRetriever(session_factory=_session_factory(session))
+        await retriever({"queries": ["security deposit"]})
+
+        call = next(
+            params
+            for cypher, params in session.calls
+            if cypher == STATUTE_VECTOR_CYPHER
+        )
+        assert call["index"] == "statute_section_embedding_vec"
+        assert call["embedding"] == [0.5] * 768
+
+    @pytest.mark.asyncio
+    async def test_a_section_on_both_legs_is_marked_as_such(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._patch_embedder(monkeypatch, [0.5] * 768)
+        session = FakeSession(_statute_routes([_STATUTE_ROW], [_STATUTE_ROW]))
+        retriever = GraphRAGRetriever(session_factory=_session_factory(session))
+        passages = await retriever({"queries": ["security deposit"]})
+
+        section = next(p for p in passages if p["type"] == "StatuteSection")
+        assert section["retrieval_mode"] == "lexical+vector"
+        assert section["fusion_score"] > 0
+
+    @pytest.mark.asyncio
+    async def test_missing_statute_vector_index_degrades_to_lexical(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Migration 008 not applied → keep the fulltext sections, flag it."""
+        self._patch_embedder(monkeypatch, [0.5] * 768)
+        session = FakeSession(
+            _statute_routes(RuntimeError("no such index"), [_STATUTE_ROW])
+        )
+        retriever = GraphRAGRetriever(session_factory=_session_factory(session))
+        passages = await retriever({"queries": ["security deposit"]})
+
+        assert [p["id"] for p in passages if p["type"] == "StatuteSection"] == [
+            "C.R.S. § 38-12-103"
+        ]
+        assert retriever.last_coverage.vector_available is False
+
+    @pytest.mark.asyncio
+    async def test_no_embedder_means_no_statute_vector_query(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._patch_embedder(monkeypatch, None)
+        session = FakeSession(_statute_routes([_STATUTE_VECTOR_ROW], [_STATUTE_ROW]))
+        retriever = GraphRAGRetriever(session_factory=_session_factory(session))
+        passages = await retriever({"queries": ["security deposit"]})
+
+        assert not any(cypher == STATUTE_VECTOR_CYPHER for cypher, _ in session.calls)
+        assert [p["id"] for p in passages if p["type"] == "StatuteSection"] == [
+            "C.R.S. § 38-12-103"
+        ]
+        assert retriever.last_coverage.vector_available is False
+
+    @pytest.mark.asyncio
+    async def test_statutes_excluded_skips_the_statute_vector_query(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._patch_embedder(monkeypatch, [0.5] * 768)
+        session = FakeSession(_statute_routes([_STATUTE_VECTOR_ROW], [_STATUTE_ROW]))
+        retriever = GraphRAGRetriever(
+            session_factory=_session_factory(session), include_statutes=False
+        )
+        await retriever({"queries": ["security deposit"]})
+        assert not any(cypher == STATUTE_VECTOR_CYPHER for cypher, _ in session.calls)
+
+    @pytest.mark.asyncio
+    async def test_one_embedding_serves_both_label_legs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Both vector queries reuse a single embed call per query string."""
+        from law_ai.core.llm import embeddings
+
+        calls: list[str] = []
+
+        async def fake_embed(text: str, *, component: str = "graph") -> Any:
+            calls.append(text)
+            return [0.5] * 768
+
+        monkeypatch.setattr(embeddings, "embed_text", fake_embed)
+        session = FakeSession(_statute_routes([_STATUTE_VECTOR_ROW], [_STATUTE_ROW]))
+        retriever = GraphRAGRetriever(session_factory=_session_factory(session))
+        await retriever({"queries": ["security deposit", "landlord duties"]})
+
+        assert calls == ["security deposit", "landlord duties"]
+        assert (
+            sum(1 for cypher, _ in session.calls if cypher == STATUTE_VECTOR_CYPHER)
+            == 2
+        )

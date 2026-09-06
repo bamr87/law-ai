@@ -73,7 +73,9 @@ def test_list_sources_rows_match_the_registry(live_stack: None) -> None:
         assert row["hitl"] == ("yes" if adapter.requires_human_approval else "no")
         assert float(row["rps"]) == pytest.approx(adapter.rate_limit_rps)
         assert row["allowlisted"] == ("yes" if name in allowed else "no")
-        assert adapter.license.startswith(row["license"][:20])
+        # The command truncates the license at 45 chars; compare the whole
+        # printed cell, not just its first 20 characters.
+        assert row["license"] == adapter.license[:45].strip()
 
     assert f"{len(SOURCE_REGISTRY)} source(s) registered." in output
 

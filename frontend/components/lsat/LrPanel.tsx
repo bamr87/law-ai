@@ -20,7 +20,11 @@ import {
   type LsatQuestion,
 } from '@/lib/api'
 import { setRemainingQuestions } from '@/lib/lsat/timerStore'
-import { ErrorBanner, SkeletonQuestion } from '@/components/lsat/LabPrimitives'
+import {
+  ConceptChip,
+  ErrorBanner,
+  SkeletonQuestion,
+} from '@/components/lsat/LabPrimitives'
 import QuestionCard from '@/components/lsat/QuestionCard'
 import { DIFFICULTIES, type AttemptHandler } from '@/components/lsat/labTabs'
 
@@ -208,19 +212,8 @@ function Toolbar({
       {concept && (
         // The filter is visible and reversible. A deep link that silently
         // narrows the bank and gives no way back is a trap, not a shortcut.
-        <span className="inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-200 ring-1 ring-inset ring-amber-500/30">
-          Drilling {concept}
-          {onClearConcept && (
-            <button
-              type="button"
-              onClick={onClearConcept}
-              aria-label={`Stop drilling ${concept}`}
-              className="tap-target rounded-full px-1 text-amber-300 transition hover:text-white"
-            >
-              ×
-            </button>
-          )}
-        </span>
+        // Shared with the passage panels, which take the same deep link.
+        <ConceptChip concept={concept} onClear={onClearConcept} />
       )}
       <div className="text-xs uppercase tracking-wider text-slate-500">
         {rightLabel}

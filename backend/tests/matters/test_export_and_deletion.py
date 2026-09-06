@@ -192,6 +192,79 @@ class TestDeletion:
         assert run.archived_at is not None
         assert link.revoked_at is not None
 
+    def test_two_accounts_with_the_same_matter_slug_can_both_delete(
+        self, matter: Matter, owner
+    ) -> None:
+        """The collision that used to roll the whole de-identification back.
+
+        ``Matter`` is unique on ``(owner, slug)`` and slugs are auto-derived
+        from the matter's name, so "lease" belonging to two accounts is
+        ordinary. Reassigning both to the single ``deleted-user`` tombstone
+        without touching the slug raised ``IntegrityError`` on the second
+        deletion, and because ``delete_account`` is one atomic block the
+        second account came out undeleted: tokens live, history intact,
+        endpoint 500.
+        """
+        second = get_user_model().objects.create_user(
+            username="bob", password="pw-12345678"
+        )
+        theirs = Matter.objects.create(owner=second, slug="lease", name="Other lease")
+
+        delete_account(owner)
+        summary = delete_account(second)
+
+        assert summary["matters_archived"] == 1
+        second.refresh_from_db()
+        assert second.username == f"deleted-user-{second.pk}"
+        assert second.is_active is False
+
+        matter.refresh_from_db()
+        theirs.refresh_from_db()
+        assert matter.owner.username == TOMBSTONE_USERNAME
+        assert theirs.owner.username == TOMBSTONE_USERNAME
+        assert matter.archived_at is not None and theirs.archived_at is not None
+        # Both survive, under slugs that stay unique on the shared tombstone
+        # and still name the matter they came from.
+        assert matter.slug != theirs.slug
+        assert matter.slug == f"lease-{matter.pk}"
+        assert theirs.slug == f"lease-{theirs.pk}"
+
+    def test_a_third_account_with_the_same_slug_still_deletes(self, owner) -> None:
+        """Not just two: the tombstone accumulates for the life of the deployment."""
+        for name in ("bob", "cyd", "dee"):
+            user = get_user_model().objects.create_user(
+                username=name, password="pw-12345678"
+            )
+            Matter.objects.create(owner=user, slug="eviction", name="Eviction")
+            assert delete_account(user)["matters_archived"] == 1
+        assert Matter.objects.filter(slug__startswith="eviction-").count() == 3
+
+    def test_a_rewritten_slug_stays_inside_the_column(self, owner) -> None:
+        long_slug = "x" * 64
+        row = Matter.objects.create(owner=owner, slug=long_slug, name="Long")
+        delete_account(owner)
+        row.refresh_from_db()
+        assert len(row.slug) <= 64
+        assert row.slug.endswith(f"-{row.pk}")
+
+    def test_the_tokens_of_a_colliding_second_account_are_really_revoked(
+        self, matter: Matter, owner
+    ) -> None:
+        """The rollback's real damage: an account that looked deleted was not."""
+        from law_ai.core.models import ApiToken
+
+        second = get_user_model().objects.create_user(
+            username="bob", password="pw-12345678"
+        )
+        Matter.objects.create(owner=second, slug="lease", name="Other lease")
+        token, _raw = ApiToken.generate(scope="agent", name="cli", user=second)
+
+        delete_account(owner)
+        delete_account(second)
+
+        token.refresh_from_db()
+        assert token.revoked_at is not None
+
     def test_deletion_is_idempotent(self, owner) -> None:
         delete_account(owner)
         again = delete_account(owner)

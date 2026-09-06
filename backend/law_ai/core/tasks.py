@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 from celery import shared_task
@@ -117,6 +118,16 @@ def compose_digest_task(self: Any, **kwargs: Any) -> dict[str, Any]:
     * the digest path lands in the ``AuditEvent`` payload twice — once on the
       ``autonomy_digest.composed`` event and once via ``context`` on the
       ``autonomy_cycle.end`` event.
+
+    BL-20260511-05: composing is only half the job. This is the task the
+    07:00 UTC ``autonomy-daily-digest`` beat entry runs, so it is also where
+    delivery has to happen — wiring ``deliver_digest`` only into the manual
+    ``run_autonomy --kind digest`` command left the *scheduled* digest with
+    the file as its only surface, which is exactly the failure the item
+    names. Delivery is deliberately outside the retry contract above:
+    :func:`~law_ai.core.autonomy.deliver_digest` never raises and no-ops when
+    no channel is configured, so a dead webhook can neither fail the cycle nor
+    trigger a re-compose of a digest that was already written correctly.
     """
     from law_ai.core import autonomy
 
@@ -124,7 +135,55 @@ def compose_digest_task(self: Any, **kwargs: Any) -> dict[str, Any]:
         digest_path = autonomy.compose_digest(raise_on_db_error=True)
         context["digest_path"] = str(digest_path)
         context["retries"] = int(getattr(self.request, "retries", 0) or 0)
-        return {"digest_path": str(digest_path)}
+        delivery = autonomy.deliver_digest(digest_path)
+        context["digest_delivered"] = delivery["delivered"]
+        return {"digest_path": str(digest_path), "delivery": delivery}
 
     payload: dict[str, Any] = {"kind": "digest", **kwargs}
     return autonomy.run_cycle("digest", _runner, payload=payload)
+
+
+@shared_task(  # type: ignore[untyped-decorator]
+    name="law_ai.core.tasks.governance_triage", ignore_result=False
+)
+def governance_triage(stale_days: int = 60) -> dict[str, Any]:
+    """Periodic spec + backlog triage (BL-20260503-14).
+
+    Runs ``scripts/spec_validator.py`` and ``scripts/backlog_lint.py`` over the
+    checked-out repo and, when a GitHub credential is configured, keeps one
+    idempotent triage issue up to date. See :mod:`law_ai.core.governance`.
+
+    Not routed through ``autonomy_cycle`` and not on the ``autonomy`` queue:
+    reading two validators and reporting what they said is not an autonomous
+    *decision*, and it has to keep working on an instance with
+    ``AUTONOMY_ENABLED=false``.
+    """
+    from django.conf import settings
+
+    from law_ai.core.governance import run_triage
+    from law_ai.core.provenance import provenance
+
+    result = run_triage(
+        Path(settings.REPO_ROOT),
+        stale_days=stale_days,
+        repo=getattr(settings, "GOVERNANCE_TRIAGE_GITHUB_REPO", ""),
+        token=getattr(settings, "GOVERNANCE_TRIAGE_GITHUB_TOKEN", ""),
+    )
+    provenance.log_event(
+        "governance_triage",
+        {
+            "source": "beat",
+            "repo_available": result["repo_available"],
+            "backlog_stale": result["backlog_stale"],
+            "spec_ok": result["spec_ok"],
+            "issue": result["issue"],
+        },
+    )
+    if result["needs_triage"]:
+        logger.warning(
+            "governance triage: backlog_stale=%s spec_ok=%s issue=%s",
+            result["backlog_stale"],
+            result["spec_ok"],
+            result["issue"],
+        )
+    return result

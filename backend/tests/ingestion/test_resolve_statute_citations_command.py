@@ -181,3 +181,32 @@ def test_commit_and_dry_run_are_mutually_exclusive() -> None:
 def test_rejects_nonsense_bounds(args: tuple[str, ...]) -> None:
     with pytest.raises(CommandError):
         _run(*args)
+
+
+# ---------------------------------------------------------------------------
+# Recall envelope (BL-20260509-07). The backfill reads stored citation strings,
+# so a clean summary does not mean "nothing left to link" — opinions ingested
+# before the C.R.S. patterns landed carry no such string at all. Constitution
+# §13: absence must be reported as absence, not read as coverage.
+# ---------------------------------------------------------------------------
+
+
+def test_every_run_states_what_the_offline_pass_cannot_recover() -> None:
+    for args in ((), ("--commit",)):
+        output, _ = _run(*args)
+        assert cmd.RECALL_CAVEAT in output, f"missing recall caveat for {args!r}"
+
+
+def test_the_caveat_names_the_forms_it_misses_and_the_remedy() -> None:
+    """Specific enough to act on: which citation forms, and what to do."""
+    caveat = cmd.RECALL_CAVEAT
+    assert "C.R.S. § 18-3-102" in caveat
+    assert "section 13-80-102, C.R.S." in caveat
+    assert "re-ingest" in caveat.lower()
+
+
+def test_the_caveat_survives_an_empty_corpus() -> None:
+    """Nothing scanned is exactly when a reader could mistake it for done."""
+    output, _ = _run(pages=[[]])
+    assert "scanned=0 candidates=0 resolved=0 edges_created=0" in output
+    assert cmd.RECALL_CAVEAT in output

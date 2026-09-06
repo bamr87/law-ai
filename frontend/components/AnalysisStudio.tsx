@@ -13,6 +13,7 @@ import {
   runAnalysis,
   type AnalysisRequest,
   type AnalysisResponse,
+  type Attribution,
   type ShareLink,
 } from '@/lib/api'
 import { useCallback, useEffect, useState } from 'react'
@@ -24,8 +25,14 @@ const HITL_THRESHOLD = 0.7
  * first event lands, so a failed socket degrades to the plain skeleton
  * rather than showing an empty "live" panel that never fills.
  */
-function LiveTrace({ steps }: { steps: AgentStepEvent[] }) {
-  if (steps.length === 0) return null
+function LiveTrace({
+  steps,
+  writing,
+}: {
+  steps: AgentStepEvent[]
+  writing: { agent: string; chars: number; model?: string } | null
+}) {
+  if (steps.length === 0 && writing === null) return null
   return (
     <section
       aria-labelledby="live-trace-heading"
@@ -40,7 +47,10 @@ function LiveTrace({ steps }: { steps: AgentStepEvent[] }) {
       </h2>
       <ul className="space-y-1 text-sm text-slate-300">
         {steps.map((step) => (
-          <li key={`${step.agent}-${step.trace_id ?? ''}`} className="flex gap-2">
+          <li
+            key={`${step.agent}-${step.trace_id ?? ''}`}
+            className="flex gap-2"
+          >
             <span aria-hidden="true">✓</span>
             <span className="font-medium text-slate-200">{step.agent}</span>
             <span className="text-slate-500">
@@ -51,8 +61,51 @@ function LiveTrace({ steps }: { steps: AgentStepEvent[] }) {
             )}
           </li>
         ))}
+        {writing && (
+          <li className="flex gap-2" data-testid="analysis-writing">
+            <span aria-hidden="true">✍️</span>
+            <span className="font-medium text-slate-200">{writing.agent}</span>
+            <span className="text-slate-500">
+              writing… {writing.chars.toLocaleString()} characters
+              {writing.model ? ` · ${writing.model}` : ''}
+            </span>
+          </li>
+        )}
       </ul>
     </section>
+  )
+}
+
+/**
+ * The issuing authority behind one source (constitution §13, BL-20260803-04).
+ *
+ * Court, date and binding/persuasive come off the `:Case` node the citation
+ * resolved to — never from model prose. An incomplete attribution is called
+ * out instead of rendered as an empty gap, because "we do not know which court
+ * said this" is the fact a reader needs.
+ */
+function SourceAttribution({
+  attribution,
+}: {
+  attribution?: Attribution | null
+}) {
+  if (!attribution) return null
+  const { court, decided_at: decidedAt, authority } = attribution
+  if (!court || !decidedAt) {
+    return (
+      <span
+        title="This source carries no issuing authority (court and decision date) from the knowledge graph, so it is pinned for human review."
+        className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] text-amber-300"
+      >
+        no issuing authority
+      </span>
+    )
+  }
+  return (
+    <span className="text-[11px] text-slate-500">
+      {court} · {decidedAt}
+      {authority && authority !== 'unknown' ? ` · ${authority}` : ''}
+    </span>
   )
 }
 
@@ -78,7 +131,15 @@ function reviewReason(result: AnalysisResponse): string {
   if (result.irac.requires_review) {
     return (
       'The cited authorities could not all be verified against the ' +
-      'knowledge graph. Check each citation before relying on it.'
+      'knowledge graph, or one of them names no issuing court and date. ' +
+      'Check each citation before relying on it.'
+    )
+  }
+  if (result.precedents.requires_review) {
+    return (
+      'At least one retrieved precedent carries no issuing authority ' +
+      '(court and decision date), so it cannot be weighed as binding or ' +
+      'persuasive without checking the official record.'
     )
   }
   return (
@@ -124,6 +185,14 @@ export default function AnalysisStudio() {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AnalysisResponse | null>(null)
   const [liveSteps, setLiveSteps] = useState<AgentStepEvent[]>([])
+  // BL-20260905-11: what the analyst has produced so far, while it is still
+  // producing it. The IRAC pass is the slow one (56-103s on the xAI tier), and
+  // a page that shows nothing for a minute reads as broken.
+  const [writing, setWriting] = useState<{
+    agent: string
+    chars: number
+    model?: string
+  } | null>(null)
 
   // BL-20260429-25: `?id=an-…` reloads a persisted run, so the permalink
   // below survives a refresh, a new tab, or a colleague's inbox. A run that
@@ -153,6 +222,7 @@ export default function AnalysisStudio() {
     setSubmitting(true)
     setError(null)
     setLiveSteps([])
+    setWriting(null)
 
     // Spec 032: subscribe BEFORE posting. `openAgentStream` resolves on the
     // server's `ready`, so by the time we POST the group membership exists
@@ -165,6 +235,15 @@ export default function AnalysisStudio() {
       socket = await openAgentStream(streamId, (event) => {
         if (event.type === 'agent_step') {
           setLiveSteps((prev) => [...prev, event])
+          setWriting((prev) => (prev?.agent === event.agent ? null : prev))
+        } else if (event.type === 'analysis_token') {
+          // Progress, not content: the deltas are a JSON payload being
+          // written, so the count is shown rather than half-parsed prose.
+          setWriting({
+            agent: event.agent,
+            chars: event.chars,
+            ...(event.model ? { model: event.model } : {}),
+          })
         }
       })
     } catch {
@@ -331,7 +410,7 @@ export default function AnalysisStudio() {
         </div>
       )}
 
-      {submitting && <LiveTrace steps={liveSteps} />}
+      {submitting && <LiveTrace steps={liveSteps} writing={writing} />}
       {submitting && <SkeletonResult />}
 
       {result && !submitting && <ResultPanel result={result} />}
@@ -376,7 +455,10 @@ function Permalink({ id }: { id: string }) {
     <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-900/40 px-4 py-3 text-xs text-slate-400">
       <div>
         <span className="text-slate-500">Permalink:</span>{' '}
-        <a href={href} className="text-blue-300 underline-offset-2 hover:underline">
+        <a
+          href={href}
+          className="text-blue-300 underline-offset-2 hover:underline"
+        >
           {href}
         </a>
       </div>
@@ -548,7 +630,9 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
       <Permalink id={result.id} />
       {(result.phoenix_trace_url || result.langgraph_thread_id) && (
         <div className="rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-200">
-          <div className="font-semibold">Local LLM run (LangGraph + Ollama)</div>
+          <div className="font-semibold">
+            Local LLM run (LangGraph + Ollama)
+          </div>
           <div className="mt-1 grid gap-1 text-xs">
             {result.langgraph_thread_id && (
               <div>
@@ -682,7 +766,10 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
         className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur"
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 id="irac-heading" className="text-lg font-semibold text-slate-100">
+          <h2
+            id="irac-heading"
+            className="text-lg font-semibold text-slate-100"
+          >
             IRAC Brief
           </h2>
           <span className="rounded bg-emerald-500/10 px-2 py-1 text-xs text-emerald-300">
@@ -731,6 +818,12 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
                       unverified
                     </span>
                   )}
+                  {/* BL-20260803-04: §13 — every source names the authority
+                      that issued it. Shown, not just carried: a court and a
+                      date on the page are what let a reader tell binding law
+                      from persuasive, and their absence is labelled rather
+                      than left blank. */}
+                  <SourceAttribution attribution={s.attribution} />
                 </li>
               ))}
             </ul>
@@ -744,7 +837,10 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
         className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur"
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 id="prec-heading" className="text-lg font-semibold text-slate-100">
+          <h2
+            id="prec-heading"
+            className="text-lg font-semibold text-slate-100"
+          >
             Relevant Precedents
           </h2>
           <span className="rounded bg-indigo-500/10 px-2 py-1 text-xs text-indigo-300">
@@ -821,7 +917,8 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
           <code className="rounded bg-slate-800 px-1.5 py-0.5 text-slate-300">
             {result.id}
           </code>{' '}
-          · {result.latency_ms}ms · {new Date(result.timestamp).toLocaleString()}
+          · {result.latency_ms}ms ·{' '}
+          {new Date(result.timestamp).toLocaleString()}
         </span>
         {result.agent_trace[0]?.trace_id && (
           <CopyTraceId traceId={result.agent_trace[0].trace_id} />

@@ -719,6 +719,84 @@ async def test_a_token_from_another_question_is_refused(
 
 
 @pytest.mark.asyncio
+async def test_passage_questions_can_be_served_shuffled(client: AsyncClient) -> None:
+    """RC and LG come through the passage endpoint, not /questions/<id>.
+
+    They are the majority of the shipped bank, and they used to be the half of
+    it where the key never moved — the defect BL-20260606-01 names, surviving
+    on the surface that serves most of the items.
+    """
+    from law_ai.lsat.services.shuffle import order_from_token, to_display
+
+    bank = load_bank()
+    passage_id = next(q.passage_id for q in bank.values() if q.passage_id)
+    attached = {q.id: q for q in bank.values() if q.passage_id == passage_id}
+
+    res = await client.get(f"/api/lsat/passages/{passage_id}", params={"shuffle": "1"})
+    assert res.status_code == 200
+    served = res.json()["questions"]
+    assert served
+    for row in served:
+        assert row["remap"], f"{row['id']} served without a remap token"
+        assert [c["label"] for c in row["choices"]] == ["A", "B", "C", "D", "E"]
+        # Same five choices, reordered — nothing invented, nothing dropped.
+        assert sorted(c["text"] for c in row["choices"]) == sorted(
+            c.text for c in attached[row["id"]].choices
+        )
+        assert "correct" not in row
+
+    # And the key actually moves across attempts.
+    qid = served[0]["id"]
+    seen = set()
+    for _ in range(25):
+        again = await client.get(
+            f"/api/lsat/passages/{passage_id}", params={"shuffle": "1"}
+        )
+        row = next(r for r in again.json()["questions"] if r["id"] == qid)
+        order = order_from_token(qid, row["remap"])
+        seen.add(to_display(attached[qid].correct, order))
+    assert len(seen) > 1
+
+
+@pytest.mark.asyncio
+async def test_passage_serve_without_shuffle_carries_no_token(
+    client: AsyncClient,
+) -> None:
+    bank = load_bank()
+    passage_id = next(q.passage_id for q in bank.values() if q.passage_id)
+    res = await client.get(f"/api/lsat/passages/{passage_id}")
+    assert res.status_code == 200
+    assert all("remap" not in row for row in res.json()["questions"])
+
+
+@pytest.mark.asyncio
+async def test_a_passage_token_grades_in_the_order_it_was_served(
+    client: AsyncClient,
+) -> None:
+    from law_ai.lsat.services.shuffle import order_from_token, to_display
+
+    bank = load_bank()
+    passage_id = next(q.passage_id for q in bank.values() if q.passage_id)
+    res = await client.get(f"/api/lsat/passages/{passage_id}", params={"shuffle": "1"})
+    row = res.json()["questions"][0]
+    question = bank[row["id"]]
+    displayed_key = to_display(
+        question.correct, order_from_token(question.id, row["remap"])
+    )
+    graded = await client.post(
+        "/api/lsat/grade",
+        json={
+            "question_id": question.id,
+            "choice": displayed_key,
+            "remap": row["remap"],
+        },
+    )
+    assert graded.status_code == 200
+    assert graded.json()["correct"] is True
+    assert graded.json()["correct_choice"] == displayed_key
+
+
+@pytest.mark.asyncio
 async def test_grading_without_a_token_still_uses_the_stored_order(
     client: AsyncClient,
 ) -> None:
@@ -1631,8 +1709,13 @@ async def test_tutor_reports_no_trace_when_telemetry_is_disabled(
     # whether telemetry happened to be configured.
     assert "trace_id" in body
     assert body["phoenix_trace_url"] is None
-    # The tutor runs no LangGraph graph, so there is deliberately no thread id.
-    assert "langgraph_thread_id" not in body
+    # BL-20260503-06 asked for both fields the analysis contract carries, so
+    # the tutor contract mirrors it field for field. The tutor runs no
+    # LangGraph graph, so the thread id is present and null — the same thing
+    # the analysis response says when no graph ran — rather than absent, which
+    # would force a client to branch on which endpoint answered.
+    assert "langgraph_thread_id" in body
+    assert body["langgraph_thread_id"] is None
 
 
 @pytest.mark.asyncio

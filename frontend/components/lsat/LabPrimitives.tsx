@@ -70,7 +70,7 @@ export function DiffBadge({ difficulty }: { difficulty: LsatDifficulty }) {
 
 export function SkeletonQuestion() {
   return (
-    <div className="animate-pulse space-y-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+    <div className="animate-pulse space-y-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-6 motion-reduce:animate-none">
       <div className="h-3 w-32 rounded bg-slate-800" />
       <div className="h-5 w-full rounded bg-slate-800" />
       <div className="h-5 w-5/6 rounded bg-slate-800" />
@@ -86,7 +86,7 @@ export function SkeletonQuestion() {
 
 export function SkeletonGrid() {
   return (
-    <div className="grid animate-pulse gap-3 md:grid-cols-2">
+    <div className="grid animate-pulse gap-3 md:grid-cols-2 motion-reduce:animate-none">
       {[0, 1, 2, 3].map((i) => (
         <div
           key={i}
@@ -94,6 +94,37 @@ export function SkeletonGrid() {
         />
       ))}
     </div>
+  )
+}
+
+/**
+ * The "you are drilling one concept" chip (BL-20260905-01).
+ *
+ * Shared by every drill panel, because a deep link that silently narrows the
+ * bank and gives no way back is a trap rather than a shortcut — and the way
+ * back has to read the same on LR as it does on a passage set.
+ */
+export function ConceptChip({
+  concept,
+  onClear,
+}: {
+  concept: string
+  onClear?: () => void
+}) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-200 ring-1 ring-inset ring-amber-500/30">
+      Drilling {concept}
+      {onClear && (
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label={`Stop drilling ${concept}`}
+          className="tap-target rounded-full px-1 text-amber-300 transition hover:text-white"
+        >
+          ×
+        </button>
+      )}
+    </span>
   )
 }
 
@@ -111,10 +142,7 @@ export function ErrorBanner({
     >
       {message}
       {onRetry && (
-        <button
-          onClick={onRetry}
-          className="ml-3 underline hover:text-red-200"
-        >
+        <button onClick={onRetry} className="ml-3 underline hover:text-red-200">
           Retry
         </button>
       )}

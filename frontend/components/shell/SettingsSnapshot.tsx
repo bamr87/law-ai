@@ -23,11 +23,24 @@ import { createContext, useContext, useEffect, type ReactNode } from 'react'
  */
 const SettingsSnapshotContext = createContext<SettingValue[]>(NO_ROWS)
 
+/**
+ * Who the server rendered *as* (BL-20260905-10).
+ *
+ * Layout rows live at `user:<pk>` for a signed-in visitor, and a resolver that
+ * does not know the id walks `[instance]` and skips every one of them. The id
+ * reaches the server render through its own cookie and stays available to the
+ * hydration render, so both resolve the chain the client will — otherwise the
+ * user's layout is absent from the first paint and reflows in after mount.
+ */
+const SettingsScopeContext = createContext<string | null>(null)
+
 export function SettingsSnapshotProvider({
   rows,
+  userScopeId,
   children,
 }: {
   rows?: SettingValue[]
+  userScopeId?: string | null
   children: ReactNode
 }) {
   const value = rows && rows.length > 0 ? rows : NO_ROWS
@@ -38,7 +51,9 @@ export function SettingsSnapshotProvider({
 
   return (
     <SettingsSnapshotContext.Provider value={value}>
-      {children}
+      <SettingsScopeContext.Provider value={userScopeId ?? null}>
+        {children}
+      </SettingsScopeContext.Provider>
     </SettingsSnapshotContext.Provider>
   )
 }
@@ -46,4 +61,9 @@ export function SettingsSnapshotProvider({
 /** The server-rendered rows, or the stable empty list outside a provider. */
 export function useSettingsSnapshot(): SettingValue[] {
   return useContext(SettingsSnapshotContext)
+}
+
+/** The scope id the server rendered with, or `null` outside a provider. */
+export function useSettingsSnapshotScope(): string | null {
+  return useContext(SettingsScopeContext)
 }

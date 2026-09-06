@@ -33,7 +33,7 @@ The `make` targets below wrap `docker compose run --rm <service>` (or, for `lint
 make test-backend    # backend pytest suite only (excludes integration + legalbench)
 make test-frontend   # frontend vitest only, via npm test -- --run
 make test            # test-backend + test-frontend
-make lint-specs      # scripts/spec_validator.py + scripts/backlog_lint.py (host, stdlib-only)
+make lint-specs      # spec_validator.py + backlog_lint.py + ux_audit.py + test_evolve_audit.py (host)
 ```
 
 `make test-smoke` currently also shells into the backend container and runs the same suite as `make test-backend` — it does not invoke this root `tests/` package's `smoke`/`specs` tier or the lint scripts, despite the name. To run this package's own `smoke`/`specs` markers (or the full `smoke or specs or backend or frontend` combination) directly, use the `pytest` invocations under "Common invocations" above from the repo root — they're deliberately dependency-light (stdlib + pytest only) and are what CI's `repo-structural` job runs on the bare GitHub runner, outside Docker.
@@ -42,7 +42,7 @@ make lint-specs      # scripts/spec_validator.py + scripts/backlog_lint.py (host
 
 `test_evolve_audit.py` exercises `scripts/evolve_audit.py`'s two substantive scanners (`_scan_coverage`, `_scan_legalbench`) from the host (BL-20260511-14, BL-20260511-15). The backend suite covers the same scanners, but the tests there load the script from the filesystem and used to skip inside Docker, which is where the backend suite runs — so in practice they had never executed in CI. That skip is fixed (`backend/tests/eval/test_coverage_audit.py` now also looks at `/repo/scripts/`), and this module is the host tier's independent copy.
 
-Deliberately **not** wired into `make lint-specs`: that target is documented as stdlib scripts with no pytest and no container, and adding a test runner to it would break that contract. CI's `repo-structural` job already runs this package bare, which is the same guarantee.
+**Wired into `make lint-specs`** (BL-20260511-14). That target used to be three stdlib scripts and nothing else, and running the audit's own coverage only in CI meant the person editing `scripts/evolve_audit.py` got no signal until a PR run. The target now runs `python3 -m pytest tests/test_evolve_audit.py -q` after the three scripts. pytest is the one non-stdlib thing it needs, and the recipe checks for it first and says so in one line rather than dying in a traceback — install it with `python3 -m pip install --user pytest`, or run the same checks in Docker. CI's `repo-structural` job still runs this package bare, so the gate holds on both surfaces.
 
 ## Design notes
 

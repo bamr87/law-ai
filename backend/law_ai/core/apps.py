@@ -44,9 +44,9 @@ class CoreConfig(AppConfig):
         except Exception as exc:  # pragma: no cover - log-only
             logger.warning("telemetry init skipped: %s", exc)
 
-        # Spec 008/009 FR-5 (ported from app/main.py lifespan): warn loudly
-        # outside development, and refuse to boot in production
-        # (BL-20260430-12).
+        # Spec 008/009 FR-5, run from ``AppConfig.ready`` since the spec-011
+        # Django cutover: warn loudly outside development, and refuse to boot
+        # in production (BL-20260430-12).
         warn_if_unprotected()
 
 

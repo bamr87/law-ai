@@ -23,6 +23,7 @@ import {
   type LsatDifficulty,
   type LsatFactoryStatus,
   type LsatCrossCheckProposalDraft,
+  type LsatWritingProposalDraft,
   type LsatDraftReview,
   type LsatGapRow,
   type LsatGuideProposalDraft,
@@ -607,6 +608,71 @@ export function ProposalCard({
             className="rounded-md border border-emerald-700/60 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-900/40 disabled:opacity-50"
           >
             Key verified
+          </button>
+        </footer>
+      </article>
+    )
+  }
+
+  // BL-20260831-28: the factory drafts writing prompts into the same queue.
+  // A WS draft has no `choices`, so without its own card it fell through to
+  // the question card below and threw inside `d.choices.map`, taking the whole
+  // review list down with it.
+  if (proposal.proposal_kind === 'writing_prompt') {
+    const w = proposal.draft as LsatWritingProposalDraft
+    return (
+      <article
+        data-testid="writing-proposal-card"
+        className="rounded-xl border border-violet-800/60 bg-slate-950/60 p-4"
+      >
+        <header className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="rounded-md bg-violet-900/60 px-2 py-0.5 font-mono text-violet-300">
+            writing prompt
+          </span>
+          {w.difficulty && (
+            <span className="rounded-md bg-slate-800 px-2 py-0.5 text-slate-300">
+              {w.difficulty}
+            </span>
+          )}
+          <span className="text-slate-500">{proposal.model}</span>
+          <span className="ml-auto font-mono text-slate-600">{proposal.id}</span>
+        </header>
+        <p className="mt-3 text-sm font-medium text-slate-200">{w.title}</p>
+        <p className="mt-1 text-sm text-slate-300">{w.issue}</p>
+        <p className="mt-2 whitespace-pre-wrap text-sm text-slate-400">{w.context}</p>
+        <ul className="mt-3 space-y-1 text-sm">
+          {(w.positions ?? []).map((pos) => (
+            <li key={pos.id} className="text-slate-400">
+              <span className="font-mono text-slate-500">{pos.id}</span>{' '}
+              <span className="text-slate-300">{pos.name}</span> — {pos.summary}
+            </li>
+          ))}
+        </ul>
+        <details className="mt-3 text-sm text-slate-400">
+          <summary className="cursor-pointer text-slate-300">
+            Perspectives &amp; task
+          </summary>
+          <ol className="mt-2 space-y-1">
+            {(w.perspectives ?? []).map((pv) => (
+              <li key={pv.id}>{pv.text}</li>
+            ))}
+          </ol>
+          <p className="mt-2 whitespace-pre-wrap text-slate-300">{w.task}</p>
+        </details>
+        <footer className="mt-4 flex items-center justify-end gap-2">
+          <button
+            onClick={onReject}
+            disabled={busy}
+            className="rounded-md border border-red-700/60 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-900/40 disabled:opacity-50"
+          >
+            Reject
+          </button>
+          <button
+            onClick={onApprove}
+            disabled={busy}
+            className="rounded-md border border-emerald-700/60 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-900/40 disabled:opacity-50"
+          >
+            Approve &rarr; writing library
           </button>
         </footer>
       </article>

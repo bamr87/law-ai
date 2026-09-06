@@ -1,14 +1,18 @@
 import {
   NO_ROWS,
+  parseScopeId,
   parseSettingRows,
+  SETTINGS_SCOPE_KEY as SCOPE_KEY,
   SETTINGS_STORAGE_KEY as STORAGE_KEY,
 } from './rows'
 import type { SettingValue } from './types'
 
-export { STORAGE_KEY as SETTINGS_STORAGE_KEY }
+export { STORAGE_KEY as SETTINGS_STORAGE_KEY, SCOPE_KEY as SETTINGS_SCOPE_KEY }
 
 function canUseStorage(): boolean {
-  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+  return (
+    typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+  )
 }
 
 function readAll(): SettingValue[] {
@@ -145,6 +149,35 @@ export function serverSyncScope(): string | null {
 /** Turn server persistence off again (sign-out, or a failing backend). */
 export function disableServerSync(): void {
   serverScopeId = null
+  writeScopeCookie(null)
+}
+
+/**
+ * Mirror the caller's scope id for the *server* render (BL-20260905-10).
+ *
+ * The rows cookie says what was chosen; this one says who chose it. A layout
+ * row now lives at `user:<pk>`, and a server resolver walking `[instance]`
+ * alone skips it — so without this the first paint is the instance default and
+ * the page reflows into the user's own layout on every load.
+ */
+function writeScopeCookie(scopeId: string | null): void {
+  if (typeof document === 'undefined') return
+  const base = `${SCOPE_KEY}=`
+  if (scopeId === null) {
+    document.cookie = `${base}; Path=/; SameSite=Lax; Max-Age=0`
+    return
+  }
+  document.cookie = `${base}${encodeURIComponent(scopeId)}; Path=/; SameSite=Lax; Max-Age=31536000`
+}
+
+/** The mirrored scope id as the browser currently holds it, or `null`. */
+export function readSettingsScopeCookie(): string | null {
+  if (typeof document === 'undefined') return null
+  for (const part of document.cookie.split(';')) {
+    const [name, ...rest] = part.trim().split('=')
+    if (name === SCOPE_KEY) return parseScopeId(rest.join('='))
+  }
+  return null
 }
 
 /**
@@ -165,10 +198,14 @@ export async function hydrateSettingValues(): Promise<number | null> {
   }
   const own = payload.scopes.find((s) => s.startsWith('user:')) ?? null
   serverScopeId = own
+  // So the *next* server render resolves the same chain this one does.
+  writeScopeCookie(own)
   const local = readAll()
   const merged = local.filter(
     (row) =>
-      !payload.values.some((r) => r.scopeId === row.scopeId && r.key === row.key),
+      !payload.values.some(
+        (r) => r.scopeId === row.scopeId && r.key === row.key,
+      ),
   )
   for (const row of payload.values) {
     merged.push({
@@ -197,7 +234,9 @@ function mirrorUpsert(row: SettingValue): void {
 function mirrorDelete(scopeId: string, key: string): void {
   if (serverScopeId === null) return
   void import('@/lib/api')
-    .then(({ deleteStoredSettingValue }) => deleteStoredSettingValue(scopeId, key))
+    .then(({ deleteStoredSettingValue }) =>
+      deleteStoredSettingValue(scopeId, key),
+    )
     .catch(() => {
       /* see mirrorUpsert */
     })
@@ -214,7 +253,10 @@ export function upsertSettingValue(row: SettingValue): SettingValue[] {
   return next
 }
 
-export function deleteSettingValue(scopeId: string, key: string): SettingValue[] {
+export function deleteSettingValue(
+  scopeId: string,
+  key: string,
+): SettingValue[] {
   const next = readAll().filter(
     (r) => !(r.scopeId === scopeId && r.key === key),
   )

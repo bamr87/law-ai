@@ -3,19 +3,44 @@
 Stdlib-only, like the rest of the root suite. The committed site artifact
 (`lsat-static/content.json`, imported at build time by the Next.js static
 export) must stay in lockstep with the source bank under
-`backend/law_ai/lsat/services/data/`: when a bank file changes without
-`make lsat-export`, these tests fail CI so the published GitHub Pages app can
+`backend/law_ai/lsat/services/data/`, so the published GitHub Pages app can
 never silently lag the approved content.
+
+Who fixes the drift changed with BL-20260702-11. It used to be a person: the
+gate failed and the message said "run `make lsat-export`". Now
+`.github/workflows/refresh-lsat-content.yml` does the export — on pushes to
+main, and on same-repo pull requests, where it pushes the refreshed artifact
+onto the PR branch. Where that job is guaranteed to fix the same thing in the
+same run, ci.yml sets `LSAT_CONTENT_AUTOEXPORT=1` and the drift classes defer
+to it rather than red-building a PR over work a robot is already doing.
+
+Deferral is narrow on purpose. `LSAT_CONTENT_AUTOEXPORT` is set only for a
+same-repo pull request whose diff touches the bank. A fork PR (where the
+refresh job has no write token and skips), a push to main, and every local run
+enforce the gate exactly as before — which is why the assertions below still
+name `make lsat-export` as the fix.
 """
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
 import pytest
 
 pytestmark = pytest.mark.smoke
+
+#: Set by ci.yml's repo-structural job when — and only when —
+#: refresh-lsat-content.yml is re-exporting content.json onto this same branch
+#: (BL-20260702-11). See the module docstring.
+AUTOEXPORTED = os.getenv("LSAT_CONTENT_AUTOEXPORT") == "1"
+
+_DEFERRED = (
+    "refresh-lsat-content.yml re-exports content.json onto this branch in "
+    "this same run (BL-20260702-11); failing here too would put the manual "
+    "`make lsat-export` back in the developer's hands"
+)
 
 REPO = Path(__file__).resolve().parent.parent
 APP = REPO / "lsat-static"
@@ -167,6 +192,11 @@ class TestKeyboardContract:
             "__tests__/keyboard.test.tsx": (
                 "skips an event another handler already claimed",
                 "lets an explicitly allowed key out of a text field",
+            ),
+            "__tests__/pageShortcuts.test.tsx": (
+                "steps forward and back through the nav",
+                "closes with Escape",
+                "leaves Escape alone while it is closed",
             ),
             "__tests__/Drill.test.tsx": ("advances with Enter again",),
             "__tests__/Writing.test.tsx": ("Escape blurs the editor first",),
@@ -336,6 +366,7 @@ class TestStickyStack:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(AUTOEXPORTED, reason=_DEFERRED)
 class TestContentDrift:
     @pytest.fixture()
     def artifact(self) -> dict:
@@ -575,6 +606,7 @@ def _library_source_ids() -> set[str]:
     }
 
 
+@pytest.mark.skipif(AUTOEXPORTED, reason=_DEFERRED)
 class TestLibraryDrift:
     """The exported library must stay in lockstep with `data/library/`."""
 
@@ -866,3 +898,78 @@ class TestContentRefreshAutomation:
         assert self._workflow()["permissions"].get("actions") == "write", (
             "dispatching another workflow needs actions: write"
         )
+
+    def test_the_pull_request_leg_removes_the_manual_export(self) -> None:
+        """BL-20260702-11's second clause: the manual step must actually go.
+
+        While the refresh only ran on pushes to main, the drift gate above
+        still red-built any PR that edited the bank without `make lsat-export`,
+        so a developer had to run it anyway — and by the time the change
+        reached main the payload comparison was a guaranteed no-op. The PR leg
+        is what makes the automation load-bearing rather than decorative.
+        """
+        triggers = self._workflow().get("on") or self._workflow().get(True)
+        assert "pull_request" in triggers, (
+            "a push-to-main-only refresh cannot remove a step the PR gate "
+            "enforces"
+        )
+        paths = triggers["pull_request"]["paths"]
+        assert any("lsat/services/data" in p for p in paths)
+
+        job = self._workflow()["jobs"]["refresh"]
+        # A fork PR's token is read-only, so the job must stand aside rather
+        # than fail — and the gate is not deferred for forks either.
+        assert "head.repo.full_name == github.repository" in job["if"]
+
+        checkout = next(
+            step for step in job["steps"] if "checkout" in str(step.get("uses", ""))
+        )
+        assert "head.ref" in str(checkout["with"]["ref"]), (
+            "a pull_request checkout is the detached merge ref; the PR's own "
+            "branch has to be checked out for the push to have anywhere to go"
+        )
+
+        pages = [
+            step
+            for step in job["steps"]
+            if "deploy-lsat-pages" in str(step.get("run", ""))
+        ]
+        assert pages and "github.event_name != 'pull_request'" in pages[0]["if"], (
+            "a PR branch's refresh must never publish the site"
+        )
+
+    def test_the_drift_gate_defers_only_where_the_job_will_fix_it(self) -> None:
+        """The deferral and the refresh job must fire on the same conditions.
+
+        If the gate deferred more widely than the job runs, drift would land
+        unnoticed; if it deferred less, the manual step would still be
+        enforced. Both halves are pinned here so they cannot drift apart.
+        """
+        import yaml
+
+        ci = yaml.safe_load(
+            (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        )
+        changes = ci["jobs"]["changes"]
+        assert "lsat-content" in changes["outputs"], (
+            "the deferral needs a paths filter for the bank"
+        )
+
+        structural = ci["jobs"]["repo-structural"]
+        assert "changes" in structural["needs"]
+        step = next(
+            s for s in structural["steps"] if "pytest tests/" in str(s.get("run", ""))
+        )
+        guard = str(step["env"]["LSAT_CONTENT_AUTOEXPORT"])
+        for condition in (
+            "pull_request",
+            "lsat-content",
+            "head.repo.full_name",
+        ):
+            assert condition in guard, (
+                f"the deferral guard must be scoped by {condition} — it is "
+                "narrower than 'always skip the drift gate'"
+            )
+
+        # And the module honours it.
+        assert AUTOEXPORTED is (os.getenv("LSAT_CONTENT_AUTOEXPORT") == "1")

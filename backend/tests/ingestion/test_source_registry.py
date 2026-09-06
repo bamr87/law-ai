@@ -187,6 +187,34 @@ def test_list_sources_command_prints_a_row_per_adapter(capsys) -> None:
     assert f"{len(SOURCE_REGISTRY)} source(s) registered" in out
 
 
+@pytest.mark.django_db
+def test_list_sources_prints_rate_limits_without_losing_precision(capsys) -> None:
+    """Every printed RPS parses back to the adapter's exact rate (BL-20260511-09).
+
+    ``:.1f`` rendered the Denver adapter's 0.25 rps as ``0.2``, which both
+    misinformed the operator and broke the live-stack metadata test.
+    """
+    from django.core.management import call_command
+
+    call_command("list_sources")
+    lines = capsys.readouterr().out.splitlines()
+    printed = {
+        parts[0]: parts[3]
+        for line in lines
+        if line.strip()
+        and not line.startswith(("NAME", "-"))
+        and "registered" not in line
+        for parts in [line.split(maxsplit=5)]
+    }
+    assert set(printed) == set(SOURCE_REGISTRY)
+    for name, adapter in SOURCE_REGISTRY.items():
+        assert float(printed[name]) == adapter.rate_limit_rps, (
+            f"{name}: printed {printed[name]!r} for rate_limit_rps="
+            f"{adapter.rate_limit_rps!r}"
+        )
+    assert printed["denver_municipal_code"] == "0.25"
+
+
 # ---------------------------------------------------------------------------
 # afetch contract (BL-20260511-08)
 # ---------------------------------------------------------------------------

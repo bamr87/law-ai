@@ -35,10 +35,10 @@ jobs:
 
       - name: Install backend dependencies
         # BL-20260815-02: must stay a superset of backend/Dockerfile's extras
-        # (`dev,local-ai`) so an extras-only import cannot pass in the
+        # (`dev,local-ai,future-auth`) so an extras-only import cannot pass in the
         # container and fail here. `test` is this job's own addition.
         working-directory: backend
-        run: pip install -e ".[dev,test,local-ai]"
+        run: pip install -e ".[dev,test,local-ai,future-auth]"
 
       - name: Start Docker services
         run: docker compose up -d neo4j postgres redis --wait
@@ -49,6 +49,22 @@ jobs:
           DATABASE_URL: postgresql://law_ai:law_ai-dev@localhost:5432/law_ai
           DJANGO_SETTINGS_MODULE: law_ai.settings.dev
         run: python manage.py migrate --noinput
+
+      # BL-20260502-08: `make migrate` is migrate + migrate_neo4j +
+      # ensure_checkpointer, and only the third creates the `langgraph` schema
+      # the saver's `options=-csearch_path=langgraph` connection needs. This
+      # job starts a fresh Postgres and tears the volume down with `down -v`,
+      # so every run begins schema-less: without this step the opted-in
+      # spec-010 T-007 test fails on its very first assertion with "no schema
+      # has been selected to create in".
+      - name: Create the LangGraph checkpointer schema
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://law_ai:law_ai-dev@localhost:5432/law_ai
+          POSTGRES_URL: postgresql+asyncpg://law_ai:law_ai-dev@localhost:5432/law_ai
+          LANGGRAPH_CHECKPOINTER: postgres
+          DJANGO_SETTINGS_MODULE: law_ai.settings.dev
+        run: python manage.py ensure_checkpointer
 
       - name: Run integration tests
         working-directory: backend

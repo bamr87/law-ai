@@ -9,7 +9,8 @@ import { expect, test, type Page } from '@playwright/test'
  * name in the source, but it cannot compute a contrast ratio, resolve an
  * accessible name through ARIA, or watch focus move. That half of the UX
  * review was done by hand, once per review pass. This spec runs it on every
- * nightly instead.
+ * pull request that touches `frontend/` (the `a11y` job in
+ * .github/workflows/ci.yml) and again on every nightly.
  *
  * axe-core is injected from node_modules rather than pulled in through
  * `@axe-core/playwright`: the library is already in the frontend's lockfile,
@@ -40,14 +41,42 @@ const AXE_PATH = path.join(
 /** WCAG 2.1 AA — covers contrast, name-role-value, and structure. */
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
-/** The six routes in frontend/lib/modules/catalog.ts. */
-const ROUTES = ['/', '/agents', '/analysis', '/graph', '/lsat', '/settings']
+/**
+ * Every route in frontend/lib/modules/catalog.ts — all seven, `/matters`
+ * included. The list is duplicated here rather than imported (these specs are
+ * transpiled to CommonJS and run outside the Next module graph), so
+ * `the catalog and this spec agree on the routes` below reads the catalog off
+ * disk and fails when a module is added without being covered.
+ */
+const ROUTES = [
+  '/',
+  '/agents',
+  '/analysis',
+  '/graph',
+  '/lsat',
+  '/matters',
+  '/settings',
+]
+
+const CATALOG_PATH = path.join(process.cwd(), 'lib', 'modules', 'catalog.ts')
+
+type ViolationNode = {
+  target: string[]
+  /**
+   * What actually failed, independent of how much data the page happened to
+   * hold. For a contrast failure that is the colour pair and the type size —
+   * so twenty rows styled alike collapse to one signature, and a *new* bad
+   * pair is a new signature. For every other rule it is the element's
+   * selector with positional indices erased.
+   */
+  signature: string
+}
 
 type Violation = {
   id: string
   impact: string | null
   help: string
-  nodes: { target: string[] }[]
+  nodes: ViolationNode[]
 }
 
 declare global {
@@ -70,11 +99,38 @@ async function analyse(page: Page): Promise<Violation[]> {
       // instrumentation is not needed for a single-document app shell.
       resultTypes: ['violations'],
     })
+    const signatureOf = (node: Record<string, unknown>): string => {
+      const checks = [
+        ...((node.any as Record<string, unknown>[]) ?? []),
+        ...((node.all as Record<string, unknown>[]) ?? []),
+        ...((node.none as Record<string, unknown>[]) ?? []),
+      ]
+      for (const check of checks) {
+        const data = check.data as Record<string, unknown> | undefined
+        if (data && 'fgColor' in data && 'bgColor' in data) {
+          return `${String(data.fgColor)} on ${String(data.bgColor)} @ ${String(
+            data.fontSize,
+          )} ${String(data.fontWeight)}`
+        }
+      }
+      return ((node.target as string[]) ?? [])
+        .map((t) =>
+          String(t)
+            // Positional selectors move with the row count; the element's
+            // shape does not.
+            .replace(/:nth-child\([^)]*\)/g, '')
+            .replace(/\[\d+\]/g, '[n]'),
+        )
+        .join(' ')
+    }
     return violations.map((v) => ({
       id: v.id,
       impact: v.impact ?? null,
       help: v.help,
-      nodes: v.nodes.map((n) => ({ target: n.target })),
+      nodes: v.nodes.map((n) => ({
+        target: n.target,
+        signature: signatureOf(n as unknown as Record<string, unknown>),
+      })),
     }))
   }, TAGS)
 }
@@ -95,40 +151,55 @@ function describeViolations(violations: Violation[]): string {
 /**
  * Pre-existing debt, recorded once and ratcheted down (never up).
  *
- * The six routes carry real violations today — a palette that puts
+ * The catalog routes carry real violations today — a palette that puts
  * `text-slate-500` on `bg-slate-950`, and one scroll container without a
  * keyboard entry point. Failing every route on day one would mean the gate is
- * switched off within a week, so instead the baseline records how many nodes
- * each known rule touches per route:
+ * switched off within a week, so instead the baseline records, per route and
+ * per rule, the *signatures* already known to fail:
  *
  *   - a rule id NOT in the baseline fails immediately;
- *   - a rule in the baseline that no longer fires is a win, and the file
- *     should be re-recorded without it.
+ *   - a signature NOT in the baseline fails immediately, even under a rule id
+ *     that is baselined — this is what makes contrast a real gate rather than
+ *     a permanent amnesty: text in a colour pair nobody has accepted yet is a
+ *     new signature, so a PR that introduces low-contrast text goes red;
+ *   - a signature that no longer fires is a win, and the file should be
+ *     re-recorded without it.
  *
- * The recorded node counts are triage information, not an assertion: several
- * offending elements are rows of live data (the backlog list, the agent-runs
- * list), so the count moves with the database and a count gate would flake
- * nightly. The rule-id set does not move with data.
+ * Node *counts* are deliberately not asserted: several offending elements are
+ * rows of live data (the backlog list, the agent-runs list), so a count moves
+ * with the database and would flake. Signatures do not — twenty rows sharing
+ * one bad colour pair are one signature.
  *
- * Re-record with `make test-e2e E2E_ARGS='e2e/a11y.spec.ts'` after setting
- * E2E_A11Y_UPDATE_BASELINE=1, and shrink the numbers — never grow them to make
- * a failure go away.
+ * The residual hole, stated plainly: re-using an already-baselined colour pair
+ * on new text does not fail. Closing that needs the debt itself paid off and
+ * the baseline emptied, not a stricter gate on top of it.
+ *
+ * Re-record with:
+ *
+ *   E2E_A11Y_UPDATE_BASELINE=1 make test-e2e E2E_ARGS='e2e/a11y.spec.ts'
+ *
+ * and shrink the list — never grow it to make a failure go away.
  */
 const BASELINE_PATH = path.join(process.cwd(), 'e2e', 'a11y-baseline.json')
 const UPDATING = process.env.E2E_A11Y_UPDATE_BASELINE === '1'
 
-type Baseline = Record<string, Record<string, number>>
+type Baseline = Record<string, Record<string, string[]>>
 
 const baseline: Baseline = existsSync(BASELINE_PATH)
   ? (JSON.parse(readFileSync(BASELINE_PATH, 'utf-8')) as Baseline)
   : {}
 const recorded: Baseline = {}
 
-/** Nodes per rule id, for one route. */
-function tally(violations: Violation[]): Record<string, number> {
-  const counts: Record<string, number> = {}
-  for (const v of violations) counts[v.id] = (counts[v.id] ?? 0) + v.nodes.length
-  return counts
+/** Distinct failure signatures per rule id, for one route. */
+function tally(violations: Violation[]): Record<string, string[]> {
+  const signatures: Record<string, Set<string>> = {}
+  for (const v of violations) {
+    const bucket = (signatures[v.id] ??= new Set())
+    for (const node of v.nodes) bucket.add(node.signature)
+  }
+  return Object.fromEntries(
+    Object.entries(signatures).map(([rule, set]) => [rule, [...set].sort()]),
+  )
 }
 
 test.afterAll(() => {
@@ -156,10 +227,30 @@ for (const route of ROUTES) {
       `new accessibility violations on ${route}:\n${describeViolations(introduced)}\n`,
     ).toEqual([])
 
-    for (const [rule, count] of Object.entries(counts)) {
-      const was = allowed[rule]
-      if (count !== was) {
-        console.log(`a11y ${route}: ${rule} ${was} -> ${count} nodes`)
+    // A baselined rule id is an amnesty for the failures already recorded
+    // under it — not for new ones. This is the contrast gate: a colour pair
+    // (or type size) nobody accepted before shows up as an unrecorded
+    // signature and fails here.
+    const unrecorded: string[] = []
+    for (const violation of violations) {
+      const known = new Set(allowed[violation.id] ?? [])
+      for (const node of violation.nodes) {
+        if (known.has(node.signature)) continue
+        unrecorded.push(
+          `${violation.id}: ${node.signature} — ${node.target.join(' ')}`,
+        )
+      }
+    }
+    expect(
+      [...new Set(unrecorded)].sort(),
+      `accessibility regressions on ${route} under an already-known rule ` +
+        `(a new colour pair, type size, or element):\n`,
+    ).toEqual([])
+
+    for (const [rule, seen] of Object.entries(counts)) {
+      const was = (allowed[rule] ?? []).length
+      if (seen.length !== was) {
+        console.log(`a11y ${route}: ${rule} ${was} -> ${seen.length} signatures`)
       }
     }
   })
@@ -213,3 +304,17 @@ for (const route of ROUTES) {
     expect(offenders).toEqual([])
   })
 }
+
+/**
+ * The route list above is a hand-maintained copy of the module catalog, and a
+ * copy drifts: `/matters` shipped as a seventh module and went unchecked
+ * because this list still said six. Read the catalog and compare.
+ */
+test('the catalog and this spec agree on the routes', () => {
+  const catalog = readFileSync(CATALOG_PATH, 'utf-8')
+  const hrefs = [
+    ...catalog.matchAll(/nav:\s*\{[^}]*?href:\s*'([^']+)'/g),
+  ].map((m) => m[1])
+  expect(hrefs.length, 'no nav hrefs found — did catalog.ts move?').toBeGreaterThan(0)
+  expect([...new Set(hrefs)].sort()).toEqual([...ROUTES].sort())
+})

@@ -211,10 +211,19 @@ class TutorResponse(BaseModel):
         default=None,
         description=(
             "Deep link to the trace in the configured viewer, mirroring the "
-            "analysis path (BL-20260502-05). There is deliberately no "
-            "``langgraph_thread_id`` beside it: the tutor calls the provider "
-            "chain directly rather than running a LangGraph graph, so there is "
-            "no checkpointed thread to resume or to name."
+            "analysis path (BL-20260502-05)."
+        ),
+    )
+    langgraph_thread_id: str | None = Field(
+        default=None,
+        description=(
+            "Always null on this endpoint, and present so the tutor contract "
+            "mirrors the analysis one field for field (BL-20260503-06): a "
+            "client can render the same trace strip against either response "
+            "without special-casing. The tutor calls the provider chain "
+            "directly rather than running a LangGraph graph, so there is no "
+            "checkpointed thread to resume — and null says exactly that, the "
+            "same way the analysis response says it when no graph ran."
         ),
     )
 
@@ -726,11 +735,14 @@ def _current_trace_id() -> str | None:
 async def tutor(req: TutorRequest, q: Question) -> TutorResponse:
     """Produce a tutor response for ``q``, under a span of its own.
 
-    ``init_tracing`` instruments httpx and nothing else, so a DRF view has no
-    ambient request span and the tutor's provider calls had no trace to belong
-    to — which is why a walkthrough could not be linked to its trace the way an
-    analysis can (BL-20260503-06). Opening the span here gives the chain's HTTP
-    spans a parent and gives the response a deep link.
+    ``init_tracing`` instruments Django as well as httpx since BL-20260503-23,
+    so an HTTP request usually does carry an ambient span — but this one is
+    opened regardless, and has to be. It is what stamps
+    ``lsat_tutor.question_id`` and what the response's deep link points at, and
+    it is the only parent the chain's HTTP spans get when there is no Django
+    request at all (a management command, a Celery task) or when the Django
+    instrumentation is absent. Before it existed a walkthrough could not be
+    linked to its trace the way an analysis can (BL-20260503-06).
 
     The link is stamped on the way out rather than inside, so a cache hit
     carries *this* request's trace (or none at all) instead of the stale one

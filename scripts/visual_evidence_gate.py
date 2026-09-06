@@ -10,8 +10,8 @@ fails anything: a PR could rewrite every screen in ``frontend/`` or
 A change that touches those paths passes if **either**:
 
 1. the PR body references an image — a markdown ``![...]``, an ``<img`` tag, a
-   GitHub ``user-attachments/assets`` upload, or a link to a file under
-   ``docs/images/``; or
+   GitHub ``user-attachments/assets`` upload, or a path/URL under
+   ``docs/images/`` that names an actual image file; or
 2. the diff adds or changes a file under ``docs/images/``.
 
 Branch 2 is the label-free escape hatch: a fork contributor cannot add the
@@ -19,10 +19,26 @@ Branch 2 is the label-free escape hatch: a fork contributor cannot add the
 The opt-out itself is applied in CI, not here — see
 ``.github/workflows/ci.yml``.
 
-This is a heuristic and is meant to be: it proves someone *attached* something,
-not that the picture is of the right screen or that the link resolves. The
-reviewer still has to look. The gate exists to stop the silent case, which is
-where the actual failure mode lives.
+**HTML comments are stripped before the body is matched, and this is
+load-bearing.** GitHub prefills every PR body with
+``.github/pull_request_template.md`` verbatim, comments included, and that
+template mentions ``docs/images/`` twice inside its ``<!-- -->`` instructions.
+Matching the raw body meant the repo's own default body satisfied the gate, so
+a PR that rewrote every screen and attached nothing passed — precisely the
+silent case this exists to stop. For the same reason the ``docs/images/``
+pattern now requires a filename with an image extension, not the bare
+directory. ``tests/test_visual_evidence_gate.py`` pins both by running the
+verbatim template through the gate.
+
+This is a heuristic and is meant to be. What it proves and what it does not:
+
+* it proves someone *attached* something — not that the picture is of the
+  right screen, that it is current, or that the link resolves;
+* an ``<img`` tag or ``![](…)`` written by hand in prose passes, because
+  telling that from a real upload needs a network fetch;
+* the ``no-visual-change`` label bypasses it entirely, by design.
+
+The reviewer still has to look.
 
 Usage (what CI does)::
 
@@ -47,14 +63,37 @@ VISUAL_PREFIXES = ("frontend/", "lsat-static/")
 #: Where a committed screenshot lives.
 IMAGE_DIR = "docs/images/"
 
+#: File extensions that make a path an image rather than a directory mention.
+_IMAGE_EXT = r"(?:png|jpe?g|gif|webp|avif|svg)"
+
 #: Body patterns that count as "an image is attached".
 _BODY_PATTERNS = (
     re.compile(r"!\[[^\]]*\]\([^)]+\)"),  # markdown image
     re.compile(r"<img\b", re.IGNORECASE),  # inline html
     re.compile(r"user-attachments/assets/", re.IGNORECASE),  # GH upload
-    re.compile(r"githubusercontent\.com/\S*docs/images/", re.IGNORECASE),
-    re.compile(re.escape(IMAGE_DIR), re.IGNORECASE),  # link to a committed one
+    # A link to a committed screenshot — the *file*, not the directory. The
+    # bare directory name appears in the PR template's own instructions, so
+    # matching it would let the untouched template pass the gate.
+    re.compile(
+        re.escape(IMAGE_DIR) + r"[\w./-]*\." + _IMAGE_EXT,
+        re.IGNORECASE,
+    ),
 )
+
+#: GitHub renders `<!-- … -->` as nothing, so it is not evidence of anything.
+#: The template's instructions live entirely inside one.
+_HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+
+
+def strip_html_comments(body: str) -> str:
+    """The body as a reader sees it: comments removed, unterminated ones too.
+
+    An unclosed ``<!--`` swallows the rest of the document in GitHub's render
+    as well, so everything after it is dropped rather than trusted.
+    """
+    visible = _HTML_COMMENT.sub(" ", body)
+    return visible.split("<!--", 1)[0]
+
 
 DOC_POINTER = (
     "See docs/ui-ux-review.md § 'Visual evidence' for what to attach, and "
@@ -70,8 +109,9 @@ def touches_visual_paths(paths: list[str]) -> list[str]:
 
 
 def has_body_image(body: str) -> bool:
-    """Does the PR body reference an image?"""
-    return any(pattern.search(body) for pattern in _BODY_PATTERNS)
+    """Does the *visible* PR body reference an image?"""
+    visible = strip_html_comments(body)
+    return any(pattern.search(visible) for pattern in _BODY_PATTERNS)
 
 
 def has_committed_image(paths: list[str]) -> list[str]:

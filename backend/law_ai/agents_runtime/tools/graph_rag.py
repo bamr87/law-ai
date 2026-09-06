@@ -24,8 +24,9 @@ Vector similarity joined the hybrid in BL-20260810-17: ``:Case`` and
 (written at ingest by ``law_ai.core.llm.embeddings`` and backfilled by
 ``manage.py backfill_embeddings``), indexed by
 ``008_vector_indexes.cypher``. The lexical and vector rankings are combined by
-reciprocal-rank fusion before citation expansion, so a passage that is strong
-on either leg surfaces. When the index or the embedder is absent the vector
+reciprocal-rank fusion before citation expansion — separately per label, so a
+statute cannot be crowded out by a case — and a passage that is strong on
+either leg surfaces. When the index or the embedder is absent the vector
 leg is simply skipped and ``coverage.vector_available`` says so — the
 retriever degrades to exactly its pre-BL-20260810-17 behaviour.
 """
@@ -144,6 +145,24 @@ RETURN node.id AS id,
 ORDER BY score DESC
 """
 
+# The statute half of the vector leg. Same index shape, different label: the
+# :StatuteSection embeddings written at ingest would otherwise be write-only.
+STATUTE_VECTOR_CYPHER = """
+CALL db.index.vector.queryNodes($index, $limit, $embedding)
+YIELD node, score
+WHERE node.archived_at IS NULL
+  AND ($jurisdiction = '' OR toLower(coalesce(node.jurisdiction_code, '')) = $jurisdiction)
+RETURN node.citation AS citation,
+       node.heading AS heading,
+       node.text AS text,
+       node.jurisdiction_code AS jurisdiction_code,
+       node.source AS source,
+       node.source_url AS source_url,
+       node.confidence AS confidence,
+       score
+ORDER BY score DESC
+"""
+
 EXPAND_CITES_CYPHER = """
 MATCH (seed:Case)-[r:CITES]->(neighbor:Case)
 WHERE seed.id IN $seed_ids
@@ -182,7 +201,8 @@ class RetrievalCoverage:
     jurisdictions_present: list[str] = field(default_factory=list)
     jurisdiction_absent: bool = False
     index_available: bool = True
-    #: How many of the fused case passages came from the vector leg.
+    #: How many of the fused passages (:Case and :StatuteSection alike) came
+    #: from the vector leg.
     vector_count: int = 0
     #: False when the vector index or the local embedder was unavailable, so
     #: this run was lexical + expansion only (BL-20260810-17).
@@ -300,7 +320,7 @@ def _case_passage(record: Any, *, retrieval_mode: str) -> dict[str, Any]:
     }
 
 
-def _statute_passage(record: Any) -> dict[str, Any]:
+def _statute_passage(record: Any, *, retrieval_mode: str = "lexical") -> dict[str, Any]:
     citation = record.get("citation") or "(uncited section)"
     heading = record.get("heading") or ""
     return {
@@ -314,7 +334,7 @@ def _statute_passage(record: Any) -> dict[str, Any]:
         "source": record.get("source"),
         "confidence": record.get("confidence"),
         "score": record.get("score"),
-        "retrieval_mode": "lexical",
+        "retrieval_mode": retrieval_mode,
     }
 
 
@@ -527,11 +547,15 @@ class GraphRAGRetriever:
             seen: dict[str, dict[str, Any]] = {}
             vector_ids: set[str] = set()
             for query in queries[:3]:
+                # One embedding per query, shared by both label legs: the
+                # vectors live in the same space, so embedding twice would
+                # only pay Ollama twice for the identical float list.
+                embedding = await self._embed_query(query, coverage)
                 lexical = await self._lexical_cases(
                     session, query, jurisdiction, coverage
                 )
                 vector = await self._vector_cases(
-                    session, query, jurisdiction, coverage
+                    session, embedding, jurisdiction, coverage
                 )
                 vector_ids.update(str(p["id"]) for p in vector)
                 # Fuse the two rankings for this query before merging into the
@@ -539,9 +563,17 @@ class GraphRAGRetriever:
                 for passage in reciprocal_rank_fusion([lexical, vector])[: self._limit]:
                     seen.setdefault(str(passage["id"]), passage)
                 if self._include_statutes:
-                    for passage in await self._lexical_statutes(
+                    lex_sections = await self._lexical_statutes(
                         session, query, jurisdiction
-                    ):
+                    )
+                    vec_sections = await self._vector_statutes(
+                        session, embedding, jurisdiction, coverage
+                    )
+                    vector_ids.update(str(p["id"]) for p in vec_sections)
+                    fused_sections = reciprocal_rank_fusion(
+                        [lex_sections, vec_sections]
+                    )
+                    for passage in fused_sections[: self._limit]:
                         seen.setdefault(str(passage["id"]), passage)
 
             coverage.lexical_count = len(seen)
@@ -604,25 +636,39 @@ class GraphRAGRetriever:
             )
         return [_case_passage(r, retrieval_mode="lexical") for r in records]
 
+    async def _embed_query(
+        self, query: str, coverage: RetrievalCoverage
+    ) -> list[float] | None:
+        """Embed one query locally, or ``None`` when the embedder is absent.
+
+        ``None`` is not an error: no Ollama (or the model not pulled) means
+        the run is lexical + expansion only, and ``vector_available`` carries
+        that caveat to the reviewer rather than silently narrowing recall.
+        """
+        from law_ai.core.llm.embeddings import embed_text
+
+        embedding = await embed_text(query, component="graph_rag")
+        if embedding is None:
+            coverage.vector_available = False
+        return embedding
+
     async def _vector_cases(
         self,
         session: Any,
-        query: str,
+        embedding: list[float] | None,
         jurisdiction: str | None,
         coverage: RetrievalCoverage,
     ) -> list[dict[str, Any]]:
-        """Semantic top-K for one query, or ``[]`` when the leg is unavailable.
+        """Semantic top-K over ``:Case``, or ``[]`` when the leg is unavailable.
 
         Two things can be missing and both are non-fatal: the local embedder
         (no Ollama, model not pulled) and the vector index (migration 008 not
         applied). Either sets ``coverage.vector_available = False`` so the
         caveat reaches the reviewer rather than silently narrowing recall.
         """
-        from law_ai.core.llm.embeddings import CASE_VECTOR_INDEX, embed_text
+        from law_ai.core.llm.embeddings import CASE_VECTOR_INDEX
 
-        embedding = await embed_text(query, component="graph_rag")
         if embedding is None:
-            coverage.vector_available = False
             return []
         court_prefix = str(jurisdiction).lower() if jurisdiction else ""
         try:
@@ -661,6 +707,42 @@ class GraphRAGRetriever:
             return []
         return [_statute_passage(r) for r in records]
 
+    async def _vector_statutes(
+        self,
+        session: Any,
+        embedding: list[float] | None,
+        jurisdiction: str | None,
+        coverage: RetrievalCoverage,
+    ) -> list[dict[str, Any]]:
+        """Semantic top-K over ``:StatuteSection`` (the second half of the leg).
+
+        Statutes are the label most likely to be *asked about* in words the
+        drafters never used ("can my landlord keep the deposit?"), so the
+        lexical leg alone under-recalls them. Degrades exactly like the case
+        leg: a missing embedder or index marks ``vector_available`` False and
+        the run continues on fulltext.
+        """
+        from law_ai.core.llm.embeddings import STATUTE_VECTOR_INDEX
+
+        if embedding is None:
+            return []
+        try:
+            records = await _run_logged(
+                session,
+                STATUTE_VECTOR_CYPHER,
+                {
+                    "index": STATUTE_VECTOR_INDEX,
+                    "embedding": embedding,
+                    "limit": self._limit,
+                    "jurisdiction": str(jurisdiction).lower() if jurisdiction else "",
+                },
+            )
+        except Exception as exc:
+            logger.info("vector statute search unavailable (%s); skipping leg", exc)
+            coverage.vector_available = False
+            return []
+        return [_statute_passage(r, retrieval_mode="vector") for r in records]
+
 
 def build_default_retriever() -> GraphRAGRetriever:
     """Factory used by ``LegalWorkflow`` when no retriever is injected."""
@@ -671,6 +753,7 @@ __all__ = [
     "CASE_FULLTEXT_INDEX",
     "RRF_K",
     "STATUTE_FULLTEXT_INDEX",
+    "STATUTE_VECTOR_CYPHER",
     "GraphRAGRetriever",
     "RetrievalCoverage",
     "build_default_retriever",

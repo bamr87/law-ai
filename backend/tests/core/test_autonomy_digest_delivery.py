@@ -276,3 +276,102 @@ class TestRunDigestWiring:
         assert result["delivery"]["delivered"] == 1
         assert context["digest_delivered"] == 1
         assert len(mail.outbox) == 1
+
+
+class TestScheduledDigestWiring:
+    """The beat entry, not just the CLI (BL-20260511-05).
+
+    ``_run_digest`` above is reached only by ``manage.py run_autonomy --kind
+    digest`` or the generic ``autonomy_cycle`` task. The 07:00 UTC
+    ``autonomy-daily-digest`` beat entry runs ``compose_digest_task``, which
+    composed and returned a path and delivered nothing — so on a real
+    deployment with a webhook configured the *daily* digest still had the file
+    as its only surface, which is the item's literal subject.
+    """
+
+    def test_the_beat_entry_runs_the_task_under_test(self) -> None:
+        from law_ai.celery import app
+
+        entry = app.conf.beat_schedule["autonomy-daily-digest"]
+        assert entry["task"] == "law_ai.core.tasks.compose_digest_task"
+
+    def test_the_scheduled_task_delivers_the_digest(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from law_ai.core.tasks import compose_digest_task
+
+        monkeypatch.setattr(settings, "AUTONOMY_ENABLED", True)
+        monkeypatch.setattr(settings, "AUDIT_PATH", str(tmp_path / "audit.jsonl"))
+        monkeypatch.setattr(settings, "AUTONOMY_DIGEST_EMAIL_TO", ["ops@example.com"])
+        digest = tmp_path / "digest-2026-05-11.md"
+        digest.write_text("# Autonomy Digest\n\n- one PR\n", encoding="utf-8")
+        monkeypatch.setattr(autonomy, "compose_digest", lambda **_: digest)
+
+        result = compose_digest_task(kind="digest")
+
+        assert result["status"] == "ok"
+        assert result["digest_path"] == str(digest)
+        # `run_cycle` returns the cycle context; the runner's own return sits
+        # under "result".
+        assert result["result"]["delivery"]["delivered"] == 1
+        assert result["digest_delivered"] == 1
+        assert len(mail.outbox) == 1
+        assert "Autonomy Digest" in mail.outbox[0].body
+
+    def test_the_scheduled_task_records_delivery_on_the_cycle_event(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from law_ai.core.tasks import compose_digest_task
+
+        monkeypatch.setattr(settings, "AUTONOMY_ENABLED", True)
+        monkeypatch.setattr(settings, "AUTONOMY_DIGEST_EMAIL_TO", ["ops@example.com"])
+        digest = tmp_path / "digest-2026-05-11.md"
+        digest.write_text("# Autonomy Digest\n", encoding="utf-8")
+        monkeypatch.setattr(autonomy, "compose_digest", lambda **_: digest)
+        captured: list[dict[str, Any]] = []
+        monkeypatch.setattr(autonomy, "_persist", captured.append)
+
+        compose_digest_task(kind="digest")
+
+        end = [e for e in captured if e["type"] == "autonomy_cycle.end"]
+        assert len(end) == 1
+        assert end[0]["digest_delivered"] == 1
+
+    def test_an_unconfigured_deployment_still_just_writes_the_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Delivery is opt-in; with no channel the beat task is unchanged."""
+        from law_ai.core.tasks import compose_digest_task
+
+        monkeypatch.setattr(settings, "AUTONOMY_ENABLED", True)
+        monkeypatch.setattr(settings, "AUDIT_PATH", str(tmp_path / "audit.jsonl"))
+        digest = tmp_path / "digest-2026-05-11.md"
+        digest.write_text("# Autonomy Digest\n", encoding="utf-8")
+        monkeypatch.setattr(autonomy, "compose_digest", lambda **_: digest)
+
+        result = compose_digest_task(kind="digest")
+
+        assert result["status"] == "ok"
+        assert result["result"]["delivery"]["delivered"] == 0
+        assert result["digest_delivered"] == 0
+        assert mail.outbox == []
+
+    def test_a_dead_channel_cannot_fail_the_scheduled_cycle(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A good digest must not be re-composed because a webhook is down."""
+        from law_ai.core.tasks import compose_digest_task
+
+        monkeypatch.setattr(settings, "AUTONOMY_ENABLED", True)
+        monkeypatch.setattr(settings, "AUDIT_PATH", str(tmp_path / "audit.jsonl"))
+        monkeypatch.setattr(settings, "AUTONOMY_DIGEST_SLACK_WEBHOOK_URL", _WEBHOOK)
+        digest = tmp_path / "digest-2026-05-11.md"
+        digest.write_text("# Autonomy Digest\n", encoding="utf-8")
+        monkeypatch.setattr(autonomy, "compose_digest", lambda **_: digest)
+
+        with respx.mock:
+            respx.post(_WEBHOOK).mock(side_effect=httpx.ConnectError("refused"))
+            result = compose_digest_task(kind="digest")
+
+        assert result["status"] == "ok"
+        assert result["result"]["delivery"]["delivered"] == 0

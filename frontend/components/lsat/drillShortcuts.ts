@@ -13,6 +13,11 @@ import type { ShortcutGroup } from '@/lib/shell/shortcuts'
  * the letters and Enter, N/P between questions (BL-20260901-08), and the hint
  * keys H/J/K/R that `SolveAssist` now answers.
  *
+ * One row is platform-only and says so here: `X` crosses a choice out
+ * (BL-20260429-18). The static export has no tutor to coach against what was
+ * ruled out, so the key would be decoration there — the sheet lists what this
+ * product binds, not what the other one might.
+ *
  * A module-level constant on purpose — `usePageShortcuts` identifies a group
  * by title and a new object per render would re-register on every render.
  */
@@ -21,7 +26,14 @@ export const LSAT_DRILL_SHORTCUTS: ShortcutGroup = {
   rows: [
     { keys: 'A – E', label: 'Select that answer choice' },
     { keys: '↑ ↓', label: 'Move between choices (when a choice has focus)' },
-    { keys: 'Home / End', label: 'First / last choice (when a choice has focus)' },
+    {
+      keys: 'Home / End',
+      label: 'First / last choice (when a choice has focus)',
+    },
+    {
+      keys: 'X',
+      label: 'Cross out the focused choice (the tutor coaches against it)',
+    },
     { keys: 'Enter', label: 'Check the answer — then again to advance' },
     { keys: 'N', label: 'Next question, once this one is checked' },
     {

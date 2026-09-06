@@ -262,7 +262,7 @@ Before any PR — every command runs in Docker:
 7. **Continuous-evolution gate** ([docs/constitution.md](docs/constitution.md) §11):
    - `tasks.md` for the spec must end with a populated `## Follow-ups Discovered` section.
    - Each follow-up is mirrored into [BACKLOG.md](BACKLOG.md) with a `BL-YYYYMMDD-NN` id.
-   - `make lint-specs` (host stdlib — `python3 scripts/spec_validator.py && python3 scripts/backlog_lint.py`) exits 0.
+   - `make lint-specs` (host — `spec_validator.py`, `backlog_lint.py`, `ux_audit.py`, then `pytest tests/test_evolve_audit.py`) exits 0.
    - PR description copies the new BACKLOG bullets so reviewers can see what the next agent is set up to inherit.
 
 **LegalBench Integration**  

@@ -22,7 +22,7 @@ import time
 import httpx
 from pydantic import BaseModel, Field
 
-from law_ai.core import claude_code, llm
+from law_ai.core import claude_code, llm, xai
 from law_ai.core.provenance import provenance
 from law_ai.lsat.services import llm_cache
 from law_ai.lsat.services.bank import (
@@ -137,6 +137,9 @@ async def cross_check(q: Question, *, refresh: bool = False) -> CrossCheckResult
             system=_LLM_SYSTEM,
             json_mode=True,
             agent="lsat_cross_check",
+            # A learner is waiting on this panel, so it takes the faster Grok
+            # id when one is configured (BL-20260905-11).
+            models=xai.interactive_overrides(),
         )
         model_choice, rationale = _parse_verdict(llm_result.text)
         if model_choice is not None:

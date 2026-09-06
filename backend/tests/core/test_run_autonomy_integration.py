@@ -14,14 +14,22 @@ Two deliberate constraints:
   default. A test that billed the owner's account to prove local wiring works
   would be a bad trade, so the chain is pinned here and the Claude tiers are
   blank in ``settings/test.py`` regardless.
-* **It asserts on wiring, not on model quality.** A 7B local model
-  legitimately produces a degraded/offline-fallback batch some of the time.
-  What must hold is that drafts reach the proposal store as ``pending`` and
-  that a human approval promotes exactly one of them into the bank.
+* **It asserts on wiring, not on model quality** — but "wiring" includes the
+  model actually answering. Nothing here may pass against a dead Ollama, and
+  passing against a dead one was the original defect: ``LSATContentAuthor``
+  swallows a provider failure and files ``_fallback_draft`` rows as *pending*
+  anyway, and the router writes an ``llm_call`` event even when the whole
+  chain fails. So the run is required to be non-degraded and to have produced
+  at least one ``llm_call`` with ``ok=True`` and ``provider == "ollama"``.
+  What is *not* asserted is anything about the content the model wrote.
 
 Skips cleanly (never fails) unless ``OLLAMA_INTEGRATION_URL`` — or a
 non-loopback ``OLLAMA_BASE_URL`` — points at a reachable Ollama that can run
-the configured model. ``make test-integration-ollama`` sets that up.
+the model. ``make test-integration-ollama`` sets that up, and
+``OLLAMA_INTEGRATION_MODEL`` points the run at a smaller pulled model than the
+compose default 7B, which needs ~5 GiB resident and does not fit in a typical
+laptop Docker VM. A test that skips on every box in reach verifies nothing,
+which is why the override exists.
 """
 
 from __future__ import annotations
@@ -57,6 +65,17 @@ def _candidate_url() -> str:
     return ""
 
 
+def _integration_model() -> str:
+    """The model this run should use — override first, compose default after.
+
+    Mirrors ``tests/lsat/test_factory_ollama_integration.py``: the compose
+    default is a 7B needing ~5 GiB resident, so a laptop Docker VM skips
+    forever unless it can be pointed at something smaller that is pulled.
+    """
+    override = os.getenv("OLLAMA_INTEGRATION_MODEL", "").strip()
+    return override or str(dj_settings.OLLAMA_DEFAULT_MODEL)
+
+
 def _reachable(url: str) -> tuple[bool, str]:
     if not url:
         return False, "no OLLAMA_INTEGRATION_URL / OLLAMA_BASE_URL configured"
@@ -69,7 +88,7 @@ def _reachable(url: str) -> tuple[bool, str]:
     models = {
         str(m.get("name", "")) for m in tags.get("models", []) if isinstance(m, dict)
     }
-    wanted = str(dj_settings.OLLAMA_DEFAULT_MODEL)
+    wanted = _integration_model()
     if wanted not in models and not any(m.startswith(wanted) for m in models):
         return False, f"model {wanted!r} not pulled on {url} (have: {sorted(models)})"
     return _can_generate(url, wanted)
@@ -96,8 +115,15 @@ def _can_generate(url: str, model: str) -> tuple[bool, str]:
     return True, ""
 
 
+#: Cheap and network-free: a plain env read, so collecting an unrelated suite
+#: costs nothing. The probe that actually loads the model runs in the test body.
 _URL = _candidate_url()
-_OK, _WHY = _reachable(_URL)
+
+
+def _require_live_ollama() -> None:
+    ok, why = _reachable(_URL)
+    if not ok:
+        pytest.skip(why or "ollama unavailable")
 
 
 @pytest.fixture()
@@ -115,6 +141,7 @@ def local_autonomy_env(
     # The harness must never bill a hosted tier to prove local wiring.
     monkeypatch.setattr(dj_settings, "LLM_PROVIDER_CHAIN", "ollama")
     monkeypatch.setattr(dj_settings, "OLLAMA_BASE_URL", _URL)
+    monkeypatch.setattr(dj_settings, "OLLAMA_DEFAULT_MODEL", _integration_model())
     monkeypatch.setattr(dj_settings, "LSAT_CONTENT_REVIEW", False, raising=False)
     monkeypatch.setattr(dj_settings, "LSAT_CROSS_CHECK_ON_APPROVE", False)
     monkeypatch.setattr(dj_settings, "LSAT_API_KEY", "", raising=False)
@@ -148,16 +175,59 @@ def local_autonomy_env(
     _clear()
 
 
-@pytest.mark.skipif(not _OK, reason=_WHY or "ollama unavailable")
+def _assert_the_local_model_answered(events: list[dict[str, Any]]) -> None:
+    """Fail unless a *live* Ollama served this cycle.
+
+    Two escape hatches made "against a live Ollama" unprovable before:
+    ``LSATContentAuthor`` returns ``_fallback_draft`` rows when every provider
+    call fails (so the pending-drafts assertions pass on a dead model), and
+    ``router._log_call`` writes an ``llm_call`` event even on total chain
+    failure — with no ``provider`` key, so a bare "no hosted tier" check
+    passes vacuously. Both are closed here: the cycle must not be degraded,
+    and at least one ``llm_call`` must have succeeded *on the ollama tier*.
+    """
+    ends = [e for e in events if e.get("type") == "autonomy_cycle.end"]
+    assert ends, "the cycle wrote no autonomy_cycle.end event"
+    assert ends[-1].get("status") == "ok", ends[-1]
+    assert ends[-1].get("degraded") is False, (
+        "the cycle degraded to the offline fallback — the local model did not "
+        f"serve it: {ends[-1]}"
+    )
+
+    llm_calls = [e for e in events if e.get("type") == "llm_call"]
+    assert llm_calls, "no llm_call provenance at all"
+    served = [
+        e
+        for e in llm_calls
+        if e.get("ok") is True and str(e.get("provider") or "") == "ollama"
+    ]
+    assert served, (
+        "no successful ollama llm_call — an llm_call event is written even "
+        f"when the whole chain fails, so this is the real liveness check: "
+        f"{[(e.get('ok'), e.get('provider')) for e in llm_calls]}"
+    )
+
+
+@pytest.mark.skipif(not _URL, reason="set OLLAMA_INTEGRATION_URL to run this")
 def test_lsat_content_cycle_lands_pending_drafts_and_one_is_approvable(
     local_autonomy_env: dict[str, Any],
 ) -> None:
+    _require_live_ollama()
+
+    from law_ai.core import audit_jsonl as audit_store
     from law_ai.lsat.services import bank as bank_mod
     from law_ai.lsat.services import proposals as proposals_store
 
     out = StringIO()
     call_command("run_autonomy", "--kind", "lsat_content", "--budget", "2", stdout=out)
     assert "Cycle complete" in out.getvalue()
+
+    # ------------------------------------------------------------------
+    # 0. The model actually answered. Without this the whole test passes
+    #    against a dead Ollama: LSATContentAuthor swallows the provider
+    #    failure and files `_fallback_draft` rows as pending regardless.
+    # ------------------------------------------------------------------
+    _assert_the_local_model_answered(audit_store.tail(400))
 
     # ------------------------------------------------------------------
     # 1. The drafts landed in the append-only JSONL store as `pending`.
@@ -176,12 +246,17 @@ def test_lsat_content_cycle_lands_pending_drafts_and_one_is_approvable(
     # 2. A human approves one through the API, and only then does the
     #    bank grow. This is the HITL gate, exercised rather than asserted.
     # ------------------------------------------------------------------
+    # No skip here on purpose: skipping would let a green run leave the HITL
+    # leg — the half of the item that says "approves one through the API" —
+    # entirely unexercised. A non-degraded cycle always files question drafts.
     target = next(
         (p for p in pending if p.get("proposal_kind", "question") == "question"),
         None,
     )
-    if target is None:
-        pytest.skip("the local model produced no question drafts this run")
+    assert target is not None, (
+        "the cycle produced no question draft to approve; "
+        f"kinds seen: {sorted({p.get('proposal_kind', 'question') for p in pending})}"
+    )
 
     bank_before = set(bank_mod.load_bank())
     client = APIClient()
@@ -205,11 +280,13 @@ def test_lsat_content_cycle_lands_pending_drafts_and_one_is_approvable(
     assert reloaded is not None and reloaded["status"] == "approved"
 
 
-@pytest.mark.skipif(not _OK, reason=_WHY or "ollama unavailable")
+@pytest.mark.skipif(not _URL, reason="set OLLAMA_INTEGRATION_URL to run this")
 def test_the_cycle_is_audited_and_never_touched_a_hosted_tier(
     local_autonomy_env: dict[str, Any],
 ) -> None:
     """Provenance, and the pin that keeps this test free."""
+    _require_live_ollama()
+
     from law_ai.core import audit_jsonl as audit_store
 
     call_command(
@@ -221,8 +298,9 @@ def test_the_cycle_is_audited_and_never_touched_a_hosted_tier(
     assert "autonomy_cycle.start" in types
     assert "autonomy_cycle.end" in types
 
+    _assert_the_local_model_answered(events)
+
     llm_calls = [e for e in events if e.get("type") == "llm_call"]
-    assert llm_calls, "no llm_call provenance — the model was never reached"
     providers = {str(e.get("provider") or e.get("model") or "") for e in llm_calls}
     assert not any(
         p.startswith(("claude", "anthropic", "xai")) for p in providers

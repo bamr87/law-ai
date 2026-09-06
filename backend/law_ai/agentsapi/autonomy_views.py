@@ -33,6 +33,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from law_ai.core.auth import RequireAgent
+from law_ai.core.throttling import ScopedActorRateThrottle
 
 logger = logging.getLogger("law_ai.agentsapi.autonomy")
 
@@ -46,6 +47,10 @@ class _Base(APIView):
     """
 
     permission_classes = [RequireAgent]
+    # …and the same per-principal quota (BL-20260503-12 / BL-20260430-09):
+    # these panels read the same audit store `/api/agents/runs` does.
+    throttle_classes = [ScopedActorRateThrottle]
+    throttle_scope = "audit"
 
 
 class _Unprocessable(APIException):

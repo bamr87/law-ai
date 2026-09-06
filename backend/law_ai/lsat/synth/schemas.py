@@ -508,23 +508,44 @@ class ConditionalChain:
 
 @dataclass(frozen=True)
 class ConditionalCannotBeTrue:
-    """A → B plus ¬B; which choice is impossible."""
+    """A → B plus ¬B; which choice is impossible.
+
+    The arrangement is drawn per item, not fixed (BL-20260903-15): the chain is
+    two to four conditionals long, the denial lands on any chain atom that
+    leaves something to rule out, and one or two further conditionals hang off
+    it. Every draw goes through the same finite-model check, so a draw whose
+    premises leave too few models — and therefore too few distinct possible
+    distractors — is simply re-drawn rather than shipped.
+    """
 
     meta: SchemaMeta
 
-    def build(self, rng: random.Random, domain: DomainPack) -> Blueprint:
+    def _attempt(self, rng: random.Random) -> Blueprint:
         space = PropSpace(atoms=_PROP_SLOTS)
-        # Two of the conditionals point *out* of the falsified atoms, so S and
-        # T stay free and four models survive. A premise pointing in (S → Q)
-        # would pin S as well, collapsing the space to two models — and with two
-        # models there are only two possible truth patterns to choose four
-        # distinct distractors from.
+        length = rng.choice(_CHAIN_LENGTHS)
+        slots = list(_PROP_SLOTS)
+        rng.shuffle(slots)
+        chain_atoms = slots[:length]
+        spare = slots[length:]
+        sides = min(rng.choice(_SIDE_COUNTS), len(spare))
+        side_atoms = spare[:sides]
+        rules: list[Statement] = [
+            Implies(Atom(a), Atom(b)) for a, b in itertools.pairwise(chain_atoms)
+        ]
+        # The denial fires at the far end of some prefix: everything upstream is
+        # false by contraposition, everything downstream stays open. Index 0
+        # would deny the head and rule out nothing, so the draw starts at 1.
+        trigger_index = rng.randrange(1, length)
+        # The side conditionals point *out* of the chain, so their atoms stay
+        # free and models survive. A premise pointing in would pin them too,
+        # collapsing the space to two models — and with two models there are
+        # only two truth patterns to draw four distinct distractors from.
+        for side in side_atoms:
+            anchor = rng.choice(chain_atoms)
+            rules.append(Implies(Atom(anchor), Atom(side)))
         premises: tuple[Statement, ...] = (
-            Implies(Atom("P"), Atom("Q")),
-            Implies(Atom("R"), Atom("P")),
-            Implies(Atom("P"), Atom("S")),
-            Implies(Atom("Q"), Atom("T")),
-            Not(Atom("Q")),
+            *rules,
+            Not(Atom(chain_atoms[trigger_index])),
         )
         pool = _prop_pool(_PROP_SLOTS)
         result = evaluate(space, premises, pool)
@@ -561,7 +582,16 @@ class ConditionalCannotBeTrue:
                 *(FormalChoice(role="distractor", statement=d) for d in distractors),
             ),
             space=space,
+            arrangement={
+                "chain_length": length,
+                "trigger_index": trigger_index,
+                "side_conditionals": len(side_atoms),
+                "rule_count": len(premises),
+            },
         )
+
+    def build(self, rng: random.Random, domain: DomainPack) -> Blueprint:
+        return _draw_until(rng, self._attempt, what=self.meta.id)
 
     def stem(self, rng: random.Random) -> str:
         return rng.choice(

@@ -124,9 +124,10 @@ export default function TutorPane({
               * since BL-20260502-05. Rendered only when a collector is
               * configured — the local-first default is no telemetry, and a
               * link to a trace that was never exported is worse than none.
-              * There is no thread id beside it on purpose: the tutor calls the
-              * provider chain directly rather than running a LangGraph graph,
-              * so it has no checkpointed thread to name. */}
+              * `langgraph_thread_id` is on the response for contract parity
+              * but is always null here — the tutor calls the provider chain
+              * directly and runs no graph — so there is nothing to render
+              * beside the link. */}
             {response.phoenix_trace_url && (
               <a
                 href={response.phoenix_trace_url}
@@ -163,7 +164,7 @@ export default function TutorPane({
       )}
 
       {loading && !liveText && (
-        <div className="mt-3 animate-pulse space-y-2">
+        <div className="mt-3 animate-pulse space-y-2 motion-reduce:animate-none">
           <div className="h-3 w-3/4 rounded bg-slate-800" />
           <div className="h-3 w-2/3 rounded bg-slate-800" />
           <div className="h-3 w-1/2 rounded bg-slate-800" />

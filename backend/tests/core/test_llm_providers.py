@@ -3,9 +3,11 @@
 The routing contract lives in ``test_llm_chain.py``; this file covers what
 one provider does *inside* a single routed call — specifically that the local
 tier survives a transient hiccup (a 5xx while a model loads, a dropped
-connection) with bounded backoff, and that it does not retry what waiting
-cannot fix. No real network: the reachability probe is stubbed and
-``/api/generate`` is served by respx.
+connection) with tenacity-driven bounded backoff, that it does not retry what
+waiting cannot fix, and that the one failure a *different model* can fix (a
+404 for a model this box never pulled) falls back to ``FALLBACK_MODEL``. No
+real network: the reachability probe is stubbed and ``/api/generate`` is
+served by respx.
 """
 
 from __future__ import annotations
@@ -16,11 +18,12 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 import respx
+import tenacity
 
 from law_ai.agents_runtime import llm as llm_runtime
 from law_ai.core.llm import providers
 from law_ai.core.llm.base import LLMRequest, LLMUnavailableError
-from law_ai.core.usage import LLMUsage, usage_of
+from law_ai.core.usage import LLMUsage, model_of, usage_of
 
 _BASE = "http://ollama.test:11434"
 _GENERATE = f"{_BASE}/api/generate"
@@ -36,6 +39,7 @@ def ollama_up(settings, monkeypatch: pytest.MonkeyPatch) -> providers.OllamaProv
     settings.OLLAMA_BASE_URL = _BASE
     settings.OLLAMA_DEFAULT_MODEL = "mistral:7b-instruct-q4_K_M"
     settings.OLLAMA_REQUEST_TIMEOUT_S = 5.0
+    settings.FALLBACK_MODEL = ""  # model fallback off unless a test asks for it
     monkeypatch.setattr(
         llm_runtime, "ollama_available_async", AsyncMock(return_value=True)
     )
@@ -162,6 +166,124 @@ class TestOllamaUsage:
 
         assert reply == "local answer"
         assert usage_of(reply) is None
+
+
+class TestOllamaRetryIsTenacity:
+    """Constitution §8: external HTTP retries go through tenacity, not a loop."""
+
+    @respx.mock
+    async def test_the_retry_is_driven_by_tenacity(
+        self, ollama_up, settings, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        settings.OLLAMA_MAX_RETRIES = 2
+        seen: dict[str, object] = {}
+        real = providers.AsyncRetrying
+
+        def spy(**kwargs: object) -> object:
+            seen.update(kwargs)
+            return real(**kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(providers, "AsyncRetrying", spy)
+        respx.post(_GENERATE).mock(
+            side_effect=[httpx.Response(503, json={}), _ok("recovered")]
+        )
+
+        assert await ollama_up.agenerate(LLMRequest(prompt="q")) == "recovered"
+
+        assert providers.AsyncRetrying is spy  # the provider used the seam
+        assert isinstance(seen["wait"], tenacity.wait_exponential_jitter)
+        assert isinstance(seen["stop"], tenacity.stop.stop_after_attempt)
+        assert seen["stop"].max_attempt_number == 2  # type: ignore[union-attr]
+        assert seen["reraise"] is True
+
+    def test_retryable_predicate_covers_transient_only(self) -> None:
+        def status(code: int) -> httpx.HTTPStatusError:
+            request = httpx.Request("POST", _GENERATE)
+            return httpx.HTTPStatusError(
+                "boom", request=request, response=httpx.Response(code, request=request)
+            )
+
+        assert providers._ollama_retryable(status(503)) is True
+        assert providers._ollama_retryable(status(429)) is True
+        assert providers._ollama_retryable(httpx.ReadTimeout("slow")) is True
+        assert providers._ollama_retryable(status(404)) is False
+        assert providers._ollama_retryable(status(400)) is False
+        assert providers._ollama_retryable(ValueError("nope")) is False
+
+
+class TestOllamaModelFallback:
+    """A 404 means 'not pulled': try the smaller model rather than give up."""
+
+    @respx.mock
+    async def test_falls_back_when_the_primary_model_is_not_pulled(
+        self, ollama_up, settings
+    ) -> None:
+        settings.OLLAMA_DEFAULT_MODEL = "llama3.1:70b-q4_K_M"
+        settings.FALLBACK_MODEL = "mistral:7b-instruct-q4_K_M"
+        route = respx.post(_GENERATE).mock(
+            side_effect=[
+                httpx.Response(404, json={"error": "model not found"}),
+                _ok("from the small model"),
+            ]
+        )
+
+        reply = await ollama_up.agenerate(LLMRequest(prompt="q"))
+
+        assert reply == "from the small model"
+        assert route.call_count == 2
+        asked = [json.loads(call.request.content)["model"] for call in route.calls]
+        assert asked == ["llama3.1:70b-q4_K_M", "mistral:7b-instruct-q4_K_M"]
+        # Provenance must name the model that really answered, not the default.
+        assert model_of(reply) == "mistral:7b-instruct-q4_K_M"
+
+    @respx.mock
+    async def test_a_404_on_the_fallback_model_too_raises(
+        self, ollama_up, settings
+    ) -> None:
+        settings.OLLAMA_DEFAULT_MODEL = "llama3.1:70b-q4_K_M"
+        settings.FALLBACK_MODEL = "mistral:7b-instruct-q4_K_M"
+        route = respx.post(_GENERATE).mock(
+            return_value=httpx.Response(404, json={"error": "model not found"})
+        )
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await ollama_up.agenerate(LLMRequest(prompt="q"))
+        assert route.call_count == 2
+
+    @respx.mock
+    async def test_no_second_call_when_the_fallback_is_the_same_model(
+        self, ollama_up, settings
+    ) -> None:
+        settings.OLLAMA_DEFAULT_MODEL = "mistral:7b-instruct-q4_K_M"
+        settings.FALLBACK_MODEL = "mistral:7b-instruct-q4_K_M"
+        route = respx.post(_GENERATE).mock(
+            return_value=httpx.Response(404, json={"error": "model not found"})
+        )
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await ollama_up.agenerate(LLMRequest(prompt="q"))
+        assert route.call_count == 1
+
+    @respx.mock
+    async def test_a_500_does_not_trigger_the_model_hop(
+        self, ollama_up, settings
+    ) -> None:
+        """Only 'not pulled' is a model problem; a busy server is a retry."""
+        settings.OLLAMA_MAX_RETRIES = 1
+        settings.OLLAMA_DEFAULT_MODEL = "llama3.1:70b-q4_K_M"
+        settings.FALLBACK_MODEL = "mistral:7b-instruct-q4_K_M"
+        route = respx.post(_GENERATE).mock(return_value=httpx.Response(500, json={}))
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await ollama_up.agenerate(LLMRequest(prompt="q"))
+        assert route.call_count == 1
+
+    def test_candidates_skip_a_blank_fallback(self, ollama_up, settings) -> None:
+        settings.OLLAMA_DEFAULT_MODEL = "llama3.1:70b-q4_K_M"
+        settings.FALLBACK_MODEL = "   "
+        assert ollama_up.model_candidates(LLMRequest(prompt="q")) == (
+            "llama3.1:70b-q4_K_M",
+        )
 
 
 # ---------------------------------------------------------------------------

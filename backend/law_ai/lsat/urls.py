@@ -204,8 +204,14 @@ class PassageDetailView(_Base):
         if passage is None:
             raise Http404("passage not found")
         bank = load_bank()
+        # BL-20260606-01: RC and LG are served from here, and they are the
+        # majority of the bank — without ``?shuffle=1`` their keys sat in the
+        # same position on every attempt while LR's moved. Same contract as
+        # ``QuestionsView``: a ``remap`` token per question, echoed back at
+        # grade time.
+        shuffle = _wants_shuffle(request)
         questions = [
-            public_view(q).model_dump()
+            _served(q, shuffle=shuffle)
             for q in bank.values()
             if q.passage_id == passage_id
         ]
@@ -1365,9 +1371,13 @@ class ProposalApproveView(_Base):
         # Spec 045 FR-9: guide drafts promote into guides.json, not the banks.
         # BL-20260831-21: a cross-check disagreement is a report — approving it
         # records "the key is right after all" and writes nothing to the bank.
+        # BL-20260831-28: a writing draft writes to writing_prompts.json, so
+        # the factory's writing loop ends at the same Approve button as the
+        # MCQ loop instead of dead-ending in the queue with a 409.
         promoters = {
             "guide": proposals_store.promote_guide_to_bank,
             "crosscheck": proposals_store.promote_crosscheck,
+            "writing_prompt": proposals_store.promote_writing_prompt,
         }
         promote = promoters.get(
             str(existing.get("proposal_kind") or ""),

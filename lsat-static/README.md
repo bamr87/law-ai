@@ -31,11 +31,13 @@ make lsat-export     # runs `python manage.py lsat_export` and writes lsat-stati
 
 `tests/test_lsat_site.py` (part of the root structural CI suite) gates this file against the source bank under `backend/law_ai/lsat/services/data/` — the site can never silently lag the approved content.
 
-That gate turns a forgotten export into a red build on whatever PR happens to come next, which is a poor place to discover it. So the refresh is automated too: [`.github/workflows/refresh-lsat-content.yml`](../.github/workflows/refresh-lsat-content.yml) re-runs the exporter whenever a change under `backend/law_ai/lsat/services/data/` lands on `main`, commits `content.json` if the *content* actually moved, and then dispatches the Pages build (`BL-20260702-11`).
+That gate turns a forgotten export into a red build on whatever PR happens to come next, which is a poor place to discover it. So the refresh is automated: [`.github/workflows/refresh-lsat-content.yml`](../.github/workflows/refresh-lsat-content.yml) re-runs the exporter whenever a change under `backend/law_ai/lsat/services/data/` lands on `main` **or appears in a pull request from this repository**, commits `content.json` if the *content* actually moved, and — on `main` only — dispatches the Pages build (`BL-20260702-11`).
 
 Two details that make it safe rather than noisy. Every export stamps a fresh `generated_at`, so the workflow compares the payload with that key removed — otherwise it would commit on every run forever. And a push made with `GITHUB_TOKEN` raises no `push` event, so the Pages deploy is dispatched explicitly instead of being left to trigger itself.
 
-Running `make lsat-export` in your own PR is still the better habit: the content diff is then reviewable alongside the change that caused it, rather than arriving as a separate bot commit on `main`.
+**You no longer have to run `make lsat-export` by hand.** The pull-request leg is what removes it: the workflow exports on your branch and pushes the refreshed `content.json` there, and `ci.yml`'s `repo-structural` job sets `LSAT_CONTENT_AUTOEXPORT=1` for exactly that case so the drift gate defers to the robot instead of red-building the PR. Running the target yourself is still welcome — the content diff is then reviewable in the same commit as the change that caused it, rather than arriving as a bot commit — but it is a preference now, not a requirement.
+
+The deferral is deliberately narrow. A pull request from a fork gets no write token, so the refresh job stands aside and the drift gate enforces exactly as before; so does a push to `main`, and so does every local run of `make test-smoke`.
 
 ### Bundle size, and when to shard it
 

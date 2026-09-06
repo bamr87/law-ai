@@ -166,3 +166,83 @@ def test_ci_wires_the_gate_with_a_label_opt_out(repo_root: Path) -> None:
         "the body must reach the script through the environment, not shell "
         "interpolation (untrusted input)"
     )
+
+
+# --- the repo's own default PR body ------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def pr_template(repo_root: Path) -> str:
+    return (repo_root / ".github" / "pull_request_template.md").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_the_untouched_pr_template_is_not_evidence(
+    gate: ModuleType, pr_template: str
+) -> None:
+    """The exact case the gate exists to stop.
+
+    GitHub prefills every PR body with this file verbatim, HTML comments and
+    all, and the template's instructions mention ``docs/images/`` twice. While
+    the gate matched the raw body, the repo's own default body satisfied it:
+    a PR could rewrite every screen, attach nothing, leave the template as
+    GitHub wrote it, and pass with exit 0.
+    """
+    assert "docs/images/" in pr_template, (
+        "this test is only meaningful while the template mentions the "
+        "directory — if that changed, the regression it guards changed too"
+    )
+    ok, message = gate.evaluate(
+        pr_template, ["frontend/components/shell/AppShell.tsx"]
+    )
+    assert not ok, (
+        "the unmodified PR template passes the gate — the body heuristic is "
+        "matching the template's own instructions, not attached evidence"
+    )
+    assert "no visual evidence" in message
+
+
+def test_the_template_plus_a_real_attachment_passes(
+    gate: ModuleType, pr_template: str
+) -> None:
+    """Stripping comments must not break the normal case."""
+    body = pr_template.replace(
+        "| Screen / state | |",
+        "| Screen / state | ![shell](https://example.test/shell.png) |",
+    )
+    ok, _ = gate.evaluate(body, ["frontend/components/shell/AppShell.tsx"])
+    assert ok
+
+
+def test_evidence_hidden_inside_a_comment_does_not_count(gate: ModuleType) -> None:
+    """A commented-out image renders as nothing, so it proves nothing."""
+    ok, _ = gate.evaluate(
+        "<!-- ![old](https://example.test/old.png) -->",
+        ["frontend/app/(app)/page.tsx"],
+    )
+    assert not ok
+
+
+def test_an_unterminated_comment_swallows_the_rest(gate: ModuleType) -> None:
+    """GitHub renders nothing after an unclosed `<!--`, and neither do we."""
+    ok, _ = gate.evaluate(
+        "<!-- forgot to close\n![shot](https://example.test/a.png)",
+        ["frontend/app/(app)/page.tsx"],
+    )
+    assert not ok
+
+
+def test_the_directory_alone_is_not_a_screenshot(gate: ModuleType) -> None:
+    """`docs/images/` names a folder; only a file in it is evidence."""
+    bare, _ = gate.evaluate(
+        "Screenshots live under docs/images/ as usual.",
+        ["frontend/app/(app)/page.tsx"],
+    )
+    assert not bare
+
+    named, _ = gate.evaluate(
+        "See docs/images/shell-2026-09.png.",
+        ["frontend/app/(app)/page.tsx"],
+    )
+    assert named

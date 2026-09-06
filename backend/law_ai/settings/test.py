@@ -73,7 +73,12 @@ XAI_BASE_URL = "http://127.0.0.1:1/v1"
 # assert throttling behaviour override this rate explicitly.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,  # noqa: F405
-    "DEFAULT_THROTTLE_RATES": {"llm": "100000/min", "llm_keyed": "100000/min"},
+    "DEFAULT_THROTTLE_RATES": {
+        "llm": "100000/min",
+        "llm_keyed": "100000/min",
+        "audit": "100000/min",
+        "audit_keyed": "100000/min",
+    },
 }
 
 

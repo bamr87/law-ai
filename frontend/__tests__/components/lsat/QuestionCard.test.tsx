@@ -63,7 +63,11 @@ describe('QuestionCard', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Submit$/ }))
 
     expect(
-      await screen.findByText(/Incorrect — answer was C/, {}, { timeout: 5000 }),
+      await screen.findByText(
+        /Incorrect — answer was C/,
+        {},
+        { timeout: 5000 },
+      ),
     ).toBeInTheDocument()
     expect(onResolved).toHaveBeenCalledTimes(1)
     expect(onResolved.mock.calls[0][0]).toMatchObject({ correct_choice: 'C' })
@@ -72,6 +76,86 @@ describe('QuestionCard', () => {
       expect(radio).toHaveAttribute('aria-disabled', 'true')
       expect(radio).not.toBeDisabled()
     }
+  })
+
+  // BL-20260429-18: the tutor's promise is coaching addressed to *this*
+  // reasoning. Elimination is the reasoning; without these assertions the
+  // wiring could be deleted and the whole suite would stay green while the
+  // product quietly fell back to generic rationales.
+  describe('attempt trace (BL-20260429-18)', () => {
+    async function askTutorAfterEliminating(
+      eliminate: string[],
+    ): Promise<Record<string, unknown>> {
+      let body: Record<string, unknown> = {}
+      server.use(
+        http.post(
+          'http://localhost:8000/api/lsat/tutor',
+          async ({ request }) => {
+            body = (await request.json()) as Record<string, unknown>
+            return HttpResponse.json({
+              question_id: 'lr-001',
+              user_choice: 'A',
+              correct_choice: 'C',
+              is_correct: false,
+              explanation: 'Hasty generalisation.',
+              coaching: 'You ruled out the key.',
+              next_steps: [],
+              concepts: [],
+              references: [],
+              model: 'offline',
+              used_llm: false,
+              confidence: 0.4,
+              requires_human_review: true,
+              latency_ms: 5,
+            })
+          },
+        ),
+      )
+      render(<QuestionCard question={question} onResolved={() => {}} />)
+      for (const label of eliminate) {
+        fireEvent.click(
+          screen.getByRole('button', { name: `Rule out choice ${label}` }),
+        )
+      }
+      fireEvent.click(screen.getByRole('radio', { name: /A.*Alpha/ }))
+      fireEvent.click(screen.getByRole('button', { name: /^Submit$/ }))
+      await screen.findByText(/Incorrect — answer was C/, {}, { timeout: 5000 })
+      fireEvent.click(screen.getByRole('button', { name: /Ask AI Tutor/ }))
+      await screen.findByText(/You ruled out the key/, {}, { timeout: 5000 })
+      return body
+    }
+
+    it('sends what the learner ruled out, not just timing metadata', async () => {
+      const body = await askTutorAfterEliminating(['B', 'D'])
+      expect(body.trace).toMatchObject({
+        eliminated: ['B', 'D'],
+        hints_used: 0,
+      })
+      expect(
+        typeof (body.trace as Record<string, unknown>).seconds_on_question,
+      ).toBe('number')
+    })
+
+    it('omits `eliminated` entirely when nothing was crossed out', async () => {
+      const body = await askTutorAfterEliminating([])
+      expect(body.trace).toBeDefined()
+      expect(body.trace).not.toHaveProperty('eliminated')
+    })
+
+    it('crosses a choice out from the keyboard with X, and back again', () => {
+      render(<QuestionCard question={question} onResolved={() => {}} />)
+      const choiceB = screen.getByRole('radio', { name: /B.*Bravo/ })
+      fireEvent.click(choiceB)
+      choiceB.focus()
+      fireEvent.keyDown(window, { key: 'x' })
+      expect(
+        screen.getByRole('button', { name: 'Restore choice B' }),
+      ).toHaveAttribute('aria-pressed', 'true')
+      fireEvent.keyDown(window, { key: 'x' })
+      expect(
+        screen.getByRole('button', { name: 'Rule out choice B' }),
+      ).toHaveAttribute('aria-pressed', 'false')
+    })
   })
 
   // BL-20260702-13: the static drill's contract, ported. Focus and selection
@@ -118,7 +202,11 @@ describe('QuestionCard', () => {
       fireEvent.keyDown(bravo, { key: 'Enter' })
 
       expect(
-        await screen.findByText(/Incorrect — answer was C/, {}, { timeout: 5000 }),
+        await screen.findByText(
+          /Incorrect — answer was C/,
+          {},
+          { timeout: 5000 },
+        ),
       ).toBeInTheDocument()
       expect(onResolved).toHaveBeenCalledTimes(1)
     })
@@ -158,7 +246,11 @@ describe('QuestionCard', () => {
         key: 'Enter',
       })
       expect(
-        await screen.findByText(/Incorrect — answer was C/, {}, { timeout: 5000 }),
+        await screen.findByText(
+          /Incorrect — answer was C/,
+          {},
+          { timeout: 5000 },
+        ),
       ).toBeInTheDocument()
     })
   })

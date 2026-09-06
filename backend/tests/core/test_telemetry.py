@@ -105,6 +105,42 @@ def test_django_is_instrumented_when_tracing_is_live(
     monkeypatch.setattr(telemetry, "_INITIALIZED", False)
 
 
+def test_no_core_module_points_at_the_deleted_fastapi_entrypoint() -> None:
+    """The second half of BL-20260503-23: sweep the historical references.
+
+    ``backend/app/main.py`` was the pre-spec-011 FastAPI entrypoint and does
+    not exist in this tree. Two core modules still pointed readers at it after
+    the telemetry refactor (``core/middleware.py``'s CORS docstring and
+    ``core/apps.py``'s startup-check comment); this fails if either comes back,
+    or if a new one appears.
+    """
+    from pathlib import Path
+
+    import law_ai.core as core_pkg
+
+    core_dir = Path(core_pkg.__file__).resolve().parent
+    assert not (core_dir.parent.parent / "app" / "main.py").exists()
+
+    offenders = [
+        str(path.relative_to(core_dir))
+        for path in sorted(core_dir.rglob("*.py"))
+        if "app/main.py" in path.read_text(encoding="utf-8")
+        or "uvicorn" in path.read_text(encoding="utf-8")
+    ]
+    assert offenders == []
+
+
+def test_the_tutor_docstring_matches_what_init_tracing_now_does() -> None:
+    """A docstring the DjangoInstrumentor swap made false (BL-20260503-23)."""
+    import inspect
+
+    from law_ai.lsat.services import tutor as tutor_mod
+
+    doc = inspect.getdoc(tutor_mod.tutor) or ""
+    assert "instruments httpx and nothing else" not in doc
+    assert "Django" in doc
+
+
 # ---------------------------------------------------------------------------
 # BL-20260502-07: the exporter is chosen by OBSERVABILITY_BACKEND
 # ---------------------------------------------------------------------------

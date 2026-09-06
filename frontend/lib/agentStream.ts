@@ -88,6 +88,25 @@ export type AgentStageEvent = {
   seq?: number
 }
 
+/**
+ * One delta of the analysis IRAC pass, while the model is still writing
+ * (BL-20260905-11).
+ *
+ * The `/api/analysis` run used to send nothing between "submitted" and
+ * "finished" — 56-103s of blank page on the slower tiers. `chars` is the
+ * running total the server has produced, so a client can show progress
+ * without rendering half-written JSON.
+ */
+export type AnalysisTokenEvent = {
+  type: 'analysis_token'
+  agent: string
+  text: string
+  chars: number
+  analysis_id?: string
+  model?: string
+  seq?: number
+}
+
 /** `since` echoes the replay cursor the server understood on this handshake. */
 export type AgentReadyEvent = { type: 'ready'; run_id: string; since?: number }
 
@@ -96,6 +115,7 @@ export type AgentStreamEvent =
   | AgentStepEvent
   | AgentStageEvent
   | AgentTokenEvent
+  | AnalysisTokenEvent
   | AgentCompleteEvent
 
 /** Browser-safe unique id — `crypto.randomUUID` is not in older jsdom. */

@@ -114,6 +114,20 @@ mcp__plugin_playwright_playwright__browser_take_screenshot
 
 Use the curl smoke as the mechanical gate and the browser only when you need to *see* something. For a real regression suite use `make test-e2e` (Playwright, see [docs/e2e-testing.md](../../../docs/e2e-testing.md)) — this driver is a boot check, not a test suite.
 
+### Should the launch logic move into `scripts/`?
+
+`BL-20260615-04` asked that to be considered "if the e2e suite wants to reuse it". It does not, and the answer is no. `make test-e2e` (Makefile) brings up its own stack with `docker compose --profile e2e up -d --wait frontend backend-e2e`, overriding `FRONTEND_BACKEND_URL` so the browser talks to the pinned-degraded `backend-e2e` sidecar. That is a different launch in every respect that matters:
+
+| | `driver.sh` | `make test-e2e` |
+|---|---|---|
+| Containers | two throwaway `docker compose run` containers, `--no-deps` | the compose services themselves, `up -d --wait` |
+| Databases | none — SQLite in the API container | real Postgres, Neo4j, Redis |
+| Backend | this driver's own API container, offline deterministic LLM | the `backend-e2e` sidecar, pinned to an unreachable Ollama |
+| Lifetime | torn down on exit unless `KEEP=1` | left up for `make test-e2e-down` |
+| Purpose | does the app boot and serve | does the app behave |
+
+Extracting a shared launcher would have to abstract over all five rows, and the only caller that would use the abstraction is the one it was extracted from. So the launch logic stays here, in the one script that needs it, and this paragraph is the record of the decision rather than a `scripts/` helper nobody imports. Revisit it if a second caller ever wants a throwaway no-deps stack — `tests/test_run_law_ai_driver.py` will hold the contract steady in the meantime.
+
 ## Test
 
 The backend suite runs in a container. For an isolated run that doesn't need the compose Postgres, override `DATABASE_URL` to SQLite (verified form):

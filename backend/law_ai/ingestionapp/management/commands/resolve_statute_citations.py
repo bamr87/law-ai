@@ -11,7 +11,10 @@ opinions ingested before the CRS corpus was loaded.
 It reads the ``Citation.normalized`` strings the original ingest already stored
 rather than re-scanning opinion text — ``:Case`` nodes do not persist the
 opinion body, so a text re-scan would mean re-fetching every opinion from
-upstream. That makes the backfill fully offline.
+upstream. That makes the backfill fully offline, and it bounds what the
+backfill can recover: see :data:`RECALL_CAVEAT`, which every run prints. An
+opinion ingested before the C.R.S. patterns landed has no C.R.S. citation
+string to read, so only re-ingesting it can link it.
 
 Safety posture mirrors ``densify_backfill``:
 
@@ -54,6 +57,25 @@ from law_ai.core.provenance import provenance
 #: Provenance `source` written on every edge this command creates, so an
 #: auditor can tell a backfilled edge from one an ingest wrote.
 BACKFILL_SOURCE = "resolve_statute_citations_backfill"
+
+#: The limit of what an offline pass can recover, printed on every run.
+#:
+#: This backfill can only see citation strings that an *earlier* ingest already
+#: stored. Before the CRS patterns in ``scout._CRS_CITATION_RES`` landed, the
+#: only statutory extractor was eyecite, which recognises the reporter
+#: "Colo. Rev. Stat." but returns a bare ``UnknownCitation('§')`` for
+#: "C.R.S. § 18-3-102" and nothing at all for "section 13-80-102, C.R.S." —
+#: the two forms Colorado courts actually write. So for opinions ingested
+#: before that change the strings simply are not there, and no offline pass
+#: can conjure them: those cases must be re-ingested (their text re-run
+#: through ``_extract_citations``) before this command can link them.
+RECALL_CAVEAT = (
+    "Recall limit: this pass reads the citation strings earlier ingests stored; "
+    "it never re-reads opinion text (:Case nodes persist none). Opinions "
+    "ingested before the C.R.S. patterns landed had only eyecite, which misses "
+    '"C.R.S. § 18-3-102" and "section 13-80-102, C.R.S." entirely — re-ingest '
+    "those opinions to recover their statutory cites; this command cannot."
+)
 
 
 class StatuteBackfillStats:
@@ -257,3 +279,7 @@ class Command(BaseCommand):
                     f"{counts['resolved']} pending edge(s)."
                 )
             )
+        # Constitution §13: report the absence, every run. A clean summary here
+        # does NOT mean the historical corpus has no statutory cites left to
+        # link — it means none are visible to an offline pass.
+        self.stdout.write(self.style.WARNING(RECALL_CAVEAT))

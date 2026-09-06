@@ -58,6 +58,12 @@ class AnalysisRequest(BaseModel):
     thread_id: str | None = Field(
         default=None, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._-]+$"
     )
+    # BL-20260817-05: the matter this research round belongs to. When present
+    # (and owned by the caller — `AnalysisView.post` checks), GraphRAG promotes
+    # the authorities that matter has already had verified, so a later round
+    # ranks known-good citations first. The bias is reported back in
+    # `retrieval_stats.boosted_count` / `boost_source`.
+    matter_id: int | None = Field(default=None, ge=1)
 
 
 class AgentTraceEntry(BaseModel):
@@ -129,14 +135,23 @@ async def _timed[T](awaitable: Awaitable[T]) -> tuple[T, float]:
 async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
     analyst = LegalAnalyst()
     hunter = PrecedentHunter()
-    payload: dict[str, str | bool | None] = {
+    analysis_id = _new_analysis_id()
+    payload: dict[str, str | bool | int | None] = {
         "text": req.text,
         "jurisdiction": req.jurisdiction,
         "case_id": req.case_id,
         "use_langgraph": req.use_langgraph,
         "thread_id": req.thread_id,
+        # BL-20260817-05: reaches LegalWorkflow.invoke(matter_id=...) and from
+        # there the retriever's boost set. Ownership is proved before we get
+        # here.
+        "matter_id": req.matter_id,
+        # BL-20260905-11: with a stream id the analyst relays its deltas to
+        # this run's group while it generates, so the 56-103s IRAC wait is
+        # visible instead of blank.
+        "stream_id": req.stream_id,
+        "analysis_id": analysis_id,
     }
-    analysis_id = _new_analysis_id()
     # Events go to the client's stream id when supplied; otherwise the
     # analysis id keeps the old (undeliverable, but harmless) behaviour.
     stream_key = req.stream_id or analysis_id
@@ -189,6 +204,9 @@ async def _run_analysis(req: AnalysisRequest) -> AnalysisResponse:
         or irac.degraded
         or precedents.degraded
         or irac.requires_review
+        # §13: a precedent emitted without a complete issuing authority is a
+        # statement of law nobody has vouched for (BL-20260803-04).
+        or precedents.requires_review
     )
     # Step events already fired as each agent finished (see _run_step); this
     # is the terminal event. Fire-and-forget: Redis failure is non-fatal.
@@ -337,6 +355,36 @@ def _persist_run(req: AnalysisRequest, body: AnalysisResponse, request: Any) -> 
         )
 
 
+def _reject_unowned_matter(request: Any, matter_id: int | None) -> Any | None:
+    """Guard the BL-20260817-05 boost against being aimed at someone else's matter.
+
+    The boost set is a matter's *verified* authorities, so honouring an
+    arbitrary id would leak — through the ranking, and through
+    ``retrieval_stats.boost_source`` — which authorities another account has
+    checked. Ownership is therefore proved here, before the id reaches the
+    workflow, and an id the caller does not own answers 404 exactly as
+    ``/api/matters/<slug>`` does: indistinguishable from one that never
+    existed. Returns a ``Response`` to send, or ``None`` to proceed.
+    """
+    if not matter_id:
+        return None
+    if not is_signed_in(request):
+        return Response(
+            {"detail": "sign in to scope an analysis to a matter"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    from law_ai.matters.models import Matter
+
+    owned = Matter.objects.filter(
+        pk=matter_id, owner=request.user, archived_at__isnull=True
+    ).exists()
+    if not owned:
+        return Response(
+            {"detail": "matter not found"}, status=status.HTTP_404_NOT_FOUND
+        )
+    return None
+
+
 class AnalysisView(APIView):
     permission_classes = [RequireAnalysis]
     # BL-20260810-11: this endpoint fans out to Ollama (120 s timeout) on an
@@ -355,6 +403,9 @@ class AnalysisView(APIView):
             return Response(
                 {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
             )
+        denied = _reject_unowned_matter(request, req.matter_id)
+        if denied is not None:
+            return denied
         try:
             body = async_to_sync(_run_analysis)(req)
         except Exception as exc:

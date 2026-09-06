@@ -116,26 +116,151 @@ test.describe('390x844 (phone)', () => {
 
   test('every interactive control clears 44px', async ({ page }) => {
     await page.goto('./')
-    const tooSmall = await page.evaluate(() => {
-      const bad: string[] = []
-      // The 44px floor is the contract globals.css actually states, under
-      // `max-width: 719px` and `pointer: coarse`: buttons, nav links, answer
-      // choices and form controls. Inline links inside prose are not targets
-      // in that sense and are deliberately not padded to 44px.
-      const nodes = document.querySelectorAll<HTMLElement>(
-        '.btn, .nav-link, .choice, input[type="radio"], input[type="checkbox"]',
-      )
-      for (const el of nodes) {
-        const r = el.getBoundingClientRect()
-        // Hidden controls (collapsed panels, off-screen views) are not targets.
-        if (r.width === 0 || r.height === 0) continue
-        if (r.height < 44) {
-          bad.push(`${el.tagName.toLowerCase()}.${el.className} h=${r.height.toFixed(1)}`)
+
+    /** Measure every target the 44px contract names, on whatever is on screen. */
+    const sweep = () =>
+      page.evaluate(() => {
+        const bad: string[] = []
+        // The 44px floor is the contract globals.css actually states, under
+        // `max-width: 719px` and `pointer: coarse`: buttons, nav links, answer
+        // choices, the skip link and form controls. Inline links inside prose
+        // are not targets in that sense and are deliberately not padded to
+        // 44px.
+        const nodes = document.querySelectorAll<HTMLElement>(
+          '.btn, .nav-link, .choice, .skip-link, input[type="radio"], input[type="checkbox"]',
+        )
+        for (const el of nodes) {
+          const r = el.getBoundingClientRect()
+          // Hidden controls (collapsed panels, off-screen views) are not
+          // targets. The skip link is *off-screen* until focused rather than
+          // hidden — it keeps its box, so it is measured like anything else.
+          if (r.width === 0 || r.height === 0) continue
+          if (r.height < 44) {
+            bad.push(
+              `${el.tagName.toLowerCase()}.${el.className} h=${r.height.toFixed(1)}`,
+            )
+          }
         }
-      }
-      return bad
+        return bad
+      })
+
+    // The skip link is on this screen, and it is the one that failed: 40.8px,
+    // because an inline box ignores `min-height` (globals.css `.skip-link`).
+    await expect(page.locator('.skip-link')).toHaveCount(1)
+    expect(await sweep(), 'overview').toEqual([])
+
+    // `.choice` is the class the floor mostly exists for, and it exists only
+    // inside a drill — an Overview-only sweep never measures one.
+    await page
+      .locator('.site-header .nav')
+      .getByRole('button', { name: 'Logical Reasoning' })
+      .click()
+    await expect(page.locator('.choice').first()).toBeVisible()
+    expect(
+      await page.locator('.choice').count(),
+      'the drill really rendered its answer choices',
+    ).toBeGreaterThan(1)
+    expect(await sweep(), 'logical reasoning drill').toEqual([])
+  })
+
+  test('the pin control is offered, and holds the header on screen', async ({
+    page,
+  }) => {
+    await page.goto('./')
+
+    // BL-20260901-05. The control first shipped `display: none` at every width
+    // — a media query adds no specificity, so the blanket rule that hides it
+    // above 819px won everywhere. jsdom loads no stylesheet, so only a real
+    // browser can see that the toggle actually reaches the reader.
+    const pin = page.locator('.header-pin')
+    await expect(pin, 'the toggle renders where the header hides').toBeVisible()
+    const box = await boxOf(page, '.header-pin')
+    expect(box.width, 'the control has a real box').toBeGreaterThan(0)
+    await expect(pin).toHaveAttribute('aria-pressed', 'false')
+
+    await pin.click()
+    await expect(pin).toHaveAttribute('aria-pressed', 'true')
+
+    // The same journey that hides the header when it is not pinned.
+    await page
+      .locator('.site-header .nav')
+      .getByRole('button', { name: 'Reading Comprehension' })
+      .click()
+    await page.waitForTimeout(600)
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await page.waitForTimeout(400)
+    await page.evaluate(() => window.scrollTo(0, 120))
+    await page.waitForTimeout(350)
+    const reached = await page.evaluate((threshold) => {
+      const max = document.scrollingElement!.scrollHeight - window.innerHeight
+      window.scrollTo(0, Math.min(threshold + 80, max - 60))
+      return window.scrollY
+    }, HIDE_AFTER_PX)
+    await page.waitForTimeout(400)
+    expect(reached, 'the page is long enough to hide the header').toBeGreaterThan(
+      HIDE_AFTER_PX,
+    )
+
+    const header = page.locator('.site-header')
+    await expect(header, 'pinned, the bar stays').not.toHaveClass(
+      /site-header-hidden/,
+    )
+    const still = await boxOf(page, '.site-header')
+    expect(still.y, 'the header is still on screen').toBeGreaterThanOrEqual(-1)
+    expect(still.height, 'and still has its nav strip').toBeGreaterThan(30)
+  })
+
+  test('the nav is one scrolling strip that keeps the current pill in view', async ({
+    page,
+  }) => {
+    await page.goto('./')
+
+    // Seven destinations on one row: the wrapped nav is what put the header at
+    // 136px (specs/047 T-013). Wrapping is a layout fact, so this counts rows.
+    const rows = await page.evaluate(() => {
+      const links = [
+        ...document.querySelectorAll<HTMLElement>('.site-header .nav-link'),
+      ]
+      const tops = links.map((el) => Math.round(el.getBoundingClientRect().top))
+      return { count: links.length, distinctTops: new Set(tops).size }
     })
-    expect(tooSmall).toEqual([])
+    expect(rows.count, 'every destination is in the strip').toBeGreaterThan(4)
+    expect(rows.distinctTops, 'the pills sit on one row, not wrapped').toBe(1)
+
+    // The trailing fade is driven by a ResizeObserver rather than measured
+    // once (app/page.tsx), so its answer must agree with the real geometry.
+    const strip = await page.evaluate(() => {
+      const nav = document.querySelector<HTMLElement>('.site-header .nav')!
+      return {
+        overflow: nav.scrollWidth - nav.clientWidth,
+        marked: nav.className.includes('nav-scrollable'),
+      }
+    })
+    expect(strip.marked, 'nav-scrollable matches whether the strip overflows').toBe(
+      strip.overflow > 1,
+    )
+
+    // Stats is the last pill — the case that used to land the reader on a
+    // destination scrolled off the end of the strip (app/page.tsx).
+    await page
+      .locator('.site-header .nav')
+      .getByRole('button', { name: 'Stats' })
+      .click()
+    await page.waitForTimeout(600)
+    const active = await page.evaluate(() => {
+      const nav = document.querySelector<HTMLElement>('.site-header .nav')!
+      const pill = nav.querySelector<HTMLElement>('[aria-current="page"]')!
+      const n = nav.getBoundingClientRect()
+      const a = pill.getBoundingClientRect()
+      return { fromLeft: a.left - n.left, fromRight: n.right - a.right }
+    })
+    expect(active.fromLeft, 'the current pill is not off the left edge').toBeGreaterThan(
+      -1,
+    )
+    expect(
+      active.fromRight,
+      'the current pill is not off the right edge',
+    ).toBeGreaterThan(-1)
   })
 
   test('nothing overflows horizontally', async ({ page }) => {
@@ -191,6 +316,10 @@ test.describe('1280x900 (desktop)', () => {
     const nav = await boxOf(page, '.site-header .nav')
     expect(Math.abs(nav.y - brand.y), 'nav shares the brand row').toBeLessThan(24)
 
+    // Nothing hides up here, so the pin is deliberately not offered — the
+    // other half of the cascade the phone test pins (BL-20260901-05).
+    await expect(page.locator('.header-pin')).toBeHidden()
+
     // The scroll-directional header is phone-only (max-width: 819px).
     await scrollTo(page, HIDE_AFTER_PX + 300)
     await expect(page.locator('.site-header')).toHaveCSS('transform', 'none')
@@ -222,5 +351,80 @@ test.describe('1280x900 (desktop)', () => {
       after.y,
       'the passage pinned rather than scrolling away with the page',
     ).toBeGreaterThan(before.y - 400 + 1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Desktop, with the entrance animation actually running
+// ---------------------------------------------------------------------------
+
+test.describe('1280x900 (desktop, entrance animation running)', () => {
+  test.use({
+    viewport: { width: 1280, height: 900 },
+    // Every other test here runs under reduced motion so a box measurement
+    // cannot depend on where an animation happened to be. This one is about
+    // the animation itself, and reduced motion switches it off entirely
+    // (globals.css `.view-anim { animation: none }`), so the very defect
+    // specs/047 T-013 guards against would be invisible: an animated
+    // `transform` on the view wrapper creates a containing block, which breaks
+    // `position: sticky` for every descendant for as long as it runs. That is
+    // why the wide layout fades and the rise is reserved for narrow viewports.
+    contextOptions: { reducedMotion: 'no-preference' },
+  })
+
+  test('the passage column stays sticky while the entrance animation runs', async ({
+    page,
+  }) => {
+    await page.goto('./')
+    await page
+      .locator('.site-header .nav')
+      .getByRole('button', { name: 'Reading Comprehension' })
+      .click()
+    await expect(page.locator('.passage').first()).toBeVisible()
+
+    // Freeze the entrance mid-flight rather than racing it: a paused animation
+    // still applies its effect, so a transform-based entrance would still be
+    // creating the containing block while this test scrolls.
+    const frozen = await page.evaluate(() => {
+      const el = document.querySelector<HTMLElement>('.view-anim')!
+      const anims = el.getAnimations()
+      for (const a of anims) {
+        a.pause()
+        a.currentTime = 100
+      }
+      const style = getComputedStyle(el)
+      return {
+        playing: anims.length,
+        name: style.animationName,
+        transform: style.transform,
+      }
+    })
+    // If this ever reads 0, the harness has stopped exercising the animation
+    // and the rest of the case is measuring nothing.
+    expect(frozen.playing, 'an entrance animation is in effect').toBeGreaterThan(0)
+    expect(frozen.name, 'the view really is animated up here').not.toBe('none')
+    expect(
+      frozen.transform,
+      'the wide entrance fades: a transform would break the sticky column',
+    ).toBe('none')
+
+    const before = await boxOf(page, '.passage')
+    await scrollTo(page, 400)
+    const after = await boxOf(page, '.passage')
+    expect(
+      after.y,
+      'the passage pinned mid-animation rather than scrolling away',
+    ).toBeGreaterThan(before.y - 400 + 1)
+    // And it is still the animation being measured, not its aftermath.
+    const stillPaused = await page.evaluate(
+      () =>
+        document
+          .querySelector<HTMLElement>('.view-anim')!
+          .getAnimations()
+          .filter((a) => a.playState === 'paused').length,
+    )
+    expect(stillPaused, 'the animation stayed frozen across the scroll').toBeGreaterThan(
+      0,
+    )
   })
 })

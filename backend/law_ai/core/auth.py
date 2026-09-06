@@ -8,6 +8,7 @@ from django.conf import settings
 from rest_framework import authentication, exceptions, permissions
 from rest_framework.request import Request
 
+from law_ai.core.jwt_auth import JwtBearerAuthentication
 from law_ai.core.models import ApiToken
 
 
@@ -40,8 +41,16 @@ class ApiKeyAuthentication(authentication.BaseAuthentication):
     Key-only callers are unaffected — with no session cookie the session leg
     returns ``None`` and the behaviour is byte-identical to spec 011.
 
-    No header and no session → no authentication (downstream permission
-    decides, so the local-first open gate still works).
+    BL-20260503-13 adds the third leg the item named: an
+    ``Authorization: Bearer <jwt>`` access token minted from an ``ApiToken``
+    by the OAuth2 grant in :mod:`law_ai.core.jwt_auth`. It resolves to the
+    *same* ``(actor, ApiToken)`` pair the header path produces, so ``HasScope``
+    and the throttles need no bearer-specific branch. Order is
+    header → bearer → session: a request that carries a key means it, and an
+    unrelated ``Authorization`` header falls through instead of 401-ing.
+
+    No credential at all → no authentication (downstream permission decides,
+    so the local-first open gate still works).
     """
 
     keyword = "X-API-Key"
@@ -49,10 +58,14 @@ class ApiKeyAuthentication(authentication.BaseAuthentication):
     def __init__(self) -> None:
         # Delegate the cookie/CSRF half to DRF rather than re-deriving it.
         self._session = authentication.SessionAuthentication()
+        self._bearer = JwtBearerAuthentication()
 
     def authenticate(self, request: Request):
         raw = request.META.get("HTTP_X_API_KEY")
         if not raw:
+            bearer = self._bearer.authenticate(request)
+            if bearer is not None:
+                return bearer
             return self._session.authenticate(request)
         digest = ApiToken.hash_key(raw)
         try:
@@ -149,6 +162,7 @@ RequireLsat: type[HasScope] = has_scope("lsat", "LSAT_API_KEY", "AGENT_API_KEY")
 __all__ = [
     "ApiKeyAuthentication",
     "HasScope",
+    "JwtBearerAuthentication",
     "RequireAgent",
     "RequireAnalysis",
     "RequireGraph",

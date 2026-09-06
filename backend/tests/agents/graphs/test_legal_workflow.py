@@ -428,3 +428,163 @@ async def test_model_label_records_the_serving_provider() -> None:
     # Smoke: the run completes with the labelled message shape.
     out = await wf.invoke("q?")
     assert out.answer == "a"
+
+
+# ---------------------------------------------------------------------------
+# The IRAC split the analyze node now returns (BL-20260511-06)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_analyze_returns_the_irac_split(
+    fake_retrieved_passages: list[dict],
+) -> None:
+    """LegalAnalyst's backfill: issue/rule/conclusion come off the workflow."""
+    fake_llm = FakeOllama(
+        [
+            '{"queries": ["judicial review"], "rationale": "ok"}',
+            '{"issue": "Whether the Court may void an act of Congress.",'
+            ' "rule": "A law repugnant to the Constitution is void '
+            '(Marbury v. Madison, U.S. Supreme Court, 1803).",'
+            ' "answer": "Applying that rule to these facts…",'
+            ' "conclusion": "The provision is unenforceable.",'
+            ' "citations": [{"text": "Marbury v. Madison",'
+            ' "source_url": "https://example.test/marbury"}],'
+            ' "confidence": 0.9}',
+        ]
+    )
+
+    async def fake_resolver(citations: list[str]) -> dict[str, str | None]:
+        return {c: "case-0" for c in citations}
+
+    async def fake_retriever(state):
+        return fake_retrieved_passages
+
+    wf = LegalWorkflow(
+        llm_factory=lambda: fake_llm,
+        cite_resolver=fake_resolver,
+        retriever=fake_retriever,
+    )
+    result = await wf.invoke("May the Court void an act of Congress?")
+
+    assert result.issue.startswith("Whether the Court may void")
+    assert "repugnant to the Constitution" in result.rule
+    assert result.conclusion == "The provision is unenforceable."
+    assert result.answer.startswith("Applying that rule")
+    # The prompt has to ask for them, or a real model never sends them.
+    analyze_prompt = fake_llm.calls[1]
+    for key in ("issue", "rule", "conclusion"):
+        assert key in analyze_prompt
+
+
+@pytest.mark.asyncio
+async def test_a_model_that_omits_the_split_leaves_it_empty(
+    fake_retrieved_passages: list[dict],
+) -> None:
+    """No invented black-letter law: an absent field stays absent."""
+    fake_llm = FakeOllama(
+        [
+            '{"queries": ["q"], "rationale": "ok"}',
+            '{"answer": "Prose only.", "citations": [], "confidence": 0.4}',
+        ]
+    )
+
+    async def fake_resolver(citations: list[str]) -> dict[str, str | None]:
+        return {}
+
+    async def fake_retriever(state):
+        return fake_retrieved_passages
+
+    wf = LegalWorkflow(
+        llm_factory=lambda: fake_llm,
+        cite_resolver=fake_resolver,
+        retriever=fake_retriever,
+    )
+    result = await wf.invoke("q?")
+    assert (result.issue, result.rule, result.conclusion) == ("", "", "")
+
+
+# ---------------------------------------------------------------------------
+# Streaming the analyze pass (BL-20260905-11)
+# ---------------------------------------------------------------------------
+
+
+class _StreamingLLM:
+    """A chain double that can stream, like ChatProviderChain."""
+
+    def __init__(self, responses: list[str]) -> None:
+        self._responses = list(responses)
+        self.streamed: list[str] = []
+        self.buffered: list[str] = []
+
+    async def ainvoke(self, prompt: str) -> _FakeMessage:
+        self.buffered.append(prompt)
+        return _FakeMessage(self._responses.pop(0))
+
+    async def astream(self, prompt: str):
+        self.streamed.append(prompt)
+        text = self._responses.pop(0)
+        for i in range(0, len(text), 8):
+            yield _FakeMessage(text[i : i + 8])
+
+
+@pytest.mark.asyncio
+async def test_analyze_streams_deltas_to_the_sink(
+    fake_retrieved_passages: list[dict],
+) -> None:
+    """With a sink the answer arrives as it is written, not after."""
+    answer = '{"answer": "Marbury established judicial review.", "citations": [], "confidence": 0.6}'
+    llm = _StreamingLLM(['{"queries": ["q"], "rationale": "ok"}', answer])
+    seen: list[str] = []
+
+    async def sink(text: str) -> None:
+        seen.append(text)
+
+    async def fake_resolver(citations: list[str]) -> dict[str, str | None]:
+        return {}
+
+    async def fake_retriever(state):
+        return fake_retrieved_passages
+
+    wf = LegalWorkflow(
+        llm_factory=lambda: llm,
+        cite_resolver=fake_resolver,
+        retriever=fake_retriever,
+        on_delta=sink,
+    )
+    result = await wf.invoke("q?")
+
+    assert "judicial review" in result.answer
+    assert len(seen) > 1  # streamed, not one buffered blob
+    assert "".join(seen) == answer
+    # Only the long pass streams; query drafting stays buffered.
+    assert len(llm.streamed) == 1
+    assert len(llm.buffered) == 1
+
+
+@pytest.mark.asyncio
+async def test_without_a_sink_the_node_stays_buffered(
+    fake_retrieved_passages: list[dict],
+) -> None:
+    llm = _StreamingLLM(
+        [
+            '{"queries": ["q"], "rationale": "ok"}',
+            '{"answer": "a", "citations": [], "confidence": 0.5}',
+        ]
+    )
+
+    async def fake_resolver(citations: list[str]) -> dict[str, str | None]:
+        return {}
+
+    async def fake_retriever(state):
+        return fake_retrieved_passages
+
+    wf = LegalWorkflow(
+        llm_factory=lambda: llm,
+        cite_resolver=fake_resolver,
+        retriever=fake_retriever,
+    )
+    result = await wf.invoke("q?")
+    assert result.answer == "a"
+    assert llm.streamed == []
+    assert len(llm.buffered) == 2

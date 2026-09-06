@@ -169,9 +169,11 @@ jobs:
         run: python3 scripts/legalbench_summary.py >> "$GITHUB_STEP_SUMMARY"
 
       # ------------------------------------------------------------------
-      # Browser end-to-end (spec 051 / BL-20260811-16). Nightly, not per-PR:
-      # a full-stack boot plus a browser image is minutes, and the cheap half
-      # of the boundary (the API contract gate) already runs in `make test`.
+      # Browser end-to-end (spec 051 / BL-20260811-16). The full suite is
+      # nightly, not per-PR: a full-stack boot plus a browser image is minutes,
+      # and the cheap half of the boundary (the API contract gate) already runs
+      # in `make test`. The a11y spec is the exception — ci.yml's `a11y` job
+      # runs it on every PR touching frontend/ (BL-20260831-09).
       # `backend-e2e` is pinned to an unreachable Ollama, so no model is
       # called and nothing is billed. See docs/e2e-testing.md.
       # ------------------------------------------------------------------
@@ -179,15 +181,44 @@ jobs:
         if: ${{ !inputs.dry_run }}
         run: make test-e2e
 
+      # BL-20260430-11: the auth spec's whole point is that the stack runs
+      # BOTH ways, and its gated half is `test.skip`ped whenever
+      # E2E_AGENT_API_KEY is empty — which the bare run above always leaves it.
+      # So a second, targeted leg re-boots the sidecar WITH a key and runs only
+      # api-auth.spec.ts. The key is a throwaway for this run: it gates the
+      # e2e sidecar and nothing else, so it is generated here rather than
+      # stored as a secret. Without this step nothing in CI would notice the
+      # backend gate or the proxy's server-side key injection regressing.
+      - name: Run browser end-to-end suite (API key gated)
+        if: ${{ !inputs.dry_run }}
+        run: |
+          make test-e2e \
+            E2E_AGENT_API_KEY="nightly-gate-${GITHUB_RUN_ID}" \
+            E2E_ARGS='e2e/api-auth.spec.ts'
+
+      # ------------------------------------------------------------------
+      # Viewport measurements for the static LSAT site (BL-20260901-03). The
+      # header heights, 44px targets, nav strip and sticky passage column are
+      # layout facts; the jsdom suite in ci.yml has no layout engine, so this
+      # builds `out/` and measures it in the pinned browser image. Nightly for
+      # the same reason as the suite above: it is a build plus a browser.
+      # ------------------------------------------------------------------
+      - name: Run LSAT static-site viewport suite
+        if: ${{ !inputs.dry_run }}
+        run: make lsat-static-e2e
+
       # ------------------------------------------------------------------
       # Live-network drift smoke (BL-20260511-07). One real Justia fetch per
       # run, re-parsed, so upstream HTML drift surfaces here instead of as a
-      # silently empty corpus. continue-on-error on purpose: an upstream
-      # outage is a warning, never a red nightly. Never add this to ci.yml.
+      # silently empty corpus. NOT continue-on-error: the test itself now
+      # separates the two outcomes — a blocked or unreachable upstream (today's
+      # normal: law.justia.com answers every plain client with a Cloudflare
+      # 403) *skips*, while a fetch that succeeds and then parses to zero or
+      # malformed sections fails. Only the second reddens the nightly, which is
+      # the whole point of the step. Never add this to ci.yml.
       # ------------------------------------------------------------------
       - name: Run live-network drift smoke (Justia CRS)
         if: ${{ !inputs.dry_run }}
-        continue-on-error: true
         run: make test-live-network
 
       - name: Upload Playwright report
@@ -198,6 +229,7 @@ jobs:
           path: |
             frontend/playwright-report/
             frontend/test-results/
+            lsat-static/test-results/
           retention-days: 14
 
       # ------------------------------------------------------------------
@@ -209,41 +241,82 @@ jobs:
           python3 scripts/backlog_lint.py
 
       # ------------------------------------------------------------------
-      # Stale-backlog triage issue (BL-20260503-14). The item asked for a
-      # Celery beat job; that home is not viable — the production backend
-      # image only COPYs backend/, so scripts/, specs/ and BACKLOG.md exist
-      # in the worker container solely through the dev-only ./:/repo bind
-      # mount, and the worker holds no GitHub credential. A workflow step
-      # here has both the repo and a token.
+      # Governance triage issue (BL-20260503-14) — the hosted half.
       #
-      # --stale-report never exits non-zero, so this can only ever open an
-      # issue, never redden the run. The issue is idempotent: one open
-      # `backlog: stale open items` issue at a time, commented on rather
-      # than duplicated.
+      # The item asked for a Celery beat job, and there is one:
+      # `governance-triage` in backend/law_ai/celery.py runs BOTH validators
+      # through law_ai.core.governance and files the same issue when
+      # GOVERNANCE_TRIAGE_GITHUB_* are configured. This step is the copy that
+      # runs where a token already exists, for deployments that run no worker
+      # at all (and for this repo, which does not). Both write the same title
+      # under the same label and comment rather than duplicate, so running
+      # both is idempotent rather than noisy.
+      #
+      # Overlap with BL-20260429-09, recorded rather than left implicit: the
+      # monthly LLM line (.github/workflows/factory--backlog-triage.yml) reads
+      # the backlog and *proposes new work* — it is generative and costs a
+      # model call. This weekly step is mechanical: it runs the two stdlib
+      # validators and reports what they said. They are not duplicates; see
+      # docs/ao-sdlc.md § "Two backlog triage lines".
+      #
+      # Neither script can redden the run: --stale-report always exits 0, and
+      # the spec validator's exit code is captured rather than propagated
+      # (the gate step above is what fails a bad spec). The gh calls are
+      # explicitly tolerated too — GitHub being briefly unavailable must not
+      # fail a nightly whose tests all passed.
       # ------------------------------------------------------------------
-      - name: Open a triage issue for stale backlog items
+      - name: Open a governance triage issue when a validator has something to say
         if: ${{ github.event_name == 'schedule' && !cancelled() }}
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TITLE: "backlog: stale open items need triage"
         run: |
+          set +e
           python3 scripts/backlog_lint.py --stale-report --stale-days 60 \
-            | tee stale.md
-          if grep -q '^No ## Open items older than' stale.md; then
-            echo "Backlog is triaged; no issue needed."
+            > stale.md
+          python3 scripts/spec_validator.py > specs.md 2>&1
+          spec_status=$?
+          set -e
+
+          stale=1
+          grep -q '^No ## Open items older than' stale.md && stale=0
+
+          if [ "$stale" -eq 0 ] && [ "$spec_status" -eq 0 ]; then
+            echo "Backlog is triaged and specs are consistent; no issue needed."
             exit 0
           fi
+
+          {
+            cat stale.md
+            echo
+            echo "## Spec consistency (scripts/spec_validator.py)"
+            echo
+            if [ "$spec_status" -eq 0 ]; then
+              echo "Clean."
+            else
+              echo '```'
+              cat specs.md
+              echo '```'
+            fi
+          } > triage.md
+
+          # Deliberately NOT `gh issue list --search`: the title contains a
+          # colon, which GitHub search reads as a qualifier, so the lookup
+          # misses and every run opens another issue. Filter by label and
+          # match the title locally instead.
           existing=$(gh issue list --state open --label backlog-triage \
-            --search "$TITLE in:title" --json number --jq '.[0].number // empty')
+            --json number,title \
+            --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty") || existing=""
           if [ -n "$existing" ]; then
             echo "Updating existing issue #$existing"
-            gh issue comment "$existing" --body-file stale.md
+            gh issue comment "$existing" --body-file triage.md || true
           else
             gh label create backlog-triage \
-              --description "Stale BACKLOG.md items flagged by the nightly run" \
+              --description "Spec/backlog drift flagged by the nightly run" \
               --color ededed 2>/dev/null || true
             gh issue create --title "$TITLE" --label backlog-triage \
-              --body-file stale.md
+              --body-file triage.md || true
           fi
 
       # ------------------------------------------------------------------

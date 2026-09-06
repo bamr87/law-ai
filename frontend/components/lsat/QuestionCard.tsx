@@ -91,6 +91,10 @@ export default function QuestionCard({
   const [result, setResult] = useState<LsatGradeResponse | null>(
     saved?.result ?? null,
   )
+  // Choices the learner has crossed out on this attempt (BL-20260429-18).
+  // Local to the attempt on purpose: it is reasoning in progress, not a graded
+  // answer, so it resets with the question and is never persisted.
+  const [eliminated, setEliminated] = useState<LsatChoiceLabel[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showTutor, setShowTutor] = useState(false)
@@ -131,6 +135,7 @@ export default function QuestionCard({
   useEffect(() => {
     const s = savedRef.current
     setSelected(s?.choice ?? null)
+    setEliminated([])
     setResult(s?.result ?? null)
     setShowTutor(false)
     setWalkthrough(false)
@@ -148,10 +153,38 @@ export default function QuestionCard({
    * downstream keys off its identity.
    */
   const attemptTrace = (): LsatTutorTrace => ({
+    ...(eliminated.length > 0 ? { eliminated } : {}),
     hints_used: hintsUsedRef.current,
     seconds_on_question: Math.round(elapsedRef.current),
     ...(saved?.choice ? { prior_choices: [saved.choice] } : {}),
   })
+
+  /**
+   * Rule a choice in or out (BL-20260429-18).
+   *
+   * Elimination is how the section is actually solved, and until this existed
+   * the tutor only ever heard timing and hint counts — metadata about an
+   * attempt, not the reasoning inside it. Crossing a choice out here is what
+   * puts "you ruled out the key" in reach of the coaching.
+   */
+  const toggleEliminated = (label: LsatChoiceLabel) => {
+    if (result || submitting) return
+    setEliminated((prev) =>
+      prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label],
+    )
+  }
+
+  /** The choice `X` acts on: the one with focus, else the selected one. */
+  const focusedLabel = (): LsatChoiceLabel | null => {
+    const radio =
+      typeof document !== 'undefined'
+        ? (document.activeElement as HTMLElement | null)?.closest?.(
+            '[role="radio"]',
+          )
+        : null
+    const label = radio?.getAttribute('data-choice') ?? selected
+    return (label as LsatChoiceLabel | null) ?? null
+  }
 
   const onHintsUsedChange = useCallback((n: number) => {
     hintsUsedRef.current = n
@@ -168,7 +201,12 @@ export default function QuestionCard({
       // `question.remap` is the signed order this serve used, when the
       // choices were shuffled (BL-20260606-01); the grader needs it to read
       // the picked label back into the stored one.
-      const r = await gradeLsat(question.id, selected, hintsUsed, question.remap)
+      const r = await gradeLsat(
+        question.id,
+        selected,
+        hintsUsed,
+        question.remap,
+      )
       setResult(r)
       onResolved(r, elapsed, hintsUsed, selected)
     } catch (e) {
@@ -210,6 +248,13 @@ export default function QuestionCard({
   // before that too, so a hard question can be skipped and come back to. A
   // dealt stream (LR) must not: the question it would deal is not the one that
   // was skipped, so there is no coming back.
+  // `X` crosses out the focused choice — the keyboard half of the elimination
+  // control below, so a drill run entirely from the keyboard can still tell
+  // the tutor what it ruled out (BL-20260429-18).
+  keymap.x = () => {
+    const label = focusedLabel()
+    if (label) toggleEliminated(label)
+  }
   if (onNext && (result !== null || browsable)) keymap.n = () => onNext()
   // `P` steps back whenever there is anything to step back to, graded or not.
   if (onPrev) keymap.p = () => onPrev()
@@ -229,7 +274,9 @@ export default function QuestionCard({
     // them mouse-only. The choices are buttons too, and they are the one kind
     // this card does own.
     const button = (e.target as HTMLElement).closest?.('button')
-    const onOtherControl = Boolean(button && button.getAttribute('role') !== 'radio')
+    const onOtherControl = Boolean(
+      button && button.getAttribute('role') !== 'radio',
+    )
     if (result) {
       // Graded: the only move left is forward, and it was two Tab stops away
       // past the hint carousel — far enough that a timed drill reached for the
@@ -331,8 +378,10 @@ export default function QuestionCard({
             cls +=
               'border-slate-800 bg-slate-950/40 text-slate-200 hover:border-slate-600 hover:bg-slate-900/60'
           }
+          const isEliminated = eliminated.includes(c.label)
+          if (isEliminated && !showResult) cls += ' line-through opacity-50'
           return (
-            <li key={c.label}>
+            <li key={c.label} className="flex items-start gap-2">
               <button
                 type="button"
                 {...choiceRoving.itemProps(i)}
@@ -353,9 +402,9 @@ export default function QuestionCard({
                 className={cls}
               >
                 {/* The letter stays in the accessible name on purpose. The
-                  * static site hides it, but in a drill the letter *is* the
-                  * answer's identity — it is what a student records and what
-                  * the tutor refers back to. "Alpha" alone loses that. */}
+                 * static site hides it, but in a drill the letter *is* the
+                 * answer's identity — it is what a student records and what
+                 * the tutor refers back to. "Alpha" alone loses that. */}
                 <span
                   className={
                     'mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ' +
@@ -368,10 +417,39 @@ export default function QuestionCard({
                 </span>
                 <span>{c.text}</span>
               </button>
+              {!showResult && (
+                <button
+                  type="button"
+                  onClick={() => toggleEliminated(c.label)}
+                  aria-pressed={isEliminated}
+                  aria-label={
+                    (isEliminated ? 'Restore choice ' : 'Rule out choice ') +
+                    c.label
+                  }
+                  title={`Rule out ${c.label} (X)`}
+                  className={
+                    'mt-1 shrink-0 rounded-md border px-2 py-1 text-xs transition focus-ring ' +
+                    (isEliminated
+                      ? 'border-amber-500/50 bg-amber-500/10 text-amber-200'
+                      : 'border-slate-800 text-slate-500 hover:border-slate-600 hover:text-slate-300')
+                  }
+                >
+                  ✗
+                </button>
+              )}
             </li>
           )
         })}
       </ul>
+      {!result && (
+        <p className="mt-2 text-[11px] text-slate-500">
+          Cross out a choice with{' '}
+          <kbd className="rounded border border-slate-700 bg-slate-800/60 px-1 font-mono text-slate-300">
+            X
+          </kbd>{' '}
+          or ✗ — the tutor coaches against what you ruled out.
+        </p>
+      )}
 
       {result && onNext && (
         <p className="mt-2 text-[11px] text-slate-500">

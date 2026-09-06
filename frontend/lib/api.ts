@@ -78,6 +78,12 @@ export interface IRACOutput {
     url?: string
     /** False when the citation could not be resolved against the graph. */
     verified?: boolean
+    /**
+     * Constitution §13 issuing authority for this source — court,
+     * jurisdiction, decision date, binding/persuasive — read off the graph
+     * node, never from model prose (BL-20260803-04).
+     */
+    attribution?: Attribution
     resolved_case_id?: string | null
     [k: string]: unknown
   }[]
@@ -147,6 +153,12 @@ export interface PrecedentList {
    * could not answer (constitution §13). Empty when the backend had none.
    */
   coverage_note?: string
+  /**
+   * True when at least one retrieved precedent ships without a complete
+   * issuing authority, so the set needs a human before it is relied on
+   * (constitution §13, BL-20260803-04).
+   */
+  requires_review?: boolean
   trace_id?: string | null
 }
 
@@ -189,6 +201,14 @@ export interface AnalysisRequest {
    * events fire before anyone is listening. See lib/agentStream.ts.
    */
   stream_id?: string
+  /**
+   * Matter this research round belongs to (BL-20260817-05). The server
+   * promotes the authorities that matter has already had *verified*, so a
+   * later round ranks known-good citations first, and reports the bias back
+   * in `irac.retrieval.boosted_count` / `boost_source`. Requires a signed-in
+   * caller who owns the matter — anything else is a 404.
+   */
+  matter_id?: number | null
 }
 
 export async function runAnalysis(
@@ -231,7 +251,9 @@ export async function fetchAnalysis(
   if (res.status === 404) return null
   if (!res.ok) {
     const detail = await res.text().catch(() => '')
-    throw new Error(`Analysis lookup failed (${res.status}): ${detail.slice(0, 200)}`)
+    throw new Error(
+      `Analysis lookup failed (${res.status}): ${detail.slice(0, 200)}`,
+    )
   }
   return (await res.json()) as PersistedAnalysis
 }
@@ -312,7 +334,9 @@ export async function fetchSharedAnalysis(
   if (res.status === 404) return null
   if (!res.ok) {
     const detail = await res.text().catch(() => '')
-    throw new Error(`Shared lookup failed (${res.status}): ${detail.slice(0, 200)}`)
+    throw new Error(
+      `Shared lookup failed (${res.status}): ${detail.slice(0, 200)}`,
+    )
   }
   return (await res.json()) as SharedAnalysis
 }
@@ -385,7 +409,10 @@ export interface MatterStudyPlan {
   covered_tags: string[]
 }
 
-async function matterFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function matterFetch<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
   const res = await apiFetch(path, {
     ...init,
     credentials: 'include',
@@ -663,7 +690,12 @@ export interface LLMProviderStatus {
 export interface LocalAIHealth {
   ollama: { reachable: boolean; models: string[]; error?: string }
   checkpointer: { kind: string; reachable: boolean; error?: string }
-  phoenix: { reachable: boolean; ui_url: string; enabled: boolean; error?: string }
+  phoenix: {
+    reachable: boolean
+    ui_url: string
+    enabled: boolean
+    error?: string
+  }
   /** Ordered provider chain; the first configured + reachable tier serves. */
   llm_chain?: LLMProviderStatus[]
 }
@@ -686,9 +718,11 @@ export interface AgentMetric {
 }
 
 export function fetchAgentMetrics(limit = 500) {
-  return getJson<{ agents: AgentMetric[]; window_size: number; errors_total: number }>(
-    `/api/agents/metrics?limit=${limit}`,
-  )
+  return getJson<{
+    agents: AgentMetric[]
+    window_size: number
+    errors_total: number
+  }>(`/api/agents/metrics?limit=${limit}`)
 }
 
 export function fetchRunDetail(traceId: string) {
@@ -953,6 +987,13 @@ export interface LsatTutorResponse {
   trace_id?: string | null
   /** Deep link to that trace in Phoenix, when a collector is configured. */
   phoenix_trace_url?: string | null
+  /**
+   * Always null here (BL-20260503-06): the tutor calls the provider chain
+   * directly and runs no LangGraph graph, so there is no checkpointed thread
+   * to resume. Present so this response mirrors `AnalysisResponse` field for
+   * field — the same trace strip renders against either.
+   */
+  langgraph_thread_id?: string | null
 }
 
 // --- LSAT cross-check + validation (spec 045 FR-14/FR-15) ---
@@ -1132,9 +1173,16 @@ export function fetchLsatPassages(section?: LsatSection) {
   )
 }
 
-export function fetchLsatPassage(id: string) {
+/**
+ * One passage plus its questions. `shuffle` asks the server to permute each
+ * question's choices and mint a `remap` token (BL-20260606-01) — RC and LG are
+ * served from here, so without it the key sat in the same position on every
+ * attempt for the majority of the bank.
+ */
+export function fetchLsatPassage(id: string, opts?: { shuffle?: boolean }) {
+  const suffix = opts?.shuffle ? '?shuffle=1' : ''
   return getJson<LsatPassageDetail>(
-    `/api/lsat/passages/${encodeURIComponent(id)}`,
+    `/api/lsat/passages/${encodeURIComponent(id)}${suffix}`,
   )
 }
 
@@ -1535,6 +1583,25 @@ export interface LsatGuideProposalDraft {
 }
 
 /**
+ * Writing-prompt draft in the proposal queue (BL-20260831-28). The factory can
+ * grow the writing section too, and a writing draft has no `choices`, so the
+ * queue must recognise it rather than fall through to the question card.
+ */
+export interface LsatWritingProposalDraft {
+  id?: string
+  title: string
+  rubric_id?: string
+  difficulty?: LsatDifficulty
+  issue: string
+  context: string
+  task: string
+  positions: { id: string; name: string; summary: string }[]
+  perspectives: { id: string; text: string }[]
+  concepts?: string[]
+  model_response?: { position_id: string; thesis: string; essay: string }
+}
+
+/**
  * Cross-check disagreement queued by the sweep (BL-20260831-21). A report,
  * not a draft: approving it records "the key is right after all" and writes
  * nothing to the bank; rejecting it means the question needs a human edit.
@@ -1556,10 +1623,11 @@ export interface LsatProposal {
   created_at: string
   updated_at: string
   /**
-   * "question" (default, legacy rows), "guide" (spec 045) or "crosscheck"
-   * (BL-20260831-21 — a blind-solve disagreement awaiting re-verification).
+   * "question" (default, legacy rows), "guide" (spec 045), "crosscheck"
+   * (BL-20260831-21 — a blind-solve disagreement awaiting re-verification) or
+   * "writing_prompt" (BL-20260831-28 — a factory-drafted WS task).
    */
-  proposal_kind?: 'question' | 'guide' | 'crosscheck'
+  proposal_kind?: 'question' | 'guide' | 'crosscheck' | 'writing_prompt'
   section: LsatSection | null
   difficulty: LsatDifficulty | null
   agent_trace_id: string
@@ -1570,6 +1638,7 @@ export interface LsatProposal {
     | LsatProposalDraft
     | LsatGuideProposalDraft
     | LsatCrossCheckProposalDraft
+    | LsatWritingProposalDraft
   reviewer?: string | null
   note?: string | null
   question_id?: string | null
@@ -1764,7 +1833,6 @@ export function fetchLsatGaps(limit = 10) {
     `/api/lsat/gaps?${qs.toString()}`,
   )
 }
-
 
 // --- LSAT knowledge library (spec 048) ---
 
@@ -2248,7 +2316,11 @@ async function decideReview(
   const res = await apiFetch(`/api/ingestion/reviews/${verb}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, reviewer: body.reviewer ?? '', note: body.note ?? '' }),
+    body: JSON.stringify({
+      id,
+      reviewer: body.reviewer ?? '',
+      note: body.note ?? '',
+    }),
   })
   if (!res.ok) throw new Error(`Review ${verb} failed (${res.status})`)
   return (await res.json()) as ReviewDecision

@@ -183,3 +183,48 @@ class TestExportManifest:
     def test_export_requires_a_manifest(self, factory_env: FactoryConfig) -> None:
         with pytest.raises(CommandError):
             _run("export-manifest")
+
+
+class TestOllamaIntegrationModuleIsInert:
+    """The live-Ollama module must cost nothing when it is not opted into.
+
+    BL-20260702-05. Its reachability probe used to run at import and read
+    ``OLLAMA_BASE_URL``, which docker-compose sets on the backend service — so
+    an ordinary ``make test-backend`` (which deselects the module with
+    ``-m "not integration"``) still fired a real ``GET /api/tags`` and a real
+    ``POST /api/generate`` against the dev-stack Ollama, with a 180 s timeout,
+    before the test was ever deselected. Opting in is now one dedicated env
+    var, and the probe happens inside the test body.
+    """
+
+    def test_only_the_dedicated_env_var_opts_in(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from tests.lsat import test_factory_ollama_integration as mod
+
+        monkeypatch.delenv("OLLAMA_INTEGRATION_URL", raising=False)
+        monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama:11434")
+        assert mod._candidate_url() == ""
+
+        monkeypatch.setenv("OLLAMA_INTEGRATION_URL", "http://ollama:11434")
+        assert mod._candidate_url() == "http://ollama:11434"
+
+    def test_importing_the_module_makes_no_http_call(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Re-import it with every httpx entry point booby-trapped."""
+        import importlib
+
+        import httpx
+
+        def _boom(*args: Any, **kwargs: Any) -> Any:
+            raise AssertionError("the integration module talked to the network")
+
+        monkeypatch.setenv("OLLAMA_INTEGRATION_URL", "http://ollama:11434")
+        monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama:11434")
+        monkeypatch.setattr(httpx, "get", _boom)
+        monkeypatch.setattr(httpx, "post", _boom)
+
+        from tests.lsat import test_factory_ollama_integration as mod
+
+        importlib.reload(mod)

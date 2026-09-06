@@ -59,15 +59,21 @@ describe('AnalysisStudio', () => {
     render(<AnalysisStudio />)
     expect(screen.getByLabelText(/Fact pattern/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Run analysis/i })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /Load sample/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Load sample/i }),
+    ).toBeInTheDocument()
   })
 
   it('loads the sample text and enables the submit button', () => {
     render(<AnalysisStudio />)
     fireEvent.click(screen.getByRole('button', { name: /Load sample/i }))
-    const textarea = screen.getByLabelText(/Fact pattern/i) as HTMLTextAreaElement
+    const textarea = screen.getByLabelText(
+      /Fact pattern/i,
+    ) as HTMLTextAreaElement
     expect(textarea.value).toMatch(/wet floor/i)
-    expect(screen.getByRole('button', { name: /Run analysis/i })).not.toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: /Run analysis/i }),
+    ).not.toBeDisabled()
   })
 
   it('submits and renders IRAC + precedents + agent trace', async () => {
@@ -81,7 +87,9 @@ describe('AnalysisStudio', () => {
     fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /IRAC Brief/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole('heading', { name: /IRAC Brief/i }),
+      ).toBeInTheDocument(),
     )
     expect(
       screen.getByText(/Negligence on premises liability theory/i),
@@ -187,7 +195,9 @@ describe('AnalysisStudio safety surfaces', () => {
     fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /IRAC Brief/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole('heading', { name: /IRAC Brief/i }),
+      ).toBeInTheDocument(),
     )
     expect(screen.getByText(/Not legal advice/i)).toBeInTheDocument()
   })
@@ -204,9 +214,7 @@ describe('AnalysisStudio safety surfaces', () => {
     fireEvent.click(screen.getByRole('button', { name: /Load sample/i }))
     fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
 
-    await waitFor(() =>
-      expect(screen.getByRole('alert')).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
     const alert = screen.getByRole('alert')
     expect(alert).toHaveTextContent(/No analysis engine ran/i)
     expect(alert).not.toHaveTextContent(/below the 70% threshold/i)
@@ -215,7 +223,10 @@ describe('AnalysisStudio safety surfaces', () => {
   // BL-20260810-16: a degraded refusal must not be dressed up as a result.
   describe('engine state', () => {
     const runDegraded = async (irac: Record<string, unknown>) => {
-      const body = fullResponse({ requires_human_review: true, confidence: 0.0 })
+      const body = fullResponse({
+        requires_human_review: true,
+        confidence: 0.0,
+      })
       Object.assign(body.irac as Record<string, unknown>, {
         degraded: true,
         confidence: 0,
@@ -296,7 +307,9 @@ describe('AnalysisStudio safety surfaces', () => {
     fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
-    expect(screen.getByRole('alert')).toHaveTextContent(/below the 70% threshold/i)
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /below the 70% threshold/i,
+    )
   })
 
   it('renders the corpus coverage envelope when the backend supplies it', async () => {
@@ -318,7 +331,9 @@ describe('AnalysisStudio safety surfaces', () => {
     fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /Corpus coverage/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole('heading', { name: /Corpus coverage/i }),
+      ).toBeInTheDocument(),
     )
     // Scope to the coverage section: the standing disclaimer carries similar
     // "absence of results" wording, so a page-wide query matches twice.
@@ -349,7 +364,9 @@ describe('AnalysisStudio safety surfaces', () => {
     fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /Corpus coverage/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole('heading', { name: /Corpus coverage/i }),
+      ).toBeInTheDocument(),
     )
     const coverage = screen.getByRole('region', { name: /Corpus coverage/i })
     expect(coverage).toHaveTextContent(/Jurisdictions present/i)
@@ -382,7 +399,9 @@ describe('AnalysisStudio safety surfaces', () => {
 
     const callout = await screen.findByTestId('jurisdiction-absent')
     expect(callout).toHaveAttribute('role', 'status')
-    expect(callout).toHaveTextContent(/No results from the requested jurisdiction/i)
+    expect(callout).toHaveTextContent(
+      /No results from the requested jurisdiction/i,
+    )
     expect(callout).toHaveTextContent('US-CA')
     expect(callout).toHaveTextContent('US-NY')
     expect(callout).toHaveTextContent(/persuasive at best/i)
@@ -426,7 +445,11 @@ describe('AnalysisStudio citation verification', () => {
   it('labels unverified citations instead of hiding them', async () => {
     const body = fullResponse()
     ;(body.irac as Record<string, unknown>).sources = [
-      { title: 'Real v. Cite', url: 'https://example.test/real', verified: true },
+      {
+        title: 'Real v. Cite',
+        url: 'https://example.test/real',
+        verified: true,
+      },
       { title: 'Phantom v. Mirage', url: '', verified: false },
     ]
     server.use(
@@ -439,7 +462,9 @@ describe('AnalysisStudio citation verification', () => {
     fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /IRAC Brief/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole('heading', { name: /IRAC Brief/i }),
+      ).toBeInTheDocument(),
     )
     // Both citations are shown; the unresolved one is flagged, not dropped.
     expect(screen.getByText('Phantom v. Mirage')).toBeInTheDocument()
@@ -458,7 +483,9 @@ describe('AnalysisStudio citation verification', () => {
     fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /IRAC Brief/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole('heading', { name: /IRAC Brief/i }),
+      ).toBeInTheDocument(),
     )
     expect(screen.queryByText(/unverified/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/verified in graph/i)).not.toBeInTheDocument()
@@ -476,7 +503,9 @@ describe('AnalysisStudio citation verification', () => {
     fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /IRAC Brief/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole('heading', { name: /IRAC Brief/i }),
+      ).toBeInTheDocument(),
     )
     // No live panel rendered because no step events ever arrived.
     expect(
@@ -509,7 +538,9 @@ describe('AnalysisStudio thread resume', () => {
     expect(seen!.thread_id).toBe('lwf-abc123')
     // The response's thread id replaces it, so the next run continues it.
     await waitFor(() =>
-      expect(screen.getByLabelText(/Resume thread/i)).toHaveValue('lwf-server-1'),
+      expect(screen.getByLabelText(/Resume thread/i)).toHaveValue(
+        'lwf-server-1',
+      ),
     )
   })
 
@@ -545,5 +576,173 @@ describe('AnalysisStudio thread resume', () => {
     await waitFor(() =>
       expect(screen.getByText(/^resumed$/i)).toBeInTheDocument(),
     )
+  })
+})
+
+/**
+ * The trace id is what a reviewer pastes into the audit store, so the chip's
+ * eight-character elision must never be what leaves the page (BL-20260429-27).
+ */
+describe('AnalysisStudio trace id copy', () => {
+  const LONG_TRACE = 'trace-0123456789abcdef'
+
+  const renderWithTrace = async () => {
+    const body = fullResponse()
+    ;(body as Record<string, unknown>).agent_trace = [
+      {
+        agent: 'LegalAnalyst',
+        trace_id: LONG_TRACE,
+        latency_ms: 25,
+        confidence: 0.82,
+      },
+    ]
+    server.use(
+      http.post('http://localhost:8000/api/analysis', async () =>
+        HttpResponse.json(body),
+      ),
+    )
+    render(<AnalysisStudio />)
+    fireEvent.click(screen.getByRole('button', { name: /Load sample/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
+    await waitFor(() =>
+      expect(screen.getByTestId('trace-id')).toBeInTheDocument(),
+    )
+  }
+
+  const stubClipboard = (writeText: (text: string) => Promise<void>) => {
+    const original = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    })
+    return () => {
+      if (original) Object.defineProperty(navigator, 'clipboard', original)
+      else delete (navigator as { clipboard?: unknown }).clipboard
+    }
+  }
+
+  it('copies the whole id even though the chip elides it', async () => {
+    const written: string[] = []
+    const restore = stubClipboard(async (text) => {
+      written.push(text)
+    })
+    try {
+      await renderWithTrace()
+      // The chip shows only the first eight characters.
+      expect(screen.getByTestId('trace-id')).toHaveTextContent('trace-01…')
+      expect(screen.getByTestId('trace-id')).not.toHaveTextContent(LONG_TRACE)
+
+      const copy = screen.getByRole('button', {
+        name: `Copy trace id ${LONG_TRACE}`,
+      })
+      fireEvent.click(copy)
+
+      await waitFor(() => expect(copy).toHaveTextContent('Copied'))
+      expect(written).toEqual([LONG_TRACE])
+      // Screen-reader confirmation, not just a visual label swap.
+      expect(screen.getByRole('status')).toHaveTextContent(
+        /trace id copied to clipboard/i,
+      )
+    } finally {
+      restore()
+    }
+  })
+
+  it('does not claim success when the clipboard refuses', async () => {
+    const restore = stubClipboard(async () => {
+      throw new Error('clipboard blocked')
+    })
+    try {
+      await renderWithTrace()
+      const copy = screen.getByRole('button', {
+        name: `Copy trace id ${LONG_TRACE}`,
+      })
+      fireEvent.click(copy)
+
+      await waitFor(() => expect(copy).toHaveTextContent('Copy'))
+      expect(copy).not.toHaveTextContent('Copied')
+    } finally {
+      restore()
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Constitution §13 attribution on the page itself (BL-20260803-04)
+// ---------------------------------------------------------------------------
+
+describe('AnalysisStudio source attribution', () => {
+  async function renderResult(overrides: Record<string, unknown>) {
+    server.use(
+      http.post('http://localhost:8000/api/analysis', async () =>
+        HttpResponse.json(fullResponse(overrides)),
+      ),
+    )
+    render(<AnalysisStudio />)
+    fireEvent.click(screen.getByRole('button', { name: /Load sample/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: /IRAC Brief/i }),
+      ).toBeInTheDocument(),
+    )
+  }
+
+  it('names the court, the date and the binding/persuasive weight', async () => {
+    await renderResult({
+      irac: {
+        ...fullResponse().irac,
+        sources: [
+          {
+            title: 'Meyer v. Uber',
+            url: 'https://example.test/meyer',
+            verified: true,
+            attribution: {
+              court: 'us-ca-2',
+              jurisdiction: 'us-ca',
+              decided_at: '2017-08-17',
+              authority: 'binding',
+              opinion_part: 'majority',
+            },
+          },
+        ],
+      },
+    })
+    expect(
+      screen.getByText(/us-ca-2 · 2017-08-17 · binding/),
+    ).toBeInTheDocument()
+  })
+
+  it('says so when a source names no issuing authority', async () => {
+    await renderResult({
+      irac: {
+        ...fullResponse().irac,
+        sources: [
+          {
+            title: 'Ghost v. Nobody',
+            url: '',
+            verified: true,
+            attribution: {
+              court: null,
+              jurisdiction: null,
+              decided_at: null,
+              authority: 'unknown',
+              opinion_part: 'unknown',
+            },
+          },
+        ],
+      },
+    })
+    expect(screen.getByText('no issuing authority')).toBeInTheDocument()
+  })
+
+  it('explains an under-attributed precedent set in the review banner', async () => {
+    await renderResult({
+      requires_human_review: true,
+      precedents: { ...fullResponse().precedents, requires_review: true },
+    })
+    expect(
+      screen.getByText(/carries no issuing authority/i),
+    ).toBeInTheDocument()
   })
 })

@@ -366,6 +366,10 @@ services:
       - E2E_AGENT_API_KEY=${E2E_AGENT_API_KEY:-}
       - E2E_ADMIN_USERNAME=${E2E_ADMIN_USERNAME:-e2e-admin}
       - E2E_ADMIN_PASSWORD=${E2E_ADMIN_PASSWORD:-e2e-admin-pass}
+      # Re-record e2e/a11y-baseline.json instead of asserting against it. The
+      # spec documents this switch; without it here the variable never crossed
+      # into the container and the documented re-record was a no-op.
+      - E2E_A11Y_UPDATE_BASELINE=${E2E_A11Y_UPDATE_BASELINE:-}
       - CI=${CI:-}
     depends_on:
       frontend:

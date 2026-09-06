@@ -21,6 +21,8 @@ The audit trail records the **stored** label (`choice`) plus `shuffled: true`, s
 
 `GET /api/lsat/questions/<id>/guide?remap=<token>` applies the same rewrite to solve-guide steps: a hint that says "eliminate (B)" beside a shuffled board would contradict the screen.
 
+`GET /api/lsat/passages/<id>?shuffle=1` takes the same parameter and mints a token per attached question. That endpoint matters more than its one line suggests: every Reading Comprehension and Logic Games item carries a `passage_id` and is served from there rather than from `/api/lsat/questions`, so it is the majority of the bank. It shipped unshuffled at first, which left the named defect alive on exactly the surface that serves most items; both platform panels now ask for the shuffle (`LrPanel` on the question endpoint, `PassagePanel` on this one) and both echo `remap` back through `QuestionCard` at grade time.
+
 ## The static export: shuffle in the browser
 
 `lsat-static/` has no server — the bundle carries the key and grades client-side — so `lib/shuffle.ts` draws the permutation in the browser and nothing leaves it. That is the same trust model the export already had, applied to the same defect. The order is drawn once per question **per session**, so paging back through a section reviews the board you answered; a reload is a new attempt with a new order. What is written to `localStorage` is the stored label, so progress recorded today is still readable next week.

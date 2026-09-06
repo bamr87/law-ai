@@ -13,7 +13,7 @@ import {
   type GraphStats,
 } from '@/lib/api'
 import { showCitationCounts } from '@/lib/settings/catalog'
-import { useUrlState } from '@/lib/shell/viewState'
+import { useUrlState, useUrlWrite } from '@/lib/shell/viewState'
 import { useSetting } from './shell/useSetting'
 import { useEffect, useMemo, useState } from 'react'
 import GraphViewer from './GraphViewer'
@@ -94,6 +94,13 @@ export default function KnowledgeGraph() {
   // shared link must beat the auto-select — capturing it here keeps that
   // decision out of the effect's dependencies.
   const [linkedCaseId] = useState(selectedId)
+  // The auto-select is not a navigation: nobody chose the first case, so it
+  // must not become a history entry (BL-20260831-02). Pushing it made Back
+  // *inside* the screen land on `/graph` with nothing selected and nothing to
+  // re-select it — a dead end you had to press Back twice to leave. Replacing
+  // keeps `/graph` and `/graph?case=<first>` as one entry, so Back still
+  // steps out of cases you actually clicked, then out of the screen.
+  const replaceView = useUrlWrite('replace')
 
   // Initial stats + cases load
   useEffect(() => {
@@ -112,7 +119,7 @@ export default function KnowledgeGraph() {
         // Auto-select the first case only when the URL did not name one —
         // a shared link must land on the case it names.
         if (!linkedCaseId && c.cases.length > 0) {
-          setSelectedId(c.cases[0].id)
+          replaceView({ case: c.cases[0].id })
         }
       } catch (err) {
         if (!cancelled) {

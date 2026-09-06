@@ -107,11 +107,12 @@ A schema used to hard-code one premise arrangement, so every item from it shared
 | Schema | What the seed draws |
 | ------ | ------------------- |
 | `lr-conditional-chain-*` | chain length 2–4, trigger position on any chain atom that leaves something to infer, one or two side conditionals hung in the unresolved direction |
+| `lr-conditional-cannot-be-true` | chain length 2–4, the denial on any chain atom that leaves something to rule out, one or two side conditionals pointed out of the chain so models survive |
 | `lr-quantifier-*` | one of four premise pairs — order, the weaker quantifier (`some` vs `most`), or a third `not every` premise |
 | `lg-sequencing-*` | two to four rules from a menu (before / immediately before / adjacent / at / not at), re-drawn until 2–30 arrangements survive (five or more for must-be-true, so four distinct truth patterns exist) |
 | `lg-grouping-acceptability` | two to four rules from a menu (same / different / placed in / not placed in), re-drawn until more than one split survives |
 
-Every draw goes through the same `select_distractors` proof, so a draw the checker cannot certify — one that pins every atom, contradicts itself, or entails nothing from the pool — is discarded and the next is tried. `MAX_ARRANGEMENT_DRAWS` caps the loop so a bad menu fails loudly instead of hanging a sweep. The assumption and structural schemas keep a fixed skeleton on purpose: their credited answer is defined by the gap, not the shape.
+Every draw goes through the same `select_distractors` proof, so a draw the checker cannot certify — one that pins every atom, contradicts itself, or entails nothing from the pool — is discarded and the next is tried. `MAX_ARRANGEMENT_DRAWS` caps the loop so a bad menu fails loudly instead of hanging a sweep. Five schemas keep a fixed skeleton on purpose — the assumption pair (`lr-sufficient-assumption`, `lr-necessary-assumption`) and the three structural ones (`lr-causal-weaken`, `lr-causal-strengthen`, `lr-percent-vs-number`) — because their credited answer is defined by the gap in the argument or by the causal/statistical fallacy on display, not by the shape of the premises; varying the shape would vary nothing a solver reasons about. That list is exhaustive and pinned by `test_fixed_schemas_report_an_empty_arrangement`, so a schema that quietly stops drawing fails the suite rather than joining an unstated exception.
 
 Two consequences worth knowing:
 
@@ -196,14 +197,45 @@ make lsat-synth-polish-yield ARGS='--rounds 2 --count 6'
 
 That verb calls the provider chain by design — it is the measurement — and writes `backend/var/lsat_synth/polish_yield.json` alongside a stdout table: per domain, per provider tier, and overall. It also re-renders one item over each domain's accepted vocabulary, because a survivor that will not verify is not a survivor. `--strict` exits non-zero when the overall rate falls below `POLISH_YIELD_FLOOR` (0.5): below that the prompt is producing more rejects than vocabulary and needs re-authoring, not a bigger `--count`.
 
-The same floor is asserted by `backend/tests/lsat/test_synth_polish_live.py`, which is marked `integration` and skipped unless `LSAT_SYNTH_LIVE_POLISH=1` — the chain's first two tiers are paid and the test settings blank LLM credentials, so a live measurement is always a deliberate act:
+The same floor is asserted by `backend/tests/lsat/test_synth_polish_live.py`, which is marked `integration` and skipped unless `LSAT_SYNTH_LIVE_POLISH=1` — the chain's first two tiers are paid and the test settings blank LLM credentials, so a live measurement is always a deliberate act.
+
+The free tier needs one flag more than the obvious one. `settings/test.py` pins `OLLAMA_BASE_URL` at a closed port for the whole suite, so `LLM_PROVIDER_CHAIN=ollama` on its own leaves every round `unavailable`; `OLLAMA_INTEGRATION_URL` is the explicit way back, and `OLLAMA_INTEGRATION_MODEL` picks a smaller model on a box that cannot hold the 7B default:
 
 ```bash
-LSAT_SYNTH_LIVE_POLISH=1 docker compose run --rm backend \
-    pytest tests/lsat/test_synth_polish_live.py -m integration -q --no-cov
+docker compose run --rm --no-deps \
+    -e LSAT_SYNTH_LIVE_POLISH=1 -e LLM_PROVIDER_CHAIN=ollama \
+    -e OLLAMA_INTEGRATION_URL=http://ollama:11434 \
+    -e OLLAMA_INTEGRATION_MODEL=qwen2.5:3b-instruct-q4_K_M \
+    backend pytest tests/lsat/test_synth_polish_live.py -m integration -q --no-cov
 ```
 
+One unavailable round no longer abandons the run: the local tier is the slow one as well as the free one, so rounds that never reach the lint are counted and reported, and the test stands aside only when nothing answered at all.
+
 Yield is only comparable within a tier: the same prompt yields differently on a frontier model and on a local one, which is why both the report and the failure message name the model that answered.
+
+#### The first measurement (2026-09-06)
+
+The floor was 0.5 by assertion until it was measured. It has now been run against the free local tier, and the observed result is committed at [backend/var/lsat_synth/polish_yield.json](../backend/var/lsat_synth/polish_yield.json):
+
+| | |
+| --- | --- |
+| Command | `lsat_synth polish-yield --rounds 2 --count 6` |
+| Chain | `LLM_PROVIDER_CHAIN=ollama` |
+| Tier that answered | `ollama/qwen2.5:3b-instruct-q4_K_M` |
+| Overall yield | **30 / 30 = 1.00** (floor 0.50) |
+| Per domain | `commercial-logistics` 12/12, `municipal-policy` 12/12, `field-biology` 6/6, `academic-publishing` 0/0 |
+| Rejects at the lint | `unparseable` ×1 (one round returned prose, not a JSON object) |
+| Rounds that never reached the lint | 3 of 8 — `unavailable` ×2 (the transport timed out on a CPU-only box), `unparseable` ×1 |
+| Survivors re-verify | yes, in all three domains that produced any |
+
+Two things that number says, and one it does not:
+
+- **Every predicate that arrived as JSON survived the lint.** The prompt's constraints (id shape, length band, forbidden logical words) are not what loses proposals — so a low yield in future is a signal about the *reply format*, not about the vocabulary rules.
+- **The real loss is at the transport, not the lint.** Three rounds in eight never produced a countable proposal at all: two timed out and one came back as prose. `PolishYield.error` records those separately from `rejected` precisely so a yield of 1.00 cannot hide them, and `--strict` still fails when nothing is proposed.
+- **It does not calibrate the hosted tiers.** The model here is a 3B run locally because the box could not hold the default 7B; a frontier tier will have a different reply-format failure rate. The 0.50 floor is now known to be clearable rather than merely hoped for, and the run above is the reference point to compare a hosted measurement against.
+
+The opt-in test was run against the same tier on the same day and **passed** (`1 passed`, not `1 skipped`) using the command above — the first time it has executed anywhere. It had been unrunnable rather than merely unrun: the recipe it documented pinned the chain to Ollama but not the base URL, and the suite's closed-port pin made every round `unavailable`.
+
 
 ## Guardrails
 

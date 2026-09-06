@@ -14,15 +14,17 @@
  * and this drill now pages the way `lsat-static/components/Drill.tsx` does.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   fetchLsatPassage,
   fetchLsatPassages,
+  fetchLsatQuestions,
   type LsatPassage,
   type LsatQuestion,
 } from '@/lib/api'
 import {
+  ConceptChip,
   ErrorBanner,
   SkeletonGrid,
   SkeletonQuestion,
@@ -34,9 +36,23 @@ import { setRemainingQuestions } from '@/lib/lsat/timerStore'
 export default function PassagePanel({
   section,
   onAttempt,
+  concept,
+  onClearConcept,
 }: {
   section: 'RC' | 'LG'
   onAttempt: AttemptHandler
+  /**
+   * Drill only the questions tagged with this concept (BL-20260905-01).
+   *
+   * Two thirds of the concepts the bank actually tags are RC- or LG-only, so a
+   * `?concept=` entry point that only LR understood sent the library's "drill
+   * this (21 questions)" link to a panel that answered "no questions are
+   * tagged that" — worse than no link at all. The passage list narrows to the
+   * sets that carry the tag and each set's stack narrows to the tagged
+   * questions, so the tag → material → practice path completes here too.
+   */
+  concept?: string
+  onClearConcept?: () => void
 }) {
   const [passages, setPassages] = useState<LsatPassage[] | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -63,6 +79,44 @@ export default function PassagePanel({
   // steal focus out of the passage select they are still tabbing through.
   const [moves, setMoves] = useState(0)
 
+  // Which sets carry the concept, when one is being drilled. `null` means "not
+  // known yet" — the passage list stays unresolved rather than flashing the
+  // whole section and then narrowing, which would fetch a set the learner
+  // never asked for.
+  const [taggedPassageIds, setTaggedPassageIds] =
+    useState<ReadonlySet<string> | null>(null)
+
+  useEffect(() => {
+    if (!concept) {
+      setTaggedPassageIds(null)
+      return
+    }
+    let live = true
+    void (async () => {
+      try {
+        // `section` + `concept` together: the bank endpoint already answers
+        // this, so no passage has to be opened to find out whether it carries
+        // the tag.
+        const body = await fetchLsatQuestions({ section, concept, limit: 25 })
+        if (!live) return
+        setTaggedPassageIds(
+          new Set(
+            body.questions
+              .map((q) => q.passage_id)
+              .filter((id): id is string => Boolean(id)),
+          ),
+        )
+      } catch (e) {
+        if (!live) return
+        setError(e instanceof Error ? e.message : 'Failed to load the concept')
+        setTaggedPassageIds(new Set())
+      }
+    })()
+    return () => {
+      live = false
+    }
+  }, [concept, section])
+
   useEffect(() => {
     void (async () => {
       setLoadingPassages(true)
@@ -70,17 +124,32 @@ export default function PassagePanel({
       try {
         const body = await fetchLsatPassages(section)
         setPassages(body.passages)
-        if (body.passages.length > 0 && !activeId) {
-          setActiveId(body.passages[0].id)
-        }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load passages')
       } finally {
         setLoadingPassages(false)
       }
     })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section])
+
+  // The sets on offer: every one in the section, or only those carrying the
+  // concept. `null` while either half is still unknown, so the select and the
+  // auto-open below wait for the real list instead of acting on a stale one.
+  const shownPassages = useMemo(() => {
+    if (passages === null) return null
+    if (!concept) return passages
+    if (taggedPassageIds === null) return null
+    return passages.filter((p) => taggedPassageIds.has(p.id))
+  }, [passages, concept, taggedPassageIds])
+
+  // Open the first set on offer, and re-open when the concept filter takes the
+  // current one away — a select showing a passage that is no longer in its own
+  // option list is how the LR-only version of this deep link went wrong.
+  useEffect(() => {
+    if (!shownPassages || shownPassages.length === 0) return
+    if (activeId && shownPassages.some((p) => p.id === activeId)) return
+    setActiveId(shownPassages[0].id)
+  }, [shownPassages, activeId])
 
   useEffect(() => {
     if (!activeId) return
@@ -90,7 +159,10 @@ export default function PassagePanel({
       setMoves(0)
       setAnswers(new Map())
       try {
-        const body = await fetchLsatPassage(activeId)
+        // Per-attempt shuffling (BL-20260606-01): RC and LG come through
+        // this endpoint, so the request has to ask for it the way LrPanel
+        // does — the card already echoes `question.remap` at grade time.
+        const body = await fetchLsatPassage(activeId, { shuffle: true })
         setActivePassage(body.passage)
         setQuestions(body.questions)
       } catch (e) {
@@ -101,14 +173,23 @@ export default function PassagePanel({
     })()
   }, [activeId])
 
+  // The stack actually being drilled: the set's questions, or only those
+  // carrying the concept from the URL. Everything downstream — the strip, the
+  // "question N of M" announcement, N/P, the pace on the clock — reads this,
+  // so a filtered stack behaves exactly like a short one.
+  const shownQuestions = useMemo(() => {
+    if (!concept) return questions
+    return questions.filter((q) => (q.concepts ?? []).includes(concept))
+  }, [questions, concept])
+
   // The ungraded questions left in the open stack, published to the timer
   // store because the clock may be docked in a parallel-route slot and cannot
   // be reached with a prop (BL-20260829-01). Cleared on unmount: leaving the
   // stack must not leave a stale pace on the clock.
   useEffect(() => {
-    const ungraded = questions.filter((q) => !answers.has(q.id)).length
-    setRemainingQuestions(questions.length === 0 ? null : ungraded)
-  }, [questions, answers])
+    const ungraded = shownQuestions.filter((q) => !answers.has(q.id)).length
+    setRemainingQuestions(shownQuestions.length === 0 ? null : ungraded)
+  }, [shownQuestions, answers])
   useEffect(() => () => setRemainingQuestions(null), [])
 
   // Read the index through a ref so `go` never has to be rebuilt: it is passed
@@ -118,7 +199,7 @@ export default function PassagePanel({
   const lastRef = useRef(0)
   useEffect(() => {
     indexRef.current = activeIndex
-    lastRef.current = questions.length - 1
+    lastRef.current = shownQuestions.length - 1
   })
   const go = useCallback((to: number) => {
     const next = Math.max(0, Math.min(lastRef.current, to))
@@ -140,9 +221,11 @@ export default function PassagePanel({
   }, [moves])
 
   const headline = section === 'RC' ? 'Reading Comprehension' : 'Logic Games'
-  const last = questions.length - 1
+  const last = shownQuestions.length - 1
   const active =
-    questions.length > 0 ? questions[Math.min(activeIndex, last)] : null
+    shownQuestions.length > 0
+      ? shownQuestions[Math.min(activeIndex, last)]
+      : null
 
   return (
     <section className="space-y-4">
@@ -150,7 +233,8 @@ export default function PassagePanel({
         <div className="text-xs uppercase tracking-wider text-slate-500">
           Section: {headline}
         </div>
-        {passages && passages.length > 0 && (
+        {concept && <ConceptChip concept={concept} onClear={onClearConcept} />}
+        {shownPassages && shownPassages.length > 0 && (
           <div className="flex items-center gap-2">
             <label
               htmlFor="passage-select"
@@ -164,7 +248,7 @@ export default function PassagePanel({
               onChange={(e) => setActiveId(e.target.value)}
               className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-blue-500 focus-ring"
             >
-              {passages.map((p) => (
+              {shownPassages.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.title}
                 </option>
@@ -174,11 +258,36 @@ export default function PassagePanel({
         )}
       </div>
 
-      {loadingPassages && <SkeletonGrid />}
+      {(loadingPassages || (Boolean(concept) && !shownPassages)) && !error && (
+        <SkeletonGrid />
+      )}
       {error && <ErrorBanner message={error} />}
-      {!loadingPassages && passages && passages.length === 0 && (
+      {!loadingPassages && !error && shownPassages?.length === 0 && (
+        // A tag with nothing behind it in this section has to say so, and say
+        // it about the tag rather than about the section — the library
+        // advertises a question count over the whole bank, so "21 questions"
+        // can still mean "none in Reading Comprehension" (BL-20260905-01).
         <p className="text-sm text-slate-400">
-          No {headline.toLowerCase()} passages have been authored yet.
+          {concept ? (
+            <>
+              {`No ${headline} questions are tagged ${concept} yet.`}
+              {onClearConcept && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    onClick={onClearConcept}
+                    className="underline underline-offset-2 hover:text-slate-200"
+                  >
+                    Drill the whole section instead
+                  </button>
+                  .
+                </>
+              )}
+            </>
+          ) : (
+            `No ${headline.toLowerCase()} passages have been authored yet.`
+          )}
         </p>
       )}
 
@@ -190,16 +299,16 @@ export default function PassagePanel({
             {!loadingDetail && active && (
               <>
                 <QuestionStrip
-                  questions={questions}
+                  questions={shownQuestions}
                   activeIndex={Math.min(activeIndex, last)}
                   answered={answers}
                   onPick={go}
                 />
                 {/* Position, announced. Paging a stack one question at a time
-                  * is only navigable if you are told where you landed. */}
+                 * is only navigable if you are told where you landed. */}
                 <p className="sr-only" role="status" aria-live="polite">
                   Question {Math.min(activeIndex, last) + 1} of{' '}
-                  {questions.length}.
+                  {shownQuestions.length}.
                 </p>
                 <QuestionCard
                   key={active.id}
@@ -218,16 +327,18 @@ export default function PassagePanel({
                     }
                     onAttempt(r.correct, elapsed, hints)
                   }}
-                  browsable={questions.length > 1}
+                  browsable={shownQuestions.length > 1}
                   onNext={activeIndex < last ? nextQuestion : undefined}
                   onPrev={activeIndex > 0 ? prevQuestion : undefined}
                   compact
                 />
               </>
             )}
-            {!loadingDetail && questions.length === 0 && (
+            {!loadingDetail && shownQuestions.length === 0 && (
               <p className="text-sm text-slate-400">
-                No questions linked to this {section === 'LG' ? 'game' : 'passage'}.
+                {concept
+                  ? `No question in this ${section === 'LG' ? 'game' : 'passage'} is tagged ${concept}.`
+                  : `No questions linked to this ${section === 'LG' ? 'game' : 'passage'}.`}
               </p>
             )}
           </div>

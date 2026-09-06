@@ -81,6 +81,61 @@ describe('PassagePanel', () => {
     expect(screen.getByText(/Section: Reading Comprehension/)).toBeInTheDocument()
   })
 
+  // BL-20260606-01: RC and LG are served from the passage endpoint, so the
+  // shuffle has to be asked for here too — LR asking on its own left the
+  // majority of the bank with the key in the same place on every attempt.
+  it('asks the passage endpoint to shuffle each question', async () => {
+    const urls: string[] = []
+    server.use(
+      http.get(
+        'http://localhost:8000/api/lsat/passages/rc-passage-001',
+        ({ request }) => {
+          urls.push(request.url)
+          return HttpResponse.json({ count: 1, passage, questions: [question] })
+        },
+      ),
+    )
+    render(<PassagePanel section="RC" onAttempt={() => {}} />)
+    await screen.findByText(/Long passage text/)
+    expect(urls).not.toHaveLength(0)
+    expect(urls.every((u) => new URL(u).searchParams.get('shuffle') === '1')).toBe(
+      true,
+    )
+  })
+
+  it('grades a shuffled passage question with the token it was served', async () => {
+    const graded: { remap?: string }[] = []
+    server.use(
+      http.get('http://localhost:8000/api/lsat/passages/rc-passage-001', () =>
+        HttpResponse.json({
+          count: 1,
+          passage,
+          questions: [{ ...question, remap: '10.sig' }],
+        }),
+      ),
+      http.post('http://localhost:8000/api/lsat/grade', async ({ request }) => {
+        const body = (await request.json()) as { remap?: string }
+        graded.push(body)
+        return HttpResponse.json({
+          question_id: question.id,
+          correct: true,
+          correct_choice: 'A',
+          explanation: 'Because.',
+          section: 'RC',
+          concepts: [],
+        })
+      }),
+    )
+    render(<PassagePanel section="RC" onAttempt={() => {}} />)
+    await screen.findByText(/main point of the passage/)
+    fireEvent.click(screen.getByRole('radio', { name: /A.*Alpha/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Submit$/ }))
+    expect(
+      await screen.findByText('Correct', {}, { timeout: 5000 }),
+    ).toBeInTheDocument()
+    expect(graded[0].remap).toBe('10.sig')
+  })
+
   it('says so when a section has no passages yet', async () => {
     server.use(
       http.get('http://localhost:8000/api/lsat/passages', () =>

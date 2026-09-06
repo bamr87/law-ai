@@ -12,9 +12,16 @@ import {
   subscribeSettings,
   upsertSettingValue,
 } from '@/lib/scope/store'
-import type { Effective, SettingDefinition, SettingValue } from '@/lib/scope/types'
+import type {
+  Effective,
+  SettingDefinition,
+  SettingValue,
+} from '@/lib/scope/types'
 import { useCallback, useSyncExternalStore } from 'react'
-import { useSettingsSnapshot } from './SettingsSnapshot'
+import {
+  useSettingsSnapshot,
+  useSettingsSnapshotScope,
+} from './SettingsSnapshot'
 
 /**
  * The snapshot React uses for the server render *and* the hydration render.
@@ -27,16 +34,30 @@ function useServerRows(): () => SettingValue[] {
 }
 
 /**
- * The scope id a write for ``def`` belongs on.
+ * The signed-in scope this render resolves against (BL-20260905-10).
  *
- * A setting the user may own goes to their scope when they have one; anything
- * instance-only (a policy threshold, not a preference) always goes to the
- * instance, which is what keeps "settable at" meaningful rather than
- * decorative.
+ * `serverSyncScope()` is module state set by the hydrate fetch, so it is null
+ * on the server *and* through hydration — every layout row written at
+ * `user:<pk>` would be skipped and the first paint would show the instance
+ * default before reflowing. The mirrored scope cookie, handed down by
+ * `app/(app)/layout.tsx`, fills exactly that window; once the fetch lands, the
+ * live value takes over and the two agree.
  */
-export function settingWriteScope(def: SettingDefinition<unknown>): string {
-  const user = userScopeFor(serverSyncScope())
-  if (user && def.settableAt.includes('user')) return user.id
+export function useUserScopeId(): string | null {
+  const fromServerRender = useSettingsSnapshotScope()
+  return serverSyncScope() ?? fromServerRender
+}
+
+/**
+ * The scope id a write for ``def`` belongs on: the caller's own scope for
+ * anything they may own, the instance for a policy value. This is what keeps
+ * "settable at" meaningful rather than decorative.
+ */
+function writeScopeFor(
+  def: SettingDefinition<unknown>,
+  userScope: { id: string } | null,
+): string {
+  if (userScope && def.settableAt.includes('user')) return userScope.id
   return INSTANCE_SCOPE.id
 }
 
@@ -62,8 +83,9 @@ export function useSetting<T>(
   // the instance value becomes the default they inherit. Signed out — and in
   // every existing test — the chain is exactly the single instance scope spec
   // 040 shipped, so nothing about the localStorage-only path changes.
-  const writeScope = settingWriteScope(def)
-  const chain = settingsChain(userScopeFor(serverSyncScope()))
+  const userScope = userScopeFor(useUserScopeId())
+  const writeScope = writeScopeFor(def as SettingDefinition<unknown>, userScope)
+  const chain = settingsChain(userScope)
 
   // The third element says where the value came from. The shell needs it to
   // tell "the user chose closed" from "nothing is stored" — a stored layout
@@ -103,12 +125,13 @@ export function useSettingList<T>(
     listSettingValues,
     useServerRows(),
   )
-  const chain = settingsChain(userScopeFor(serverSyncScope()))
+  const userScope = userScopeFor(useUserScopeId())
+  const chain = settingsChain(userScope)
   return defs.map((def) => [
     resolveEffective(def, chain, rows, false).value,
     (next: T) =>
       upsertSettingValue({
-        scopeId: settingWriteScope(def as SettingDefinition<unknown>),
+        scopeId: writeScopeFor(def as SettingDefinition<unknown>, userScope),
         key: def.key,
         value: next,
         locked: false,

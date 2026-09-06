@@ -17,6 +17,7 @@ from django.core.management.base import CommandError
 # a conscious edit rather than silent drift into the schedule.
 NON_AUTONOMY_BEATS = {
     "matter-task-reminders": "law_ai.matters.sweep_task_reminders",
+    "governance-triage": "law_ai.core.tasks.governance_triage",
 }
 
 

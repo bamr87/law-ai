@@ -297,10 +297,12 @@ class TestGeneration:
 
 
 #: Schemas whose premise arrangement is drawn per item (BL-20260903-15). The
-#: assumption and structural schemas keep a fixed skeleton on purpose.
+#: assumption and structural schemas keep a fixed skeleton on purpose: their
+#: credited answer is defined by the gap in the argument, not by the shape.
 _DRAWN_SCHEMAS = (
     "lr-conditional-chain-forward",
     "lr-conditional-chain-contrapositive",
+    "lr-conditional-cannot-be-true",
     "lr-quantifier-most-overlap",
     "lr-quantifier-all-some",
     "lg-sequencing-acceptability",
@@ -324,7 +326,13 @@ class TestArrangements:
 
     @pytest.mark.parametrize(
         "schema_id",
-        ("lr-conditional-chain-forward", "lr-conditional-chain-contrapositive"),
+        (
+            "lr-conditional-chain-forward",
+            "lr-conditional-chain-contrapositive",
+            # BL-20260903-15: this one shipped with a hard-coded 5-premise
+            # literal long after its siblings drew, so it is pinned by name.
+            "lr-conditional-cannot-be-true",
+        ),
     )
     def test_chain_length_trigger_and_rule_count_all_vary(self, schema_id: str) -> None:
         seen: dict[str, set[int | str]] = {
@@ -389,8 +397,30 @@ class TestArrangements:
         assert calls == mod.MAX_ARRANGEMENT_DRAWS
 
     def test_fixed_schemas_report_an_empty_arrangement(self) -> None:
+        """And the fixed set is exactly these five (BL-20260903-15).
+
+        The exception used to be stated in prose and was wrong about the tree:
+        a `cannot_be_true` LR schema sat in it with no justification. Pinning
+        the whole set means a schema that quietly stops drawing fails here
+        instead of joining an unstated exception.
+        """
         item = generate("lr-necessary-assumption", "municipal-policy", seed=1)
         assert item.provenance.arrangement == {}
+
+        fixed = {
+            schema.meta.id
+            for schema in all_schemas()
+            if not generate(
+                schema.meta.id, "municipal-policy", seed=3
+            ).provenance.arrangement
+        }
+        assert fixed == {
+            "lr-sufficient-assumption",
+            "lr-necessary-assumption",
+            "lr-causal-weaken",
+            "lr-causal-strengthen",
+            "lr-percent-vs-number",
+        }
 
 
 class TestVerificationCatchesDefects:

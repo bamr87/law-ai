@@ -1,4 +1,10 @@
-"""Tests for law_ai.agents_runtime.llm — the shared LangChain layer (spec 027)."""
+"""Tests for law_ai.agents_runtime.llm — the Ollama reachability probe.
+
+Spec 027 originally put a second ``ChatOllama`` transport here; BL-20260810-05
+removed it in favour of the one shared client
+(``law_ai.core.llm.providers.OllamaProvider``), leaving this module with the
+availability probe and ``coerce_text``.
+"""
 
 from __future__ import annotations
 
@@ -14,29 +20,6 @@ from law_ai.agents_runtime import llm
 @pytest.fixture(autouse=True)
 def _fresh_probe_cache() -> None:
     llm.reset_probe_cache()
-
-
-class TestBuildChatOllama:
-    def test_returns_retry_wrapped_runnable(self) -> None:
-        pytest.importorskip("langchain_ollama")
-        runnable = llm.build_chat_ollama(model="mistral:7b-instruct-q4_K_M")
-        # with_retry wraps the chat model in a RunnableRetry.
-        from langchain_core.runnables.retry import RunnableRetry
-
-        assert isinstance(runnable, RunnableRetry)
-        assert runnable.max_attempt_number == llm.RETRY_ATTEMPTS
-
-    def test_retries_disabled_returns_bare_model(self) -> None:
-        pytest.importorskip("langchain_ollama")
-        from langchain_ollama import ChatOllama
-
-        runnable = llm.build_chat_ollama(retries=1)
-        assert isinstance(runnable, ChatOllama)
-
-    def test_json_mode_sets_format(self) -> None:
-        pytest.importorskip("langchain_ollama")
-        runnable = llm.build_chat_ollama(output_format="json", retries=1)
-        assert runnable.format == "json"
 
 
 class TestCoerceText:

@@ -112,6 +112,8 @@ make legalbench-baseline   # runs the eval, writes backend/var/legalbench/baseli
 
 Then commit `baseline.json` (it is whitelisted in `.gitignore`) and fill the table below with its accuracies and the commit SHA. `--update-baseline` refuses a synthetic run, so the file cannot be created from fixtures by accident. The numbers are specific to the model, the pinned dataset revision, the 50-items-per-task cap, **and** the scorers recorded in the file — change any of them and re-baseline.
 
+Both rows are still `_TBD_`, and that is the one open dependency of the LegalWorkflow backfill (BL-20260511-06). The backfill itself shipped — `PrecedentHunter` runs the workflow's own `build_default_retriever()`, and the analyze node now returns the IRAC split `LegalAnalyst` used to stub — but "once the LegalBench baseline lands" cannot be *demonstrated* until someone runs the two commands above on a host that can load the gate model ([BL-20260811-10](../BACKLOG.md)). Until then the parity evidence for the backfill is unit-level (`backend/tests/agents/test_legal_analyst.py::TestLangGraphBackfill`, `backend/tests/agents/test_precedent_hunter.py`), not eval-level, and this note is the record of that gap rather than a claim it is closed.
+
 | Task subset           | Baseline score | Recorded in commit | Notes |
 |-----------------------|----------------|--------------------|-------|
 | `core_reasoning`      | _TBD_          | _TBD_              | Dataset cached ([BL-20260811-09](../BACKLOG.md)); numbers await a run on a host that can load the gate model ([BL-20260811-10](../BACKLOG.md)). TopicFrontier prompt uses this subset. |
@@ -150,6 +152,13 @@ The LSAT loop is built on the spec 045 FR-14 cross-check (`cross_check()` in [ba
 3. **Flips are reported.** `regression_report()` in [backend/law_ai/lsat/services/regression.py](../backend/law_ai/lsat/services/regression.py) groups those events per question id and flags items whose earliest verdict agreed with the key and whose latest one does not (`regressed`) or the reverse (`recovered`). Cached re-reads and degraded no-provider verdicts are ignored. The report is surfaced as `regressions` on `GET /api/lsat/validation`.
 
 Unlike the LegalBench gate, this one does not block a PR: model choice varies per environment, so it is a reviewer signal, not a threshold.
+
+### Why not `LegalAnalyst`? (deliberate substitution, BL-20260527-06)
+
+The backlog item that asked for this loop named `LegalAnalyst` as the predictor. It is not used here, and that is on purpose, not an oversight. `LegalAnalyst` ([backend/law_ai/agents_runtime/crews/legal_analyst.py](../backend/law_ai/agents_runtime/crews/legal_analyst.py), see [docs/agent-roles.md](agent-roles.md)) is an IRAC document-analysis agent: it reads a legal document and emits issue/rule/application/conclusion prose. It never produces an A–E choice, so it cannot be scored against a bank answer key, and a "tutor-grade prediction" derived from it would have to be re-graded by a second model to become comparable over time — which is exactly the drift the regression bundle exists to detect.
+
+`cross_check()` is the tutor-grade predictor instead: it is a blind solve of the same item through the same provider chain, it returns a single labelled choice plus a rationale, and it already writes an audited per-item verdict. Any future change that routes the approval-time prediction elsewhere should keep those three properties.
+
 
 ## Related docs
 

@@ -12,8 +12,10 @@
  * layout with `animate: false`, asserted here so a future layout change has
  * to notice.)
  */
+import AppLoading from '@/app/(app)/loading'
 import Home from '@/app/(app)/page'
 import HomeStats from '@/components/HomeStats'
+import { SkeletonGrid, SkeletonQuestion } from '@/components/lsat/LabPrimitives'
 import { server } from '@/mocks/server'
 import { render, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
@@ -62,6 +64,35 @@ describe('homepage reduced motion (BL-20260831-03)', () => {
     const { container } = render(<Home />)
     const moving = animated(container)
     expect(moving.length).toBeGreaterThan(0)
+    for (const el of moving) {
+      expect(el.className).toContain('motion-reduce:animate-none')
+    }
+  })
+
+  it('gates the route loading skeletons too', () => {
+    // `app/(app)/loading.tsx` is the fallback React paints *at the homepage
+    // route* (and at every module under it) while a page streams in, so a
+    // pulse left ungated here animates on the homepage for a reader who asked
+    // the OS to stop — the clause is about the route, not one component.
+    const { container } = render(<AppLoading />)
+    const moving = animated(container)
+    expect(moving.length).toBeGreaterThan(0)
+    for (const el of moving) {
+      expect(el.className).toContain('motion-reduce:animate-none')
+    }
+  })
+
+  it('gates the shared LSAT skeletons', () => {
+    // The residual pulses the homepage pass left behind: they are the lab's
+    // loading state, reached from the same shell by the same reader.
+    const { container } = render(
+      <>
+        <SkeletonQuestion />
+        <SkeletonGrid />
+      </>,
+    )
+    const moving = animated(container)
+    expect(moving.length).toBe(2)
     for (const el of moving) {
       expect(el.className).toContain('motion-reduce:animate-none')
     }

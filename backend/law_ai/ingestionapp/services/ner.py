@@ -21,10 +21,14 @@ Design constraints this module honours:
   only; ``scout._score`` does not read entities, so noisy generic NER on US
   case text can never push a document past the HITL threshold.
 
-Enable it with::
+Enable it, Docker-first, with::
 
-    pip install -e ".[nlp]"     # installs the en_core_web_sm wheel
-    ENABLE_NER=true
+    ENABLE_NER=true       # in .env, then `make down && make dev`
+
+The ``en_core_web_sm`` pipeline is installed into the backend image by
+``backend/Dockerfile`` (the ``nlp`` extra's only member), so no host ``pip`` is
+involved and no extra build step is needed. A non-container install gets the
+same model from ``pip install -e ".[nlp]"``.
 """
 
 from __future__ import annotations
@@ -81,8 +85,9 @@ def get_nlp() -> Any | None:
         return spacy.load(MODEL_NAME, exclude=["lemmatizer", "textcat"])
     except Exception as exc:
         logger.warning(
-            "NER disabled: could not load %s (%s). Install it with "
-            'pip install -e ".[nlp]"',
+            "NER disabled: could not load %s (%s). The backend image installs "
+            "it; rebuild with `docker compose build backend` (or, outside "
+            'Docker, pip install -e ".[nlp]")',
             MODEL_NAME,
             type(exc).__name__,
         )

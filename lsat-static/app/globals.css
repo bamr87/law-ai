@@ -99,9 +99,16 @@ a {
   outline-offset: 2px;
 }
 
-/* Keyboard users land here first; it is invisible until focused. */
+/* Keyboard users land here first; it is invisible until focused.
+ *
+ * `inline-flex` so the 44px touch-target floor below has something to apply
+ * to: a bare inline box ignores `min-height`, which is how this control sat at
+ * 40.8px on a phone while every other target cleared the bar (BL-20260901-03).
+ */
 .skip-link {
   position: absolute;
+  display: inline-flex;
+  align-items: center;
   left: 0.5rem;
   top: -3rem;
   z-index: var(--z-drawer);
@@ -1453,7 +1460,8 @@ main#view {
    * media query alone. (BL-20260831-11.) */
   .btn,
   .nav-link,
-  .choice {
+  .choice,
+  .skip-link {
     min-height: 44px;
   }
   .site-header .wrap {
@@ -1510,7 +1518,10 @@ main#view {
 @media (pointer: coarse) {
   .btn,
   .nav-link,
-  .choice {
+  .choice,
+  /* The skip link is the first thing a keyboard or switch user reaches, so it
+     is held to the same floor as every other target (BL-20260901-03). */
+  .skip-link {
     min-height: 44px;
   }
   .solve-dot {

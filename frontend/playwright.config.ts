@@ -16,8 +16,11 @@ import { defineConfig, devices } from '@playwright/test'
  * published) the forwarder is skipped and whatever answers on those ports is
  * used as-is.
  *
- * Deliberately NOT part of `make test`: a full-stack boot is minutes, so this
- * runs from the nightly workflow and on demand.
+ * Deliberately NOT part of `make test`: a full-stack boot is minutes, so the
+ * suite runs from the nightly workflow and on demand. The one exception is
+ * `e2e/a11y.spec.ts`, which the `a11y` job in .github/workflows/ci.yml runs on
+ * every pull request touching `frontend/` (BL-20260831-09) — a contrast or
+ * focus-order regression caught a week later has already shipped.
  */
 
 const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3000'

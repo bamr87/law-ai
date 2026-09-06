@@ -22,6 +22,7 @@ from rest_framework.views import APIView
 from law_ai.agents_runtime.registry import AGENT_REGISTRY, register_all_agents
 from law_ai.core import audit_jsonl as audit_store
 from law_ai.core.auth import RequireAgent
+from law_ai.core.throttling import ScopedActorRateThrottle
 
 _BACKLOG_BULLET_RE = re.compile(
     r"^- \*\*(?P<id>BL-\d{8}-\d{2})\*\* — \*(?P<kind>[a-z-]+),\s*(?P<sev>low|med|high)\* — (?P<title>.+)$"
@@ -197,7 +198,19 @@ async def _probe_phoenix() -> dict[str, Any]:
 
 
 class _Base(APIView):
+    """The gate and the quota every ``/api/agents/*`` read shares.
+
+    The throttle is BL-20260430-09's half of BL-20260503-12: these are cheap
+    reads, but ``runs``/``runs/<trace_id>``/``metrics`` serve the provenance
+    log, so a leaked key must not be able to scrape it at line speed.
+    ``ScopedActorRateThrottle`` buckets per ``ApiToken.key_hash`` (then per
+    user, then per IP), so one abusive key cannot starve anyone else — which
+    is why this is a quota rather than a second auth check.
+    """
+
     permission_classes = [RequireAgent]
+    throttle_classes = [ScopedActorRateThrottle]
+    throttle_scope = "audit"
 
 
 class AgentListView(_Base):

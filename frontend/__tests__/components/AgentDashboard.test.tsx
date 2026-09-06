@@ -19,6 +19,28 @@ vi.mock('next/navigation', async () => {
 
 const BASE = 'http://localhost:8000'
 
+// Two runs of different types, named so they cannot collide with the registry
+// cards, for the ?type= filter cases (BL-20260831-02).
+const TYPED_RUNS = {
+  count: 2,
+  runs: [
+    {
+      trace_id: 't-a',
+      agent: 'RunAlpha',
+      type: 'agent_call',
+      timestamp: '2026-04-29T12:00:00Z',
+      latency_ms: 10,
+    },
+    {
+      trace_id: 't-b',
+      agent: 'RunBeta',
+      type: 'graph_query',
+      timestamp: '2026-04-29T12:01:00Z',
+      latency_ms: 20,
+    },
+  ],
+}
+
 beforeEach(() => {
   // Run filters live in the URL (BL-20260831-02); start every case clean.
   nav.reset()
@@ -150,6 +172,44 @@ describe('AgentDashboard', () => {
     await waitFor(() => expect(nav.replace).toHaveBeenCalled())
     expect(nav.push).not.toHaveBeenCalled()
     expect(nav.hrefs[nav.hrefs.length - 1]).toBe('/agents?q=legal')
+  })
+
+  it('reads the run type filter out of the URL', async () => {
+    // ?type= is the other half of the run filters (BL-20260831-02): a link
+    // can name "the graph queries", not just a text match.
+    server.use(
+      http.get(`${BASE}/api/agents/runs`, () => HttpResponse.json(TYPED_RUNS)),
+    )
+    nav.reset('type=graph_query')
+    render(<AgentDashboard />)
+    await waitFor(() => expect(screen.getByText('RunBeta')).toBeInTheDocument())
+    // The agent_call run is filtered out, not merely ordered later.
+    expect(screen.queryByText('RunAlpha')).not.toBeInTheDocument()
+  })
+
+  it('pushes ?type= on a tab click, keeping the other params', async () => {
+    server.use(
+      http.get(`${BASE}/api/agents/runs`, () => HttpResponse.json(TYPED_RUNS)),
+    )
+    // A panel param is already in the URL: the type tabs must compose with
+    // the shell's layout keys rather than replace the query string.
+    nav.reset('sidebar=0')
+    render(<AgentDashboard />)
+    await waitFor(() =>
+      expect(screen.getByText('RunAlpha')).toBeInTheDocument(),
+    )
+    expect(screen.getByText('RunBeta')).toBeInTheDocument()
+    nav.reset('sidebar=0')
+    fireEvent.click(screen.getByRole('button', { name: /graph query/ }))
+    expect(nav.push).toHaveBeenCalled()
+    expect(nav.hrefs[nav.hrefs.length - 1]).toBe(
+      '/agents?sidebar=0&type=graph_query',
+    )
+    // …and the list re-renders from the new URL.
+    await waitFor(() =>
+      expect(screen.queryByText('RunAlpha')).not.toBeInTheDocument(),
+    )
+    expect(screen.getByText('RunBeta')).toBeInTheDocument()
   })
 
   it('shows the next autonomy target from the gap analysis (BL-20260527-07)', async () => {
@@ -299,7 +359,9 @@ describe('AgentDashboard', () => {
 
     render(<AgentDashboard />)
     await waitFor(() => {
-      expect(screen.getByText(/updates pushed as they happen/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/updates pushed as they happen/),
+      ).toBeInTheDocument()
     })
     vi.unstubAllGlobals()
   })

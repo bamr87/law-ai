@@ -27,7 +27,7 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, Field, model_validator
 
-from law_ai.core import claude_code, llm
+from law_ai.core import claude_code, llm, xai
 from law_ai.core.settings_proxy import settings_proxy as settings
 from law_ai.core.provenance import provenance
 from law_ai.lsat.services.bank import (
@@ -290,6 +290,10 @@ async def _generate(prompt: str) -> tuple[str, str]:
         system=_LLM_SYSTEM,
         response_schema=_DRAFTS_RESPONSE_SCHEMA,
         agent="lsat_content_author",
+        # Authoring runs with an author waiting on the page — measured at 68s
+        # on the xAI tier — so it takes the faster Grok id when one is
+        # configured, like the other user-facing calls (BL-20260905-11).
+        models=xai.interactive_overrides(),
     )
     return result.text, result.model_label
 

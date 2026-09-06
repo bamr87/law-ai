@@ -22,7 +22,10 @@ from typing import Any
 from pydantic import BaseModel, Field
 import logging
 import time
-from law_ai.agents_runtime.attribution import attribution_from_passage
+from law_ai.agents_runtime.attribution import (
+    attribution_from_passage,
+    check_attribution,
+)
 from law_ai.core.provenance import provenance
 
 logger = logging.getLogger("law_ai.agents.precedent_hunter")
@@ -79,6 +82,16 @@ class PrecedentList(BaseModel):
         description=(
             "Verbatim coverage envelope from the retriever — what the corpus "
             "could and could not answer (constitution §13)."
+        ),
+    )
+    requires_review: bool = Field(
+        default=False,
+        description=(
+            "Structured HITL flag: True when at least one retrieved precedent "
+            "is emitted without a complete issuing authority (court + "
+            "jurisdiction + decided_at). Carrying attribution is not the same "
+            "as having it — an under-attributed precedent must be looked at "
+            "before it is relied on (constitution §13, BL-20260803-04)."
         ),
     )
     trace_id: str | None = Field(
@@ -241,6 +254,22 @@ class PrecedentHunter:
                 f"graph for {question[:120]!r}. " + coverage_note
             ).strip()
 
+        # §13: a precedent whose :Case node records no court or no decision
+        # date is an unattributed statement of law the moment it is shown, so
+        # it pins the output for review even though retrieval "worked".
+        unattributed = check_attribution(
+            [
+                {"text": p.title or p.case_id, "attribution": p.attribution}
+                for p in precedents
+            ]
+        )
+        if unattributed:
+            summary = (
+                f"{summary} Attribution incomplete (constitution §13): "
+                + "; ".join(unattributed[:5])
+                + " — human review required."
+            ).strip()
+
         output = PrecedentList(
             precedents=precedents,
             summary=summary,
@@ -249,6 +278,7 @@ class PrecedentHunter:
             # forcing human review rather than reading an empty set as an
             # authoritative "no precedent".
             degraded=not precedents,
+            requires_review=bool(unattributed),
             coverage_note=coverage_note,
         )
 

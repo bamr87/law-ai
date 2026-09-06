@@ -19,11 +19,17 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import random
 from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
+from tenacity import (
+    AsyncRetrying,
+    RetryCallState,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
 from law_ai.core import claude_code, xai, xai_oauth
 from law_ai.core.llm.base import (
@@ -214,6 +220,23 @@ class OllamaProvider:
     def model_for(self, request: LLMRequest) -> str:
         return request.model_for(self.name) or str(settings.OLLAMA_DEFAULT_MODEL)
 
+    def model_candidates(self, request: LLMRequest) -> tuple[str, ...]:
+        """The models to try, in order: the primary, then ``FALLBACK_MODEL``.
+
+        Model fallback is the local tier's answer to the one failure waiting
+        cannot fix: a 404 because the configured model was never pulled on
+        this machine (BL-20260810-05). ``FALLBACK_MODEL`` names a smaller
+        model the box is likelier to hold — the GPU overlay, for instance,
+        serves ``llama3.1:70b-q4_K_M`` and falls back to the 7B Mistral. It is
+        skipped when blank or identical to the primary, so a stock laptop
+        config makes exactly one call.
+        """
+        primary = self.model_for(request)
+        fallback = str(getattr(settings, "FALLBACK_MODEL", "") or "").strip()
+        if not fallback or fallback == primary:
+            return (primary,)
+        return (primary, fallback)
+
     async def agenerate(self, request: LLMRequest) -> str:
         """Call Ollama, failing fast when the server is unreachable.
 
@@ -221,11 +244,13 @@ class OllamaProvider:
         full request timeout at the tail of the chain. Once the server is
         known to be up, transient failures — a dropped connection, a read
         timeout while a model loads, a 429/5xx while it is busy — are retried
-        with bounded exponential backoff (``OLLAMA_MAX_RETRIES`` total
-        attempts, default 2; ``OLLAMA_REQUEST_TIMEOUT_S`` applies per attempt)
-        so one hiccup on the local tier does not fail a whole agent run
-        (BL-20260810-05). Anything else (a 404 for an unpulled model, a 400)
-        raises on the first attempt.
+        by tenacity with bounded exponential backoff (constitution §8;
+        ``OLLAMA_MAX_RETRIES`` total attempts, default 2;
+        ``OLLAMA_REQUEST_TIMEOUT_S`` applies per attempt) so one hiccup on the
+        local tier does not fail a whole agent run (BL-20260810-05). A 404
+        means the model is not pulled: no retry, but the call falls back to
+        ``FALLBACK_MODEL`` when that names a different model. Anything else (a
+        400) raises on the first attempt.
         """
         from law_ai.agents_runtime import llm as llm_runtime
 
@@ -235,50 +260,66 @@ class OllamaProvider:
             )
 
         url = str(settings.OLLAMA_BASE_URL).rstrip("/") + "/api/generate"
-        payload = self._payload(request, stream=False)
-
         timeout = httpx.Timeout(float(settings.OLLAMA_REQUEST_TIMEOUT_S))
-        attempts = max(1, int(getattr(settings, "OLLAMA_MAX_RETRIES", 2)))
+        candidates = self.model_candidates(request)
         async with httpx.AsyncClient(timeout=timeout) as client:
-            for attempt in range(attempts):
+            for index, model in enumerate(candidates):
                 try:
-                    resp = await client.post(url, json=payload)
-                    resp.raise_for_status()
-                    data = resp.json()
-                    return ProviderReply(
-                        str(data.get("response") or "").strip(),
-                        _ollama_usage(data),
+                    return await self._generate_with_retries(
+                        client, url, request, model
                     )
                 except httpx.HTTPStatusError as exc:
-                    status = exc.response.status_code
-                    if (
-                        status not in _OLLAMA_RETRYABLE_STATUS
-                        or attempt == attempts - 1
-                    ):
+                    last = index == len(candidates) - 1
+                    if exc.response.status_code != _OLLAMA_MISSING_MODEL_STATUS or last:
                         raise
-                    wait = _ollama_backoff_seconds(attempt)
-                    logger.info(
-                        "Ollama HTTP %s; retry %s/%s in %.1fs",
-                        status,
-                        attempt + 1,
-                        attempts,
-                        wait,
+                    logger.warning(
+                        "Ollama model %s is not pulled; falling back to %s",
+                        model,
+                        candidates[index + 1],
                     )
-                    await asyncio.sleep(wait)
-                except httpx.TransportError as exc:
-                    if attempt == attempts - 1:
-                        raise
-                    wait = _ollama_backoff_seconds(attempt)
-                    logger.info(
-                        "Ollama transport error (%s); retry %s/%s in %.1fs",
-                        type(exc).__name__,
-                        attempt + 1,
-                        attempts,
-                        wait,
-                    )
-                    await asyncio.sleep(wait)
-        # Unreachable: the loop either returns or raises on the final attempt.
+        # Unreachable: the loop either returns or raises on the last candidate.
         raise LLMUnavailableError("Ollama: exhausted retries without a response")
+
+    async def _generate_with_retries(
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        request: LLMRequest,
+        model: str,
+    ) -> ProviderReply:
+        """One model's ``/api/generate`` call, retried by tenacity."""
+        payload = self._payload(request, stream=False, model=model)
+        attempts = max(1, int(getattr(settings, "OLLAMA_MAX_RETRIES", 2)))
+        retrying = AsyncRetrying(
+            stop=stop_after_attempt(attempts),
+            wait=wait_exponential_jitter(
+                initial=_OLLAMA_BACKOFF_BASE_S,
+                max=_OLLAMA_BACKOFF_CAP_S,
+                jitter=_OLLAMA_BACKOFF_JITTER_S,
+            ),
+            retry=retry_if_exception(_ollama_retryable),
+            sleep=_ollama_sleep,
+            before_sleep=_log_ollama_retry,
+            reraise=True,
+        )
+        return await retrying(self._generate_once, client, url, payload, model)
+
+    async def _generate_once(
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        payload: dict[str, Any],
+        model: str,
+    ) -> ProviderReply:
+        """A single un-retried POST to ``/api/generate``."""
+        resp = await client.post(url, json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+        return ProviderReply(
+            str(data.get("response") or "").strip(),
+            _ollama_usage(data),
+            model=model,
+        )
 
     async def astream(self, request: LLMRequest) -> AsyncIterator[str]:
         """Stream ``/api/generate`` as NDJSON deltas (BL-20260811-20).
@@ -317,10 +358,12 @@ class OllamaProvider:
                     yield text
         yield ProviderReply("", usage)
 
-    def _payload(self, request: LLMRequest, *, stream: bool) -> dict[str, Any]:
+    def _payload(
+        self, request: LLMRequest, *, stream: bool, model: str | None = None
+    ) -> dict[str, Any]:
         """The ``/api/generate`` body shared by the buffered and streamed calls."""
         payload: dict[str, Any] = {
-            "model": self.model_for(request),
+            "model": model or self.model_for(request),
             "prompt": _with_system(request),
             "stream": stream,
             "options": {"temperature": request.temperature},
@@ -354,12 +397,17 @@ class OllamaProvider:
 # means the request is wrong — neither improves with waiting.
 _OLLAMA_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 
+# "model not found": the one failure a *different model* can fix, so it drives
+# the fallback-model hop rather than a retry (BL-20260810-05).
+_OLLAMA_MISSING_MODEL_STATUS = 404
+
 # Backoff is short on purpose: Ollama sits at the tail of the chain behind two
 # hosted tiers, so a slow retry here lands on top of everything that already
 # failed. Exponential from half a second, capped, with jitter so parallel
 # workers do not re-hit a busy server in lockstep.
 _OLLAMA_BACKOFF_BASE_S = 0.5
 _OLLAMA_BACKOFF_CAP_S = 8.0
+_OLLAMA_BACKOFF_JITTER_S = 0.25
 
 
 def _ollama_usage(data: dict[str, Any]) -> LLMUsage | None:
@@ -396,10 +444,42 @@ def _ollama_line(line: str) -> tuple[str, LLMUsage | None] | None:
     return text, usage
 
 
-def _ollama_backoff_seconds(attempt: int) -> float:
-    """Wait before retry number ``attempt + 1`` (0-based ``attempt``)."""
-    wait = min(_OLLAMA_BACKOFF_CAP_S, _OLLAMA_BACKOFF_BASE_S * float(2**attempt))
-    return float(wait + random.uniform(0.0, 0.25))
+def _ollama_retryable(exc: BaseException) -> bool:
+    """True for the Ollama failures another attempt can plausibly fix.
+
+    A dropped connection or a read timeout while a model loads
+    (``httpx.TransportError``), and the busy/overloaded statuses in
+    :data:`_OLLAMA_RETRYABLE_STATUS`. A 404 (model not pulled) and a 400 (bad
+    request) are excluded on purpose: waiting changes neither.
+    """
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in _OLLAMA_RETRYABLE_STATUS
+    return isinstance(exc, httpx.TransportError)
+
+
+async def _ollama_sleep(seconds: float) -> None:
+    """The wait tenacity performs between Ollama attempts.
+
+    Indirection on purpose: tenacity resolves this once at construction, so
+    routing it through the module-level ``asyncio`` keeps the sleep patchable
+    from tests that must not actually wait.
+    """
+    await asyncio.sleep(seconds)
+
+
+def _log_ollama_retry(state: RetryCallState) -> None:
+    """Log the transient failure tenacity is about to sit out."""
+    outcome = state.outcome
+    exc = outcome.exception() if outcome is not None else None
+    detail = type(exc).__name__ if exc is not None else "unknown"
+    if isinstance(exc, httpx.HTTPStatusError):
+        detail = f"HTTP {exc.response.status_code}"
+    logger.info(
+        "Ollama %s; retrying (attempt %s) in %.1fs",
+        detail,
+        state.attempt_number,
+        state.next_action.sleep if state.next_action is not None else 0.0,
+    )
 
 
 def _with_system(request: LLMRequest) -> str:

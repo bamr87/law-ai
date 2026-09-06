@@ -227,6 +227,14 @@ test-integration:
 # API) end to end. Both tests pin LLM_PROVIDER_CHAIN to ollama so no hosted
 # tier is ever billed, and both skip themselves when the model is not pulled,
 # so an ollama-less box still passes.
+# OLLAMA_INTEGRATION_MODEL overrides the model BOTH tests generate with — the
+# compose default is a 7B that needs ~5 GiB resident, which a laptop Docker VM
+# often cannot spare; point it at a smaller pulled model
+# (e.g. `make test-integration-ollama OLLAMA_INTEGRATION_MODEL=qwen2.5:3b-instruct-q4_K_M`)
+# rather than let the tests skip forever. Both refuse to pass against a dead
+# model: the autonomy test asserts the cycle was not degraded and that an
+# `llm_call` succeeded on the ollama tier (BL-20260527-08), because the author
+# files fallback drafts and the router logs an llm_call even on total failure.
 test-integration-ollama:
 	$(DC) up -d ollama postgres redis --wait
 	@trap '$(DC) stop ollama postgres redis' EXIT INT TERM; \
@@ -234,6 +242,7 @@ test-integration-ollama:
 	    -e DATABASE_URL=postgresql://law_ai:law_ai-dev@postgres:5432/law_ai \
 	    -e REDIS_URL=redis://redis:6379/0 \
 	    -e OLLAMA_INTEGRATION_URL=http://ollama:11434 \
+	    -e OLLAMA_INTEGRATION_MODEL=$(OLLAMA_INTEGRATION_MODEL) \
 	    backend pytest tests/lsat/test_factory_ollama_integration.py \
 	    tests/core/test_run_autonomy_integration.py \
 	    -m integration -v --no-cov
@@ -241,10 +250,11 @@ test-integration-ollama:
 # Live-network drift smoke (BL-20260511-07). One real Justia fetch, re-run
 # through the parser, so upstream HTML drift surfaces before an ingestion run
 # silently returns zero sections. Nightly + on demand only: it is the single
-# target in this repo that touches a third-party site, it is gated behind
-# LIVE_NETWORK=1, and it must stay `continue-on-error` in CI (an upstream
-# outage is a warning, not a red build). One request per run — do not loop
-# titles; Justia's crawl-delay is why rate_limit_rps is 0.5.
+# target in this repo that touches a third-party site, and it is gated behind
+# LIVE_NETWORK=1. A blocked or unreachable upstream *skips* (no drift signal is
+# available), so the nightly step needs no `continue-on-error`: a red run here
+# means Justia answered and the parse came back wrong. One request per run — do
+# not loop titles; Justia's crawl-delay is why rate_limit_rps is 0.5.
 test-live-network:
 	$(RUN_BACKEND) sh -c "LIVE_NETWORK=1 pytest -m network -v --no-cov"
 
@@ -272,6 +282,9 @@ test-live-network:
 # ---------------------------------------------------------------------------
 E2E_ARGS ?=
 E2E_AGENT_API_KEY ?=
+# Set to 1 to re-record frontend/e2e/a11y-baseline.json rather than assert
+# against it (a11y.spec.ts documents when that is the right move).
+E2E_A11Y_UPDATE_BASELINE ?=
 
 test-e2e:
 	FRONTEND_BACKEND_URL=http://backend-e2e:8000 \
@@ -281,7 +294,13 @@ test-e2e:
 	# The admin HITL spec approves a known quarantine row; --reset puts it back
 	# in the pending state so the suite is re-runnable without a DB wipe.
 	$(DC) --profile e2e exec -T backend-e2e python manage.py seed_review_queue --reset
+	# The analysis spec needs a *healthy* result to render (the sidecar's
+	# unreachable Ollama can only produce the degraded panel) and the auth spec
+	# needs an /analysis page visit that provokes a gated API call. One
+	# persisted run, replayed at /analysis?id=…, is both.
+	$(DC) --profile e2e exec -T backend-e2e python manage.py seed_analysis_run
 	E2E_AGENT_API_KEY=$(E2E_AGENT_API_KEY) \
+	  E2E_A11Y_UPDATE_BASELINE=$(E2E_A11Y_UPDATE_BASELINE) \
 	  $(DC) --profile e2e run --rm --no-deps e2e npx playwright test $(E2E_ARGS)
 
 # Put the frontend back on the dev backend after a `make test-e2e` run.
@@ -354,13 +373,25 @@ mypy-baseline:
 	$(RUN_BACKEND) python3 /repo/scripts/mypy_ratchet.py --run --update
 
 # ---------------------------------------------------------------------------
-# Spec/backlog/UX validators (lightweight — host stdlib only, no container)
+# Spec/backlog/UX validators (lightweight — host only, no container)
 # ---------------------------------------------------------------------------
 
 lint-specs:
 	python3 scripts/spec_validator.py
 	python3 scripts/backlog_lint.py
 	python3 scripts/ux_audit.py
+	@# BL-20260511-14: scripts/evolve_audit.py is the fourth validator in this
+	@# family, and its coverage/LegalBench scanners are exercised by
+	@# tests/test_evolve_audit.py. That file is deliberately dependency-light
+	@# (stdlib + pytest, no Django, no Docker) so it can run right here, next
+	@# to the three scripts above, instead of only inside CI's repo-structural
+	@# job. pytest is the one non-stdlib thing this target needs; say so
+	@# plainly rather than dying in a traceback.
+	@python3 -c "import pytest" 2>/dev/null || { \
+	  echo "lint-specs: this gate now runs tests/test_evolve_audit.py, which needs pytest on the host interpreter."; \
+	  echo "            Install it (python3 -m pip install --user pytest) or run the same checks in Docker with 'make test-smoke'."; \
+	  exit 1; }
+	python3 -m pytest tests/test_evolve_audit.py -q
 
 # The mechanical half of the /ux-review loop. `--list` prints the rules.
 ux-audit:
@@ -547,14 +578,19 @@ validate-xai:
 
 # Regenerate the static LSAT practice-site artifact (spec 025): export the
 # bank in Docker, then copy it into the committed site directory that GitHub
-# Pages deploys. tests/test_lsat_site.py fails CI when this is stale.
+# Pages deploys.
 #
-# Usually you no longer have to remember this: once a change under
-# backend/law_ai/lsat/services/data/ lands on main,
+# You do NOT have to remember this any more (BL-20260702-11).
 # .github/workflows/refresh-lsat-content.yml re-exports and commits
-# content.json, then dispatches the Pages build (BL-20260702-11). Run this
-# target when you want the refreshed artifact *in your own PR* — which is
-# still the better habit, since it keeps the diff reviewable.
+# content.json for any change under backend/law_ai/lsat/services/data/ — on a
+# same-repo pull request it pushes the refresh onto your branch, and on main it
+# also dispatches the Pages build. ci.yml's repo-structural job defers the
+# drift gate for exactly that case (LSAT_CONTENT_AUTOEXPORT), so a PR no longer
+# goes red waiting for you to run this.
+#
+# Running it yourself is still welcome — the content diff then sits in the same
+# commit as the change that caused it — but it is a preference, not a step. The
+# gate still enforces on fork PRs, on main, and locally, so keep it green there.
 lsat-export:
 	$(RUN_BACKEND) python manage.py lsat_export --out var/lsat_site
 	cp backend/var/lsat_site/content.json lsat-static/content.json
@@ -718,7 +754,7 @@ autonomy-stop:
 # ---------------------------------------------------------------------------
 
 host-setup:
-	cd backend && pip install -e ".[dev,local-ai]"
+	cd backend && pip install -e ".[dev,local-ai,future-auth]"
 	cd frontend && npm install
 
 host-test:
