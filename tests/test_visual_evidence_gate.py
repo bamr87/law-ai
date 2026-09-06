@@ -149,7 +149,9 @@ def test_cli_exit_codes(repo_root: Path, tmp_path: Path) -> None:
 
 def test_ci_wires_the_gate_with_a_label_opt_out(repo_root: Path) -> None:
     """A gate nothing calls is just a script."""
-    import yaml
+    from tests.conftest import require_yaml
+    
+    yaml = require_yaml()
 
     ci = yaml.safe_load(
         (repo_root / ".github" / "workflows" / "ci.yml").read_text()

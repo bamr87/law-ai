@@ -102,7 +102,13 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: pip install pytest
+        # PyYAML beside pytest: the config gates parse .github/workflows/*.yml
+        # and docker-compose.yml, and regexing a workflow file asserts on
+        # indentation rather than on meaning. Both are pure Python, so the
+        # suite's "no Docker, no Neo4j, no node_modules" promise still holds;
+        # without PyYAML those tests skip rather than fail (tests/conftest.py
+        # require_yaml), which is why this line is load-bearing.
+      - run: pip install pytest pyyaml
       - name: Run root structural suite (smoke + specs)
         env:
           # BL-20260702-11: on a same-repo PR that edits the LSAT bank,

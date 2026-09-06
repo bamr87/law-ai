@@ -149,7 +149,9 @@ def _devcontainer_files(repo_root: Path) -> list[Path]:
 def test_devcontainer_configs_parse_and_target_real_services(
     repo_root: Path,
 ) -> None:
-    import yaml
+    from tests.conftest import require_yaml
+    
+    yaml = require_yaml()
 
     compose = yaml.safe_load((repo_root / "docker-compose.yml").read_text())
     services = set(compose["services"])
@@ -219,7 +221,9 @@ def _workflow_check_contexts(repo_root: Path) -> set[str]:
     otherwise — which is why `oneline` (no `name:` key) is the context for
     markdown-oneline.yml.
     """
-    import yaml
+    from tests.conftest import require_yaml
+    
+    yaml = require_yaml()
 
     contexts: set[str] = set()
     for path in (repo_root / ".github" / "workflows").glob("*.yml"):
@@ -404,7 +408,9 @@ def test_evolve_workflow_has_an_opt_out_kill_switch(repo_root: Path) -> None:
     (gitorio's convention) would silently idle live automation, which
     specs/038-framework-hardening declined as NG1.
     """
-    import yaml
+    from tests.conftest import require_yaml
+    
+    yaml = require_yaml()
 
     path = repo_root / ".github" / "workflows" / "evolve.yml"
     guard = yaml.safe_load(path.read_text())["jobs"]["audit"]["if"]

@@ -186,7 +186,9 @@ class TestLintGate:
             assert dep in pkg["devDependencies"], f"lsat-static must depend on {dep}"
 
     def test_ci_runs_the_linter(self) -> None:
-        import yaml
+        from tests.conftest import require_yaml
+        
+        yaml = require_yaml()
 
         ci = yaml.safe_load(
             (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
@@ -905,7 +907,9 @@ class TestContentRefreshAutomation:
     WORKFLOW = REPO / ".github" / "workflows" / "refresh-lsat-content.yml"
 
     def _workflow(self) -> dict:
-        import yaml
+        from tests.conftest import require_yaml
+        
+        yaml = require_yaml()
 
         return yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
 
@@ -990,7 +994,9 @@ class TestContentRefreshAutomation:
         unnoticed; if it deferred less, the manual step would still be
         enforced. Both halves are pinned here so they cannot drift apart.
         """
-        import yaml
+        from tests.conftest import require_yaml
+        
+        yaml = require_yaml()
 
         ci = yaml.safe_load(
             (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")

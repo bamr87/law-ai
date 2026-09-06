@@ -26,7 +26,9 @@ WORKFLOW = Path(".github") / "workflows" / "integration-tests.yml"
 
 @pytest.fixture(scope="module")
 def integration_job(repo_root: Path) -> dict[str, Any]:
-    import yaml
+    from tests.conftest import require_yaml
+    
+    yaml = require_yaml()
 
     document = yaml.safe_load((repo_root / WORKFLOW).read_text(encoding="utf-8"))
     return dict(document["jobs"]["integration"])
@@ -106,7 +108,9 @@ def test_the_job_starts_from_a_clean_database_every_run(
 
 
 def _yaml(repo_root: Path, rel: str) -> dict[str, Any]:
-    import yaml
+    from tests.conftest import require_yaml
+    
+    yaml = require_yaml()
 
     return yaml.safe_load(  # type: ignore[no-any-return]
         (repo_root / rel).read_text(encoding="utf-8")
