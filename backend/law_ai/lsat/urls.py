@@ -13,6 +13,7 @@ from django.urls import path
 from pydantic import BaseModel, Field, ValidationError
 from rest_framework import status
 from rest_framework.exceptions import APIException
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -34,6 +35,7 @@ from law_ai.lsat.services.bank import (
 )
 from law_ai.lsat.services import attempts as attempts_store
 from law_ai.lsat.services import proposals as proposals_store
+from law_ai.lsat.services import reading as reading_store
 from law_ai.lsat.services import writing as writing_store
 from law_ai.lsat.services.crosscheck import CrossCheckResult, cross_check
 from law_ai.lsat.services.guides import load_guides, public_guide_view
@@ -106,7 +108,7 @@ class _Base(APIView):
 
 
 class SectionsView(_Base):
-    def get(self, request, *args, **kwargs):
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         sections = load_sections()
         bank = load_bank()
         counts = {code: 0 for code in sections}
@@ -132,7 +134,7 @@ class SectionsView(_Base):
 
 
 class SectionDetailView(_Base):
-    def get(self, request, code: str, *args, **kwargs):
+    def get(self, request: Request, code: str, *args: Any, **kwargs: Any) -> Response:
         sections = load_sections()
         section = sections.get(code)
         if section is None:
@@ -151,7 +153,7 @@ class SectionDetailView(_Base):
 
 
 class ConceptsView(_Base):
-    def get(self, request, *args, **kwargs):
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         section = request.query_params.get("section")
         items = list(load_concepts().values())
         if section:
@@ -162,7 +164,9 @@ class ConceptsView(_Base):
 
 
 class ConceptDetailView(_Base):
-    def get(self, request, concept_id: str, *args, **kwargs):
+    def get(
+        self, request: Request, concept_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
         concept = load_concepts().get(concept_id)
         if concept is None:
             raise Http404("concept not found")
@@ -188,18 +192,35 @@ class ConceptDetailView(_Base):
 
 
 class PassagesView(_Base):
-    def get(self, request, *args, **kwargs):
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         section = request.query_params.get("section")
+        # BL-20260906-74: "which sets carry this concept?" used to be answered
+        # by asking ``/questions?concept=…&limit=25`` and reading the
+        # passage_ids off the sample. That is the questions endpoint's hard
+        # cap, and above it the sample is a *random* 25 of the pool — so a
+        # concept on 26 questions would quietly drop sets from the filter, and
+        # drop different ones on each fetch. Answer it here instead, where the
+        # projection is passage-shaped and there is nothing to cap.
+        concept = request.query_params.get("concept")
         items = list(load_passages().values())
         if section:
             items = [p for p in items if p.section == section]
+        if concept:
+            tagged = {
+                q.passage_id
+                for q in load_bank().values()
+                if q.passage_id and concept in q.concepts
+            }
+            items = [p for p in items if p.id in tagged]
         return Response(
             {"passages": [p.model_dump() for p in items], "count": len(items)}
         )
 
 
 class PassageDetailView(_Base):
-    def get(self, request, passage_id: str, *args, **kwargs):
+    def get(
+        self, request: Request, passage_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
         passage = load_passages().get(passage_id)
         if passage is None:
             raise Http404("passage not found")
@@ -245,7 +266,7 @@ def _wants_shuffle(request: Any) -> bool:
 
 
 class QuestionsView(_Base):
-    def get(self, request, *args, **kwargs):
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         limit = _bounded_int(request.query_params.get("limit"), default=5, lo=1, hi=25)
         difficulty = request.query_params.get("difficulty")
         section = request.query_params.get("section")
@@ -281,7 +302,9 @@ class QuestionsView(_Base):
 
 
 class QuestionDetailView(_Base):
-    def get(self, request, question_id: str, *args, **kwargs):
+    def get(
+        self, request: Request, question_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
         bank = load_bank()
         q = bank.get(question_id)
         if q is None:
@@ -364,7 +387,7 @@ class GuideView(_Base):
 
 
 class GradeView(_Base):
-    def post(self, request, *args, **kwargs):
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         try:
             req = GradeRequest.model_validate(request.data)
         except ValidationError as exc:
@@ -437,7 +460,10 @@ class GradeView(_Base):
 
 
 def _fold_reading(
-    request: Any, body: dict[str, Any], section: str | None
+    request: Any,
+    body: dict[str, Any],
+    section: str | None,
+    events: list[dict[str, Any]],
 ) -> dict[str, Any]:
     """Add library reading progress to a stats payload (BL-20260903-05).
 
@@ -451,7 +477,7 @@ def _fold_reading(
     library = load_library()
     by_section: dict[str, dict[str, Any]] = dict(out.get("by_section") or {})
     articles_read = 0
-    for article_id in _read_article_ids(_reader_id(request)):
+    for article_id in _read_article_ids(_reader_id(request), events):
         article = library.get(article_id)
         if article is None:
             # A read event for an article that has since been retired: it
@@ -485,8 +511,17 @@ def _fold_reading(
     return out
 
 
-def _fold_writing(body: dict[str, Any], section: str | None) -> dict[str, Any]:
+def _fold_writing(
+    body: dict[str, Any],
+    section: str | None,
+    events: list[dict[str, Any]],
+    request: Any = None,
+) -> dict[str, Any]:
     """Add Argumentative Writing practice to a stats payload (BL-20260831-27).
+
+    Two readings, matching the rest of the stats surface: a signed-in learner
+    gets **their** evaluations out of :class:`~law_ai.lsat.models.LsatWritingAttempt`
+    (BL-20260906-18), everyone else the instance-wide audit tail.
 
     ``LSATWritingEvaluator`` has always *persisted* — every evaluation is an
     ``lsat_writing_evaluate`` event in the same append-only store ``lsat_grade``
@@ -502,12 +537,16 @@ def _fold_writing(body: dict[str, Any], section: str | None) -> dict[str, Any]:
     if section and section != "WS":
         # Asking for one keyed section is asking about keyed questions.
         return body
-    events = [
-        e for e in audit_store.tail(10_000) if e.get("type") == "lsat_writing_evaluate"
-    ]
+    if request is not None and is_signed_in(request):
+        # BL-20260906-18: a signed-in learner's drill accuracy sat next to
+        # everyone-on-this-box's essay bands. Same shape, their essays.
+        out = dict(body)
+        out["writing"] = attempts_store.writing_stats(request.user)
+        return out
+    writes = [e for e in events if e.get("type") == "lsat_writing_evaluate"]
     out = dict(body)
-    # `tail` is newest-first; the trend reads forward in time.
-    ordered = list(reversed(events))
+    # `events` is newest-first; the trend reads forward in time.
+    ordered = list(reversed(writes))
     bands = [
         float(e["weighted_band"])
         for e in ordered
@@ -534,7 +573,9 @@ def _fold_writing(body: dict[str, Any], section: str | None) -> dict[str, Any]:
     return out
 
 
-def _fold_hints(body: dict[str, Any], section: str | None) -> dict[str, Any]:
+def _fold_hints(
+    body: dict[str, Any], section: str | None, events: list[dict[str, Any]]
+) -> dict[str, Any]:
     """Add per-reveal hint depth to a stats payload (BL-20260830-13).
 
     ``hints_used`` on a grade can only ever say "assisted": a one-hint nudge
@@ -544,11 +585,11 @@ def _fold_hints(body: dict[str, Any], section: str | None) -> dict[str, Any]:
     that distinguishes a nudge from a walkthrough.
     """
     out = dict(body)
-    events = [e for e in audit_store.tail(10_000) if e.get("type") == "lsat_hint"]
+    hints = [e for e in events if e.get("type") == "lsat_hint"]
     if section:
-        events = [e for e in events if e.get("section") == section]
+        hints = [e for e in hints if e.get("section") == section]
     depth_by_question: dict[str, int] = {}
-    for e in events:
+    for e in hints:
         qid = e.get("question_id")
         depth = e.get("revealed_count")
         if not isinstance(qid, str) or not isinstance(depth, int):
@@ -556,28 +597,38 @@ def _fold_hints(body: dict[str, Any], section: str | None) -> dict[str, Any]:
         depth_by_question[qid] = max(depth_by_question.get(qid, 0), depth)
     depths = sorted(depth_by_question.values())
     out["hints"] = {
-        "reveals": len(events),
+        "reveals": len(hints),
         "questions_hinted": len(depth_by_question),
         "max_depth": depths[-1] if depths else 0,
         # The mean is the honest summary of "how much help" — the median of a
         # handful of questions is almost always 1 and says nothing.
         "mean_depth": round(sum(depths) / len(depths), 2) if depths else 0.0,
-        "spoiler_reveals": sum(1 for e in events if e.get("spoiler") is True),
+        "spoiler_reveals": sum(1 for e in hints if e.get("spoiler") is True),
     }
     return out
 
 
 def _fold_extras(
-    request: Any, body: dict[str, Any], section: str | None
+    request: Any,
+    body: dict[str, Any],
+    section: str | None,
+    events: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Everything practice is, beyond a keyed question.
 
     Applied to *both* readings of stats — the signed-in learner's and the
     instance-wide audit tail — so the response shape is the same either way.
+
+    The three folds are pure functions of one audit tail, so the tail is read
+    **once** here and passed down (BL-20260905-38); a caller that has already
+    taken it — the anonymous stats reading, which needs the grades out of the
+    same window — hands its own list in rather than paying for a second read.
     """
-    folded = _fold_reading(request, body, section)
-    folded = _fold_hints(folded, section)
-    return _fold_writing(folded, section)
+    if events is None:
+        events = audit_store.tail(10_000)
+    folded = _fold_reading(request, body, section, events)
+    folded = _fold_hints(folded, section, events)
+    return _fold_writing(folded, section, events, request)
 
 
 class StatsView(_Base):
@@ -591,7 +642,7 @@ class StatsView(_Base):
     ``review_queue`` empty when there is no learner to schedule for.
     """
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         section = request.query_params.get("section")
         if is_signed_in(request):
             return Response(
@@ -646,6 +697,7 @@ class StatsView(_Base):
                     "scope": "instance",
                 },
                 section,
+                events,
             )
         )
 
@@ -655,7 +707,7 @@ class TutorView(_Base):
     throttle_classes = [ScopedActorRateThrottle]
     throttle_scope = "llm"
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         try:
             req = TutorRequest.model_validate(request.data)
         except ValidationError as exc:
@@ -666,7 +718,13 @@ class TutorView(_Base):
         q = bank.get(req.question_id)
         if q is None:
             raise Http404("question not found")
-        body: TutorResponse = async_to_sync(tutor)(req, q)
+        try:
+            # BL-20260905-61: a shuffled serve's token makes the tutor reason
+            # about the board the learner is looking at. A bad token is a 400,
+            # never a silent walkthrough of the stored order.
+            body: TutorResponse = async_to_sync(tutor)(req, q)
+        except ShuffleError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(body.model_dump())
 
 
@@ -878,16 +936,30 @@ def _reader_id(request: Any) -> str:
     return "instance"
 
 
-def _read_article_ids(reader: str) -> list[str]:
+def _read_article_ids(
+    reader: str, events: list[dict[str, Any]] | None = None
+) -> list[str]:
     """Article ids this reader has marked read, newest event wins.
 
     Read *and* unread are recorded as events — the store is append-only, so
     unmarking is a later event rather than a deletion, and the current state is
     the last thing said about each article.
+
+    ``events`` lets a caller that already holds a newest-first audit tail reuse
+    it instead of reading the JSONL again (BL-20260905-38).
+
+    Two sources, in that order (BL-20260905-39). The replay is the historical
+    picture and covers events written before the projection existed; the
+    ``LsatArticleRead`` rows are laid over it and win, because the JSONL is a
+    bounded ring and the table is not — an article whose read event has rotated
+    out of the log would otherwise silently un-mark itself. When the table is
+    unreachable the overlay is empty and the behaviour is exactly the old one.
     """
     state: dict[str, bool] = {}
-    # `tail` is newest-first, so the first mention of an article is the latest.
-    for e in audit_store.tail(10_000):
+    if events is None:
+        events = audit_store.tail(10_000)
+    # `events` is newest-first, so the first mention of an article is the latest.
+    for e in events:
         if e.get("type") != "lsat_article_read":
             continue
         if e.get("reader") != reader:
@@ -895,6 +967,7 @@ def _read_article_ids(reader: str) -> list[str]:
         article_id = e.get("article_id")
         if isinstance(article_id, str) and article_id not in state:
             state[article_id] = bool(e.get("read", True))
+    state.update(reading_store.persisted_read_state(reader))
     return sorted(a for a, read in state.items() if read)
 
 
@@ -907,9 +980,10 @@ class LibraryReadView(_Base):
 
     Recorded through the same append-only audit store that carries
     ``lsat_grade``, for the same reason: it is provenance, not user data with a
-    lifecycle. ``localStorage`` stays the offline fallback on the client, and
-    ``lsat-static`` keeps it as its only store — a serverless bundle has nothing
-    to sync with.
+    lifecycle — and mirrored into ``LsatArticleRead`` so the *state* survives
+    the log's rotation (BL-20260905-39). ``localStorage`` stays the offline
+    fallback on the client, and ``lsat-static`` keeps it as its only store — a
+    serverless bundle has nothing to sync with.
     """
 
     def get(self, request: Any, *args: Any, **kwargs: Any) -> Response:
@@ -948,6 +1022,14 @@ class LibraryReadView(_Base):
             logger.warning(
                 "audit_store.record failed for lsat_article_read", exc_info=True
             )
+        # …and into the projection that does not rotate (BL-20260905-39).
+        reading_store.record_article_read(
+            _reader_id(request),
+            article_id=article.id,
+            read=read,
+            sections=[str(sec) for sec in article.sections],
+            kind=str(article.kind),
+        )
         ids = _read_article_ids(_reader_id(request))
         return Response({"read": ids, "count": len(ids)})
 
@@ -1135,6 +1217,21 @@ class WritingEvaluateView(_Base):
             logger.warning(
                 "audit_store.record failed for lsat_writing_evaluate", exc_info=True
             )
+        # BL-20260906-18: attribute the evaluation when there is a learner to
+        # attribute it to. Best-effort — the audit event above is the durable
+        # record, and a storage hiccup must not cost the learner their feedback.
+        if is_signed_in(request):
+            attempts_store.record_writing_attempt(
+                request.user,
+                prompt_id=req.prompt_id,
+                rubric_id=output.evaluation.rubric_id,
+                weighted_band=output.evaluation.weighted_band,
+                criteria={c.criterion_id: c.band for c in output.evaluation.criteria},
+                response_chars=len(req.response),
+                model=output.model,
+                prompt_version=output.prompt_version,
+                degraded=output.degraded,
+            )
         return Response(output.model_dump())
 
 
@@ -1149,12 +1246,16 @@ class _GenerateProposalsRequest(BaseModel):
     count: int = 1
     concepts: list[str] = []
     passage_id: str | None = None
+    # BL-20260906-76: subscribe to /ws/agents/<stream_id> first and the
+    # drafting call relays its deltas there instead of leaving the author on
+    # a spinner for the length of the call.
+    stream_id: str | None = None
 
 
 class ProposalsView(_Base):
     """``GET /api/lsat/proposals`` — list proposals filtered by status."""
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         status_q = request.query_params.get("status", "pending")
         limit = _bounded_int(
             request.query_params.get("limit"), default=200, lo=1, hi=1000
@@ -1166,7 +1267,7 @@ class ProposalsView(_Base):
 class ProposalGenerateView(_Base):
     """``POST /api/lsat/proposals/generate`` — synchronously draft N questions."""
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         try:
             req = _GenerateProposalsRequest.model_validate(request.data)
         except ValidationError as exc:
@@ -1323,7 +1424,7 @@ class ProposalPassageApproveView(_Base):
     carries the linkage into the bank instead of leaving it to the reviewer.
     """
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         try:
             req = _PassageApproveRequest.model_validate(request.data or {})
         except ValidationError as exc:
@@ -1358,7 +1459,9 @@ class ProposalPassageApproveView(_Base):
 class ProposalApproveView(_Base):
     """``POST /api/lsat/proposals/<id>/approve`` — promote draft to bank."""
 
-    def post(self, request, proposal_id: str, *args, **kwargs):
+    def post(
+        self, request: Request, proposal_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
         try:
             req = _StatusUpdateRequest.model_validate(request.data or {})
         except ValidationError as exc:
@@ -1409,7 +1512,9 @@ class ProposalApproveView(_Base):
 class ProposalRejectView(_Base):
     """``POST /api/lsat/proposals/<id>/reject`` — mark draft rejected."""
 
-    def post(self, request, proposal_id: str, *args, **kwargs):
+    def post(
+        self, request: Request, proposal_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
         try:
             req = _StatusUpdateRequest.model_validate(request.data or {})
         except ValidationError as exc:
@@ -1468,8 +1573,8 @@ class ScanIntakeView(_Base):
             )
         try:
             audit_store.record(
-                "lsat_intake_ocr",
                 {
+                    "type": "lsat_intake_ocr",
                     "tool": req.provenance.tool,
                     "document": req.provenance.document,
                     "page": req.provenance.page,
@@ -1480,7 +1585,7 @@ class ScanIntakeView(_Base):
                     "ungrounded": len(result.ungrounded),
                     "model": result.model,
                     "degraded": result.degraded,
-                },
+                }
             )
         except Exception:
             logger.warning(
@@ -1561,7 +1666,7 @@ class FactoryStatusView(_Base):
 class GapsView(_Base):
     """``GET /api/lsat/gaps`` — weakest `(section, concept)` pairs."""
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         limit = _bounded_int(
             request.query_params.get("limit"), default=10, lo=1, hi=100
         )

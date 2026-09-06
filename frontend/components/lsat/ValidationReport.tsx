@@ -42,7 +42,7 @@ export default function ValidationReport() {
           <h3 className="text-sm font-semibold text-slate-200">
             Question-set review
           </h3>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400">
             Deterministic accuracy checks + stored AI cross-check verdicts.
           </p>
         </div>
@@ -94,7 +94,7 @@ export default function ValidationReport() {
           )}
 
           <div>
-            <h4 className="text-[11px] uppercase tracking-wider text-slate-500">
+            <h4 className="text-[11px] uppercase tracking-wider text-slate-400">
               Answer-key distribution (counts, not correctness)
             </h4>
             <div className="mt-1 overflow-x-auto">
@@ -140,11 +140,11 @@ export default function ValidationReport() {
           </div>
 
           <div>
-            <h4 className="text-[11px] uppercase tracking-wider text-slate-500">
+            <h4 className="text-[11px] uppercase tracking-wider text-slate-400">
               AI cross-checks
             </h4>
             {report.cross_checks.checked === 0 ? (
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-slate-400">
                 None run yet — use “Cross-check this answer” on a graded
                 question, or the API, to build corroboration.
               </p>

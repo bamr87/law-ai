@@ -418,9 +418,33 @@ def _record_node_event(
     }
     if extra:
         event.update(extra)
+    served_by = _node_model_label(output)
+    if served_by is not None:
+        event["model"] = served_by
     logger.info(json.dumps(event, default=str))
     _persist(event)
     return trace_id
+
+
+def _node_model_label(output: Any) -> str | None:
+    """The tier that actually served this node's call, when the node says.
+
+    :func:`logged_node` binds ``model`` at decoration time, so a node running
+    on the provider chain could only ever record the static ``(provider
+    chain)`` placeholder while the tier that answered was known elsewhere —
+    in graph state and on the OTel span, but not on the audit row itself.
+    LegalWorkflow's LLM nodes already return the serving tier as
+    ``model_label``; preferring it makes the per-node audit trail name the
+    real provider (BL-20260905-86). A node that returns none — the
+    deterministic ones, and the refusal paths that never called a model —
+    keeps the decorator's static label.
+    """
+    if not isinstance(output, dict):
+        return None
+    label = output.get("model_label")
+    if not isinstance(label, str):
+        return None
+    return label.strip() or None
 
 
 def _pick_state(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:

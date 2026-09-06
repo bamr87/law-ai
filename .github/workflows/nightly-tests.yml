@@ -169,6 +169,30 @@ jobs:
         run: python3 scripts/legalbench_summary.py >> "$GITHUB_STEP_SUMMARY"
 
       # ------------------------------------------------------------------
+      # Are the benchmark pins still current? (BL-20260906-30)
+      #
+      # `law_ai/eval/fetch.py` pins the dataset and prompt revisions by hand,
+      # which is right — a benchmark that moves under the harness makes the
+      # 1 pp regression policy meaningless. But nothing watched the pins, so
+      # the benchmark would age by neglect instead of by decision. Drift is
+      # reported, never failed: bumping a revision is a deliberate act with a
+      # re-cache and a re-baseline attached (docs/legalbench.md).
+      #
+      # Runs in `dry_run` too: it is stdlib plus two HTTP GETs, with no
+      # Docker and no model behind it.
+      # ------------------------------------------------------------------
+      - name: Check the pinned LegalBench revisions against upstream
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          {
+            echo "## LegalBench revision pins"
+            echo '```'
+            python3 scripts/check_legalbench_revisions.py || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ------------------------------------------------------------------
       # Browser end-to-end (spec 051 / BL-20260811-16). The full suite is
       # nightly, not per-PR: a full-stack boot plus a browser image is minutes,
       # and the cheap half of the boundary (the API contract gate) already runs
@@ -416,6 +440,28 @@ jobs:
             echo ""
             echo "Proposed test files: ${{ steps.proposed.outputs.count }}"
           } >> "$GITHUB_STEP_SUMMARY" || true
+
+      # ------------------------------------------------------------------
+      # Live-model integration slice (BL-20260906-81, BL-20260906-94). The
+      # factory's Ollama executor and the autonomy → HITL path both pass for
+      # real, but `make test-integration-ollama` ran only when someone typed
+      # it, so a regression in executor → intake → proposals reached main
+      # unnoticed. A 3B q4 is ~2 GB on disk and holds in the runner's memory;
+      # the target pulls it if the volume lacks it.
+      #
+      # LAST before teardown on purpose: the target's own trap stops ollama,
+      # postgres and redis when it finishes, which would pull the floor out
+      # from under any step that ran after it.
+      #
+      # continue-on-error while the step earns its keep: the slice has never
+      # run on a hosted runner, and a first red from an unproven step would
+      # only teach people to ignore the nightly. Promote it to a hard failure
+      # once it has a green streak.
+      # ------------------------------------------------------------------
+      - name: Run the live-model integration slice (Ollama)
+        if: ${{ !inputs.dry_run }}
+        continue-on-error: true
+        run: make test-integration-ollama
 
       # ------------------------------------------------------------------
       # Tear down services.

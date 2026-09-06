@@ -10,6 +10,7 @@ import {
   deleteSettingValue,
   getSettingsServerSnapshot,
   listSettingValues,
+  mayWriteScope,
   subscribeSettings,
   upsertSettingValue,
 } from '@/lib/scope/store'
@@ -68,12 +69,20 @@ export default function SettingsForm() {
   // still decides: an instance write from a non-admin is refused there, and
   // the row stays local to this browser exactly as it did before accounts.)
   const [editing, setEditing] = useState<'user' | 'instance'>('user')
+  // BL-20260906-73: the server refuses an instance write from a non-admin and
+  // the row silently stays local to this browser. `GET /api/settings/values`
+  // now says which scopes the caller may write, so the option can be honest
+  // about it instead of the help text hedging with "admins only". Unknown
+  // (nothing hydrated, or an older backend) stays optimistic.
+  const mayWriteInstance = mayWriteScope(INSTANCE_SCOPE.id)
+  const effectiveEditing =
+    editing === 'instance' && !mayWriteInstance ? 'user' : editing
   const chain = useMemo(
     () =>
-      userScope && editing === 'user'
+      userScope && effectiveEditing === 'user'
         ? settingsChain(userScope)
         : [INSTANCE_SCOPE],
-    [userScope, editing],
+    [userScope, effectiveEditing],
   )
 
   const groups = useMemo(() => {
@@ -93,12 +102,18 @@ export default function SettingsForm() {
 
   return (
     <div className="space-y-8">
-      {userScope && <ScopeChoice editing={editing} onChange={setEditing} />}
+      {userScope && (
+        <ScopeChoice
+          editing={effectiveEditing}
+          onChange={setEditing}
+          mayWriteInstance={mayWriteInstance}
+        />
+      )}
       {groups.map((group) => (
         <section key={group.id} aria-labelledby={`settings-${group.id}`}>
           <h2
             id={`settings-${group.id}`}
-            className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500"
+            className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400"
           >
             {group.label}
           </h2>
@@ -164,13 +179,15 @@ function CatalogField({
 function ScopeChoice({
   editing,
   onChange,
+  mayWriteInstance,
 }: {
   editing: 'user' | 'instance'
   onChange: (next: 'user' | 'instance') => void
+  mayWriteInstance: boolean
 }) {
   return (
     <fieldset className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-      <legend className="px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+      <legend className="px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
         Editing
       </legend>
       <div className="flex flex-wrap gap-4">
@@ -180,28 +197,44 @@ function ScopeChoice({
             [
               'instance',
               'Instance defaults',
-              'What everyone here inherits. Admins only, server-side.',
+              mayWriteInstance
+                ? 'What everyone here inherits.'
+                : 'What everyone here inherits. Your account cannot set it.',
             ],
           ] as const
-        ).map(([value, label, help]) => (
-          <label
-            key={value}
-            className="flex items-start gap-2 text-xs text-slate-300"
-          >
-            <input
-              type="radio"
-              name="settings-scope"
-              value={value}
-              checked={editing === value}
-              onChange={() => onChange(value)}
-              className="mt-0.5"
-            />
-            <span>
-              <span className="font-medium text-slate-100">{label}</span>
-              <span className="block text-slate-500">{help}</span>
-            </span>
-          </label>
-        ))}
+        ).map(([value, label, help]) => {
+          const disabled = value === 'instance' && !mayWriteInstance
+          return (
+            <label
+              key={value}
+              className={
+                'flex items-start gap-2 text-xs ' +
+                (disabled ? 'text-slate-500' : 'text-slate-300')
+              }
+            >
+              <input
+                type="radio"
+                name="settings-scope"
+                value={value}
+                checked={editing === value}
+                disabled={disabled}
+                onChange={() => onChange(value)}
+                className="mt-0.5"
+              />
+              <span>
+                <span
+                  className={
+                    'font-medium ' +
+                    (disabled ? 'text-slate-400' : 'text-slate-100')
+                  }
+                >
+                  {label}
+                </span>
+                <span className="block text-slate-400">{help}</span>
+              </span>
+            </label>
+          )
+        })}
       </div>
     </fieldset>
   )

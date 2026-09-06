@@ -48,7 +48,7 @@ Open, machine-readable corpora used by Law AI.
   docker compose run --rm backend python scripts/ingest_sample.py --source colorado_statutes --titles 18,42  # commits to Neo4j
   ```
 - v1 scope: Colorado Title 18 (Criminal Code), Article 3 (Offenses Against the Person). Additional titles are a one-line `--titles` change.
-- PDF fallback (BL-20260509-06): set `COLORADO_STATUTES_PDF_BASE_URL` (a directory of `title-<N>.pdf`, or a template containing `{title}`) and `ColoradoStatutesClient.fetch_title_document` falls back to `parse_title_pdf` when the HTML fetch fails. Local publications can be parsed offline with `python scripts/ingest_sample.py --source colorado_statutes --titles 18 --pdf-dir /path/to/pdfs`. PDF-derived sections are penalised by `PDF_CONFIDENCE_PENALTY` so they always land in the HITL queue — CRS PDFs are column-laid-out and naive text extraction interleaves columns.
+- PDF fallback (BL-20260509-06): set `COLORADO_STATUTES_PDF_BASE_URL` (a directory of `title-<N>.pdf`, or a template containing `{title}`) and `ColoradoStatutesClient.fetch_title_document` falls back to `parse_title_pdf` when the HTML fetch fails. Local publications can be parsed offline with `python scripts/ingest_sample.py --source colorado_statutes --titles 18 --pdf-dir /path/to/pdfs`. PDF-derived sections are penalised by `PDF_CONFIDENCE_PENALTY` so they always land in the HITL queue — CRS PDFs are column-laid-out and naive text extraction interleaves columns. A whole penalised import can be cleared in one scoped decision once a reviewer has satisfied themselves about the title (BL-20260905-98): `python manage.py review_queue approve-all --id-prefix us-co/crs/18- --reviewer-user alice --note "spot-checked the import"`. The verb refuses to run without a `--source` / `--kind` / `--id-prefix` scope, and `--reviewer-user` records the decision against a real Django account (BL-20260906-20).
 - Live-network drift smoke (BL-20260511-07): `make test-live-network` runs [backend/tests/ingestion/test_colorado_statutes_live.py](../backend/tests/ingestion/test_colorado_statutes_live.py) — one real Justia fetch, re-run through the parser, gated behind `LIVE_NETWORK=1` and the `network` marker. It runs nightly with `continue-on-error` and never in per-PR CI.
 - Follow-ups: none outstanding — Denver Municipal Code (`BL-20260509-05`) is below, and `:CITES_STATUTE` edges from existing case law (`BL-20260509-07`) shipped; see [data-model.md](data-model.md#cross-corpus-reasoning-spec-015).
 
@@ -78,8 +78,11 @@ Deferred out of spec 016 as "spec 016.b" and delivered under `BL-20260509-05`. I
   docker compose run --rm backend python scripts/ingest_sample.py --source denver_municipal_code --chapters 38 --chapter-dir backend/tests/ingestion/fixtures/denver --dry-run
   # commit mode: sections go to the HITL queue, not the graph — "committed=0" is correct
   docker compose run --rm backend python scripts/ingest_sample.py --source denver_municipal_code --chapters 38 --chapter-dir /path/to/html
+  # every chapter the local directory holds, no hand-typed list (BL-20260906-06)
+  docker compose run --rm backend python scripts/ingest_sample.py --source denver_municipal_code --chapters all --chapter-dir /path/to/html --dry-run
   ```
-- v1 scope: one chapter at a time, from local HTML. Chapter discovery, the code's article/division layer, and `CITES`/`INTERPRETS` edges between ordinances and the statutes they implement are out of scope.
+- Chapter discovery (`BL-20260906-06`): `--chapters all` reads the chapter list instead of taking a hand-typed one — from the `chapter-*.html` files in `--chapter-dir` offline, or from the code's table of contents (`DenverMunicipalCodeClient.list_chapters` → `parse_chapter_index`) when fetching is enabled. A page with no chapter links yields an empty list rather than a guessed range.
+- Still out of scope: the code's article/division layer (`Ordinance` remains one flat node per chapter, so an article is neither a node nor a property yet) and `CITES`/`INTERPRETS` edges between ordinances and the statutes they implement.
 
 ## Autonomy source adapters
 

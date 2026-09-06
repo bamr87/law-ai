@@ -14,7 +14,11 @@ import {
   listSettingValues,
   upsertSettingValue,
 } from '@/lib/scope/store'
-import { railExpanded, hitlThreshold } from '@/lib/settings/catalog'
+import {
+  railExpanded,
+  hitlThreshold,
+  lsatTimerDuration,
+} from '@/lib/settings/catalog'
 import { resetLayout } from '@/lib/shell/layout'
 import { server } from '@/mocks/server'
 import { http, HttpResponse } from 'msw'
@@ -210,6 +214,34 @@ describe('resetLayout', () => {
     resetLayout()
     const rows = listSettingValues().filter((r) => r.key === railExpanded.key)
     expect(rows.map((r) => r.scopeId)).toEqual([INSTANCE_SCOPE.id])
+  })
+
+  /**
+   * BL-20260905-33: "Reset layout" resets the layout, not the exercise.
+   *
+   * A student who set a 10-minute homework clock and then tidied their screen
+   * has said nothing about how long they want to drill; putting them back on a
+   * full section would be this button inventing an answer. The length keeps
+   * its own ways back — the timer's Length menu and `/settings`' per-field
+   * "Reset to inherited".
+   */
+  it('leaves the drill length alone', () => {
+    upsertSettingValue({
+      scopeId: INSTANCE_SCOPE.id,
+      key: railExpanded.key,
+      value: true,
+      locked: false,
+    })
+    upsertSettingValue({
+      scopeId: INSTANCE_SCOPE.id,
+      key: lsatTimerDuration.key,
+      value: '10',
+      locked: false,
+    })
+    resetLayout()
+    expect(
+      listSettingValues().map((r) => [r.key, r.value]),
+    ).toEqual([[lsatTimerDuration.key, '10']])
   })
 
   it('signed out, it still clears the instance rows', () => {

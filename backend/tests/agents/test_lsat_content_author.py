@@ -454,3 +454,101 @@ class TestRunBalanceFlag:
             out = await agent.run({"section": "LR", "difficulty": "med", "count": 4})
         assert out.degraded is True
         assert out.balance_flag is None
+
+
+class TestInteractiveStreaming:
+    """BL-20260906-76 — the 68-second authoring wait is visible while it waits."""
+
+    @pytest.mark.asyncio
+    async def test_a_stream_id_relays_the_drafting_deltas(self) -> None:
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
+        from law_ai.core.llm.base import LLMChunk
+
+        payload = _valid_drafts_payload(2)
+        emitted: list[dict] = []
+
+        async def fake_emit(stream_key, event, source=""):  # type: ignore[no-untyped-def]
+            emitted.append({"key": stream_key, **event, "source": source})
+
+        async def fake_astream(prompt, **kwargs):  # type: ignore[no-untyped-def]
+            for i in range(0, len(payload), 40):
+                yield LLMChunk(
+                    text=payload[i : i + 40],
+                    provider="xai",
+                    model="grok-4.6",
+                    first=i == 0,
+                )
+
+        agent = mod.LSATContentAuthor()
+        with (
+            patch("law_ai.agentsapi.streaming.emit_stream_event", new=fake_emit),
+            patch.object(mod.llm, "astream", new=fake_astream),
+            patch.object(mod.provenance, "log_agent_call", return_value="trace-1"),
+        ):
+            out = await agent.run(
+                {
+                    "section": "LR",
+                    "difficulty": "med",
+                    "count": 2,
+                    "stream_id": "author-42",
+                }
+            )
+
+        # The drafts are still parsed from one complete payload…
+        assert len(out.drafts) == 2
+        assert out.degraded is False
+        # …and every delta reached this run's group as progress.
+        assert len(emitted) > 1
+        assert {e["type"] for e in emitted} == {"authoring_token"}
+        assert emitted[0]["key"] == "author-42"
+        assert emitted[0]["agent"] == "LSATContentAuthor"
+        assert emitted[0]["source"] == "lsat_content_author"
+        assert [e["chars"] for e in emitted] == sorted(e["chars"] for e in emitted)
+        assert emitted[-1]["chars"] == len(payload)
+        assert "".join(e["text"] for e in emitted) == payload
+
+    @pytest.mark.asyncio
+    async def test_without_a_stream_id_the_call_stays_buffered(self) -> None:
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
+
+        buffered = AsyncMock(return_value=_llm_result(_valid_drafts_payload(1)))
+        exploding = AsyncMock(side_effect=AssertionError("must not stream"))
+        agent = mod.LSATContentAuthor()
+        with (
+            patch.object(mod.llm, "agenerate", new=buffered),
+            patch.object(mod.llm, "astream", new=exploding),
+            patch.object(mod.provenance, "log_agent_call", return_value="trace-2"),
+        ):
+            out = await agent.run({"section": "LR", "difficulty": "med", "count": 1})
+        assert len(out.drafts) == 1
+        assert buffered.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_a_dead_socket_never_costs_the_author_their_drafts(self) -> None:
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
+        from law_ai.core.llm.base import LLMChunk
+
+        payload = _valid_drafts_payload(1)
+
+        async def dead_emit(*args: object, **kwargs: object) -> None:
+            raise RuntimeError("channel layer down")
+
+        async def fake_astream(prompt, **kwargs):  # type: ignore[no-untyped-def]
+            yield LLMChunk(text=payload, provider="xai", model="grok-4.6", first=True)
+
+        agent = mod.LSATContentAuthor()
+        with (
+            patch("law_ai.agentsapi.streaming.emit_stream_event", new=dead_emit),
+            patch.object(mod.llm, "astream", new=fake_astream),
+            patch.object(mod.provenance, "log_agent_call", return_value="trace-3"),
+        ):
+            out = await agent.run(
+                {
+                    "section": "LR",
+                    "difficulty": "med",
+                    "count": 1,
+                    "stream_id": "author-43",
+                }
+            )
+        assert len(out.drafts) == 1
+        assert out.degraded is False

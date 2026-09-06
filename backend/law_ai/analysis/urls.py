@@ -17,12 +17,16 @@ from django.conf import (
 )
 from django.utils import timezone
 from django.urls import path
-from pydantic import BaseModel, Field, PrivateAttr, ValidationError
+from pydantic import BaseModel, Field, PrivateAttr, ValidationError, model_validator
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from law_ai.agents_runtime.crews.legal_analyst import IRACOutput, LegalAnalyst
+from law_ai.agents_runtime.crews.legal_analyst import (
+    IRACOutput,
+    LegalAnalyst,
+    ThreadDivergence,
+)
 from law_ai.agents_runtime.crews.precedent_hunter import (
     PrecedentHunter,
     PrecedentList,
@@ -55,6 +59,11 @@ class AnalysisRequest(BaseModel):
     # `langgraph_thread_id` from a previous response to resume that thread's
     # checkpointed state instead of starting a fresh one. Same charset/length
     # rule as stream_id — it becomes a checkpointer key.
+    # BL-20260905-81 resume semantics: a resume must ask the *same* question
+    # in the same jurisdiction. Changing either contradicts what the thread
+    # recorded, so the request is refused with 409 rather than silently
+    # rewriting the checkpointed channels; omit `thread_id` to branch a new
+    # thread instead.
     thread_id: str | None = Field(
         default=None, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._-]+$"
     )
@@ -82,7 +91,18 @@ class AnalysisResponse(BaseModel):
     irac: IRACOutput
     precedents: PrecedentList
     agent_trace: list[AgentTraceEntry]
-    phoenix_trace_url: str | None = None
+    # BL-20260906-10: `phoenix_trace_url` is a misnomer — the collector is
+    # whatever `core.telemetry.trace_url` points at. `trace_url` is the name
+    # going forward; both are emitted, identically, until no client reads the
+    # old one.
+    phoenix_trace_url: str | None = Field(
+        default=None,
+        description="DEPRECATED alias of `trace_url`; always equal to it.",
+    )
+    trace_url: str | None = Field(
+        default=None,
+        description="Deep-link to this run's span tree, when telemetry is on.",
+    )
     langgraph_thread_id: str | None = None
     resumed: bool = Field(
         default=False,
@@ -95,6 +115,15 @@ class AnalysisResponse(BaseModel):
     # of the async run so the sync view can persist it. Private, so the wire
     # shape (and the exported API schema) is unchanged.
     _parent_trace_id: str = PrivateAttr(default="")
+
+    @model_validator(mode="after")
+    def _mirror_trace_url(self) -> AnalysisResponse:
+        """Keep the deprecated spelling and its replacement identical."""
+        if self.trace_url is None:
+            self.trace_url = self.phoenix_trace_url
+        elif self.phoenix_trace_url is None:
+            self.phoenix_trace_url = self.trace_url
+        return self
 
 
 _logger = logging.getLogger(__name__)
@@ -408,6 +437,16 @@ class AnalysisView(APIView):
             return denied
         try:
             body = async_to_sync(_run_analysis)(req)
+        except ThreadDivergence as exc:
+            # BL-20260905-81: the caller asked this thread something else.
+            return Response(
+                {
+                    "detail": str(exc),
+                    "thread_id": exc.thread_id,
+                    "field": exc.field,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
         except Exception as exc:
             provenance.log_agent_call(
                 agent_name="AnalysisStudio",

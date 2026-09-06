@@ -21,8 +21,11 @@ import {
 } from '@/lib/backup'
 import { getAttempts, recordAttempt } from '@/lib/progress'
 import {
+  HEADER_PINNED_KEY,
+  readHeaderPinned,
   readLibraryRead,
   readWritingState,
+  writeHeaderPinned,
   writeLibraryRead,
   writeWritingState,
 } from '@/lib/deviceState'
@@ -67,6 +70,28 @@ describe('exportSnapshot', () => {
     expect(snapshot.writing).toEqual({ drafts: {}, submitted: [] })
   })
 
+  /**
+   * BL-20260905-16: preferences are not progress.
+   *
+   * The snapshot exists so a month of drilling survives a replaced phone. A
+   * restore is allowed to overwrite history — that is what `replace` means —
+   * and having it also re-answer "should this header hide on scroll?" for the
+   * device the file landed on would be a surprise rather than a recovery.
+   */
+  it('leaves per-device preferences out of the snapshot', () => {
+    seed()
+    writeHeaderPinned(true)
+    const snapshot = exportSnapshot() as unknown as Record<string, unknown>
+    expect(Object.keys(snapshot).sort()).toEqual([
+      'attempts',
+      'exported_at',
+      'library_read',
+      'schema',
+      'writing',
+    ])
+    expect(JSON.stringify(snapshot)).not.toContain(HEADER_PINNED_KEY)
+  })
+
   it('names the file by the day it was taken', () => {
     expect(snapshotFilename(new Date('2026-09-05T11:00:00Z'))).toBe(
       'lsat-practice-2026-09-05.json',
@@ -77,6 +102,21 @@ describe('exportSnapshot', () => {
 describe('importSnapshot', () => {
   beforeEach(() => {
     window.localStorage.clear()
+  })
+
+  it('does not re-answer this device\'s preferences (BL-20260905-16)', () => {
+    // The pin is this device's choice; a file from another one has no say in
+    // it, not even under `replace`.
+    writeHeaderPinned(true)
+    const file = JSON.stringify({
+      schema: SNAPSHOT_SCHEMA,
+      exported_at: new Date().toISOString(),
+      attempts: [attempt('lr-002', 2_000)],
+      library_read: [],
+      writing: { drafts: {}, submitted: [] },
+    })
+    importSnapshot(file, 'replace')
+    expect(readHeaderPinned()).toBe(true)
   })
 
   it('round-trips a device exactly', () => {

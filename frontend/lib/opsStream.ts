@@ -19,7 +19,12 @@ import { agentStreamUrl, fetchStreamTicket } from '@/lib/agentStream'
 const OPS_STREAM_ID = 'ops'
 
 export type OpsChangeEvent = {
-  type: 'runs_changed' | 'metrics_changed'
+  /**
+   * The only kind the backend emits (BL-20260905-76). `metrics_changed` was
+   * declared on both sides and never sent: the metrics endpoint aggregates the
+   * same `agent_call` events a run notification already covers.
+   */
+  type: 'runs_changed'
   agent?: string
   trace_id?: string
 }

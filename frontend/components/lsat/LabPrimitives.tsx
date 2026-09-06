@@ -24,12 +24,12 @@ export function Stat({
 }) {
   return (
     <div className="text-right">
-      <div className="text-[10px] uppercase tracking-wider text-slate-500">
+      <div className="text-[10px] uppercase tracking-wider text-slate-400">
         {label}
       </div>
       <div className="font-mono text-sm tabular-nums text-slate-100">
         {value}
-        {sub && <span className="ml-1.5 text-xs text-slate-500">({sub})</span>}
+        {sub && <span className="ml-1.5 text-xs text-slate-400">({sub})</span>}
       </div>
     </div>
   )
@@ -38,7 +38,7 @@ export function Stat({
 export function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="uppercase tracking-wider text-slate-500">{label}</dt>
+      <dt className="uppercase tracking-wider text-slate-400">{label}</dt>
       <dd className="mt-0.5 text-slate-300">{value}</dd>
     </div>
   )

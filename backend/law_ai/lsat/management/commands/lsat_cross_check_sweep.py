@@ -18,6 +18,12 @@ questions already carrying a cached verdict are skipped unless ``--refresh``.
 Degraded verdicts (no provider reachable) are never filed: an outage is not a
 disagreement.
 
+The same sweep also runs on a cadence (BL-20260905-58): the
+``lsat_cross_check`` autonomy kind reuses the helpers below, and the weekly
+``autonomy-lsat-cross-check`` beat (Tuesdays 05:00 UTC, budget 5) dispatches it
+under the ``AUTONOMY_ENABLED`` kill-switch, so coverage grows without anyone
+remembering to type this.
+
     make manage CMD='lsat_cross_check_sweep --section LR --limit 5'
     make manage CMD='lsat_cross_check_sweep --dry-run'
     make lsat-cross-check-sweep ARGS='--section RC --limit 3'

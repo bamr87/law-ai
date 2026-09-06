@@ -286,6 +286,78 @@ class TestApprove:
         )
 
 
+class TestReextract:
+    """BL-20260906-04: the third verb, on the web surface too."""
+
+    def test_reextract_refreshes_the_row_without_committing(
+        self, client: Client
+    ) -> None:
+        _make("case-1")
+        with patch.object(approval_mod, "_commit_by_kind") as commit:
+            res = _post(
+                client,
+                "/api/ingestion/reviews/re-extract",
+                {"id": "case-1", "reviewer": "alice"},
+            )
+        assert res.status_code == 200
+        body = res.json()
+        assert body["reextracted"] is True
+        assert body["previous_confidence"] == 0.42
+        assert body["confidence"] > 0.42
+        assert body["clears_threshold"] is True
+        assert body["review"]["confidence"] > 0.42
+        commit.assert_not_called()
+
+        review = PendingReview.objects.get(pk="case-1")
+        # §5: a fresh score informs the reviewer, it does not approve anything.
+        assert review.approved is None
+        assert review.committed_at is None
+
+    def test_a_kind_with_no_reextraction_path_is_a_422(self, client: Client) -> None:
+        _make("ord-1", kind="ordinance_section")
+        res = _post(client, "/api/ingestion/reviews/re-extract", {"id": "ord-1"})
+        assert res.status_code == 422
+        assert "ordinance_section" in res.json()["detail"]
+
+    def test_an_already_committed_row_is_skipped(self, client: Client) -> None:
+        _make("case-1", approved=True, committed_at=datetime.now(UTC))
+        res = _post(client, "/api/ingestion/reviews/re-extract", {"id": "case-1"})
+        assert res.status_code == 200
+        assert res.json()["reextracted"] is False
+        assert res.json()["skipped"] == "already-committed"
+
+    def test_signed_in_account_wins_over_a_claimed_reviewer_string(
+        self, client: Client
+    ) -> None:
+        user = get_user_model().objects.create_user(
+            username="realreviewer", password="x" * 12
+        )
+        client.force_login(user)
+        _make("case-1")
+        events: list[tuple[str, dict[str, Any]]] = []
+        with patch.object(
+            approval_mod.provenance,
+            "log_event",
+            lambda kind, payload: events.append((kind, payload)),
+        ):
+            _post(
+                client,
+                "/api/ingestion/reviews/re-extract",
+                {"id": "case-1", "reviewer": "impersonator"},
+            )
+        reextracted = [p for kind, p in events if kind == "quarantine_reextracted"]
+        assert reextracted and reextracted[0]["reviewer"] == "realreviewer"
+
+    def test_missing_id_is_a_422_and_unknown_id_a_404(self, client: Client) -> None:
+        assert _post(client, "/api/ingestion/reviews/re-extract", {}).status_code == 422
+        assert (
+            _post(
+                client, "/api/ingestion/reviews/re-extract", {"id": "nope"}
+            ).status_code
+            == 404
+        )
+
+
 # ---------------------------------------------------------------------------
 # Constitution §12 I1: this router never writes Neo4j itself.
 # ---------------------------------------------------------------------------

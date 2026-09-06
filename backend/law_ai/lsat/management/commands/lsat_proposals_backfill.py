@@ -36,7 +36,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: Any, **opts: Any) -> None:
-        state = proposals_store._replay(proposals_store._tail())
+        state = proposals_store._replay_log()
         if opts["dry_run"]:
             self.stdout.write(
                 self.style.WARNING(

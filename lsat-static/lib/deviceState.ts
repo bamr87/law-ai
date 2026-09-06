@@ -127,3 +127,37 @@ export function writeWritingState(state: WritingState, replace = false): void {
   }
   for (const id of state.submitted) writeLocal(writingSubmittedKey(id), '1')
 }
+
+// --- per-device preferences -------------------------------------------------
+
+/**
+ * Whether the reader pinned the site header open (BL-20260901-05).
+ *
+ * It lives here with the attempts and the drafts because it is stored the same
+ * way, but it is deliberately *not* in the export snapshot (`lib/backup.ts`),
+ * and that is the decision BL-20260905-16 asked for:
+ *
+ *  - **A preference is not progress.** The snapshot exists so a month of
+ *    drilling survives a replaced phone. A restore is allowed to overwrite
+ *    history — that is what `replace` means — and having it also reach over
+ *    and re-answer "should this header hide on scroll?" for the device the
+ *    file landed on would be a surprise, not a recovery. The pin is cheap to
+ *    re-set and costs nothing when it is lost.
+ *  - **The two products do not share a preference key shape**, and should not.
+ *    The platform's preferences (`frontend/lib/settings/`) are scoped rows
+ *    resolved user-over-instance and mirrored to a server; this site has no
+ *    server and no account, so a scope chain here would be one scope with
+ *    extra steps. A shared shape would only be worth its cost if a preference
+ *    ever had to travel between the two, and none can: this site is a static
+ *    export with no way to reach the platform.
+ */
+export const HEADER_PINNED_KEY = 'lsat-practice.header-pinned.v1'
+
+export function readHeaderPinned(): boolean {
+  // Private browsing and blocked site data both throw; the default stands.
+  return readLocal(HEADER_PINNED_KEY) === '1'
+}
+
+export function writeHeaderPinned(pinned: boolean): void {
+  writeLocal(HEADER_PINNED_KEY, pinned ? '1' : '0')
+}

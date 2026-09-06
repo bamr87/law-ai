@@ -43,6 +43,7 @@ from law_ai.ingestionapp.services.approval import (
     ApprovalError,
     commit_approved_review,
     record_decision,
+    reextract_review,
 )
 
 logger = logging.getLogger("law_ai.ingestionapp.api")
@@ -72,7 +73,7 @@ MAX_LIMIT = 200
 
 
 class _DecisionRequest(BaseModel):
-    """Body of approve/reject."""
+    """Body of approve/reject/re-extract (``note`` unused by re-extract)."""
 
     id: str = Field(..., min_length=1)
     reviewer: str = ""
@@ -248,6 +249,50 @@ class ReviewApproveView(_DecisionView):
         )
 
 
+class ReviewReextractView(_Base):
+    """``POST /api/ingestion/reviews/re-extract`` — re-score with today's extractor.
+
+    BL-20260906-04. The third review verb shipped in Django admin and in
+    ``manage.py review_queue`` but not here, so a web reviewer could not ask
+    the one question that decides most stale rows: "would today's extractor
+    still quarantine this?".
+
+    Never commits — even a fresh score that clears the threshold only refreshes
+    the row, because constitution §5 makes the human approval the gate.
+    """
+
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        try:
+            req = _DecisionRequest.model_validate(request.data or {})
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        review = _get_review(req.id)
+        identity = reviewer_from_request(request, claimed=req.reviewer)
+        try:
+            with attributed(identity):
+                outcome = reextract_review(review, reviewer=identity.name)
+        except ApprovalError as exc:
+            logger.warning("re-extract refused for %s: %s", review.pk, exc)
+            return Response(
+                {"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        review.refresh_from_db()
+        return Response(
+            {
+                "review": _row(review),
+                "reextracted": bool(outcome.get("reextracted")),
+                "previous_confidence": outcome.get("previous_confidence"),
+                "confidence": outcome.get("confidence"),
+                "clears_threshold": bool(outcome.get("clears_threshold")),
+                "n_citations": outcome.get("n_citations", 0),
+                "error": outcome.get("error", ""),
+                "skipped": outcome.get("skipped", ""),
+            }
+        )
+
+
 urlpatterns = [
     path("reviews", ReviewListView.as_view(), name="ingestion-reviews"),
     path("reviews/detail", ReviewDetailView.as_view(), name="ingestion-review-detail"),
@@ -255,4 +300,9 @@ urlpatterns = [
         "reviews/approve", ReviewApproveView.as_view(), name="ingestion-review-approve"
     ),
     path("reviews/reject", ReviewRejectView.as_view(), name="ingestion-review-reject"),
+    path(
+        "reviews/re-extract",
+        ReviewReextractView.as_view(),
+        name="ingestion-review-reextract",
+    ),
 ]

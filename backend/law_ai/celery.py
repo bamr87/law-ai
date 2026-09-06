@@ -78,6 +78,20 @@ app.conf.beat_schedule = {
         "kwargs": {"kind": "lsat_library", "budget": 3},
         "options": {"queue": "autonomy"},
     },
+    # Pillar D — weekly LSAT bank cross-check (Tuesday 05:00 UTC,
+    # BL-20260905-58). Blind-solves unchecked questions through the provider
+    # chain and files only *disagreements* as pending `crosscheck` proposals,
+    # so a mis-keyed question surfaces on a cadence instead of when a learner
+    # happens to trip over it. Weekly and budget-capped at five because every
+    # question is a real provider call; questions already carrying a verdict
+    # or a queued row are skipped, so consecutive runs advance rather than
+    # re-solve. A day after the library review so the two never overlap.
+    "autonomy-lsat-cross-check": {
+        "task": "law_ai.core.tasks.autonomy_cycle",
+        "schedule": crontab(hour=5, minute=0, day_of_week=2),
+        "kwargs": {"kind": "lsat_cross_check", "budget": 5},
+        "options": {"queue": "autonomy"},
+    },
     # Ingestion HITL — apply human approvals every 15 minutes (spec 029
     # follow-up BL-20260811-02). Not an autonomy *decision*: every row it
     # touches was already approved by a person, and the sweep is idempotent

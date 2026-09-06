@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 from contextlib import asynccontextmanager
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -25,6 +26,24 @@ _NEO4J_URI = os.getenv("NEO4J_URI", "")
 pytestmark = pytest.mark.integration
 
 
+def _new_driver() -> Any:
+    """A driver bound to *this* test's event loop (BL-20260905-94).
+
+    Seeding through ``get_neo4j_driver()`` reused the module-level singleton,
+    which binds to whichever loop first touched it — so this test passed alone
+    and raised "Future attached to a different loop" whenever it ran in the
+    same process after a test that had bound the singleton elsewhere. Same
+    per-test driver pattern as
+    ``tests/ingestion/test_force_quarantine_integration.py``.
+    """
+    from django.conf import settings
+    from neo4j import AsyncGraphDatabase
+
+    return AsyncGraphDatabase.driver(
+        settings.NEO4J_URI, auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD)
+    )
+
+
 @pytest.mark.skipif(
     not _NEO4J_URI,
     reason="NEO4J_URI not set — skipping integration test",
@@ -32,10 +51,16 @@ pytestmark = pytest.mark.integration
 @pytest.mark.asyncio
 async def test_dispatched_cases_carry_agent_version() -> None:
     """End-to-end: workflow dispatches a doc; Neo4j Case node has agent_version."""
-    from law_ai.core.neo4j.driver import get_neo4j_driver
-
     # Seed a minimal orphan citation so the prioritize node has something.
-    driver = get_neo4j_driver()
+    driver = _new_driver()
+    try:
+        await _run_frontier_and_assert(driver)
+    finally:
+        await driver.close()
+
+
+async def _run_frontier_and_assert(driver: Any) -> None:
+    """The body of the test, with the per-test driver handed in."""
     async with driver.session() as session:
         await session.run(
             "MERGE (:Citation {normalized: 'integration-test-citation-007'})"

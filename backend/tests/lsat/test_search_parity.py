@@ -47,6 +47,25 @@ def test_corpus_rankings_match_the_fixture(parity: dict) -> None:
             assert ids and ids[0] == case["top"], case["query"]
 
 
+def test_score_vectors_match_the_fixture(parity: dict) -> None:
+    """Scores and per-field vectors, not just the order (BL-20260905-52).
+
+    Ranking parity hides arithmetic divergence: a weight, an occurrence cap or
+    the half-weight typo fallback can change on one side alone and leave the
+    order intact, so the two rankers would only be caught the day some article
+    happened to straddle the difference. Pinning the number and the fields it
+    came from fails the moment the two disagree about *how much* a hit is
+    worth.
+    """
+    for case in parity["scores"]:
+        hits = lib.search_library(case["query"], limit=len(case["hits"]))
+        got = [
+            {"id": h["id"], "score": h["score"], "matched_in": h["matched_in"]}
+            for h in hits
+        ]
+        assert got == case["hits"], case["query"]
+
+
 def test_typo_predicate_matches_the_fixture(parity: dict) -> None:
     for case in parity["typo_pairs"]:
         assert lib.is_typo(case["a"], case["b"]) is case["typo"], case

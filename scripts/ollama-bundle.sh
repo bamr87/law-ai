@@ -13,9 +13,15 @@
 # Copy dist/ to the target host and run scripts/offline-install.sh there.
 #
 # Usage:
-#   make local-ai-bundle                  # models + images
+#   make local-ai-bundle                  # every model in the volume + images
 #   make local-ai-bundle ARGS='--dry-run' # print the plan, write nothing
 #   OUT_DIR=/mnt/usb/bundle scripts/ollama-bundle.sh --models-only
+#
+#   # Only the named models (BL-20260906-45). Refreshing one model then costs
+#   # one model, not the tens of GB the whole volume weighs. A bare name means
+#   # `:latest`, exactly as `ollama pull` reads it.
+#   scripts/ollama-bundle.sh --models 'mistral:7b-instruct-q4_K_M nomic-embed-text'
+#   MODELS="$OLLAMA_BOOTSTRAP_MODELS" scripts/ollama-bundle.sh --models-only
 #
 # This is a host script on purpose: it drives `docker` itself, so it cannot
 # live inside a container.
@@ -25,9 +31,12 @@ OUT_DIR=${OUT_DIR:-dist}
 DRY_RUN=0
 WANT_MODELS=1
 WANT_IMAGES=1
+#: Space-separated model list; empty means "the whole volume" (the default,
+#: and what every earlier bundle was).
+MODELS=${MODELS:-}
 
 usage() {
-  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 while [ $# -gt 0 ]; do
@@ -35,6 +44,12 @@ while [ $# -gt 0 ]; do
     --dry-run) DRY_RUN=1 ;;
     --models-only) WANT_IMAGES=0 ;;
     --images-only) WANT_MODELS=0 ;;
+    --models)
+      shift
+      [ $# -gt 0 ] || { echo "--models needs a model list" >&2; exit 2; }
+      MODELS=$1
+      ;;
+    --models=*) MODELS=${1#--models=} ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -83,17 +98,51 @@ if [ "$WANT_MODELS" = "1" ]; then
   else
     say "ollama is not running — tarring the volume directly"
   fi
-  say "writing $OUT_DIR/ollama-models.tar (tens of GB; this takes a while)"
   # Through a throwaway container so the volume can be read whether or not the
   # stack is up. `-C /models .` keeps paths relative for a clean restore.
-  # --entrypoint tar: the ollama image's entrypoint is /bin/ollama, so a bare
-  # `tar` argument is parsed as an ollama subcommand and fails.
-  run docker run --rm \
-    -v "$VOLUME":/models:ro \
-    -v "$OUT_ABS":/out \
-    --entrypoint tar \
-    "$OLLAMA_IMAGE" \
-    -C /models -cf /out/ollama-models.tar .
+  # --entrypoint tar / sh: the ollama image's entrypoint is /bin/ollama, so a
+  # bare `tar` argument is parsed as an ollama subcommand and fails.
+  if [ -z "$MODELS" ]; then
+    say "writing $OUT_DIR/ollama-models.tar (whole volume; tens of GB)"
+    run docker run --rm \
+      -v "$VOLUME":/models:ro \
+      -v "$OUT_ABS":/out \
+      --entrypoint tar \
+      "$OLLAMA_IMAGE" \
+      -C /models -cf /out/ollama-models.tar .
+  else
+    # Subset (BL-20260906-45). Blobs are content-addressed and shared between
+    # models, so the tar is assembled from each requested manifest plus the
+    # digests it names, deduplicated — never by guessing at file sizes. A
+    # model that is not in the volume is an error, not a silently thinner
+    # bundle: offline-install.sh would otherwise restore a volume whose
+    # manifest points at blobs that were never shipped.
+    say "writing $OUT_DIR/ollama-models.tar (models: $MODELS)"
+    run docker run --rm \
+      -v "$VOLUME":/models:ro \
+      -v "$OUT_ABS":/out \
+      -e "WANTED=$MODELS" \
+      --entrypoint sh \
+      "$OLLAMA_IMAGE" \
+      -euc '
+        cd /models
+        : > /tmp/paths
+        for m in $WANTED; do
+          case "$m" in *:*) name=${m%%:*}; tag=${m#*:} ;; *) name=$m; tag=latest ;; esac
+          man="models/manifests/registry.ollama.ai/library/$name/$tag"
+          if [ ! -f "$man" ]; then
+            echo "ollama-bundle: $m is not in this volume ($man)" >&2
+            exit 3
+          fi
+          echo "$man" >> /tmp/paths
+          grep -o "sha256:[0-9a-f]\{64\}" "$man" \
+            | tr ":" "-" \
+            | sed "s|^|models/blobs/|" >> /tmp/paths
+        done
+        sort -u /tmp/paths > /tmp/files
+        tar -C /models -cf /out/ollama-models.tar -T /tmp/files
+      '
+  fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -137,6 +186,8 @@ cat > "$OUT_DIR/bundle.env" <<EOF
 BUNDLE_PROJECT=$PROJECT
 BUNDLE_VOLUME=$VOLUME
 BUNDLE_OLLAMA_IMAGE=$OLLAMA_IMAGE
+# Empty means the whole volume; otherwise the subset this bundle carries.
+BUNDLE_MODELS=$MODELS
 BUNDLE_CREATED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 EOF
 

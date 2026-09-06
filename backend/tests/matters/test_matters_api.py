@@ -31,6 +31,22 @@ def intruder():
 
 
 @pytest.fixture
+def in_graph():
+    """Pretend the corpus holds whatever node the test records.
+
+    BL-20260906-16 made recording an authority check ``node_id`` against
+    Neo4j, so a test that records one has to say whether the graph has it —
+    otherwise the result depends on whatever the local graph happens to hold.
+    """
+    from unittest.mock import patch
+
+    with patch(
+        "law_ai.matters.services.authorities.graph_labels_for", return_value=["Case"]
+    ) as stub:
+        yield stub
+
+
+@pytest.fixture
 def client(owner) -> APIClient:
     api = APIClient()
     api.force_authenticate(user=owner)
@@ -146,7 +162,7 @@ class TestArtifactsAndAuthorities:
         assert res.status_code == 422
 
     def test_recording_an_authority_twice_updates_rather_than_duplicates(
-        self, client: APIClient
+        self, client: APIClient, in_graph
     ) -> None:
         matter = _make(client)
         first = client.post(
@@ -165,8 +181,62 @@ class TestArtifactsAndAuthorities:
         assert second.json()["verified"] is True
         assert MatterAuthority.objects.filter(matter__slug=matter["slug"]).count() == 1
 
+    def test_an_authority_that_is_not_in_the_graph_is_refused(
+        self, client: APIClient
+    ) -> None:
+        """BL-20260906-16: node_id is a claim about the corpus, so check it."""
+        from unittest.mock import patch
+
+        matter = _make(client)
+        with patch(
+            "law_ai.matters.services.authorities.graph_labels_for", return_value=[]
+        ):
+            res = client.post(
+                f"/api/matters/{matter['slug']}/authorities",
+                {"node_id": "case-ghost"},
+                format="json",
+            )
+        assert res.status_code == 422
+        assert "case-ghost" in res.json()["detail"]
+        assert not MatterAuthority.objects.filter(node_id="case-ghost").exists()
+
+    def test_a_verified_node_records_its_graph_labels(self, client: APIClient) -> None:
+        from unittest.mock import patch
+
+        matter = _make(client)
+        with patch(
+            "law_ai.matters.services.authorities.graph_labels_for",
+            return_value=["Case"],
+        ):
+            res = client.post(
+                f"/api/matters/{matter['slug']}/authorities",
+                {"node_id": "case-real"},
+                format="json",
+            )
+        assert res.status_code == 201
+        assert res.json()["graph_labels"] == ["Case"]
+
+    def test_an_unreachable_graph_does_not_block_recording(
+        self, client: APIClient
+    ) -> None:
+        """A Neo4j outage degrades the check; it never blocks a reviewer."""
+        from unittest.mock import patch
+
+        matter = _make(client)
+        with patch(
+            "law_ai.matters.services.authorities.graph_labels_for", return_value=None
+        ):
+            res = client.post(
+                f"/api/matters/{matter['slug']}/authorities",
+                {"node_id": "case-unchecked"},
+                format="json",
+            )
+        assert res.status_code == 201
+        assert res.json()["graph_labels"] is None
+        assert MatterAuthority.objects.filter(node_id="case-unchecked").exists()
+
     def test_verification_records_the_account_that_did_it(
-        self, client: APIClient, owner
+        self, client: APIClient, owner, in_graph
     ) -> None:
         matter = _make(client)
         client.post(
@@ -184,3 +254,29 @@ class TestArtifactsAndAuthorities:
         theirs = Matter.objects.create(owner=intruder, slug="theirs", name="Theirs")
         MatterArtifact.objects.create(matter=theirs, kind="note", title="private")
         assert client.get("/api/matters/theirs/artifacts").status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Graph validation of a recorded authority (BL-20260906-16)
+# ---------------------------------------------------------------------------
+
+
+class TestAuthorityGraphLookup:
+    def test_labels_come_back_for_a_node_that_exists(self) -> None:
+        from law_ai.core.neo4j import queries
+
+        assert "n.archived_at IS NULL" in queries.AUTHORITY_NODE_EXISTS_CYPHER
+        # MATCH-only: the check must never create the node it is looking for.
+        assert "MERGE" not in queries.AUTHORITY_NODE_EXISTS_CYPHER
+        assert "CREATE" not in queries.AUTHORITY_NODE_EXISTS_CYPHER
+
+    def test_an_unreachable_driver_is_reported_as_unknown(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from law_ai.matters.services import authorities
+
+        def boom() -> None:
+            raise RuntimeError("neo4j down")
+
+        monkeypatch.setattr("law_ai.core.neo4j.driver.get_neo4j_driver", boom)
+        assert authorities.graph_labels_for("case-1") is None

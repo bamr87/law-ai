@@ -18,6 +18,7 @@ import pytest
 
 from law_ai.core import llm
 from law_ai.core.llm import providers as llm_providers
+from law_ai.core.llm import router
 from law_ai.core.llm.base import LLMRequest
 from law_ai.core.usage import LLMUsage, ProviderReply
 
@@ -573,6 +574,61 @@ class TestPermanentFailureMemory:
         warnings = [r for r in caplog.records if r.levelname == "WARNING"]
         assert len(warnings) == 1
         assert "credential rejected" in warnings[0].getMessage()
+
+    async def test_the_verdict_is_shared_across_processes(self) -> None:
+        """BL-20260905-71: the memory is L1 + the Django cache, so a rejected
+        key costs one call *per window*, not one per daphne/Celery process."""
+        claude = _StubProvider("claude_code", error=_status_error(401))
+        ollama = _StubProvider("ollama", text="local")
+
+        with _chain(claude, ollama):
+            await llm.agenerate("q")
+            # A fresh worker: empty in-process memory, same shared cache.
+            router._permanent_failures.clear()
+            result = await llm.agenerate("q again")
+
+        assert claude.calls == 1  # the second worker never re-earned the 401
+        skipped = result.attempts[0].skipped_reason
+        assert skipped is not None and skipped.startswith("auth failed at ")
+
+    async def test_a_shared_verdict_expires_on_its_original_timestamp(self) -> None:
+        """Adopting late must not restart the window."""
+        claude = _StubProvider("claude_code", error=_status_error(401))
+        ollama = _StubProvider("ollama", text="local")
+
+        with _chain(claude, ollama):
+            await llm.agenerate("q")
+            router._permanent_failures.clear()
+            with patch("time.time", return_value=time.time() + 3600):
+                await llm.agenerate("later")
+
+        assert claude.calls == 2
+
+    async def test_a_broken_cache_backend_degrades_to_per_process_memory(
+        self,
+    ) -> None:
+        """Fail-open: an unreachable cache must never break a model call."""
+        claude = _StubProvider("claude_code", error=_status_error(401))
+        ollama = _StubProvider("ollama", text="local")
+
+        class _Broken:
+            async def aget(self, key: str) -> Any:
+                raise RuntimeError("cache down")
+
+            async def aset(self, key: str, value: Any, timeout: float) -> None:
+                raise RuntimeError("cache down")
+
+        with _chain(claude, ollama), patch.object(router, "_shared_cache", _Broken):
+            await llm.agenerate("q")
+            result = await llm.agenerate("q again")
+            router._permanent_failures.clear()
+            third = await llm.agenerate("third")
+
+        # L1 still works within the process...
+        assert result.attempts[0].skipped_reason is not None
+        # ...and without L2 a fresh process simply re-earns the 401 as before.
+        assert third.text == "local"
+        assert claude.calls == 2
 
     async def test_chain_status_surfaces_the_misconfiguration(self) -> None:
         """A rejected key is invisible to a reachability probe."""

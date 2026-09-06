@@ -24,8 +24,8 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from collections import defaultdict, deque
-from collections.abc import Iterable
+from collections import defaultdict
+from collections.abc import Iterable, Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -102,23 +102,38 @@ def _append(event: dict[str, Any]) -> None:
         fh.write(json.dumps(event, default=str) + "\n")
 
 
-def _tail(limit: int = 5000) -> list[dict[str, Any]]:
+def _iter_events() -> Iterator[dict[str, Any]]:
+    """Stream every event in the log, oldest first, skipping corrupt lines.
+
+    Replaces the bounded 5000-event tail this module used to replay from: a
+    proposal whose ``create`` event had fallen out of that window replayed as
+    nothing, so its row vanished from the queue once the log outgrew it
+    (BL-20260905-57).
+    """
     path = _proposals_path()
     if not path.is_file():
-        return []
-    buf: deque[str] = deque(maxlen=limit)
+        return
     with path.open("r", encoding="utf-8") as fh:
         for raw in fh:
-            line = raw.rstrip("\n")
-            if line:
-                buf.append(line)
-    out: list[dict[str, Any]] = []
-    for line in buf:
-        try:
-            out.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
-    return out
+            line = raw.strip()
+            if not line:
+                continue
+            try:
+                yield json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+
+def _replay_log() -> dict[str, dict[str, Any]]:
+    """Current state of every proposal in the log (BL-20260905-57).
+
+    Streams rather than buffering a tail, so the memory this costs is one row
+    per *proposal* — which the caller is asking for anyway — instead of one
+    per *event*, and no row can age out of the window and disappear from the
+    queue. The Postgres mirror is still what keeps a large queue's reads
+    cheap; this is the floor underneath it.
+    """
+    return _replay(_iter_events())
 
 
 # ---------------------------------------------------------------------------
@@ -217,7 +232,7 @@ def record_judge_verdict(proposal_id: str, verdict: dict[str, Any]) -> None:
     _mirror_row(proposal_id)
 
 
-def _replay(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+def _replay(events: Iterable[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     """Replay the JSONL log into the current state per proposal id."""
     state: dict[str, dict[str, Any]] = {}
     for ev in events:
@@ -337,7 +352,7 @@ def _mirror_row(
         model = _proposal_model()
         if model is None:
             return
-        row = (state if state is not None else _replay(_tail())).get(proposal_id)
+        row = (state if state is not None else _replay_log()).get(proposal_id)
         if row is None:
             return
         model.objects.update_or_create(id=proposal_id, defaults=_mirror_defaults(row))
@@ -354,7 +369,7 @@ def mirror_all() -> int:
     model = _proposal_model()
     if model is None:
         raise RuntimeError("the LsatProposal mirror is not reachable from here")
-    state = _replay(_tail())
+    state = _replay_log()
     written = 0
     for pid, row in state.items():
         model.objects.update_or_create(id=pid, defaults=_mirror_defaults(row))
@@ -399,7 +414,7 @@ def list_proposals(
     rows = _db_rows(status, limit)
     if rows is not None:
         return rows
-    state = _replay(_tail())
+    state = _replay_log()
     jsonl_rows = sorted(
         state.values(),
         key=lambda r: r.get("created_at") or "",
@@ -419,7 +434,7 @@ def get_proposal(proposal_id: str) -> dict[str, Any] | None:
                 return dict(row.payload)
     except Exception as exc:
         logger.debug("lsat proposal mirror read skipped (%s)", exc)
-    return _replay(_tail()).get(proposal_id)
+    return _replay_log().get(proposal_id)
 
 
 def set_status(
@@ -444,7 +459,7 @@ def set_status(
     with _LOCK:
         _append(event)
     # One replay serves both the returned row and the mirror refresh.
-    state = _replay(_tail())
+    state = _replay_log()
     row = state.get(proposal_id)
     if row is None:
         raise KeyError(f"unknown proposal {proposal_id!r}")
@@ -517,7 +532,7 @@ def promote_to_bank(
     Raises ``KeyError`` if the proposal does not exist and ``ValueError`` if
     its section is unknown or its current status is not ``pending``.
     """
-    state = _replay(_tail())
+    state = _replay_log()
     row = state.get(proposal_id)
     if row is None:
         raise KeyError(f"unknown proposal {proposal_id!r}")
@@ -584,12 +599,20 @@ def promote_to_bank(
     }
     if draft.get("passage_id"):
         new_item["passage_id"] = draft["passage_id"]
+    # BL-20260905-54: the generation job knew which archetype it was drafting
+    # for; stamping it makes exemplar selection and the coverage census exact
+    # instead of inferring the pattern back out of the concept tags.
+    archetype_id = factory_meta.get("archetype_id")
+    if isinstance(archetype_id, str) and archetype_id:
+        new_item["archetype"] = archetype_id
 
     bank_blob.setdefault("items", []).append(new_item)
 
     with _LOCK:
+        # BL-20260905-48: the checked-in banks are 2-space JSON, so a
+        # promotion appends one item instead of reformatting the whole file.
         bank_path.write_text(
-            json.dumps(bank_blob, indent=4, ensure_ascii=False) + "\n",
+            json.dumps(bank_blob, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
         # Invalidate the cached bank so the new question is immediately
@@ -863,7 +886,7 @@ def promote_guide_to_bank(
         validate_guide_quality,
     )
 
-    state = _replay(_tail())
+    state = _replay_log()
     row = state.get(proposal_id)
     if row is None:
         raise KeyError(f"unknown proposal {proposal_id!r}")
@@ -948,7 +971,7 @@ def promote_library_article(
         reset_library_caches,
     )
 
-    state = _replay(_tail())
+    state = _replay_log()
     row = state.get(proposal_id)
     if row is None:
         raise KeyError(f"unknown proposal {proposal_id!r}")
@@ -1037,7 +1060,7 @@ def promote_writing_prompt(
         reset_writing_caches,
     )
 
-    state = _replay(_tail())
+    state = _replay_log()
     row = state.get(proposal_id)
     if row is None:
         raise KeyError(f"unknown proposal {proposal_id!r}")

@@ -52,6 +52,18 @@ ORDER BY c.title
 LIMIT $limit
 """
 
+# Distinct court values across the whole corpus (BL-20260905-89). The case
+# picker's court filter is a free-form substring match, so the dropdown needs
+# the corpus-wide vocabulary rather than only the courts of the page it has
+# loaded. Ordered most-populous first so the useful courts sort to the top.
+LIST_COURTS_CYPHER = """
+MATCH (c:Case)
+WHERE c.archived_at IS NULL AND coalesce(c.court, '') <> ''
+RETURN c.court AS court, count(*) AS count
+ORDER BY count DESC, court ASC
+LIMIT $limit
+"""
+
 NEIGHBORHOOD_CYPHER = """
 MATCH (root:Case {id: $case_id})
 OPTIONAL MATCH (root)-[hc:HAS_CITATION]->(cit:Citation)
@@ -119,6 +131,21 @@ async def list_cases(
                 "confidence": record["confidence"],
             }
         )
+    return out
+
+
+async def list_courts(
+    session: AsyncSession, *, limit: int = 200
+) -> list[dict[str, Any]]:
+    """Return the distinct ``Case.court`` values with their case counts.
+
+    Archived cases and cases with no court are excluded, so the picker never
+    offers a court that cannot match anything (BL-20260905-89).
+    """
+    result = await session.run(LIST_COURTS_CYPHER, {"limit": limit})
+    out: list[dict[str, Any]] = []
+    async for record in result:
+        out.append({"court": record["court"], "count": int(record["count"] or 0)})
     return out
 
 

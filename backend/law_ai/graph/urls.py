@@ -44,6 +44,8 @@ def _count_for(result: Any) -> int:
             return len(result["nodes"])
         if "cases" in result and isinstance(result["cases"], list):
             return len(result["cases"])
+        if "courts" in result and isinstance(result["courts"], list):
+            return len(result["courts"])
     return 1
 
 
@@ -153,6 +155,29 @@ class CasesView(_Base):
         )
 
 
+class CourtsView(_Base):
+    """``/api/graph/courts`` — distinct ``Case.court`` values with counts.
+
+    The case picker filters ``court`` by substring because court values are
+    free-form strings; this feed lets the dropdown offer the whole corpus's
+    vocabulary rather than only the courts of the page it happens to have
+    loaded (BL-20260905-89).
+    """
+
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        limit = _bounded_int(
+            request.query_params.get("limit"), default=200, lo=1, hi=500
+        )
+
+        async def _do(session: Any) -> dict[str, Any]:
+            items = await graph_queries.list_courts(session, limit=limit)
+            return {"courts": items, "count": len(items)}
+
+        return Response(
+            async_to_sync(_safe)("list_courts", {"courts": [], "count": 0}, _do)
+        )
+
+
 class NeighborhoodView(_Base):
     def get(
         self, request: Request, case_id: str, *args: Any, **kwargs: Any
@@ -208,6 +233,7 @@ class PathView(_Base):
 urlpatterns = [
     path("stats", StatsView.as_view(), name="graph-stats"),
     path("cases", CasesView.as_view(), name="graph-cases"),
+    path("courts", CourtsView.as_view(), name="graph-courts"),
     path("path", PathView.as_view(), name="graph-path"),
     path(
         "neighborhood/<str:case_id>",

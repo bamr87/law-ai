@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from law_ai.core.provenance import provenance
 from law_ai.core.schemas.extraction import ExtractionResult
@@ -129,35 +129,73 @@ async def resolve_with_default_driver(names: list[str]) -> dict[str, str | None]
 # Cypher round-trip decides whether that node actually exists. Nothing is ever
 # written on the strength of the string alone.
 
-#: Reporter spellings that mean "Colorado Revised Statutes". Matched as
-#: substrings of a lowercased, whitespace-collapsed citation, so both eyecite's
-#: canonical "colo. rev. stat." and the abbreviation courts actually type
-#: ("c.r.s.") hit. Every entry keeps its periods: a bare "crs" would match
-#: inside unrelated words, and a false statutory link is worse than a miss.
-#: `queries.list_cases_with_statute_citations` prunes its scan with this same
-#: tuple, so the vocabulary lives in exactly one place.
-CRS_REPORTERS = (
-    "colo. rev. stat. ann.",
-    "colo. rev. stat.",
-    "colo.rev.stat.",
-    "c.r.s.a.",
-    "c.r.s.",
-)
+
+#: One statutory corpus the resolver can recognise (BL-20260906-02).
+#:
+#: ``reporters`` are lowercased reporter spellings matched as substrings of a
+#: whitespace-collapsed citation. ``section_re`` must expose exactly one group
+#: holding the section number as the corpus's own ids spell it, and
+#: ``id_prefix`` is what the corpus's ingest wrote in front of that number.
+#: Adding a corpus is a matter of appending an entry here: the mapper, and the
+#: reporter list ``queries.list_cases_with_statute_citations`` prunes its scan
+#: with, both read this table, so the vocabulary lives in exactly one place.
+class StatuteCorpus(NamedTuple):
+    code_id: str
+    id_prefix: str
+    reporters: tuple[str, ...]
+    section_re: re.Pattern[str]
+
 
 #: A CRS section number: title-article-section, e.g. ``18-3-102``. Trailing
 #: subsection pin-cites (``(1)(a)``) are deliberately dropped — the graph's
 #: unit of law is the section, and spec 015 ids stop there.
-_CRS_SECTION_RE = re.compile(r"\b(\d{1,2})-(\d{1,3})-(\d{1,4}(?:\.\d+)?)\b")
+#:
+#: Colorado uses *decimal articles* freely ("18-1.3-401"), so every dotted part
+#: gets its own optional decimal, matching ``colorado_statutes._SECTION_NUMBER_RE``
+#: (BL-20260906-89). The earlier shape allowed a decimal only in the last part,
+#: so a case citing C.R.S. § 18-1.3-401 got no ``CITES_STATUTE`` edge at all.
+_CRS_SECTION_RE = re.compile(
+    r"\b(\d{1,2}(?:\.\d+)?-\d{1,3}(?:\.\d+)?-\d{1,4}(?:\.\d+)?)\b"
+)
+
+#: Every statutory corpus in the graph, in match order. CRS is the only one
+#: today (spec 016); a second corpus — U.S.C., Denver's DRMC — is an entry
+#: here plus the ingest that writes its nodes, not a change to the mapper.
+#: Reporter spellings keep their periods: a bare "crs" would match inside
+#: unrelated words, and a false statutory link is worse than a miss.
+STATUTE_CORPORA: tuple[StatuteCorpus, ...] = (
+    StatuteCorpus(
+        code_id="us-co/crs",
+        id_prefix="us-co/crs",
+        reporters=(
+            "colo. rev. stat. ann.",
+            "colo. rev. stat.",
+            "colo.rev.stat.",
+            "c.r.s.a.",
+            "c.r.s.",
+        ),
+        section_re=_CRS_SECTION_RE,
+    ),
+)
+
+#: Backwards-compatible alias for the CRS reporter tuple.
+CRS_REPORTERS = STATUTE_CORPORA[0].reporters
+
+#: Union of every corpus's reporters, for callers that prune a scan before
+#: they know which corpus a citation belongs to.
+STATUTE_REPORTERS: tuple[str, ...] = tuple(
+    reporter for corpus in STATUTE_CORPORA for reporter in corpus.reporters
+)
 
 
 def statute_section_id_from_normalized(normalized: str) -> str | None:
     """Map a normalized citation string onto a candidate ``StatuteSection.id``.
 
     Pure, deterministic, and deliberately narrow: it recognises only the
-    Colorado Revised Statutes, because CRS is the only statutory corpus in the
-    graph (spec 016). Anything else — a case reporter, a federal code cite, a
-    CRS-looking string with no recognised reporter — returns ``None`` rather
-    than a guessed id.
+    corpora in :data:`STATUTE_CORPORA` — the Colorado Revised Statutes today,
+    because CRS is the only statutory corpus in the graph (spec 016). Anything
+    else — a case reporter, a federal code cite, a CRS-looking string with no
+    recognised reporter — returns ``None`` rather than a guessed id.
 
     The id format matches ``colorado_statutes._section_id`` exactly, since that
     is what wrote the nodes.
@@ -172,12 +210,14 @@ def statute_section_id_from_normalized(normalized: str) -> str | None:
     if not normalized:
         return None
     text = " ".join(str(normalized).split()).lower()
-    if not any(reporter in text for reporter in CRS_REPORTERS):
-        return None
-    match = _CRS_SECTION_RE.search(text)
-    if match is None:
-        return None
-    return f"us-co/crs/{match.group(1)}-{match.group(2)}-{match.group(3)}"
+    for corpus in STATUTE_CORPORA:
+        if not any(reporter in text for reporter in corpus.reporters):
+            continue
+        match = corpus.section_re.search(text)
+        if match is None:
+            continue
+        return f"{corpus.id_prefix}/{match.group(1)}"
+    return None
 
 
 # Verification only: MATCH (never MERGE) the candidate ids, so an unresolved

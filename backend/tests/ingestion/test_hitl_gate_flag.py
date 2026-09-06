@@ -9,7 +9,9 @@ regression could come back silently — stubbing ``_hitl_gates_enabled`` to
 These tests pin all three branches: the gate off commits a sub-threshold
 extraction *and* emits ``hitl_gate_disabled``; ``force_quarantine`` still wins
 with the gate off (an approval-required source can never be auto-committed);
-and the default (armed) gate still quarantines.
+and the default (armed) gate still quarantines. BL-20260906-92 narrowed the
+event to the sub-threshold case — a high-confidence extraction commits with the
+gate armed too, so calling that an override over-reported them.
 """
 
 from __future__ import annotations
@@ -121,6 +123,27 @@ async def test_gate_off_is_audited(
         IngestionScout().extract(LOW_CONF_OPINION).confidence
     )
     assert "ENABLE_HUMAN_APPROVAL_GATES" in override[0]["detail"]
+    # BL-20260906-92: the detail names the score and the threshold it missed,
+    # instead of asserting "low-confidence" for every document.
+    assert "below the 0.70 threshold" in override[0]["detail"]
+
+
+@pytest.mark.asyncio
+async def test_gate_off_does_not_log_an_override_for_high_confidence_work(
+    settings: Any,
+    graph: list[str],
+    events: list[tuple[str, dict[str, Any]]],
+    quarantined: list[Any],
+) -> None:
+    """BL-20260906-92: an extraction that would have committed anyway is not
+    an override, and recording it as one inflates the audit trail."""
+    settings.ENABLE_HUMAN_APPROVAL_GATES = False
+
+    summary = await IngestionScout().run_and_commit(HIGH_CONF_OPINION)
+
+    assert summary["committed"] is True
+    assert graph == ["12345"]
+    assert not [kind for kind, _ in events if kind == "hitl_gate_disabled"]
 
 
 @pytest.mark.asyncio

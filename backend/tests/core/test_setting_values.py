@@ -258,3 +258,45 @@ def test_writes_are_provenance_logged(
         "setting_value.deleted",
     ]
     assert all(payload["actor"] == "ada" for _, payload in seen)
+
+
+# --------------------------------------------------------------------------
+# Which scopes the caller may write (BL-20260906-73)
+# --------------------------------------------------------------------------
+def test_the_payload_names_the_scopes_the_caller_may_write(
+    client: APIClient, user, admin
+) -> None:
+    """Readable is not writable, and the client could not tell them apart.
+
+    Without this field the settings UI offers an instance write to everyone;
+    the server refuses it for a non-admin and the row silently stays local to
+    that browser. The list is derived from ``may_write``, so what the UI greys
+    out and what the write does can never disagree.
+    """
+    anon = client.get("/api/settings/values").json()
+    assert anon["scopes"] == [INSTANCE]
+    assert anon["writableScopes"] == []
+
+    client.force_login(user)
+    body = client.get("/api/settings/values").json()
+    assert body["scopes"] == [INSTANCE, f"user:{user.pk}"]
+    assert body["writableScopes"] == [f"user:{user.pk}"]
+
+    staff = APIClient()
+    staff.force_login(admin)
+    body = staff.get("/api/settings/values").json()
+    assert body["writableScopes"] == [INSTANCE, f"user:{admin.pk}"]
+
+
+def test_writable_scopes_agrees_with_what_a_write_actually_does(
+    client: APIClient, user
+) -> None:
+    """The advertised answer and the enforced answer are the same answer."""
+    client.force_login(user)
+    body = client.get("/api/settings/values").json()
+    for scope in body["scopes"]:
+        res = client.put(
+            f"/api/settings/values/{scope}/shell.rail", {"value": 1}, format="json"
+        )
+        refused = res.status_code == 403
+        assert refused is (scope not in body["writableScopes"]), scope

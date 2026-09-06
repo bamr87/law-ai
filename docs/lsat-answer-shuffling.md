@@ -21,6 +21,8 @@ The audit trail records the **stored** label (`choice`) plus `shuffled: true`, s
 
 `GET /api/lsat/questions/<id>/guide?remap=<token>` applies the same rewrite to solve-guide steps: a hint that says "eliminate (B)" beside a shuffled board would contradict the screen.
 
+`POST /api/lsat/tutor` accepts the token as `remap` too (BL-20260905-61). Remapping the tutor's *output* would not have been enough — the coaching reasons about the choices, not just about a letter — so the board is remapped on the way **in**: the prompt receives the choices in display order, the key at the position it was shown, and the bank explanation rewritten to match, and the response's `correct_choice` and `is_correct` are in displayed labels. The walkthrough cache keys on the permutation, so two orders of one question are two documents. A token minted for another question is a **400**, never a walkthrough of the stored order.
+
 `GET /api/lsat/passages/<id>?shuffle=1` takes the same parameter and mints a token per attached question. That endpoint matters more than its one line suggests: every Reading Comprehension and Logic Games item carries a `passage_id` and is served from there rather than from `/api/lsat/questions`, so it is the majority of the bank. It shipped unshuffled at first, which left the named defect alive on exactly the surface that serves most items; both platform panels now ask for the shuffle (`LrPanel` on the question endpoint, `PassagePanel` on this one) and both echo `remap` back through `QuestionCard` at grade time.
 
 ## The static export: shuffle in the browser
@@ -41,5 +43,5 @@ Both implementations — `backend/law_ai/lsat/services/shuffle.py` and `lsat-sta
 
 ## What is not covered yet
 
-- The **AI tutor** prompt (`services/tutor.py`) and cross-check still speak in stored labels. A tutor answer during a shuffled attempt can therefore name a letter the learner is not looking at. Remapping the tutor's *output* is not enough — it reasons about the choices — so this wants the prompt to receive the displayed board, which is a larger change than the serve path.
+- The **cross-check** sweep (`services/crosscheck.py`) still speaks in stored labels. That is correct for what it is — an offline QA blind-solve compared against the bank key, never rendered beside a learner's board — but anything that starts showing a cross-check verdict to a learner has to remap it first.
 - Bank content is still authored with bare labels. A future migration to `{{A}}`-style placeholders would make the remap a substitution rather than a rewrite; the conservative rewrite exists precisely so that migration is not a prerequisite.

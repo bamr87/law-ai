@@ -18,9 +18,11 @@ All runs are logged through ``law_ai.core.autonomy`` which emits paired
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 import sys
+from collections.abc import Callable
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
@@ -42,6 +44,7 @@ class Command(BaseCommand):
                 "lsat_content",
                 "lsat_factory",
                 "lsat_library",
+                "lsat_cross_check",
                 "commit_approved",
             ],
             help="Kind of cycle to run (default: test_pillar).",
@@ -152,28 +155,18 @@ class Command(BaseCommand):
         # ------------------------------------------------------------------
         # Delegate to the audited entry point
         # ------------------------------------------------------------------
-        # PLR0911 is suppressed below: one `if` per autonomy kind is the clearest
-        # form this dispatch can take; the pillar count, not the function, grew.
-        def _runner(context: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0911
-            """Dispatch to the appropriate sub-runner for the requested kind."""
-            if kind == "test_pillar":
-                return _run_test_pillar(context, budget=budget)
-            if kind == "corpus_growth":
-                return _run_corpus_growth(context, source=source, budget=budget)
-            if kind == "digest":
-                return _run_digest(context, window_to_now=window_to_now)
-            if kind == "lsat_content":
-                return _run_lsat_content(context, budget=budget)
-            if kind == "lsat_factory":
-                return _run_lsat_factory(context, budget=budget)
-            if kind == "lsat_library":
-                return _run_lsat_library(context, budget=budget)
-            if kind == "commit_approved":
-                return _run_commit_approved(context, budget=budget)
-            raise ValueError(f"Unknown kind: {kind!r}")  # unreachable via argparse
+        # One dispatch table, shared with the Celery task (BL-20260906-26):
+        # `build_runner` is defined at the bottom of this module, beside the
+        # sub-runners it names.
+        try:
+            runner = build_runner(
+                kind, source=source, budget=budget, window_to_now=window_to_now
+            )
+        except ValueError as exc:  # unreachable via argparse choices
+            raise CommandError(str(exc), returncode=1) from exc
 
         try:
-            result = autonomy.run_cycle(kind, _runner, payload=payload)
+            result = autonomy.run_cycle(kind, runner, payload=payload)
         except Exception as exc:
             self.stderr.write(self.style.ERROR(f"autonomy cycle failed: {exc}"))
             sys.exit(2)
@@ -431,14 +424,26 @@ def _run_lsat_factory(context: dict[str, Any], *, budget: int | None) -> dict[st
     cycle budget so a small box is not asked for a hundred items at 03:00. Like
     every other LSAT pillar this only *drafts*: survivors land as ``pending``
     proposals for a human (constitution §5).
+
+    BL-20260905-49: the batch now judges itself where judging is free. The
+    executor is pinned to Ollama, but the judge tier goes through the provider
+    chain (``law_ai.core.llm``), so it is switched on here exactly when that
+    chain is local-only — a nightly beat must not quietly start billing a
+    hosted tier for a second model call per draft. On the default Claude-first
+    chain the operator opts in the usual way, with ``LSAT_FACTORY_JUDGE``.
     """
     import asyncio
 
+    from law_ai.core.llm import chain_names
     from law_ai.lsat.factory import FactoryConfig, compile_plan, execute_manifest
     from law_ai.lsat.factory.executors import ExecutorUnavailable, OllamaExecutor
 
     max_jobs = max(1, min(budget or 4, 12))
-    config = FactoryConfig.from_settings().model_copy(update={"max_jobs": max_jobs})
+    settings_config = FactoryConfig.from_settings()
+    judge_enabled = settings_config.judge_enabled or set(chain_names()) <= {"ollama"}
+    config = settings_config.model_copy(
+        update={"max_jobs": max_jobs, "judge_enabled": judge_enabled}
+    )
     manifest, manifest_path = compile_plan(config)
     if not manifest.jobs:
         summary = {
@@ -593,3 +598,134 @@ def _run_lsat_library(context: dict[str, Any], *, budget: int | None) -> dict[st
     }
     context.update(summary)
     return summary
+
+
+#: Hard ceiling on one cross-check cycle, whatever budget is asked for.
+#: Every question is a blind re-solve through the provider chain, so a beat
+#: that forgets its budget must still cost a bounded amount (BL-20260905-58).
+CROSS_CHECK_MAX_PER_CYCLE = 25
+
+
+def _run_lsat_cross_check(
+    context: dict[str, Any], *, budget: int | None
+) -> dict[str, Any]:
+    """Blind-solve unchecked bank questions and queue the disagreements.
+
+    BL-20260905-58. ``manage.py lsat_cross_check_sweep`` (BL-20260831-21) could
+    only be run by hand, so coverage grew when somebody remembered rather than
+    on a cadence. This is the same sweep as an autonomy kind: it reuses the
+    command's own helpers so there is exactly one definition of "unchecked",
+    "already queued" and "how a disagreement is filed".
+
+    Files proposals only. A disagreement lands ``pending`` for a human
+    (constitution §5) and nothing in the bank is touched; agreement writes
+    only the cached verdict the primitive already stores. A degraded verdict
+    (no provider reachable) is never filed — an outage is not a disagreement.
+
+    Budget is the knob: ``budget`` questions per cycle, defaulting to a small
+    number and hard-capped at :data:`CROSS_CHECK_MAX_PER_CYCLE`, because every
+    question here is a real provider call.
+    """
+    from asgiref.sync import async_to_sync
+
+    from law_ai.lsat.management.commands.lsat_cross_check_sweep import (
+        checked_question_ids,
+        file_disagreement,
+        pending_crosscheck_ids,
+    )
+    from law_ai.lsat.services.bank import load_bank
+    from law_ai.lsat.services.crosscheck import cross_check
+
+    limit = max(1, min(budget or 5, CROSS_CHECK_MAX_PER_CYCLE))
+    bank = load_bank()
+    skip = pending_crosscheck_ids() | checked_question_ids()
+    targets = sorted(qid for qid in bank if qid not in skip)[:limit]
+
+    agreed = filed = degraded = failed = 0
+    filed_ids: list[str] = []
+    for qid in targets:
+        try:
+            result = async_to_sync(cross_check)(bank[qid])
+        except Exception as exc:  # pragma: no cover - defensive
+            failed += 1
+            logger.warning("cross-check failed for %s: %s", qid, exc)
+            continue
+        if not result.used_llm:
+            degraded += 1
+            continue
+        if result.agree:
+            agreed += 1
+            continue
+        filed_ids.append(file_disagreement(bank[qid], result))
+        filed += 1
+
+    summary = {
+        "solved": len(targets),
+        "agreed": agreed,
+        "filed": filed,
+        "degraded": degraded,
+        "failed": failed,
+        "limit": limit,
+        "proposals": filed_ids,
+    }
+    context.update(summary)
+    return summary
+
+
+# ---------------------------------------------------------------------------
+# Dispatch table (BL-20260906-26)
+# ---------------------------------------------------------------------------
+
+#: Every autonomy kind, mapped to the sub-runner it dispatches to.
+#:
+#: There used to be two copies of this as an if-chain — one here and one in
+#: ``law_ai.core.tasks.autonomy_cycle`` — which is how the beat entry for
+#: ``lsat_cross_check`` came to raise ``Unknown kind`` even though the CLI
+#: dispatched it fine. It also outgrew ruff's six-return limit, so both copies
+#: carried a ruff PLR0911 suppression. Adding a pillar is now one entry here
+#: plus one ``--kind`` choice above.
+AUTONOMY_RUNNERS: dict[str, Callable[..., dict[str, Any]]] = {
+    "test_pillar": _run_test_pillar,
+    "corpus_growth": _run_corpus_growth,
+    "digest": _run_digest,
+    "lsat_content": _run_lsat_content,
+    "lsat_factory": _run_lsat_factory,
+    "lsat_library": _run_lsat_library,
+    "lsat_cross_check": _run_lsat_cross_check,
+    "commit_approved": _run_commit_approved,
+}
+
+
+def build_runner(
+    kind: str,
+    *,
+    source: str | None = None,
+    budget: int | None = None,
+    window_to_now: bool = False,
+) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    """Return the ``run_cycle`` runner for ``kind``.
+
+    The sub-runners take different keyword arguments (only ``corpus_growth``
+    wants a ``source``, only ``digest`` a ``window_to_now``), so each one is
+    handed exactly the arguments its signature declares. Reading the signature
+    rather than keeping a second table of argument names is what stops the two
+    from drifting — the drift this function exists to end.
+
+    Raises:
+        ValueError: if ``kind`` is not a registered autonomy kind.
+    """
+    try:
+        runner = AUTONOMY_RUNNERS[kind]
+    except KeyError:
+        raise ValueError(
+            f"Unknown kind: {kind!r}. Known: {sorted(AUTONOMY_RUNNERS)}"
+        ) from None
+
+    available = {"source": source, "budget": budget, "window_to_now": window_to_now}
+    params = inspect.signature(runner).parameters
+    kwargs = {name: value for name, value in available.items() if name in params}
+
+    def _runner(context: dict[str, Any]) -> dict[str, Any]:
+        return runner(context, **kwargs)
+
+    return _runner

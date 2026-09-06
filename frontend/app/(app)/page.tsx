@@ -30,7 +30,7 @@ export default function Home() {
           >
             <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 motion-reduce:animate-none" />
             Open-source · Local-first · Audit-grade
-            <span className="text-slate-500 transition group-hover:translate-x-0.5 group-hover:text-blue-300">
+            <span className="text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-blue-300">
               →
             </span>
           </a>
@@ -121,7 +121,7 @@ export default function Home() {
               key={step.label}
               className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-4 backdrop-blur transition hover:border-slate-700"
             >
-              <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-slate-500">
+              <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-slate-400">
                 <span className="font-mono">0{i + 1}</span>
                 <span>{step.phase}</span>
               </div>
@@ -155,11 +155,11 @@ export default function Home() {
               key={item.name}
               className="rounded-lg border border-slate-800 bg-slate-900/40 px-4 py-3 backdrop-blur"
             >
-              <div className="text-xs uppercase tracking-wider text-slate-500">
+              <div className="text-xs uppercase tracking-wider text-slate-400">
                 {item.layer}
               </div>
               <div className="mt-0.5 font-medium text-slate-100">{item.name}</div>
-              <div className="text-xs text-slate-500">{item.note}</div>
+              <div className="text-xs text-slate-400">{item.note}</div>
             </div>
           ))}
         </div>
@@ -169,7 +169,7 @@ export default function Home() {
         * UPL disclaimer footer below this, and two contentinfo landmarks on
         * one page is both a double footer and an a11y defect (BL-20260830-06). */}
       <nav aria-label="Project links" className="border-t border-slate-800/60">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 py-8 text-xs text-slate-500 sm:flex-row">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 py-8 text-xs text-slate-400 sm:flex-row">
           <div>© 2026 Law AI · Released under AGPL-3.0</div>
           <div className="flex items-center gap-4">
             <a href="https://github.com/bamr87/law-ai/blob/main/docs/architecture.md" target="_blank" rel="noopener noreferrer" className="hover:text-slate-300">Architecture</a>
@@ -262,7 +262,7 @@ function Card({
         {title}
       </h3>
       <p className="mt-2 text-sm text-slate-400">{desc}</p>
-      <div className="mt-4 inline-flex items-center gap-1 text-xs text-slate-500 transition group-hover:text-slate-300">
+      <div className="mt-4 inline-flex items-center gap-1 text-xs text-slate-400 transition group-hover:text-slate-300">
         Open <span aria-hidden>→</span>
       </div>
     </Link>

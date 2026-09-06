@@ -393,6 +393,12 @@ class Command(BaseCommand):
             "proposed": measured.proposed,
             "accepted": measured.accepted,
             "rate": round(measured.rate, 4),
+            # BL-20260906-84: `rate` ignores rounds that never produced a
+            # countable proposal, so a headline of 1.00 can sit on top of a
+            # transport that failed a third of the time. These say so.
+            "rounds": measured.rounds,
+            "rounds_failed": measured.rounds_failed,
+            "round_rate": round(measured.round_rate, 4),
             "rejected": dict(sorted(measured.rejected.items())),
         }
 
@@ -432,6 +438,11 @@ class Command(BaseCommand):
         self.stdout.write(
             f"\n  overall {overall['accepted']}/{overall['proposed']} "
             f"= {overall['rate']:.2f} (floor {POLISH_YIELD_FLOOR:.2f}) → {out}"
+        )
+        self.stdout.write(
+            f"  rounds that produced proposals: "
+            f"{overall['rounds'] - overall['rounds_failed']}/{overall['rounds']} "
+            f"= {overall['round_rate']:.2f}"
         )
         if not overall["proposed"]:
             message = "no proposal round reached the lint — no provider answered"

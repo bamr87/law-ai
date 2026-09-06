@@ -128,7 +128,7 @@ export default function Drawer({
         style={{ zIndex: 'var(--z-drawer)' }}
       >
         <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
             {label}
           </p>
           <button

@@ -152,7 +152,7 @@ export default function SectionTimerWidget({
     >
       <div className={compact ? '' : 'flex-1'}>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-slate-500">
+          <span className="text-[10px] uppercase tracking-wider text-slate-400">
             Section timer
           </span>
           <div className="relative" ref={menuRef}>
@@ -162,7 +162,7 @@ export default function SectionTimerWidget({
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((v) => !v)}
-              className="rounded px-1.5 py-0.5 text-xs leading-none text-slate-500 transition hover:bg-slate-800 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
+              className="rounded px-1.5 py-0.5 text-xs leading-none text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
             >
               <span aria-hidden="true">⋯</span>
             </button>
@@ -173,7 +173,7 @@ export default function SectionTimerWidget({
                 style={{ zIndex: 'var(--z-popover)' }}
                 className="absolute right-0 top-full mt-1 w-36 overflow-hidden rounded-md border border-slate-700 bg-slate-900 shadow-xl"
               >
-                <p className="px-3 pb-1 pt-2 text-[10px] uppercase tracking-wider text-slate-500">
+                <p className="px-3 pb-1 pt-2 text-[10px] uppercase tracking-wider text-slate-400">
                   Move to
                 </p>
                 {DOCKS.map((d) => (
@@ -221,7 +221,7 @@ export default function SectionTimerWidget({
                 {/* Drill length. Locked once a section is under way: changing
                     the clock mid-run would silently discard the time already
                     spent, and a student who wanted that has Reset. */}
-                <p className="border-t border-slate-800 px-3 pb-1 pt-2 text-[10px] uppercase tracking-wider text-slate-500">
+                <p className="border-t border-slate-800 px-3 pb-1 pt-2 text-[10px] uppercase tracking-wider text-slate-400">
                   Length
                 </p>
                 {TIMER_DURATIONS.map((d) => (
@@ -278,7 +278,7 @@ export default function SectionTimerWidget({
           )}
           {!expired && pace != null && (
             <span
-              className="text-xs tabular-nums text-slate-500"
+              className="text-xs tabular-nums text-slate-400"
               aria-label="Time remaining per question"
             >
               {formatClock(pace)} left / q

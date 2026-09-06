@@ -47,9 +47,13 @@ class _FakeSession:
     def __init__(self, pages: list[list[dict[str, Any]]]) -> None:
         self._pages = list(pages)
         self.calls: list[tuple[str, dict[str, Any]]] = []
+        #: Pages answered for the BL-20260906-88 recall scan.
+        self.recall_pages: list[list[dict[str, Any]]] = []
 
     async def run(self, cypher: str, params: dict[str, Any]) -> _FakeResult:
         self.calls.append((cypher, params))
+        if cypher is queries.LIST_CASES_WITHOUT_STATUTE_CITATIONS_CYPHER:
+            return _FakeResult(self.recall_pages.pop(0) if self.recall_pages else [])
         if cypher is queries.LIST_CASES_WITH_STATUTE_CITATIONS_CYPHER:
             return _FakeResult(self._pages.pop(0) if self._pages else [])
         if "OPTIONAL MATCH (sec:StatuteSection" in cypher:
@@ -142,7 +146,7 @@ def test_scan_prunes_by_the_shared_reporter_vocabulary() -> None:
         for c, p in session.calls
         if c is queries.LIST_CASES_WITH_STATUTE_CITATIONS_CYPHER
     )
-    assert params["reporters"] == list(cmd.CRS_REPORTERS)
+    assert params["reporters"] == list(cmd.STATUTE_REPORTERS)
     assert params["after"] == ""
 
 
@@ -210,3 +214,122 @@ def test_the_caveat_survives_an_empty_corpus() -> None:
     output, _ = _run(pages=[[]])
     assert "scanned=0 candidates=0 resolved=0 edges_created=0" in output
     assert cmd.RECALL_CAVEAT in output
+
+
+# ---------------------------------------------------------------------------
+# Recall pass: re-read opinions that stored no statutory citation at all
+# (BL-20260906-88)
+# ---------------------------------------------------------------------------
+
+_OPINION_TEXT = (
+    "The defendant was sentenced under C.R.S. § 18-3-102(1)(a). "
+    "The claim is time-barred under section 99-9-999, C.R.S. "
+)
+
+
+class _FakeOpinionClient:
+    def __init__(self, opinions: dict[str, dict[str, Any]]) -> None:
+        self._opinions = opinions
+        self.fetched: list[str] = []
+
+    async def __aenter__(self) -> _FakeOpinionClient:
+        return self
+
+    async def __aexit__(self, *exc_info: object) -> None:
+        return None
+
+    async def fetch_opinion(self, opinion_id: int | str) -> dict[str, Any]:
+        self.fetched.append(str(opinion_id))
+        try:
+            return self._opinions[str(opinion_id)]
+        except KeyError as exc:
+            raise RuntimeError(f"404 for {opinion_id}") from exc
+
+
+def _run_refetch(
+    *args: str,
+    opinions: dict[str, dict[str, Any]] | None = None,
+    recall_pages: list[list[dict[str, Any]]] | None = None,
+) -> tuple[str, Any, _FakeOpinionClient]:
+    session = _FakeSession([[]])
+    session.recall_pages = list(
+        recall_pages
+        if recall_pages is not None
+        else [[{"case_id": "case-old", "source": "courtlistener"}], []]
+    )
+    client = _FakeOpinionClient(
+        opinions
+        if opinions is not None
+        else {"case-old": {"plain_text": _OPINION_TEXT}}
+    )
+    out = StringIO()
+    with (
+        patch.object(cmd, "get_neo4j_driver", return_value=_FakeDriver(session)),
+        patch(
+            "law_ai.ingestionapp.services.courtlistener.CourtListenerClient",
+            lambda *a, **k: client,
+        ),
+    ):
+        call_command(_COMMAND, "--refetch", *args, stdout=out)
+    return out.getvalue(), session, client
+
+
+def test_refetch_recovers_a_cite_the_offline_pass_cannot_see() -> None:
+    output, session, client = _run_refetch("--commit")
+    assert client.fetched == ["case-old"]
+    assert "refetched=1" in output
+    assert "recovered=1" in output
+
+    merges = [p for c, p in session.calls if c is queries.MERGE_CITES_STATUTE_CYPHER]
+    assert [m["section_id"] for m in merges] == ["us-co/crs/18-3-102"]
+    # Re-fetched edges are distinguishable from offline-backfilled ones.
+    assert merges[0]["source"] == cmd.REFETCH_SOURCE
+    assert merges[0]["case_id"] == "case-old"
+
+
+def test_refetch_dry_run_writes_nothing() -> None:
+    output, session, _ = _run_refetch("--verbose-pairs")
+    assert "recovered=0" in output
+    assert "re-fetched)" in output
+    assert not [c for c, _ in session.calls if c is queries.MERGE_CITES_STATUTE_CYPHER]
+
+
+def test_refetch_scan_is_scoped_to_refetchable_sources() -> None:
+    _, session, _ = _run_refetch()
+    _, params = next(
+        (c, p)
+        for c, p in session.calls
+        if c is queries.LIST_CASES_WITHOUT_STATUTE_CITATIONS_CYPHER
+    )
+    assert params["sources"] == list(cmd.REFETCHABLE_SOURCES)
+    assert params["reporters"] == list(cmd.STATUTE_REPORTERS)
+
+
+def test_a_failed_refetch_is_counted_not_fatal() -> None:
+    output, _, _ = _run_refetch("--commit", opinions={})
+    assert "refetch_failed=1" in output
+    assert "recovered=0" in output
+
+
+def test_the_caveat_now_names_the_refetch_remedy() -> None:
+    output, _, _ = _run_refetch()
+    assert "--refetch" in cmd.RECALL_CAVEAT
+    assert "Recall limit" in output
+
+
+def test_without_refetch_no_opinion_is_fetched() -> None:
+    session = _FakeSession(list(_ONE_PAGE))
+    out = StringIO()
+    with (
+        patch.object(cmd, "get_neo4j_driver", return_value=_FakeDriver(session)),
+        patch(
+            "law_ai.ingestionapp.services.courtlistener.CourtListenerClient"
+        ) as client,
+    ):
+        call_command(_COMMAND, stdout=out)
+    client.assert_not_called()
+    assert not [
+        c
+        for c, _ in session.calls
+        if c is queries.LIST_CASES_WITHOUT_STATUTE_CITATIONS_CYPHER
+    ]

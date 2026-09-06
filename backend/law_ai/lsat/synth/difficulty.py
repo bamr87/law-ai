@@ -105,21 +105,32 @@ FAMILY_OBLIGATIONS: dict[str, int] = {
     "acceptability": 2,
     "sufficient_assumption": 3,
     "necessary_assumption": 2,
+    # Both directions of the equivalence, per choice: the substitute must
+    # permit nothing new and forbid nothing old.
+    "rule_substitution": 2,
 }
 
 #: Score cut points, in the engine's own units: the 40th and 75th percentiles
-#: of the sweep over every proved (schema, domain, seed) triple — 200 items,
-#: five seeds against every domain a schema supports. Constants rather than a
-#: live quantile, so one item's band never depends on which other items
-#: happened to be generated alongside it. Re-derive them with
-#: ``lsat_synth_calibrate --structural`` after adding schemas, and expect the
-#: bands of existing items to move when you do.
-SCORE_CUTS: tuple[float, float] = (14.7, 16.0)
+#: of the sweep over every proved (schema, domain, seed) triple — 160 items,
+#: two seeds against every domain a schema supports, which is the depth the
+#: gate in ``tests/lsat/test_synth_difficulty.py`` re-derives them at
+#: (BL-20260905-64; re-derived 2026-09-06 for BL-20260905-50 and again for
+#: BL-20260905-62, as the two ``intro`` schemas and then the two games
+#: families joined the registry and moved the distribution; the pre-intro
+#: registry read ``(15.31, 17.51)`` and the pre-expansion 200-item sweep
+#: ``(14.7, 16.0)``). Constants rather than a live quantile, so one item's
+#: band never depends on which other items happened to be generated alongside
+#: it. Re-derive them with ``lsat_synth_calibrate --structural --seeds 2``
+#: after adding schemas, and expect the bands of existing items to move when
+#: you do.
+SCORE_CUTS: tuple[float, float] = (15.31, 17.56)
 
 #: The three bands the proxy assigns, easiest first. The scale has five
-#: (spec 047) but the proved registry declares only these, and a proxy that
-#: could emit a band no schema ever declares would be asserting more than it
-#: measures.
+#: (spec 047); these are the three the score cuts were derived over, and a
+#: proxy that could emit a band its own percentiles never separated would be
+#: asserting more than it measures. The ``intro`` schemas (BL-20260905-50)
+#: declare a band outside this range on purpose, and :func:`blend` says what a
+#: floor-band measurement means for them.
 PROXY_BANDS: tuple[Difficulty, Difficulty, Difficulty] = ("easy", "med", "hard")
 
 
@@ -239,12 +250,28 @@ def blend(declared: Difficulty, measured: ItemComplexity | None) -> Difficulty:
     The clamp is the whole reason this is safe to turn on. The proxy sees
     structure, not prose, and one unlucky draw should not be able to move a
     schema's item two bands away from the judgement of whoever wrote it.
+
+    The proxy's scale is narrower than the bank's (:data:`PROXY_BANDS` has no
+    ``intro`` and no ``elite``), so at its two ends its lowest and highest
+    bands mean "as low as I can say" and "as high as I can say" — not "easy"
+    and "hard" specifically. Read literally they would drag every item off an
+    ``intro`` schema up to ``easy`` and every item off an ``elite`` schema down
+    to ``hard``, making those bands unreachable by the generator no matter what
+    it emits (BL-20260905-50). A measurement at the end of the proxy's own
+    scale is no evidence against a declared band beyond it, so the declared
+    band stands; a measurement *inside* the scale still moves the item its one
+    step.
     """
     if measured is None:
         return declared
     order = list(DIFFICULTY_ORDER)
     if declared not in order:  # pragma: no cover - Difficulty is closed
         return measured.band
+    if declared not in PROXY_BANDS:
+        below = order.index(declared) < order.index(PROXY_BANDS[0])
+        floor_or_ceiling = PROXY_BANDS[0] if below else PROXY_BANDS[-1]
+        if measured.band == floor_or_ceiling:
+            return declared
     lo = max(0, order.index(declared) - 1)
     hi = min(len(order) - 1, order.index(declared) + 1)
     return order[min(hi, max(lo, order.index(measured.band)))]

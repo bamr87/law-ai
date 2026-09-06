@@ -92,6 +92,40 @@ describe('LayoutMenu (spec 050)', () => {
     ).toHaveAttribute('aria-checked', 'true')
   })
 
+  it('makes the labelled-rail row inert while the rail is hidden (BL-20260905-30)', () => {
+    renderMenu()
+    let menu = openMenu()
+    // Hide the rail from the row above it.
+    fireEvent.click(
+      within(menu).getByRole('menuitemcheckbox', { name: 'Navigation rail' }),
+    )
+    menu = screen.getByRole('menu', { name: 'Layout' })
+    const row = within(menu).getByRole('menuitemcheckbox', {
+      name: /Labelled rail/,
+    })
+    // It says why rather than disappearing, and it is not a live toggle.
+    expect(row).toHaveAttribute('aria-disabled', 'true')
+    expect(row).toHaveAttribute('title', expect.stringContaining('rail'))
+    expect(row).toHaveTextContent('needs the rail')
+    fireEvent.click(row)
+    expect(stored(railExpanded.key)).toBeUndefined()
+    expect(row).toHaveAttribute('aria-checked', 'false')
+
+    // Still one tab stop with every row arrow-reachable: `aria-disabled`, not
+    // `disabled`, precisely so the inert row keeps its place in the ring.
+    expect(row).not.toBeDisabled()
+    expect(items(menu)).toContain(row)
+
+    // Bring the rail back and it is a live toggle again.
+    fireEvent.click(
+      within(menu).getByRole('menuitemcheckbox', { name: 'Navigation rail' }),
+    )
+    const live = screen.getByRole('menuitemcheckbox', { name: /Labelled rail/ })
+    expect(live).not.toHaveAttribute('aria-disabled')
+    fireEvent.click(live)
+    expect(stored(railExpanded.key)?.value).toBe(true)
+  })
+
   it('moves a panel with a radio row', () => {
     renderMenu()
     const group = within(openMenu()).getByRole('group', { name: 'Sidebar edge' })

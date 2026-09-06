@@ -1,5 +1,5 @@
 {
-  "_comment": "Pins library search parity between backend/law_ai/lsat/services/library.py and lsat-static/lib/search.ts (BL-20260903-06). Both test suites load this file; change the rules in both places or neither.",
+  "_comment": "Pins library search parity between backend/law_ai/lsat/services/library.py and lsat-static/lib/search.ts (BL-20260903-06). Both test suites load this file; change the rules in both places or neither. `scores` pins the ranker's arithmetic, not just its order (BL-20260905-52): a weight, cap or typo-fallback changed on one side alone moves a score or a matched_in vector while the ranking still looks right.",
   "stems": {
     "assumptions": "assumption",
     "assumption": "assumption",
@@ -63,6 +63,46 @@
     {"query": "strengthn", "top": "lr-strengthen-and-weaken"},
     {"query": "pacng", "top": null},
     {"query": "parralel", "top": null}
+  ],
+  "scores": [
+    {
+      "query": "assumptions",
+      "hits": [
+        {"id": "lr-assumption-family", "score": 23, "matched_in": ["title", "summary", "tag", "heading", "body"]},
+        {"id": "error-log-and-diagnosis", "score": 5, "matched_in": ["body"]},
+        {"id": "lr-section-guide", "score": 4, "matched_in": ["body"]}
+      ]
+    },
+    {
+      "query": "fallacies",
+      "hits": [
+        {"id": "formal-fallacies-catalog", "score": 13, "matched_in": ["title", "tag", "body"]},
+        {"id": "lr-flaw-family", "score": 12, "matched_in": ["title", "tag", "body"]},
+        {"id": "lr-parallel-family", "score": 12, "matched_in": ["title", "heading", "body"]}
+      ]
+    },
+    {
+      "query": "games sequencing",
+      "hits": [
+        {"id": "lg-game-types", "score": 32, "matched_in": ["title", "summary", "tag", "heading", "body"]}
+      ]
+    },
+    {
+      "query": "pacing",
+      "hits": [
+        {"id": "pacing-and-time-management", "score": 26, "matched_in": ["title", "summary", "tag", "heading", "body"]},
+        {"id": "lr-parallel-family", "score": 10, "matched_in": ["summary", "tag", "body"]},
+        {"id": "blind-review-method", "score": 8, "matched_in": ["heading", "body"]}
+      ]
+    },
+    {
+      "query": "must be true",
+      "hits": [
+        {"id": "lr-inference-family", "score": 32, "matched_in": ["title", "tag", "body"]},
+        {"id": "lr-flaw-family", "score": 12, "matched_in": ["body", "summary", "heading"]},
+        {"id": "lg-game-types", "score": 10, "matched_in": ["body"]}
+      ]
+    }
   ],
   "corpus": [
     {"query": "assumptions", "top": "lr-assumption-family"},

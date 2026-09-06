@@ -88,6 +88,9 @@ _SECTION_NUMBER_RE = re.compile(
     re.IGNORECASE,
 )
 _CHAPTER_NUMBER_RE = re.compile(r"chapter\s+(\d{1,3})", re.IGNORECASE)
+#: The ``…/chapter-38/`` segment Municode links its chapters by, which is what
+#: the table-of-contents parse enumerates (BL-20260906-06).
+_CHAPTER_HREF_RE = re.compile(r"chapter-(\d{1,3})\b", re.IGNORECASE)
 
 #: Municipal history notes date their amendments as "5-31-05" or "5-31-2005".
 _HISTORY_DATE_RE = re.compile(r"\b(\d{1,2})-(\d{1,2})-(\d{2}|\d{4})\b")
@@ -190,6 +193,20 @@ class DenverMunicipalCodeClient:
         for chapter in chapters:
             yield chapter, await self.fetch_chapter(chapter)
 
+    async def fetch_index(self) -> str:
+        """Fetch the code's table of contents (BL-20260906-06)."""
+        return await self._get("/")
+
+    async def list_chapters(self) -> list[str]:
+        """Enumerate the chapters the code publishes (BL-20260906-06).
+
+        Chapter numbers had to be typed by hand, which meant an operator
+        needed a browser open beside the terminal and silently missed any
+        chapter they did not already know about. One fetch of the table of
+        contents answers it instead.
+        """
+        return parse_chapter_index(await self.fetch_index())
+
 
 # ---------------------------------------------------------------------------
 # Parser
@@ -290,6 +307,28 @@ def section_id(number: str) -> str:
 def ordinance_id(chapter: str) -> str:
     """Build the spec-015 ``Ordinance.id`` for a DRMC chapter."""
     return f"{ID_PREFIX}/chapter-{chapter.removeprefix('chapter-')}"
+
+
+def parse_chapter_index(html: str) -> list[str]:
+    """Enumerate chapter numbers from the code's table of contents.
+
+    BL-20260906-06. Reads the ``chapter-<n>`` links Municode's TOC prints —
+    both the href and the link text are accepted, because a redesign that
+    changes one rarely changes both — and returns them de-duplicated in
+    numeric order. A page with no chapter links yields ``[]``: an honest
+    "nothing found", never a guessed range.
+    """
+    tree = lxml_html.fromstring(html)
+    _strip_noise(tree)
+    found: set[str] = set()
+    for anchor_el in tree.iter("a"):
+        href = anchor_el.get("href") or ""
+        match = _CHAPTER_HREF_RE.search(href) or _CHAPTER_NUMBER_RE.search(
+            _text(anchor_el)
+        )
+        if match:
+            found.add(match.group(1).lstrip("0") or "0")
+    return sorted(found, key=lambda c: (int(c), c))
 
 
 def parse_chapter_html(

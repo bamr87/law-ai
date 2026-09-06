@@ -155,6 +155,13 @@ export default function LsatLab() {
     [refreshStats],
   )
 
+  // The writing tab's half of `onAttempt` (BL-20260905-42). An essay read
+  // against the rubric moves the all-time writing bands but grades no
+  // question, so it refreshes the stats without touching the session score.
+  const onEvaluated = useCallback(() => {
+    void refreshStats()
+  }, [refreshStats])
+
   return (
     <div className="space-y-6">
       <Header session={session} globalStats={globalStats} />
@@ -204,7 +211,7 @@ export default function LsatLab() {
                 onClearConcept={concept ? clearConcept : undefined}
               />
             )}
-            {tab === 'WS' && <WritingPanel />}
+            {tab === 'WS' && <WritingPanel onEvaluated={onEvaluated} />}
             {tab === 'stats' && (
               <StatsPanel session={session} stats={globalStats} />
             )}

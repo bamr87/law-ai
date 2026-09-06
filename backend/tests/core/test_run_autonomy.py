@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from io import StringIO
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -202,6 +203,232 @@ class TestCeleryAutonomyTask:
             app.conf.beat_schedule["autonomy-daily-digest"]["task"]
             == "law_ai.core.tasks.compose_digest_task"
         )
+
+
+class TestSharedDispatchTable:
+    """One ``{kind: runner}`` table, two entry points (BL-20260906-26).
+
+    The CLI and the Celery task each carried their own if-chain, and they
+    drifted: ``lsat_cross_check`` was dispatchable from ``manage.py
+    run_autonomy`` while the beat entry pointing at ``autonomy_cycle`` raised
+    ``Unknown kind``. These pin the table as the single definition.
+    """
+
+    def test_every_argparse_choice_has_a_runner(self) -> None:
+        from law_ai.core.management.commands.run_autonomy import (
+            AUTONOMY_RUNNERS,
+            Command,
+        )
+
+        parser = Command().create_parser("manage.py", "run_autonomy")
+        choices = next(a.choices for a in parser._actions if a.dest == "kind")
+        assert set(choices) == set(AUTONOMY_RUNNERS)
+
+    def test_every_beat_kind_has_a_runner(self) -> None:
+        from law_ai.celery import app
+        from law_ai.core.management.commands.run_autonomy import AUTONOMY_RUNNERS
+
+        for key, entry in app.conf.beat_schedule.items():
+            if key in NON_AUTONOMY_BEATS:
+                continue
+            kind = entry.get("kwargs", {}).get("kind")
+            assert kind in AUTONOMY_RUNNERS, (
+                f"beat entry {key!r} dispatches kind {kind!r}, which "
+                "law_ai.core.tasks.autonomy_cycle cannot run"
+            )
+
+    def test_the_celery_task_dispatches_every_registered_kind(
+        self, _autonomy_enabled: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The regression: the task used to raise for kinds the CLI knew."""
+        from law_ai.core import autonomy
+        from law_ai.core.management.commands.run_autonomy import AUTONOMY_RUNNERS
+        from law_ai.core.tasks import autonomy_cycle
+
+        seen: list[str] = []
+
+        def fake_run_cycle(kind, runner, payload=None, **kw):  # type: ignore[no-untyped-def]
+            seen.append(kind)
+            # Prove the runner is callable and bound to the right sub-runner,
+            # without executing a real pillar.
+            assert callable(runner)
+            return {"status": "ok", "kind": kind, "result": {}}
+
+        monkeypatch.setattr(autonomy, "run_cycle", fake_run_cycle)
+        for kind in AUTONOMY_RUNNERS:
+            result = autonomy_cycle(kind=kind, source="courtlistener", budget=1)
+            assert result["status"] == "ok"
+        assert seen == list(AUTONOMY_RUNNERS)
+
+    def test_an_unknown_kind_still_raises(self) -> None:
+        from law_ai.core.management.commands.run_autonomy import build_runner
+
+        with pytest.raises(ValueError, match="Unknown kind"):
+            build_runner("not_a_pillar")
+
+    def test_each_runner_is_handed_only_the_arguments_it_declares(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`source` goes to corpus_growth, `window_to_now` to digest, nothing else."""
+        import inspect
+
+        import law_ai.core.management.commands.run_autonomy as cmd
+
+        calls: dict[str, dict[str, Any]] = {}
+        table = dict(cmd.AUTONOMY_RUNNERS)
+
+        for name, real in list(table.items()):
+
+            def _probe(context: dict[str, Any], _name: str = name, **kw: Any) -> dict:  # type: ignore[type-arg]
+                calls[_name] = kw
+                return {}
+
+            # Keep the real signature: build_runner reads it to decide what
+            # each sub-runner may be handed.
+            _probe.__signature__ = inspect.signature(real)  # type: ignore[attr-defined]
+            table[name] = _probe
+
+        monkeypatch.setattr(cmd, "AUTONOMY_RUNNERS", table)
+        for name in table:
+            cmd.build_runner(
+                name, source="courtlistener", budget=3, window_to_now=True
+            )({})
+
+        assert calls["corpus_growth"] == {"source": "courtlistener", "budget": 3}
+        assert calls["digest"] == {"window_to_now": True}
+        assert calls["test_pillar"] == {"budget": 3}
+        assert calls["commit_approved"] == {"budget": 3}
+
+
+class TestLsatCrossCheckCycle:
+    """The scheduled bank cross-check sweep (BL-20260905-58)."""
+
+    def test_beat_entry_exists_and_is_budget_capped(self) -> None:
+        from law_ai.celery import app
+
+        entry = app.conf.beat_schedule["autonomy-lsat-cross-check"]
+        assert entry["kwargs"]["kind"] == "lsat_cross_check"
+        # Every question is a real provider call, so the cadence is weekly and
+        # the budget small: an unattended sweep must cost a bounded amount.
+        assert entry["kwargs"]["budget"] == 5
+        assert entry["options"]["queue"] == "autonomy"
+
+    def test_kind_is_dispatchable_from_the_command(self) -> None:
+        out = StringIO()
+        call_command(
+            "run_autonomy", "--kind", "lsat_cross_check", "--dry-run", stdout=out
+        )
+        assert '"kind": "lsat_cross_check"' in out.getvalue()
+
+    @staticmethod
+    def _stub_cross_check(monkeypatch: pytest.MonkeyPatch, verdicts: dict) -> list[str]:  # type: ignore[type-arg]
+        """Answer each question from *verdicts* without touching a provider."""
+        from law_ai.core.management.commands import run_autonomy as cmd
+        from law_ai.lsat.management.commands import lsat_cross_check_sweep as sweep
+        from law_ai.lsat.services import crosscheck as cc
+
+        asked: list[str] = []
+
+        async def _stub(question, *, refresh: bool = False):  # type: ignore[no-untyped-def]
+            asked.append(question.id)
+            spec = verdicts.get(question.id, {})
+            agree = spec.get("agree", True)
+            # A disagreement has to name a *different* label, or the row a
+            # reviewer opens would contradict itself.
+            other = next(c for c in "ABCDE" if c != question.correct)
+            return cc.CrossCheckResult(
+                question_id=question.id,
+                bank_choice=question.correct,
+                model_choice=spec.get(
+                    "model_choice", question.correct if agree else other
+                ),
+                agree=agree,
+                rationale="stub",
+                model="test/model",
+                used_llm=spec.get("used_llm", True),
+            )
+
+        monkeypatch.setattr(cc, "cross_check", _stub)
+        # The sweep command bound `cross_check` at import time, and the runner
+        # imports that module lazily. Importing it here — inside the patched
+        # window but named explicitly — would otherwise freeze this stub into
+        # the command for the rest of the session, which is how a later test
+        # of the sweep ends up solving every question with it.
+        monkeypatch.setattr(sweep, "cross_check", _stub)
+        assert cmd.CROSS_CHECK_MAX_PER_CYCLE >= 1
+        return asked
+
+    def test_runner_queues_only_disagreements(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from django.conf import settings as dj
+
+        from law_ai.core.management.commands.run_autonomy import _run_lsat_cross_check
+        from law_ai.lsat.services import proposals as proposals_store
+        from law_ai.lsat.services.bank import load_bank
+
+        monkeypatch.setattr(dj, "AUDIT_PATH", str(tmp_path / "audit.jsonl"))
+        monkeypatch.setattr(
+            dj, "LSAT_PROPOSALS_DIR", str(tmp_path / "proposals"), raising=False
+        )
+        ids = sorted(load_bank())[:2]
+        assert len(ids) == 2, "the bank must ship at least two questions"
+        # First agrees, second disagrees: only the second is a reviewer's problem.
+        asked = self._stub_cross_check(monkeypatch, {ids[1]: {"agree": False}})
+
+        summary = _run_lsat_cross_check({}, budget=2)
+
+        assert asked == ids
+        assert summary["solved"] == 2
+        assert summary["agreed"] == 1
+        assert summary["filed"] == 1
+        pending = proposals_store.list_proposals("pending")
+        assert [p["proposal_kind"] for p in pending] == ["crosscheck"]
+        assert pending[0]["draft"]["question_id"] == ids[1]
+
+    def test_degraded_verdicts_are_never_filed(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An outage is not a disagreement."""
+        from django.conf import settings as dj
+
+        from law_ai.core.management.commands.run_autonomy import _run_lsat_cross_check
+        from law_ai.lsat.services import proposals as proposals_store
+        from law_ai.lsat.services.bank import load_bank
+
+        monkeypatch.setattr(dj, "AUDIT_PATH", str(tmp_path / "audit.jsonl"))
+        monkeypatch.setattr(
+            dj, "LSAT_PROPOSALS_DIR", str(tmp_path / "proposals"), raising=False
+        )
+        qid = sorted(load_bank())[0]
+        self._stub_cross_check(
+            monkeypatch,
+            {qid: {"agree": None, "model_choice": None, "used_llm": False}},
+        )
+
+        summary = _run_lsat_cross_check({}, budget=1)
+
+        assert summary["degraded"] == 1 and summary["filed"] == 0
+        assert proposals_store.list_proposals("pending") == []
+
+    def test_budget_is_hard_capped(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A beat that asks for a thousand solves still buys at most the cap."""
+        from django.conf import settings as dj
+
+        from law_ai.core.management.commands import run_autonomy as cmd
+
+        monkeypatch.setattr(dj, "AUDIT_PATH", str(tmp_path / "audit.jsonl"))
+        monkeypatch.setattr(
+            dj, "LSAT_PROPOSALS_DIR", str(tmp_path / "proposals"), raising=False
+        )
+        asked = self._stub_cross_check(monkeypatch, {})
+
+        summary = cmd._run_lsat_cross_check({}, budget=10_000)
+
+        assert summary["limit"] == cmd.CROSS_CHECK_MAX_PER_CYCLE
+        assert len(asked) <= cmd.CROSS_CHECK_MAX_PER_CYCLE
 
 
 class TestLsatLibraryCycle:
@@ -435,6 +662,72 @@ class TestLsatFactoryCycle:
             # Drafts only: a nightly cycle never promotes (constitution §5).
             assert row["status"] == "pending"
             assert row["meta"]["factory"]["executor"] == "ollama"
+
+    def _judge_spy(self, monkeypatch: pytest.MonkeyPatch) -> list[bool]:
+        """Record whether the pipeline asked for a judge pass, and call none."""
+        from law_ai.lsat.factory import pipeline as pipeline_mod
+
+        seen: list[bool] = []
+
+        async def _stub(result, *, config, tier_model_hint=None):  # type: ignore[no-untyped-def]
+            seen.append(bool(config.judge_enabled))
+            return result
+
+        monkeypatch.setattr(pipeline_mod, "judge_result", _stub)
+        return seen
+
+    def _factory_paths(self, tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from django.conf import settings as dj
+
+        monkeypatch.setattr(dj, "AUDIT_PATH", str(tmp_path / "audit.jsonl"))
+        monkeypatch.setattr(
+            dj, "LSAT_PROPOSALS_DIR", str(tmp_path / "proposals"), raising=False
+        )
+        monkeypatch.setattr(
+            dj, "LSAT_FACTORY_DIR", str(tmp_path / "factory"), raising=False
+        )
+
+    def test_judge_runs_when_the_chain_is_local_only(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """BL-20260905-49: nightly drafts reach the queue judged, for free.
+
+        Pinning the chain to Ollama makes the second model call per draft cost
+        nothing, which is the only condition under which a beat may make it.
+        """
+        from django.conf import settings as dj
+
+        from law_ai.core.management.commands.run_autonomy import _run_lsat_factory
+
+        self._factory_paths(tmp_path, monkeypatch)
+        monkeypatch.setattr(dj, "LLM_PROVIDER_CHAIN", "ollama")
+        monkeypatch.setattr(dj, "LSAT_FACTORY_JUDGE", False, raising=False)
+        seen = self._judge_spy(monkeypatch)
+        self._stub_executor(monkeypatch, [])
+
+        summary = _run_lsat_factory({}, budget=1)
+
+        assert summary["judge_enabled"] is True
+        assert seen and all(seen)
+
+    def test_judge_stays_off_on_a_chain_that_would_bill(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The default chain leads with a hosted tier; a beat never opts in."""
+        from django.conf import settings as dj
+
+        from law_ai.core.management.commands.run_autonomy import _run_lsat_factory
+
+        self._factory_paths(tmp_path, monkeypatch)
+        monkeypatch.setattr(dj, "LLM_PROVIDER_CHAIN", "claude_code,ollama")
+        monkeypatch.setattr(dj, "LSAT_FACTORY_JUDGE", False, raising=False)
+        seen = self._judge_spy(monkeypatch)
+        self._stub_executor(monkeypatch, [])
+
+        summary = _run_lsat_factory({}, budget=1)
+
+        assert summary["judge_enabled"] is False
+        assert seen and not any(seen)
 
     def test_kill_switch_stops_the_cycle_before_any_generation(
         self, tmp_path, monkeypatch: pytest.MonkeyPatch

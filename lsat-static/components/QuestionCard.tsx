@@ -93,6 +93,9 @@ export default function QuestionCard({
       section: question.section,
       choice: canonical,
       correct,
+      // `submit` runs from a click or a keystroke, never during render, so the
+      // clock read here is not a purity violation the way the rule assumes.
+      // eslint-disable-next-line react-hooks/purity
       ts: Date.now(),
     })
     onAnnounce?.(correct ? 'Correct.' : `Incorrect. The correct answer is ${shown.correct}.`)

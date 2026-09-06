@@ -816,7 +816,7 @@ function RailRow({
 function RailProgress({ read, total }: { read: number; total: number }) {
   const pct = total ? Math.round((read / total) * 100) : 0
   return (
-    <div className="mt-3 text-[11px] text-slate-500">
+    <div className="mt-3 text-[11px] text-slate-400">
       {read} of {total} read · {pct}%
     </div>
   )
@@ -854,7 +854,7 @@ function ArticleRail({
   return (
     <>
       <label className="mt-3 block">
-        <span className="text-[11px] uppercase tracking-wider text-slate-500">
+        <span className="text-[11px] uppercase tracking-wider text-slate-400">
           Reading track
         </span>
         <select
@@ -881,7 +881,7 @@ function ArticleRail({
 
       {hits ? (
         <div className="mt-4">
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">
+          <div className="text-[11px] uppercase tracking-wider text-slate-400">
             {hits.length} result{hits.length === 1 ? '' : 's'}
           </div>
           <ul className="mt-2 space-y-2">
@@ -895,7 +895,7 @@ function ArticleRail({
                   <div className="text-sm font-medium text-slate-200">
                     {hit.title}
                   </div>
-                  <div className="mt-1 line-clamp-3 text-xs leading-relaxed text-slate-500">
+                  <div className="mt-1 line-clamp-3 text-xs leading-relaxed text-slate-400">
                     {hit.snippet}
                   </div>
                   <div className="mt-1 text-[10px] uppercase tracking-wider text-slate-600">
@@ -905,7 +905,7 @@ function ArticleRail({
               </li>
             ))}
             {hits.length === 0 && (
-              <li className="text-xs text-slate-500">
+              <li className="text-xs text-slate-400">
                 Nothing matched “{query.trim()}”.
               </li>
             )}
@@ -916,7 +916,7 @@ function ArticleRail({
           {(grouped ?? [{ kind: null, articles: visible }]).map((group) => (
             <div key={group.kind ?? 'track'}>
               {group.kind && (
-                <div className="text-[11px] uppercase tracking-wider text-slate-500">
+                <div className="text-[11px] uppercase tracking-wider text-slate-400">
                   {KIND_LABEL[group.kind]}
                 </div>
               )}
@@ -969,7 +969,7 @@ function ConceptRail({
 
   return (
     <>
-      <div className="mt-3 text-[11px] uppercase tracking-wider text-slate-500">
+      <div className="mt-3 text-[11px] uppercase tracking-wider text-slate-400">
         {shown === total
           ? `${total} concept${total === 1 ? '' : 's'}`
           : `${shown} of ${total} concepts`}
@@ -983,10 +983,10 @@ function ConceptRail({
         </p>
       )}
       {!loaded && !error && (
-        <p className="mt-4 text-xs text-slate-500">Loading concepts…</p>
+        <p className="mt-4 text-xs text-slate-400">Loading concepts…</p>
       )}
       {loaded && shown === 0 && (
-        <p className="mt-4 text-xs text-slate-500">
+        <p className="mt-4 text-xs text-slate-400">
           {query.trim()
             ? `Nothing matched “${query.trim()}”.`
             : 'No concepts match this filter.'}
@@ -996,7 +996,7 @@ function ConceptRail({
       <div className="mt-4 space-y-4">
         {groups.map(([section, items]) => (
           <div key={section}>
-            <div className="text-[11px] uppercase tracking-wider text-slate-500">
+            <div className="text-[11px] uppercase tracking-wider text-slate-400">
               {section === 'misc' ? 'Cross-section' : SECTION_LABEL[section]}
             </div>
             <ul className="mt-1.5 space-y-0.5">
@@ -1105,7 +1105,7 @@ function EntryHeader({
 }) {
   return (
     <header>
-      <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-500">
+      <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-400">
         <span className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-300">
           {pill}
         </span>
@@ -1215,7 +1215,7 @@ function EntrySection({
     <section id={id} className="mt-10 scroll-mt-24 border-t border-slate-800 pt-6">
       <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
       {subtitle && (
-        <p className="mt-0.5 text-[11px] uppercase tracking-wider text-slate-500">
+        <p className="mt-0.5 text-[11px] uppercase tracking-wider text-slate-400">
           {subtitle}
         </p>
       )}
@@ -1255,7 +1255,7 @@ function RefCards({
             <span className="block text-sm font-medium text-slate-200">
               {item.title}
             </span>
-            <span className="mt-1 block text-xs leading-relaxed text-slate-500">
+            <span className="mt-1 block text-xs leading-relaxed text-slate-400">
               {item.summary}
             </span>
             {item.meta && (
@@ -1316,7 +1316,7 @@ function TrackChips({
             className="rounded-full bg-slate-800/60 px-3 py-1 text-xs text-slate-300 transition hover:bg-slate-700 hover:text-slate-100"
           >
             {t.name}
-            <span className="text-slate-500">
+            <span className="text-slate-400">
               {' '}
               · {t.article_count} articles · {t.estimated_minutes} min
             </span>
@@ -1376,7 +1376,7 @@ function ArticleReader({
 }) {
   if (!detail) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-8 text-sm text-slate-500">
+      <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-8 text-sm text-slate-400">
         Loading article…
       </div>
     )
@@ -1414,7 +1414,7 @@ function ArticleReader({
 
       {detail.prerequisites.length > 0 && (
         <div className="mt-5 rounded-lg border border-slate-800 bg-slate-900/40 p-3">
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">
+          <div className="text-[11px] uppercase tracking-wider text-slate-400">
             Read first
           </div>
           <ul className="mt-1 space-y-1">
@@ -1569,7 +1569,7 @@ function ConceptReader({
 
   if (!concept) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-8 text-sm text-slate-500">
+      <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-8 text-sm text-slate-400">
         Loading concept…
       </div>
     )
@@ -1629,11 +1629,11 @@ function ConceptReader({
         subtitle="the material that teaches it"
       >
         {!detail ? (
-          <p className="mt-2 text-sm text-slate-500">Looking up articles…</p>
+          <p className="mt-2 text-sm text-slate-400">Looking up articles…</p>
         ) : links.taughtIn.length > 0 ? (
           <RefCards items={links.taughtIn} onOpen={onOpenArticle} />
         ) : (
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-400">
             No article covers this concept yet — it is still only a tag on the
             question bank.
           </p>
@@ -1773,7 +1773,7 @@ function OutlineNav({ outline }: { outline: LsatOutlineEntry[] }) {
     >
       {outline.length > 0 && (
         <>
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">
+          <div className="text-[11px] uppercase tracking-wider text-slate-400">
             On this page
           </div>
           <ul className="mt-2 space-y-1 border-l border-slate-800">
@@ -1782,7 +1782,7 @@ function OutlineNav({ outline }: { outline: LsatOutlineEntry[] }) {
                 <a
                   href={`#${entry.anchor}`}
                   className={
-                    'block border-l-2 border-transparent py-0.5 text-xs leading-relaxed text-slate-500 hover:border-amber-500 hover:text-slate-300 ' +
+                    'block border-l-2 border-transparent py-0.5 text-xs leading-relaxed text-slate-400 hover:border-amber-500 hover:text-slate-300 ' +
                     (entry.level === 3 ? 'pl-6' : 'pl-3')
                   }
                 >

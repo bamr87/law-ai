@@ -53,6 +53,36 @@ def test_status_has_a_manifest_summary_slot_even_with_no_manifest() -> None:
         assert body["latest_manifest_summary"] is None
 
 
+def test_manifest_summary_reads_the_manifest_on_disk(factory_env: Any) -> None:
+    """With a real manifest planned, the summary is read off *that* file.
+
+    The None branch above is the empty-factory case; this is the one a
+    reviewer actually sees after a batch has been compiled (BL-20260905-43).
+    """
+    from law_ai.lsat.factory.pipeline import compile_plan
+
+    manifest, path = compile_plan(factory_env)
+    assert manifest.jobs, "expected the sandboxed bank to yield generation jobs"
+
+    body = _get()
+    assert body["latest_manifest"] == str(path)
+    summary = body["latest_manifest_summary"]
+    assert summary is not None
+    assert summary["manifest_id"] == manifest.manifest_id
+    assert summary["created_at"] == manifest.created_at
+    assert summary["jobs"] == len(manifest.jobs)
+
+    expected_tiers: dict[str, int] = {}
+    expected_archetypes: dict[str, int] = {}
+    for job in manifest.jobs:
+        expected_tiers[str(job.tier)] = expected_tiers.get(str(job.tier), 0) + 1
+        aid = str(job.target.archetype_id)
+        expected_archetypes[aid] = expected_archetypes.get(aid, 0) + 1
+    assert summary["by_tier"] == expected_tiers
+    assert summary["by_archetype"] == expected_archetypes
+    assert sum(summary["by_tier"].values()) == len(manifest.jobs)
+
+
 def test_gate_counts_come_from_the_proposals_actually_queued() -> None:
     before = _get()["pending_gates"]
     assert set(before) == {"by_executor", "by_tier", "answer_balance_flagged"}

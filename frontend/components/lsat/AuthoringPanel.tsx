@@ -11,7 +11,7 @@
  * design (spec 025).
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
   approveLsatProposal,
@@ -19,6 +19,7 @@ import {
   fetchLsatGaps,
   fetchLsatProposals,
   generateLsatProposals,
+  promoteLsatPassage,
   rejectLsatProposal,
   type LsatDifficulty,
   type LsatFactoryStatus,
@@ -28,6 +29,7 @@ import {
   type LsatGapRow,
   type LsatGuideProposalDraft,
   type LsatGuideReview,
+  type LsatJudgeVerdict,
   type LsatProposal,
   type LsatProposalDraft,
   type LsatSection,
@@ -130,6 +132,46 @@ export default function AuthoringPanel() {
     }
   }, [])
 
+  // BL-20260905-56: a `passage_set` job's invented passage is parked, and
+  // every draft from that job refuses promotion (409) until a reviewer
+  // promotes it. Reloading afterwards is the point: the drafts come back
+  // carrying the new passage_id.
+  const onPromotePassage = useCallback(
+    async (id: string, path: string) => {
+      setBusy(id)
+      try {
+        await promoteLsatPassage(path)
+        await refresh()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Passage promotion failed')
+      } finally {
+        setBusy(null)
+      }
+    },
+    [refresh],
+  )
+
+  // BL-20260905-83: pre-flagged drafts sort to the top. A reviewer with fifty
+  // rows should not scroll to find the five the blind review doubted; the
+  // order within each group is the API's (newest first).
+  const ordered = useMemo(
+    () => [...pending].sort((a, b) => flagRank(a) - flagRank(b)),
+    [pending],
+  )
+
+  // BL-20260905-45: a guide the factory drafted beside a still-pending
+  // question names that *proposal*, so the question card can say a guide is
+  // waiting with it instead of leaving the pair to be spotted by eye.
+  const guidesByProposal = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const row of pending) {
+      const target = row.meta?.guide_for_proposal
+      if (row.proposal_kind !== 'guide' || !target) continue
+      map.set(target, [...(map.get(target) ?? []), row.id])
+    }
+    return map
+  }, [pending])
+
   return (
     <section className="space-y-6">
       {/* Spec 045 FR-15: question-set accuracy review. */}
@@ -211,11 +253,11 @@ export default function AuthoringPanel() {
           <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
             Weakest measured concepts
           </h3>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-slate-400">
             Tomorrow&apos;s autonomy cycle will target the top row.
           </p>
           <table className="mt-3 w-full text-left text-sm">
-            <thead className="text-xs uppercase tracking-wider text-slate-500">
+            <thead className="text-xs uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="py-2 pr-4">Section</th>
                 <th className="py-2 pr-4">Concept</th>
@@ -257,20 +299,22 @@ export default function AuthoringPanel() {
           </button>
         </div>
         {loading ? (
-          <div className="mt-4 text-sm text-slate-500">Loading…</div>
+          <div className="mt-4 text-sm text-slate-400">Loading…</div>
         ) : pending.length === 0 ? (
-          <div className="mt-4 text-sm text-slate-500">
+          <div className="mt-4 text-sm text-slate-400">
             No drafts waiting for review.
           </div>
         ) : (
           <div className="mt-4 space-y-4">
-            {pending.map((p) => (
+            {ordered.map((p) => (
               <ProposalCard
                 key={p.id}
                 proposal={p}
                 busy={busy === p.id}
+                linkedGuideIds={guidesByProposal.get(p.id) ?? []}
                 onApprove={() => void onApprove(p.id)}
                 onReject={() => void onReject(p.id)}
+                onPromotePassage={(path) => void onPromotePassage(p.id, path)}
               />
             ))}
           </div>
@@ -303,7 +347,7 @@ function FactoryStatusCard({ status }: { status: LsatFactoryStatus | null }) {
       <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
         Factory status
       </h3>
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-1 text-xs text-slate-400">
         The coverage the next batch is planned against — a snapshot taken when
         this tab opened.
       </p>
@@ -322,7 +366,7 @@ function FactoryStatusCard({ status }: { status: LsatFactoryStatus | null }) {
       </dl>
 
       {sections.length > 0 && (
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-slate-400">
           By section: {sections.map(([code, n]) => `${code} ${n}`).join(' · ')}
         </p>
       )}
@@ -333,7 +377,7 @@ function FactoryStatusCard({ status }: { status: LsatFactoryStatus | null }) {
             Next batch targets
           </h4>
           <table className="mt-2 w-full text-left text-sm">
-            <thead className="text-xs uppercase tracking-wider text-slate-500">
+            <thead className="text-xs uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="py-1 pr-4">Archetype</th>
                 <th className="py-1 pr-4">Difficulty</th>
@@ -360,7 +404,7 @@ function FactoryStatusCard({ status }: { status: LsatFactoryStatus | null }) {
         </>
       )}
 
-      <p className="mt-4 text-xs text-slate-500">
+      <p className="mt-4 text-xs text-slate-400">
         {manifest ? (
           <>
             Last manifest{' '}
@@ -379,7 +423,7 @@ function FactoryStatusCard({ status }: { status: LsatFactoryStatus | null }) {
       </p>
       {(executors.length > 0 ||
         status.pending_gates.answer_balance_flagged > 0) && (
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-slate-400">
           Queued drafts:{' '}
           {executors.length > 0
             ? executors.map(([name, n]) => `${name} ×${n}`).join(' · ')
@@ -405,7 +449,7 @@ function FactoryStat({
 }) {
   return (
     <div>
-      <dt className="text-[11px] uppercase tracking-wider text-slate-500">
+      <dt className="text-[11px] uppercase tracking-wider text-slate-400">
         {label}
       </dt>
       <dd className="mt-0.5 text-lg font-semibold tabular-nums text-slate-100">
@@ -467,7 +511,7 @@ export function GuideReviewPanel({ review }: { review: LsatGuideReview }) {
   return (
     <div className="mt-3 rounded-lg border border-slate-800 bg-slate-900/40 p-3 text-xs">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="uppercase tracking-wider text-slate-500">
+        <span className="uppercase tracking-wider text-slate-400">
           Pedagogical review
         </span>
         <span className={`font-semibold uppercase ${tone}`}>{review.verdict}</span>
@@ -477,7 +521,7 @@ export function GuideReviewPanel({ review }: { review: LsatGuideReview }) {
           </span>
         )}
         <span className="text-slate-600">·</span>
-        <span className="text-slate-500">{review.model}</span>
+        <span className="text-slate-400">{review.model}</span>
       </div>
       {review.summary && <p className="mt-1 text-slate-400">{review.summary}</p>}
       {broken.length > 0 && (
@@ -493,16 +537,86 @@ export function GuideReviewPanel({ review }: { review: LsatGuideReview }) {
   )
 }
 
+/**
+ * Judge-tier verdict on a drafted question (BL-20260702-02).
+ *
+ * The factory's adversarial reviewer wrote an objection into
+ * `meta.factory.judge` and nothing rendered it, so the reviewer re-derived it
+ * by hand. Advisory, like every other badge here: `fail` does not reject.
+ * A judge that disagreed with the drafted key is the loudest line on the card
+ * because it is the one failure a human cannot spot by skimming.
+ */
+export function JudgeVerdictPanel({ verdict }: { verdict: LsatJudgeVerdict }) {
+  if (verdict.degraded) {
+    return (
+      <div className="mt-3 rounded-lg border border-slate-800 bg-slate-900/40 p-3 text-xs text-slate-400">
+        <span className="uppercase tracking-wider text-slate-400">Judge</span>{' '}
+        not reviewed — no provider answered
+      </div>
+    )
+  }
+  const tone =
+    verdict.verdict === 'pass'
+      ? 'text-emerald-300'
+      : verdict.verdict === 'flag'
+        ? 'text-amber-300'
+        : 'text-red-300'
+  return (
+    <div className="mt-3 rounded-lg border border-slate-800 bg-slate-900/40 p-3 text-xs">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="uppercase tracking-wider text-slate-400">Judge</span>
+        <span className={`font-semibold uppercase ${tone}`}>
+          {verdict.verdict}
+        </span>
+        {verdict.key_agrees === false && (
+          <span className="rounded-md bg-red-900/60 px-2 py-0.5 text-red-300">
+            key disputed{verdict.solved_key ? ` · solved ${verdict.solved_key}` : ''}
+          </span>
+        )}
+        {!verdict.single_best_answer && (
+          <span className="rounded-md bg-amber-900/60 px-2 py-0.5 text-amber-300">
+            second defensible choice
+          </span>
+        )}
+        <span className="text-slate-600">·</span>
+        <span className="text-slate-400">{verdict.model}</span>
+      </div>
+      {verdict.rationale && (
+        <p className="mt-1 text-slate-400">{verdict.rationale}</p>
+      )}
+      {verdict.issues.length > 0 && (
+        <ul className="mt-2 space-y-1 text-amber-300">
+          {verdict.issues.map((issue, i) => (
+            <li key={i}>{issue}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+/** Pre-flagged rows first (BL-20260905-83); everything else keeps API order. */
+function flagRank(proposal: LsatProposal): number {
+  const review = proposal.meta?.review ?? null
+  return review && 'flagged' in review && review.flagged ? 0 : 1
+}
+
 export function ProposalCard({
   proposal,
   busy,
+  linkedGuideIds = [],
   onApprove,
   onReject,
+  onPromotePassage,
 }: {
   proposal: LsatProposal
   busy: boolean
+  /** Pending guide drafts authored beside this question (BL-20260905-45). */
+  linkedGuideIds?: string[]
   onApprove: () => void
   onReject: () => void
+  /** Promote the passage this draft's job parked (BL-20260905-56). */
+  onPromotePassage?: (pendingPassagePath: string) => void
 }) {
   // Spec 045: guide drafts share the queue but have a different shape.
   if (proposal.proposal_kind === 'guide') {
@@ -517,18 +631,18 @@ export function ProposalCard({
           <span className="rounded-md bg-slate-800 px-2 py-0.5 font-mono text-slate-300">
             {g.question_id}
           </span>
-          <span className="text-slate-500">
+          <span className="text-slate-400">
             confidence {(proposal.confidence * 100).toFixed(0)}%
           </span>
           <span className="text-slate-600">·</span>
-          <span className="text-slate-500">{proposal.model}</span>
+          <span className="text-slate-400">{proposal.model}</span>
           <span className="ml-auto font-mono text-slate-600">{proposal.id}</span>
         </header>
         <p className="mt-3 text-sm font-medium text-slate-200">{g.method}</p>
         <ol className="mt-2 space-y-2 text-sm">
           {g.steps.map((s, i) => (
             <li key={i} className="text-slate-400">
-              <span className="font-mono text-slate-500">{i + 1}.</span>{' '}
+              <span className="font-mono text-slate-400">{i + 1}.</span>{' '}
               <span className="uppercase text-[10px] tracking-wider text-sky-300">
                 {s.kind}
               </span>{' '}
@@ -538,12 +652,20 @@ export function ProposalCard({
                   spoiler
                 </span>
               )}
-              <p className="mt-0.5 whitespace-pre-wrap text-xs text-slate-500">
+              <p className="mt-0.5 whitespace-pre-wrap text-xs text-slate-400">
                 {s.text}
               </p>
             </li>
           ))}
         </ol>
+        {proposal.meta?.guide_for_proposal && (
+          <p className="mt-3 text-xs text-sky-300">
+            Drafted with pending question{' '}
+            <span className="font-mono text-slate-400">
+              {proposal.meta.guide_for_proposal}
+            </span>
+          </p>
+        )}
         {guideReview && <GuideReviewPanel review={guideReview} />}
         <footer className="mt-4 flex items-center justify-end gap-2">
           <button
@@ -579,7 +701,7 @@ export function ProposalCard({
           <span className="rounded-md bg-slate-800 px-2 py-0.5 font-mono text-slate-300">
             {c.question_id}
           </span>
-          <span className="text-slate-500">{c.model}</span>
+          <span className="text-slate-400">{c.model}</span>
           <span className="ml-auto font-mono text-slate-600">{proposal.id}</span>
         </header>
         <p className="mt-3 text-sm text-slate-300">
@@ -634,7 +756,7 @@ export function ProposalCard({
               {w.difficulty}
             </span>
           )}
-          <span className="text-slate-500">{proposal.model}</span>
+          <span className="text-slate-400">{proposal.model}</span>
           <span className="ml-auto font-mono text-slate-600">{proposal.id}</span>
         </header>
         <p className="mt-3 text-sm font-medium text-slate-200">{w.title}</p>
@@ -643,7 +765,7 @@ export function ProposalCard({
         <ul className="mt-3 space-y-1 text-sm">
           {(w.positions ?? []).map((pos) => (
             <li key={pos.id} className="text-slate-400">
-              <span className="font-mono text-slate-500">{pos.id}</span>{' '}
+              <span className="font-mono text-slate-400">{pos.id}</span>{' '}
               <span className="text-slate-300">{pos.name}</span> — {pos.summary}
             </li>
           ))}
@@ -685,6 +807,11 @@ export function ProposalCard({
   const rawReview = proposal.meta?.review ?? null
   const review =
     rawReview && 'overall' in rawReview ? (rawReview as LsatDraftReview) : null
+  const judge = proposal.meta?.factory?.judge ?? null
+  // BL-20260905-56: a parked passage still blocks this draft's promotion.
+  const pendingPassage = d.passage_id
+    ? null
+    : (proposal.meta?.factory?.pending_passage_path ?? null)
   return (
     <article
       className={
@@ -701,11 +828,11 @@ export function ProposalCard({
         <span className="rounded-md bg-slate-800 px-2 py-0.5 text-slate-300">
           {d.difficulty}
         </span>
-        <span className="text-slate-500">
+        <span className="text-slate-400">
           confidence {(proposal.confidence * 100).toFixed(0)}%
         </span>
         <span className="text-slate-600">·</span>
-        <span className="text-slate-500">{proposal.model}</span>
+        <span className="text-slate-400">{proposal.model}</span>
         <span className="ml-auto font-mono text-slate-600">{proposal.id}</span>
       </header>
       <div className="mt-3 whitespace-pre-wrap text-sm text-slate-200">
@@ -734,6 +861,36 @@ export function ProposalCard({
         <summary className="cursor-pointer text-slate-300">Explanation</summary>
         <p className="mt-2 whitespace-pre-wrap">{d.explanation}</p>
       </details>
+      {judge && <JudgeVerdictPanel verdict={judge} />}
+      {linkedGuideIds.length > 0 && (
+        <p className="mt-3 text-xs text-sky-300">
+          {linkedGuideIds.length === 1
+            ? '1 solve guide drafted with this item'
+            : `${linkedGuideIds.length} solve guides drafted with this item`}
+          {' · '}
+          <span className="font-mono text-slate-400">
+            {linkedGuideIds.join(', ')}
+          </span>
+        </p>
+      )}
+      {pendingPassage && (
+        <div className="mt-3 rounded-lg border border-amber-800/60 bg-amber-950/20 p-3 text-xs text-amber-200">
+          <p>
+            This draft&apos;s job invented its own passage. Promote the passage
+            first — approving the draft now is refused.
+          </p>
+          <p className="mt-1 font-mono text-[10px] text-slate-400">
+            {pendingPassage}
+          </p>
+          <button
+            onClick={() => onPromotePassage?.(pendingPassage)}
+            disabled={busy || !onPromotePassage}
+            className="mt-2 rounded-md border border-amber-600/60 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-900/40 disabled:opacity-50"
+          >
+            Promote passage
+          </button>
+        </div>
+      )}
       <footer className="mt-4 flex items-center justify-end gap-2">
         <button
           onClick={onReject}

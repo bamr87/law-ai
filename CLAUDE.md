@@ -31,7 +31,7 @@ Every dev/test/lint/typecheck/eval command runs **inside Docker via `make`** (wh
 | LegalBench eval | `make test-legalbench` |
 | Coverage | `make test-coverage` → `htmlcov/`, `frontend/coverage/` |
 | Lint / format / types | `make lint` · `make format` · `make typecheck` (mypy --strict + tsc) |
-| Spec/backlog gates | `make lint-specs` (host stdlib, no container) |
+| Spec/backlog gates | `make lint-specs` (host, no container; needs `pytest` on the host interpreter) |
 
 **Run a single backend test** (the make targets run the whole suite):
 ```bash

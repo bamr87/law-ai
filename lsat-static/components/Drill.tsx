@@ -64,7 +64,9 @@ export default function Drill({
   // Read through a ref rather than a `setI` updater: the move counter has to
   // move with the index, and a state updater has to stay pure.
   const iRef = useRef(0)
-  iRef.current = i
+  useEffect(() => {
+    iRef.current = i
+  })
   const go = useCallback((next: (current: number) => number) => {
     const to = next(iRef.current)
     if (to === iRef.current) return

@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import MobileTabBar from '@/components/shell/MobileTabBar'
 import NavRail from '@/components/shell/NavRail'
 import { MODULE_CATALOG } from '@/lib/modules/catalog'
 import { INSTANCE_SCOPE } from '@/lib/scope/instance'
@@ -71,6 +72,43 @@ describe('NavRail', () => {
       )
     }
     expect(screen.getByRole('link', { name: 'Agent Ops' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+  })
+
+  /**
+   * BL-20260906-21: /autonomy is Agent Ops' route, claimed through a sidebar
+   * link rather than by nesting under /agents. A prefix test against
+   * `mod.nav.href` matched nothing there, so the rail showed no current module
+   * at all on a page the catalog knows perfectly well who owns.
+   */
+  it('lights up the module that owns the route, not just the href prefix', () => {
+    render(<NavRail pathname="/autonomy" />)
+    expect(screen.getByRole('link', { name: 'Agent Ops' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    // Exactly one, always: the catalog resolves a route to one module.
+    expect(
+      screen.getAllByRole('link').filter((a) => a.getAttribute('aria-current')),
+    ).toHaveLength(1)
+  })
+
+  it('marks no module current on a route nobody claims', () => {
+    // `moduleForPath` falls back to Home, which is only current at "/" —
+    // otherwise every unknown route would light the Dashboard entry.
+    render(<NavRail pathname="/nowhere" />)
+    expect(
+      screen.getAllByRole('link').filter((a) => a.getAttribute('aria-current')),
+    ).toHaveLength(0)
+  })
+
+  it('shares that rule with the compact tab bar', () => {
+    // The two carry the same catalog for different widths; a route that lights
+    // Agent Ops on the rail has to light it on the phone too.
+    render(<MobileTabBar pathname="/autonomy" />)
+    expect(screen.getByRole('link', { name: /Agents/ })).toHaveAttribute(
       'aria-current',
       'page',
     )

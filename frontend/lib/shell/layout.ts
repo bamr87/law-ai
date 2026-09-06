@@ -29,7 +29,24 @@ import type { PanelKey } from './panels'
  * the pure logic the shell and its menu share — nothing that needs a DOM.
  */
 
-/** Every setting the Layout menu owns and "Reset layout" clears. */
+/**
+ * Every setting the Layout menu owns and "Reset layout" clears.
+ *
+ * The boundary is "does it change the shape of the shell", not "is it a
+ * preference" — which is the question BL-20260905-33 asked about
+ * `lsat.timer.duration`. A drill length describes the *exercise*, not the
+ * screen: a student who set a 10-minute homework clock and then tidied their
+ * layout has said nothing about how long they want to drill, and having Reset
+ * layout put them back on a 35-minute section would be this button inventing
+ * an answer. It stays out, and it is not left without a way back either — the
+ * timer's own Length menu is one click from "35 min — full section" whenever
+ * the clock is on screen, and `/settings` gives it the same per-field "Reset
+ * to inherited" every catalog setting has.
+ *
+ * The mirrored-cookie contract reads this list too: `MIRRORED_SETTING_KEYS` in
+ * `lib/scope/rows.ts` carries exactly these keys, and a test fails if the two
+ * drift (BL-20260905-29).
+ */
 export const LAYOUT_SETTINGS: SettingDefinition<unknown>[] = [
   railVisible as SettingDefinition<unknown>,
   railExpanded as SettingDefinition<unknown>,

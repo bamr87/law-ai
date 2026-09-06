@@ -13,6 +13,38 @@ from law_ai.lsat.factory.coverage import (
 )
 
 
+def _add_bank_item(**overrides: object) -> str:
+    """Append one item to the sandboxed LR bank; returns its id."""
+    import json
+
+    from law_ai.lsat.services import bank as bank_mod
+
+    path = bank_mod.DATA_DIR / "lr_bank.json"
+    blob = json.loads(path.read_text(encoding="utf-8"))
+    item = {
+        "id": "lr-stamped-001",
+        "section": "LR",
+        "type": "LR",
+        "difficulty": "med",
+        "stem": "A stamped item used only by this test, long enough to pass.",
+        "choices": [
+            {"label": label, "text": f"choice {label}"}
+            for label in ("A", "B", "C", "D", "E")
+        ],
+        "correct": "A",
+        "explanation": "A holds; the rest do not.",
+        "concepts": [],
+        "source": "test",
+    }
+    item.update(overrides)
+    blob["items"].append(item)
+    path.write_text(
+        json.dumps(blob, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    bank_mod.load_bank.cache_clear()
+    return str(item["id"])
+
+
 class TestCensus:
     def test_counts_by_concept_overlap(self, factory_env: FactoryConfig) -> None:
         from law_ai.lsat.factory.taxonomy import get_archetype
@@ -32,6 +64,27 @@ class TestCensus:
                 assert counts[(arch_id, diff)] == expected
         # Seed sanity: the bundled lr-002 med weaken item is present.
         assert counts[("lr-weaken", "med")] >= 1
+
+    def test_a_stamped_item_counts_only_under_its_own_archetype(
+        self, factory_env: FactoryConfig
+    ) -> None:
+        """BL-20260905-54 — the stamp is exact where the proxy was a guess."""
+        from law_ai.lsat.factory.taxonomy import get_archetype
+
+        before = census()
+        weaken_primary = get_archetype("lr-weaken").concepts[0]
+        # Carries lr-weaken's primary concept but was generated as a flaw item.
+        _add_bank_item(
+            archetype="lr-flaw-general",
+            concepts=[weaken_primary],
+            difficulty="med",
+        )
+        after = census()
+        assert (
+            after[("lr-flaw-general", "med")] == before[("lr-flaw-general", "med")] + 1
+        )
+        # The proxy would have counted it here; the stamp says otherwise.
+        assert after[("lr-weaken", "med")] == before[("lr-weaken", "med")]
 
     def test_zero_weight_cells_want_nothing(self, factory_env: FactoryConfig) -> None:
         cells = {

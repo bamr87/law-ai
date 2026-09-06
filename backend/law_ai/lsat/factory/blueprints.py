@@ -97,9 +97,12 @@ def select_exemplars(target: GenerationTarget, k: int) -> list[Question]:
     primary = arch.concepts[0]
     wanted = set(arch.concepts)
 
-    def rank(q: Question) -> tuple[int, int, int, str]:
+    def rank(q: Question) -> tuple[int, int, int, int, str]:
         concepts = set(q.concepts)
         return (
+            # BL-20260905-54: an item stamped with this archetype is an exact
+            # instance of the pattern; the concept proxy below is a guess.
+            0 if q.archetype == target.archetype_id else 1,
             0 if primary in concepts else 1,
             -len(concepts & wanted),
             0 if q.difficulty == target.difficulty else 1,
@@ -109,7 +112,8 @@ def select_exemplars(target: GenerationTarget, k: int) -> list[Question]:
     matches = [
         q
         for q in load_bank().values()
-        if q.section == target.section and (set(q.concepts) & wanted)
+        if q.section == target.section
+        and (q.archetype == target.archetype_id or (set(q.concepts) & wanted))
     ]
     return sorted(matches, key=rank)[:k]
 

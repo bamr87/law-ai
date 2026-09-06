@@ -53,7 +53,7 @@ export default function AccountData() {
         <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
           Export everything
         </h3>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-slate-400">
           One JSON bundle: every matter, its artifacts with their provenance
           trace ids, authorities, tasks and timeline.
         </p>
@@ -76,7 +76,7 @@ export default function AccountData() {
         <h3 className="text-sm font-semibold uppercase tracking-wider text-rose-300">
           Delete this account
         </h3>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-slate-400">
           Your matters are archived, your API tokens revoked, your share links
           killed and your study history erased. Records of decisions the
           account made stay in the audit log, de-identified — an audit trail

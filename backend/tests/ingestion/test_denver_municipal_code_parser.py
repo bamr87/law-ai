@@ -400,6 +400,55 @@ async def test_commit_section_commits_an_approved_row(
 # ---------------------------------------------------------------------------
 # The adapter
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Chapter discovery (BL-20260906-06)
+# ---------------------------------------------------------------------------
+
+_TOC_HTML = """
+<html><body>
+  <nav>
+    <script>ignored()</script>
+    <a href="/co/denver/codes/code_of_ordinances/chapter-2/">Chapter 2 - ADMIN</a>
+    <a href="/co/denver/codes/code_of_ordinances/chapter-38/">POLICE</a>
+    <a href="/co/denver/codes/code_of_ordinances/chapter-38/">POLICE (again)</a>
+    <a href="/co/denver/codes/code_of_ordinances/chapter-07/">Chapter 7</a>
+    <a href="/co/denver/codes/code_of_ordinances/preface/">Preface</a>
+    <a href="/help">Chapter 24 - ENVIRONMENT</a>
+  </nav>
+</body></html>
+"""
+
+
+def test_parse_chapter_index_enumerates_chapters_numerically() -> None:
+    """The chapter list comes from the code, not from an operator's memory."""
+    assert dmc.parse_chapter_index(_TOC_HTML) == ["2", "7", "24", "38"]
+
+
+def test_parse_chapter_index_on_a_page_with_no_chapters_is_empty() -> None:
+    """An honest nothing, never a guessed range."""
+    assert (
+        dmc.parse_chapter_index("<html><body><p>nothing here</p></body></html>") == []
+    )
+
+
+@pytest.mark.asyncio
+async def test_list_chapters_reads_the_index_once() -> None:
+    client = dmc.DenverMunicipalCodeClient()
+    with patch.object(
+        dmc.DenverMunicipalCodeClient, "_get", new=_fake_get(_TOC_HTML)
+    ) as _:
+        chapters = await client.list_chapters()
+    assert chapters == ["2", "7", "24", "38"]
+
+
+def _fake_get(html: str) -> Any:
+    async def _get(self: Any, path: str) -> str:
+        assert path == "/"
+        return html
+
+    return _get
+
+
 def test_adapter_is_registered_and_requires_human_approval() -> None:
     from law_ai.ingestionapp.sources import SOURCE_REGISTRY
 

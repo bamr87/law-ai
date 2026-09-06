@@ -457,6 +457,30 @@ def test_gpu_overlay_uses_prefixed_variables(repo_root: Path) -> None:
     assert "${GPU_OLLAMA_DEFAULT_MODEL:-llama3.1:70b-q4_K_M}" in text
 
 
+def test_a_small_model_is_pullable_for_the_local_integration_tests(
+    repo_root: Path,
+) -> None:
+    """BL-20260906-82: the opt-in local-model tests must be runnable by hand-free.
+
+    The bootstrap set is a 7B and an 8B, so on a laptop Docker VM every
+    local-model integration test skipped for want of RAM. The small model is
+    deliberately a separate target rather than a bootstrap entry: the first
+    entry of ``OLLAMA_BOOTSTRAP_MODELS`` is the healthcheck's gate model.
+    """
+    makefile = (repo_root / "Makefile").read_text()
+    assert "\nlocal-ai-pull-small:" in makefile
+    assert "LOCAL_AI_SMALL_MODEL ?=" in makefile
+    compose = (repo_root / "docker-compose.yml").read_text()
+    small = makefile.split("LOCAL_AI_SMALL_MODEL ?=", 1)[1].split("\n", 1)[0].strip()
+    assert small, "LOCAL_AI_SMALL_MODEL has no default"
+    assert small not in compose, (
+        "the small model must stay out of OLLAMA_BOOTSTRAP_MODELS — its first "
+        "entry is the healthcheck's gate model"
+    )
+    docs = (repo_root / "docs" / "local-ai.md").read_text()
+    assert "make local-ai-pull-small" in docs
+
+
 def test_gpu_targets_and_docs_exist(repo_root: Path) -> None:
     makefile = (repo_root / "Makefile").read_text()
     for target in ("local-ai-up-gpu", "dev-gpu", "vllm-up"):
@@ -495,6 +519,21 @@ def test_bundle_and_install_agree_on_the_artifact_names(repo_root: Path) -> None
     for artifact in ("ollama-models.tar", "images.tar", "bundle.env", "SHA256SUMS"):
         assert artifact in bundle, f"bundle script never writes {artifact}"
         assert artifact in install, f"install script never reads {artifact}"
+
+
+def test_the_bundle_can_carry_a_subset_of_models(repo_root: Path) -> None:
+    """BL-20260906-45: refreshing one model must not re-ship the whole volume."""
+    bundle = (repo_root / OFFLINE_SCRIPTS[0]).read_text()
+    assert "--models)" in bundle, "no --models filter on the bundle script"
+    # The subset is assembled from each manifest and the digests it names —
+    # blobs are shared between models, so guessing at paths would ship a
+    # manifest whose blobs were never bundled.
+    assert "models/manifests/registry.ollama.ai/library" in bundle
+    assert "tar -C /models -cf /out/ollama-models.tar -T /tmp/files" in bundle
+    # And the receiving side can tell a subset bundle from a whole-volume one.
+    assert "BUNDLE_MODELS=$MODELS" in bundle
+    docs = (repo_root / "docs" / "local-ai.md").read_text()
+    assert "--models 'nomic-embed-text'" in docs
 
 
 def test_bootstrap_skips_pulls_when_offline(repo_root: Path) -> None:
@@ -585,3 +624,83 @@ def test_server_tier_targets_and_docs(repo_root: Path) -> None:
         "hardware-tier table still says the server tier is unbuilt"
     )
     assert "localhost:3002" in docs, "Grafana's port has to be findable"
+
+
+def test_compose_does_not_pass_a_dead_frontend_variable(repo_root: Path) -> None:
+    """BL-20260905-28: no code reads NEXT_PUBLIC_API_URL.
+
+    ``frontend/lib/api.ts`` reads ``NEXT_PUBLIC_API_BASE_URL``. Passing the
+    other name into the container implies a second, ignored base URL.
+    """
+    dead = "NEXT_PUBLIC_API_URL"
+    offenders = [
+        rel
+        for rel in (
+            "docker-compose.yml",
+            "docker-compose.debug.yml",
+            ".claude/skills/run-law-ai/driver.sh",
+        )
+        if dead in (repo_root / rel).read_text()
+    ]
+    assert not offenders, (
+        "NEXT_PUBLIC_API_URL is read by no code; drop it rather than implying "
+        f"a second frontend base URL: {offenders}"
+    )
+
+
+def test_env_example_ships_a_priced_starter_table(repo_root: Path) -> None:
+    """BL-20260905-70: the price table has a starter row per billed tier.
+
+    ``LLM_PRICE_TABLE`` defaults to ``{}``, so ``cost_usd`` is null out of the
+    box. The commented starter in ``.env.example`` is what turns that into a
+    one-line uncomment — but only while it still names the models the chain
+    actually serves, so this pins it to the shipped defaults in
+    ``settings/base.py``.
+    """
+    env_example = (repo_root / ".env.example").read_text()
+    line = next(
+        (ln for ln in env_example.splitlines() if ln.startswith("# LLM_PRICE_TABLE=")),
+        None,
+    )
+    assert line is not None, ".env.example has no commented LLM_PRICE_TABLE starter"
+    table = json.loads(line.split("=", 1)[1])
+    for key, entry in table.items():
+        assert set(entry) == {"in_per_mtok", "out_per_mtok"}, key
+        assert all(isinstance(v, int | float) and v > 0 for v in entry.values()), key
+
+    base = (repo_root / "backend" / "law_ai" / "settings" / "base.py").read_text()
+    defaults = dict(
+        re.findall(
+            r"^\s{4}(CLAUDE_CODE_MODEL|XAI_MODEL)=\(str, \"([^\"]+)\"\)", base, re.M
+        )
+    )
+    assert set(defaults) == {"CLAUDE_CODE_MODEL", "XAI_MODEL"}, defaults
+    for model in defaults.values():
+        assert any(key.endswith(model) for key in table), (
+            f"the starter price table does not price the shipped default {model!r}"
+        )
+
+    # A price with no date is a price nobody can tell is stale.
+    assert re.search(r"checked\b.{0,120}?20\d\d-\d\d-\d\d", env_example, re.S), (
+        "the starter table needs the date its prices were checked"
+    )
+
+
+def test_lint_scope_is_stated_where_someone_would_look(repo_root: Path) -> None:
+    """`make lint` misses repo-root Python; that has to be said, not discovered.
+
+    BL-20260906-36: `lint`/`format` run with the containers' working
+    directories (./backend, ./frontend), so scripts/*.py and tests/*.py are
+    outside their reach. That is a deliberate choice, and an undocumented
+    deliberate choice is indistinguishable from an oversight — the next person
+    to notice re-opens the same question. The declaration lives in the
+    Makefile next to the targets and in AGENTS.md next to the standard, and
+    `make lint-root` is the opt-in way to look at the drift.
+    """
+    makefile = (repo_root / "Makefile").read_text()
+    assert "\nlint-root:" in makefile, "Makefile is missing the lint-root target"
+    assert "BL-20260906-36" in makefile, (
+        "the lint scope note above `lint:` is gone; state it or delete the target"
+    )
+    agents = (repo_root / "AGENTS.md").read_text()
+    assert "lint-root" in agents, "AGENTS.md does not state the lint scope"

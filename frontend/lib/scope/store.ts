@@ -1,4 +1,5 @@
 import {
+  mirroredRows,
   NO_ROWS,
   parseScopeId,
   parseSettingRows,
@@ -39,9 +40,14 @@ function invalidate(): void {
 
 function writeAll(rows: SettingValue[]): void {
   if (!canUseStorage()) return
-  const json = JSON.stringify(rows)
-  window.localStorage.setItem(STORAGE_KEY, json)
-  mirrorToCookie(rows.length > 0 ? json : null)
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rows))
+  mirrorToCookie(cookiePayload(rows))
+}
+
+/** What the cookie should hold for `rows`, or `null` for "drop it". */
+function cookiePayload(rows: SettingValue[]): string | null {
+  const carried = mirroredRows(rows)
+  return carried.length > 0 ? JSON.stringify(carried) : null
 }
 
 /**
@@ -54,6 +60,11 @@ function writeAll(rows: SettingValue[]): void {
  * by every browser, so an oversized blob is dropped rather than truncated into
  * something that would parse as garbage: the layout then reflows, which is the
  * behaviour we had before this existed.
+ *
+ * Only the layout rows travel (`MIRRORED_SETTING_KEYS`, BL-20260905-29). The
+ * whole store used to, which put the first paint one verbose feature setting
+ * away from blowing the cap and taking the layout down with it — a cost the
+ * server render was never getting anything back for.
  */
 const COOKIE_MAX_BYTES = 3500
 
@@ -83,8 +94,7 @@ function mirrorToCookie(json: string | null): void {
  */
 export function reconcileSettingsCookie(): boolean {
   if (!canUseStorage() || typeof document === 'undefined') return false
-  const rows = readAll()
-  const json = rows.length > 0 ? JSON.stringify(rows) : null
+  const json = cookiePayload(readAll())
   const current = readSettingsCookie()
   if (current === (json === null ? null : json)) return false
   mirrorToCookie(json)
@@ -146,9 +156,34 @@ export function serverSyncScope(): string | null {
   return serverScopeId
 }
 
+/**
+ * Scopes the server said this caller may write (BL-20260906-73).
+ *
+ * `null` means "not answered": either nothing has hydrated yet, or the backend
+ * predates the field. Callers must treat that as "assume writable" — refusing
+ * a write the server would have accepted is the worse failure.
+ */
+let writableScopeIds: string[] | null = null
+
+/** The scopes the server will accept a write for, or `null` when unknown. */
+export function serverWritableScopes(): string[] | null {
+  return writableScopeIds
+}
+
+/**
+ * Whether a write to `scopeId` will be accepted server-side.
+ *
+ * Optimistic while the answer is unknown, so signed-out and offline behaviour
+ * stays exactly what it was before the field existed.
+ */
+export function mayWriteScope(scopeId: string): boolean {
+  return writableScopeIds === null || writableScopeIds.includes(scopeId)
+}
+
 /** Turn server persistence off again (sign-out, or a failing backend). */
 export function disableServerSync(): void {
   serverScopeId = null
+  writableScopeIds = null
   writeScopeCookie(null)
 }
 
@@ -198,6 +233,7 @@ export async function hydrateSettingValues(): Promise<number | null> {
   }
   const own = payload.scopes.find((s) => s.startsWith('user:')) ?? null
   serverScopeId = own
+  writableScopeIds = payload.writableScopes ?? null
   // So the *next* server render resolves the same chain this one does.
   writeScopeCookie(own)
   const local = readAll()

@@ -461,6 +461,42 @@ class GroupSize:
         return frozenset({self.group})
 
 
+@dataclass(frozen=True)
+class GroupAtMost:
+    """A bounded count: no more than ``count`` entities sit in the group.
+
+    The half of a maximum question that is decidable as a claim
+    (BL-20260905-62). :class:`GroupSize` says a group is exactly some size,
+    which is a fact about one arrangement; a bound is a claim about all of
+    them, and it is what "at most three can be assigned here" asserts.
+    """
+
+    group: str
+    count: int
+
+    def holds(self, model: object) -> bool:
+        assert isinstance(model, AssignModel)
+        return model.size_of(self.group) <= self.count
+
+    def slots(self) -> frozenset[str]:
+        return frozenset({self.group})
+
+
+@dataclass(frozen=True)
+class GroupAtLeast:
+    """A bounded count in the other direction — the minimum question."""
+
+    group: str
+    count: int
+
+    def holds(self, model: object) -> bool:
+        assert isinstance(model, AssignModel)
+        return model.size_of(self.group) >= self.count
+
+    def slots(self) -> frozenset[str]:
+        return frozenset({self.group})
+
+
 # ---------------------------------------------------------------------------
 # Model spaces
 # ---------------------------------------------------------------------------

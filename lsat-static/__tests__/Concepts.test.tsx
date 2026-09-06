@@ -7,7 +7,7 @@
  * suite is about the card: what it lists, and where each link goes.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import Concepts from '@/components/Concepts'
 
@@ -153,5 +153,80 @@ describe('per-concept links (BL-20260905-04)', () => {
   it('leaves focus alone when the catalog was opened by the switcher', () => {
     render(<Concepts focusId={null} />)
     expect(document.activeElement).toBe(document.body)
+  })
+})
+
+describe('the catalog keeps its own fragment (BL-20260905-17)', () => {
+  /**
+   * jsdom has no IntersectionObserver, so this stands one up and keeps the
+   * callback: the test then plays scroll positions through it the way a
+   * browser would, which is the only part of the behaviour worth pinning.
+   */
+  type Observed = { callback: IntersectionObserverCallback; targets: Element[] }
+  let observed: Observed[] = []
+
+  beforeEach(() => {
+    observed = []
+    window.history.replaceState(null, '', '#article-stale')
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        entry: Observed
+        constructor(cb: IntersectionObserverCallback) {
+          this.entry = { callback: cb, targets: [] }
+          observed.push(this.entry)
+        }
+        observe(el: Element) {
+          this.entry.targets.push(el)
+        }
+        disconnect() {
+          observed = observed.filter((o) => o !== this.entry)
+        }
+        unobserve() {}
+        takeRecords() {
+          return []
+        }
+      },
+    )
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    window.history.replaceState(null, '', '#')
+  })
+
+  /** Report `tops` for the observed cards; a null top means off screen. */
+  function scrollTo(tops: (number | null)[]): void {
+    const { callback, targets } = observed[0]
+    const entries = targets.map((target, i) => ({
+      target,
+      isIntersecting: tops[i] !== null,
+      boundingClientRect: { top: tops[i] ?? -9999 } as DOMRectReadOnly,
+    })) as unknown as IntersectionObserverEntry[]
+    callback(entries, null as unknown as IntersectionObserver)
+  }
+
+  it('names the concept nearest the top of the viewport', () => {
+    render(<Concepts />)
+    expect(observed[0].targets.map((t) => t.id)).toEqual([
+      'catalog-necessary-assumption',
+      'catalog-conditional-chain',
+      'catalog-red-herring',
+    ])
+
+    // First card at the top of the viewport, second below it.
+    scrollTo([12, 640, null])
+    expect(window.location.hash).toBe('#catalog-necessary-assumption')
+
+    // Scrolled on: the first card is above the fold, the second owns the URL.
+    scrollTo([-380, 40, 700])
+    expect(window.location.hash).toBe('#catalog-conditional-chain')
+  })
+
+  it('leaves the URL alone while no card is on screen', () => {
+    render(<Concepts />)
+    scrollTo([12, 640, null])
+    scrollTo([null, null, null])
+    expect(window.location.hash).toBe('#catalog-necessary-assumption')
   })
 })

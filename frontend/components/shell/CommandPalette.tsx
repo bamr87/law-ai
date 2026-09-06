@@ -120,7 +120,7 @@ export default function CommandPalette({
           className="shell-panel-scroll max-h-[min(24rem,60vh)] py-1"
         >
           {results.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-slate-500">
+            <li className="px-4 py-6 text-center text-sm text-slate-400">
               Nothing matches “{query}”.
             </li>
           )}
@@ -134,7 +134,7 @@ export default function CommandPalette({
             return (
               <li key={cmd.id}>
                 {header && (
-                  <p className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  <p className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                     {header}
                   </p>
                 )}
@@ -155,7 +155,7 @@ export default function CommandPalette({
                 >
                   <span className="truncate">{cmd.label}</span>
                   {cmd.hint && (
-                    <span className="shrink-0 font-mono text-[11px] text-slate-500">
+                    <span className="shrink-0 font-mono text-[11px] text-slate-400">
                       {cmd.hint}
                     </span>
                   )}
@@ -164,7 +164,7 @@ export default function CommandPalette({
             )
           })}
         </ul>
-        <p className="border-t border-slate-800 px-4 py-2 text-[11px] text-slate-500">
+        <p className="border-t border-slate-800 px-4 py-2 text-[11px] text-slate-400">
           <kbd className="font-mono">↑↓</kbd> move ·{' '}
           <kbd className="font-mono">↵</kbd> open ·{' '}
           <kbd className="font-mono">Esc</kbd> close

@@ -15,6 +15,7 @@ constant deliberately and expect existing items to re-band.
 
     make lsat-synth-calibrate
     make lsat-synth-calibrate ARGS='--structural'
+    make lsat-synth-calibrate ARGS='--structural --seeds 2'   # cuts, gate depth
 """
 
 from __future__ import annotations
@@ -39,8 +40,10 @@ from law_ai.lsat.synth.schemas import all_schemas
 #: Where the report lands, relative to the process cwd (``/app`` in Docker).
 _REPORT = "var/lsat_synth/calibration.json"
 
-#: Seeds per (schema, domain) pair in the structural sweep. Five is what the
-#: shipped ``SCORE_CUTS`` were derived from.
+#: Seeds per (schema, domain) pair in the structural sweep. Five for a stable
+#: per-schema mean; the shipped ``SCORE_CUTS`` are pinned at ``--seeds 2``,
+#: which is the depth the difficulty gate re-derives them at, so quote the
+#: suggestion from a ``--seeds 2`` run when updating the constant.
 _SEEDS = 5
 
 

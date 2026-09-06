@@ -94,6 +94,24 @@ describe('the shortcut sheet', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
+  it('renders every documented row, duplicate key caps included', () => {
+    // The Argumentative Writing group documents `O` twice (open the first
+    // prompt, and return to the editor after Esc). Keying the rows on the cap
+    // made React drop one of them and log a duplicate-key error every time
+    // the sheet mounted (BL-20260906-62).
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      render(<Page />)
+      press('?')
+      const caps = screen.getAllByText('O', { selector: 'kbd' })
+      expect(caps).toHaveLength(2)
+      const messages = errors.mock.calls.map((c) => String(c[0]))
+      expect(messages.filter((m) => /same key/i.test(m))).toEqual([])
+    } finally {
+      errors.mockRestore()
+    }
+  })
+
   it('leaves Escape alone while it is closed', () => {
     render(<Page />)
     const escape = new KeyboardEvent('keydown', {

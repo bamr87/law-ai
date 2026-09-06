@@ -14,8 +14,10 @@ import {
   disableServerSync,
   hydrateSettingValues,
   listSettingValues,
+  mayWriteScope,
   readSettingsScopeCookie,
   serverSyncScope,
+  serverWritableScopes,
   upsertSettingValue,
   SETTINGS_STORAGE_KEY,
 } from '@/lib/scope/store'
@@ -198,5 +200,55 @@ describe('local writes', () => {
     })
     await new Promise((r) => setTimeout(r, 20))
     expect(listSettingValues().some((r) => r.key === 'shell.rail')).toBe(true)
+  })
+})
+
+describe('writable scopes (BL-20260906-73)', () => {
+  it('records what the server said the caller may write', async () => {
+    server.use(
+      http.get(VALUES_URL, () =>
+        HttpResponse.json({
+          scopes: ['instance:local', 'user:7'],
+          writableScopes: ['user:7'],
+          values: [],
+        }),
+      ),
+    )
+    await hydrateSettingValues()
+
+    expect(serverWritableScopes()).toEqual(['user:7'])
+    expect(mayWriteScope('user:7')).toBe(true)
+    // The whole point: a non-staff caller reads the instance row and cannot
+    // set it, and now the client can tell the difference.
+    expect(mayWriteScope('instance:local')).toBe(false)
+  })
+
+  it('stays optimistic when the server does not answer', async () => {
+    server.use(
+      http.get(VALUES_URL, () =>
+        HttpResponse.json({ scopes: ['instance:local', 'user:7'], values: [] }),
+      ),
+    )
+    await hydrateSettingValues()
+
+    expect(serverWritableScopes()).toBeNull()
+    expect(mayWriteScope('instance:local')).toBe(true)
+  })
+
+  it('forgets the answer when server sync is turned off', async () => {
+    server.use(
+      http.get(VALUES_URL, () =>
+        HttpResponse.json({
+          scopes: ['instance:local', 'user:7'],
+          writableScopes: ['user:7'],
+          values: [],
+        }),
+      ),
+    )
+    await hydrateSettingValues()
+    disableServerSync()
+
+    expect(serverWritableScopes()).toBeNull()
+    expect(mayWriteScope('instance:local')).toBe(true)
   })
 })

@@ -13,6 +13,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import Drill from '@/components/Drill'
 import { identityOrder, presetOrder, resetOrders } from '@/lib/shuffle'
+import { recordAnswer } from '@/lib/lsat/timerStore'
+
+// A pass-through spy: the section clock is the real store, but a test can see
+// how many times the drill billed it (BL-20260905-34).
+vi.mock('@/lib/lsat/timerStore', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/lsat/timerStore')>()
+  return { ...actual, recordAnswer: vi.fn(actual.recordAnswer) }
+})
 
 vi.mock('@/lib/data', async () => {
   const f = await import('./fixtures')
@@ -115,6 +123,33 @@ describe('Drill keyboard flow', () => {
     expect(card()).toHaveAccessibleName('Question 1 of 3')
     expect(checked()).toEqual(['C'])
     expect(screen.getByRole('region', { name: 'Explanation' })).toBeInTheDocument()
+  })
+
+  it('bills the section clock once per question, however often you page back', () => {
+    // The drill keeps the answer and its elapsed time in its own Map, while
+    // the shared store accumulates the section total. Both are written on the
+    // *first* answer only — a revisited question that could be graded again
+    // would drift the two apart (BL-20260905-34).
+    vi.mocked(recordAnswer).mockClear()
+    render(<Drill section="LR" />)
+    fireEvent.keyDown(window, { key: 'c' })
+    fireEvent.keyDown(window, { key: 'Enter' })
+    expect(recordAnswer).toHaveBeenCalledTimes(1)
+
+    fireEvent.keyDown(window, { key: 'Enter' })
+    fireEvent.keyDown(window, { key: 'p' })
+    expect(card()).toHaveAccessibleName('Question 1 of 3')
+
+    // Back on a graded question: pressing a letter and Enter again re-grades
+    // nothing — Enter belongs to the drill's advance here — so neither
+    // accumulator moves and the answer of record is still the first one.
+    fireEvent.keyDown(window, { key: 'a' })
+    fireEvent.keyDown(window, { key: 'Enter' })
+    expect(recordAnswer).toHaveBeenCalledTimes(1)
+
+    fireEvent.keyDown(window, { key: 'p' })
+    expect(card()).toHaveAccessibleName('Question 1 of 3')
+    expect(checked()).toEqual(['C'])
   })
 
   it('lands focus on the new question and announces the position', () => {

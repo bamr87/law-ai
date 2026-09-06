@@ -113,3 +113,39 @@ async def test_workflow_state_survives_restart() -> None:
     assert state is not None, "checkpointer should rehydrate the thread"
     values = getattr(state, "values", state)
     assert values.get("answer") == result1.answer
+
+
+async def test_checkpoint_tables_land_in_the_langgraph_schema() -> None:
+    """BL-20260905-82: prove Postgres honours the saver's ``search_path``.
+
+    The unit tests assert the connection string *carries*
+    ``options=-csearch_path%3Dlanggraph`` (BL-20260811-25), which is not the
+    same claim as "the tables were created there" — libpq could ignore it, the
+    schema could be missing, or a future saver could qualify its DDL itself,
+    and every one of those failures looks identical from the string. So ask
+    the catalog after ``ensure_schema()``.
+    """
+    import psycopg
+
+    from law_ai.agents_runtime.graphs.runtime import checkpointer_conn_string
+    from law_ai.core.settings_proxy import settings_proxy as settings
+
+    status = await ensure_schema()
+    assert status.ok, f"checkpointer schema unavailable: {status.detail}"
+
+    schema = str(getattr(settings, "LANGGRAPH_CHECKPOINTER_SCHEMA", "langgraph"))
+    async with await psycopg.AsyncConnection.connect(
+        checkpointer_conn_string()
+    ) as conn:
+        cur = await conn.execute(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema = %s",
+            (schema,),
+        )
+        tables = {row[0] for row in await cur.fetchall()}
+
+    assert "checkpoints" in tables, (
+        f"no `checkpoints` table in schema {schema!r} — the saver's search_path "
+        f"was not honoured (found: {sorted(tables)})"
+    )
+    assert "checkpoint_writes" in tables, sorted(tables)

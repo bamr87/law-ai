@@ -100,3 +100,81 @@ def test_the_job_starts_from_a_clean_database_every_run(
         "the volume teardown is what makes every run schema-less; if it goes "
         "away, say so deliberately rather than by accident"
     )
+
+
+# --- BL-20260906-81 / BL-20260906-94: the live-model slice must run somewhere -
+
+
+def _yaml(repo_root: Path, rel: str) -> dict[str, Any]:
+    import yaml
+
+    return yaml.safe_load(  # type: ignore[no-any-return]
+        (repo_root / rel).read_text(encoding="utf-8")
+    )
+
+
+def test_a_workflow_runs_the_ollama_integration_slice(repo_root: Path) -> None:
+    """A target nothing schedules is a target that rots.
+
+    ``make test-integration-ollama`` covers the factory's Ollama executor and
+    the autonomy → HITL loop against a real model. Nothing in `.github/` ran
+    it, so a regression in executor → intake → proposals reached main
+    unnoticed until someone happened to type the target.
+    """
+    workflows = repo_root / ".github" / "workflows"
+    runners = [
+        path.name
+        for path in sorted(workflows.glob("*.yml"))
+        if "make test-integration-ollama" in path.read_text(encoding="utf-8")
+    ]
+    assert runners, (
+        "no workflow runs `make test-integration-ollama` — the live-model "
+        "assertions would be automatable but never automatic"
+    )
+
+
+def test_the_ollama_slice_runs_last_before_teardown(repo_root: Path) -> None:
+    """Its own trap stops ollama, postgres and redis when it finishes.
+
+    Anything scheduled after it in the same job would find the services gone,
+    which is a confusing failure a long way from its cause.
+    """
+    job = _yaml(repo_root, ".github/workflows/nightly-tests.yml")["jobs"]["nightly"]
+    steps = _steps(job)
+    slice_at = _index_of(steps, "make test-integration-ollama")
+    teardown_at = _index_of(steps, "docker compose down")
+    assert slice_at < teardown_at
+    between = [
+        step
+        for step in steps[slice_at + 1 : teardown_at]
+        if "run" in step or "uses" in step
+    ]
+    assert between == [], (
+        "a step runs between the ollama slice and teardown; the slice stops "
+        f"the services on its way out, so it must be last: {between}"
+    )
+
+
+def test_the_ollama_slice_defaults_to_a_model_a_runner_can_hold(
+    repo_root: Path,
+) -> None:
+    """BL-20260906-24: the 7B default meant these tests skipped, always.
+
+    ~4 GiB is what a stock Docker VM gives Ollama and the compose bootstrap
+    model needs ~4.9, so the live-model leg had never executed anywhere. The
+    target now defaults to a small instruct model and pulls it.
+    """
+    makefile = (repo_root / "Makefile").read_text(encoding="utf-8")
+    default = next(
+        line
+        for line in makefile.splitlines()
+        if line.startswith("OLLAMA_INTEGRATION_MODEL ?=")
+    )
+    assert "7b" not in default.lower(), (
+        f"the default model must fit a small box; got {default!r}"
+    )
+    target = makefile.split("\ntest-integration-ollama:", 1)[1].split("\n\n", 1)[0]
+    assert "ollama pull" in target, (
+        "the target must pull its model — an absent model is exactly how these "
+        "tests skipped on every box they were tried on"
+    )

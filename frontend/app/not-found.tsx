@@ -7,7 +7,7 @@ export const metadata = {
 export default function NotFound() {
   return (
     <main className="flex h-dvh flex-col items-center justify-center px-6 text-center">
-      <p className="font-mono text-xs uppercase tracking-[0.3em] text-slate-500">
+      <p className="font-mono text-xs uppercase tracking-[0.3em] text-slate-400">
         404
       </p>
       <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-100">

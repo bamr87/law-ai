@@ -59,7 +59,7 @@ function StepSlide({
       aria-label={`Step ${index + 1} of ${total}: ${step.title}`}
       className="rounded-lg border border-slate-800 bg-slate-900/40 p-3"
     >
-      <p className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-500">
+      <p className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-400">
         <span className="font-mono text-slate-600">{index + 1}</span>
         <span className="rounded bg-slate-800/80 px-1.5 py-0.5 text-sky-300">
           {KIND_LABEL[step.kind]}
@@ -67,7 +67,7 @@ function StepSlide({
         <span className="normal-case text-slate-300">{step.title}</span>
       </p>
       {step.locked ? (
-        <p className="mt-2 text-xs italic text-slate-500">
+        <p className="mt-2 text-xs italic text-slate-400">
           🔒 Locked — submit an answer first, then reveal the final step.
         </p>
       ) : (
@@ -299,7 +299,7 @@ export default function SolveAssist({
           </button>
         )}
         {guide && revealed > 0 && (
-          <span className="text-[11px] text-slate-500">
+          <span className="text-[11px] text-slate-400">
             {guide.method} · step {Math.min(active + 1, guide.step_count)} of{' '}
             {guide.step_count}
           </span>

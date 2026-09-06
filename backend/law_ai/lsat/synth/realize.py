@@ -35,6 +35,8 @@ from law_ai.lsat.synth.logic import (
     Atom,
     Before,
     DiffGroup,
+    GroupAtLeast,
+    GroupAtMost,
     Exactly,
     GroupSize,
     Iff,
@@ -336,7 +338,9 @@ def _render_ordering(statement: Statement, binding: Binding) -> str | None:
     return None
 
 
-def _render_grouping(statement: Statement, binding: Binding) -> str | None:
+def _render_grouping(  # noqa: PLR0911 — one return per statement type; this is a dispatch table
+    statement: Statement, binding: Binding
+) -> str | None:
     if isinstance(statement, InGroup):
         group_set = binding.group_set
         frame = group_set.frame if group_set else "is assigned to"
@@ -360,6 +364,16 @@ def _render_grouping(statement: Statement, binding: Binding) -> str | None:
         verb = "is" if statement.count == 1 else "are"
         return (
             f"Exactly {word} of them {verb} placed in "
+            f"{binding.group(statement.group)}."
+        )
+    if isinstance(statement, GroupAtMost | GroupAtLeast):
+        word = _NUMBER_WORDS.get(statement.count, str(statement.count))
+        bound = "At most" if isinstance(statement, GroupAtMost) else "At least"
+        # "At most one of them is placed" — the bound governs the number, so
+        # the verb agrees with the number and not with the bound.
+        verb = "is" if statement.count == 1 else "are"
+        return (
+            f"{bound} {word} of them {verb} placed in "
             f"{binding.group(statement.group)}."
         )
 
@@ -522,6 +536,10 @@ def _symbolize_game(  # noqa: PLR0911 — one return per statement type; this is
         return f"{name(statement.one)} ≠ {name(statement.other)}"
     if isinstance(statement, GroupSize):
         return f"|{name(statement.group)}| = {statement.count}"
+    if isinstance(statement, GroupAtMost):
+        return f"|{name(statement.group)}| ≤ {statement.count}"
+    if isinstance(statement, GroupAtLeast):
+        return f"|{name(statement.group)}| ≥ {statement.count}"
     return None
 
 

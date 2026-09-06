@@ -125,6 +125,48 @@ def test_status_vs_tasks_forgotten_bump_check_fires(
     assert bump_errors, f"expected forgotten-bump error, got: {errors}"
 
 
+def test_superseded_is_a_completed_status(repo_root: Path, tmp_path: Path) -> None:
+    """A retired spec may say so in the field the validator reads.
+
+    `superseded` means "this shipped and a later spec replaced it". Before
+    BL-20260906-47 the only completed status was `shipped`, so the symmetric
+    check ("every task `[x]` but status is not shipped") rejected the word and
+    specs/025-lsat-static-site had to hide it in prose after the status.
+    """
+    sys.path.insert(0, str(repo_root))
+    try:
+        from scripts.spec_validator import (
+            validate_spec,  # type: ignore[import-not-found]
+        )
+    finally:
+        sys.path.pop(0)
+
+    spec_dir = tmp_path / "999-superseded"
+    spec_dir.mkdir()
+    (spec_dir / "spec.md").write_text(
+        "# Spec: Superseded Fixture\n\n"
+        "- **ID**: 999-superseded\n"
+        "- **Status**: superseded\n\n"
+        "## 6. Functional Requirements\n- **FR-1**: thing.\n",
+        encoding="utf-8",
+    )
+    (spec_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    done = (
+        "# Tasks\n\n"
+        "## T-001 — do thing\n- **Refs**: FR-1\n- **Status**: `[x]`\n\n"
+        "## Follow-ups Discovered\n- _none_\n"
+    )
+    (spec_dir / "tasks.md").write_text(done, encoding="utf-8")
+    assert not [e for e in validate_spec(spec_dir) if "status=" in e], (
+        "a superseded spec with every task done must pass"
+    )
+
+    # ...and it carries the same obligation `shipped` does: the work really is
+    # finished, so an unchecked task is still an error.
+    (spec_dir / "tasks.md").write_text(done.replace("`[x]`", "`[ ]`"), "utf-8")
+    assert [e for e in validate_spec(spec_dir) if "status='superseded' but" in e]
+
+
 # ---------------------------------------------------------------------------
 # Stale-backlog reporter (BL-20260503-14). Feeds the nightly triage issue in
 # .github/workflows/nightly-tests.yml.
@@ -281,3 +323,75 @@ def test_s13_review_question_warning_fires_on_a_ranking_spec(
         encoding="utf-8",
     )
     assert not spec_validator.stronger_question_warnings(spec_dir)
+
+
+def _strict_fixture(spec_dir: Path, *, answered: bool) -> None:
+    """A minimal spec package that is valid but trips the §13 warning."""
+    spec_dir.mkdir(parents=True, exist_ok=True)
+    answer = (
+        "- Who is the stronger here? Repeat players; the score is labelled "
+        "as citation volume, never correctness.\n"
+        if answered
+        else ""
+    )
+    (spec_dir / "spec.md").write_text(
+        "# Spec: Strict Fixture\n\n"
+        "- **ID**: 900-strict-fixture\n"
+        "- **Status**: in-progress\n\n"
+        "## 2. Origin & Background\n\n"
+        f"{answer}\n"
+        "## 6. Functional Requirements\n"
+        "- **FR-1**: rank each precedent by citation count over the "
+        "authority graph.\n",
+        encoding="utf-8",
+    )
+    (spec_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    (spec_dir / "tasks.md").write_text(
+        "# Tasks\n\n"
+        "## T-001 — do thing\n- **Refs**: FR-1\n- **Status**: `[ ]`\n\n"
+        "## Follow-ups Discovered\n- _none_\n",
+        encoding="utf-8",
+    )
+
+
+def test_strict_turns_the_s13_warning_into_a_failure(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    """BL-20260906-48: --strict is what makes the WARN lines reach anyone."""
+    spec_dir = tmp_path / "900-strict-fixture"
+    _strict_fixture(spec_dir, answered=False)
+
+    advisory = run_subprocess(
+        [sys.executable, "scripts/spec_validator.py", str(spec_dir)], cwd=repo_root
+    )
+    assert advisory.returncode == 0, advisory.stdout
+    assert "WARN " in advisory.stdout
+
+    strict = run_subprocess(
+        [sys.executable, "scripts/spec_validator.py", "--strict", str(spec_dir)],
+        cwd=repo_root,
+    )
+    assert strict.returncode == 1, strict.stdout
+    assert "WARN " in strict.stdout
+    assert "--strict" in strict.stdout
+
+    # Answering the question clears the gate; --strict is not a blanket veto.
+    _strict_fixture(spec_dir, answered=True)
+    answered = run_subprocess(
+        [sys.executable, "scripts/spec_validator.py", "--strict", str(spec_dir)],
+        cwd=repo_root,
+    )
+    assert answered.returncode == 0, answered.stdout
+    assert "WARN " not in answered.stdout
+
+
+def test_the_spec_gate_actually_passes_strict(repo_root: Path) -> None:
+    """A flag no gate passes is a flag that changes nothing."""
+    makefile = (repo_root / "Makefile").read_text(encoding="utf-8")
+    assert "scripts/spec_validator.py --strict" in makefile, (
+        "make lint-specs must run the validator with --strict"
+    )
+    ci = (repo_root / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert "scripts/spec_validator.py --strict" in ci, (
+        "the CI spec gate must run the validator with --strict"
+    )

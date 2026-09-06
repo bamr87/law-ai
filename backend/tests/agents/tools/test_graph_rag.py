@@ -14,6 +14,8 @@ from law_ai.agents_runtime.tools.graph_rag import (
     CASE_FULLTEXT_CYPHER,
     CASE_VECTOR_CYPHER,
     EXPAND_CITES_CYPHER,
+    ORDINANCE_FULLTEXT_CYPHER,
+    ORDINANCE_FULLTEXT_INDEX,
     STATUTE_FULLTEXT_CYPHER,
     STATUTE_VECTOR_CYPHER,
     GraphRAGRetriever,
@@ -576,3 +578,83 @@ class TestStatuteVectorLeg:
             sum(1 for cypher, _ in session.calls if cypher == STATUTE_VECTOR_CYPHER)
             == 2
         )
+
+
+# ---------------------------------------------------------------------------
+# BL-20260906-07: the ordinance leg
+# ---------------------------------------------------------------------------
+
+
+_ORDINANCE_ROW = {
+    "id": "ord-sec:denver-27-95",
+    "citation": "Denver Rev. Mun. Code § 27-95",
+    "heading": "Residential rental license required",
+    "text": "No person shall rent a residential dwelling without a license.",
+    "jurisdiction_code": "us-co-denver",
+    "source": "denver_municipal_code",
+    "source_url": "https://example.test/denver-27-95",
+    "confidence": 0.87,
+    "score": 4.4,
+}
+
+
+def _ordinance_routes(ordinance: Any) -> dict[str, Any]:
+    return {
+        ORDINANCE_FULLTEXT_CYPHER: ordinance,
+        "node.holding_summary AS holding_summary": [],
+        "MATCH (c:Case)": [],
+        "MATCH (seed:Case)-[r:CITES]": [],
+    }
+
+
+class TestOrdinanceLeg:
+    @pytest.mark.asyncio
+    async def test_ordinance_sections_surface_in_the_result_set(self) -> None:
+        """Sections written by `ordinance_queries` are reachable at last."""
+        session = FakeSession(_ordinance_routes([_ORDINANCE_ROW]))
+        retriever = GraphRAGRetriever(session_factory=_session_factory(session))
+
+        passages = await retriever({"queries": ["rental license"]})
+
+        assert [p["id"] for p in passages] == ["ord-sec:denver-27-95"]
+        found = passages[0]
+        # Its own label, not folded into StatuteSection: a reader has to be
+        # able to tell a municipal code from a state statute.
+        assert found["type"] == "OrdinanceSection"
+        assert found["title"].startswith("Denver Rev. Mun. Code § 27-95")
+        assert found["jurisdiction_code"] == "us-co-denver"
+        assert found["source_url"] == "https://example.test/denver-27-95"
+        assert found["retrieval_mode"] == "lexical"
+
+    @pytest.mark.asyncio
+    async def test_query_is_escaped_and_bound_to_the_ordinance_index(self) -> None:
+        session = FakeSession(_ordinance_routes([_ORDINANCE_ROW]))
+        retriever = GraphRAGRetriever(session_factory=_session_factory(session))
+
+        await retriever({"queries": ["license?"], "jurisdiction": "US-CO-Denver"})
+
+        params = [p for c, p in session.calls if c == ORDINANCE_FULLTEXT_CYPHER]
+        assert params, "the ordinance index was never queried"
+        assert params[0]["index"] == ORDINANCE_FULLTEXT_INDEX
+        assert params[0]["query"] == "license\\?"
+        assert params[0]["jurisdiction"] == "us-co-denver"
+
+    @pytest.mark.asyncio
+    async def test_missing_ordinance_index_degrades_without_failing(self) -> None:
+        session = FakeSession(_ordinance_routes(RuntimeError("no such index")))
+        session.routes["node.holding_summary AS holding_summary"] = [_CASE_ROW]
+        retriever = GraphRAGRetriever(session_factory=_session_factory(session))
+
+        passages = await retriever({"queries": ["rental license"]})
+
+        assert [p["id"] for p in passages] == ["case:1"]
+
+    @pytest.mark.asyncio
+    async def test_ordinances_can_be_switched_off(self) -> None:
+        session = FakeSession(_ordinance_routes([_ORDINANCE_ROW]))
+        retriever = GraphRAGRetriever(
+            session_factory=_session_factory(session), include_ordinances=False
+        )
+
+        assert await retriever({"queries": ["rental license"]}) == []
+        assert not any(c == ORDINANCE_FULLTEXT_CYPHER for c, _ in session.calls)

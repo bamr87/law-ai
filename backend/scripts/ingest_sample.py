@@ -163,9 +163,21 @@ async def _run_denver(args: argparse.Namespace) -> dict[str, int]:
     the "committed" column stays 0 by design.
     """
     chapters = [c.strip() for c in (args.chapters or "").split(",") if c.strip()]
+    discover = chapters == ["all"]
+    if discover and args.chapter_dir:
+        # Offline discovery: whatever chapter files the operator actually has.
+        chapters = sorted(
+            (
+                p.stem.removeprefix("chapter-")
+                for p in Path(args.chapter_dir).glob("chapter-*.html")
+            ),
+            key=lambda c: (int(c) if c.isdigit() else 0, c),
+        )
+        discover = False
     if not chapters:
         raise SystemExit(
-            "--source denver_municipal_code requires --chapters 38[,24,...]"
+            "--source denver_municipal_code requires --chapters 38[,24,...] "
+            "(or --chapters all to read them from the code's table of contents)"
         )
     per_chapter_cap = args.limit if args.limit and args.limit > 0 else None
     scout = OrdinanceScout()
@@ -199,6 +211,11 @@ async def _run_denver(args: argparse.Namespace) -> dict[str, int]:
         return summary
 
     async with DenverMunicipalCodeClient() as client:
+        if discover:
+            # BL-20260906-06: one fetch of the table of contents instead of a
+            # hand-typed list that silently misses chapters.
+            chapters = await client.list_chapters()
+            logger.info("discovered %d chapter(s) from the code index", len(chapters))
         async for chapter, html in client.iter_chapters(chapters):
             try:
                 await _handle(chapter, html, client.url_for_chapter(chapter))
@@ -240,7 +257,9 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help=(
             "Comma-separated Denver municipal-code chapter numbers "
-            "(denver_municipal_code only), e.g. 38,24"
+            "(denver_municipal_code only), e.g. 38,24. Pass `all` to read the "
+            "chapter list from the code's table of contents, or from the "
+            "chapter-*.html files in --chapter-dir (BL-20260906-06)."
         ),
     )
     parser.add_argument(

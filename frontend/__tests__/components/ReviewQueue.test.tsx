@@ -184,6 +184,68 @@ describe('ReviewQueue', () => {
     ).toBeInTheDocument()
   })
 
+  it('re-extracts a row and reports the fresh score without committing', async () => {
+    // BL-20260906-04: the third verb, on the web surface too.
+    let approved = 0
+    server.use(
+      http.post(`${BASE}/api/ingestion/reviews/approve`, () => {
+        approved += 1
+        return HttpResponse.json({ review: {}, committed: true })
+      }),
+    )
+    render(<ReviewQueue />)
+    fireEvent.click(await screen.findByText('cl-9001'))
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^Re-extract$/i }),
+    )
+
+    expect(
+      await screen.findByText(/now clears the threshold/i),
+    ).toBeInTheDocument()
+    expect(approved).toBe(0)
+  })
+
+  it('says so when today\'s extractor would still quarantine the row', async () => {
+    server.use(
+      http.post(`${BASE}/api/ingestion/reviews/re-extract`, () =>
+        HttpResponse.json({
+          review: {},
+          reextracted: true,
+          previous_confidence: 0.42,
+          confidence: 0.44,
+          clears_threshold: false,
+          n_citations: 0,
+        }),
+      ),
+    )
+    render(<ReviewQueue />)
+    fireEvent.click(await screen.findByText('cl-9001'))
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^Re-extract$/i }),
+    )
+
+    expect(
+      await screen.findByText(/would still quarantine it/i),
+    ).toBeInTheDocument()
+  })
+
+  it('surfaces a kind with no re-extraction path', async () => {
+    server.use(
+      http.post(`${BASE}/api/ingestion/reviews/re-extract`, () =>
+        HttpResponse.json({ detail: 'no re-extraction path' }, { status: 422 }),
+      ),
+    )
+    render(<ReviewQueue />)
+    fireEvent.click(await screen.findByText('cl-9001'))
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^Re-extract$/i }),
+    )
+
+    expect(
+      await screen.findByText(/Review re-extract failed \(422\)/i),
+    ).toBeInTheDocument()
+  })
+
   it('surfaces a queue load failure', async () => {
     server.use(
       http.get(`${BASE}/api/ingestion/reviews`, () =>

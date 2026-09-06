@@ -49,7 +49,7 @@ export function RunRow({
           <span
             aria-hidden
             className={
-              'inline-block w-3 text-center text-slate-500 transition ' +
+              'inline-block w-3 text-center text-slate-400 transition ' +
               (expanded ? 'rotate-90' : '')
             }
           >
@@ -68,7 +68,7 @@ export function RunRow({
             </span>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-2 text-[11px] text-slate-500">
+        <div className="flex shrink-0 items-center gap-2 text-[11px] text-slate-400">
           {run.latency_ms != null && (
             <span className="rounded bg-slate-800 px-1.5 py-0.5 tabular-nums">
               {Math.round(Number(run.latency_ms))} ms
@@ -78,14 +78,14 @@ export function RunRow({
         </div>
       </button>
       {(run.path || run.method) && (
-        <div className="mt-1 truncate pl-5 font-mono text-[10px] text-slate-500">
+        <div className="mt-1 truncate pl-5 font-mono text-[10px] text-slate-400">
           {String(run.method ?? '')} {String(run.path ?? '')}
         </div>
       )}
       {expanded && (
         <div className="mt-2 space-y-2 border-t border-slate-800 pt-2 pl-5">
           {traceId && (
-            <div className="flex items-center gap-2 text-[10px] text-slate-500">
+            <div className="flex items-center gap-2 text-[10px] text-slate-400">
               <span>trace_id</span>
               <code className="rounded bg-slate-800 px-1.5 py-0.5 text-slate-300">
                 {traceId}
@@ -153,7 +153,7 @@ export function RunTypeTabs({
             'shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium transition ' +
             (active === t
               ? 'bg-blue-600/20 text-blue-300 ring-1 ring-inset ring-blue-500/40'
-              : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300')
+              : 'text-slate-400 hover:bg-slate-800 hover:text-slate-300')
           }
         >
           {t === 'all' ? 'All' : t.replace('_', ' ')}

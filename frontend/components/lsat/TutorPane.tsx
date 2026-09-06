@@ -25,9 +25,16 @@ export default function TutorPane({
   userChoice,
   initialQuestion,
   trace,
+  remap,
 }: {
   questionId: string
   userChoice: LsatChoiceLabel | null
+  /**
+   * The signed order this serve used, when the question was shuffled
+   * (BL-20260905-61). Passed through so the coaching talks about the board
+   * the learner is looking at rather than the stored one.
+   */
+  remap?: string | null
   /** Spec 045 FR-8: canned opener, e.g. a no-spoiler walkthrough request. */
   initialQuestion?: string
   /**
@@ -45,12 +52,17 @@ export default function TutorPane({
   // enhancement — the REST body below is still the authoritative walkthrough,
   // and everything here is discarded once it lands.
   const [liveText, setLiveText] = useState('')
+  // What the *stream* is doing, when that is not "writing" (BL-20260905-79).
+  // A dropped socket used to look identical to a model that had gone quiet:
+  // the text stopped and nothing said why. `null` is the normal case.
+  const [streamNote, setStreamNote] = useState<string | null>(null)
 
   const ask = useCallback(
     async (overrideQuestion?: string, refresh = false) => {
       setLoading(true)
       setError(null)
       setLiveText('')
+      setStreamNote(null)
 
       // Subscribe BEFORE posting (spec 032): the group membership has to
       // exist before the server starts emitting, or the deltas land nowhere.
@@ -59,15 +71,35 @@ export default function TutorPane({
       const streamId = newStreamId()
       let socket: WebSocket | null = null
       try {
-        socket = await openAgentStream(streamId, (event) => {
-          if (event.type === 'tutor_token') {
-            setLiveText((prev) => prev + event.text)
-          } else if (event.type === 'tutor_step' && event.stage === 'interrupted') {
-            // A half-written answer must not read as the answer; the offline
-            // fallback in the REST body replaces it.
-            setLiveText('')
-          }
-        })
+        socket = await openAgentStream(
+          streamId,
+          (event) => {
+            if (event.type === 'tutor_token') {
+              setLiveText((prev) => prev + event.text)
+              setStreamNote(null)
+            } else if (
+              event.type === 'tutor_step' &&
+              event.stage === 'interrupted'
+            ) {
+              // A half-written answer must not read as the answer; the offline
+              // fallback in the REST body replaces it. Wiping the text without
+              // a word left the pane looking like it had lost its place, so it
+              // now says what happened.
+              setLiveText('')
+              setStreamNote('The live answer stopped early — still working.')
+            }
+          },
+          {
+            onStatus: (status) =>
+              setStreamNote(
+                status === 'reconnecting'
+                  ? 'Reconnecting…'
+                  : status === 'lost'
+                    ? 'Live coaching disconnected — the answer still arrives below.'
+                    : null,
+              ),
+          },
+        )
       } catch {
         socket = null
       }
@@ -77,6 +109,7 @@ export default function TutorPane({
           question_id: questionId,
           user_choice: userChoice,
           user_question: overrideQuestion ?? followUp ?? null,
+          ...(remap ? { remap } : {}),
           // Spec 045 FR-13: identical requests serve the saved walkthrough;
           // refresh forces a fresh model call.
           refresh,
@@ -89,10 +122,11 @@ export default function TutorPane({
       } finally {
         socket?.close()
         setLiveText('')
+        setStreamNote(null)
         setLoading(false)
       }
     },
-    [questionId, userChoice, followUp, trace],
+    [questionId, userChoice, followUp, trace, remap],
   )
 
   // Auto-fire the first call when the pane opens with no follow-up so the
@@ -109,7 +143,7 @@ export default function TutorPane({
           AI Tutor
         </div>
         {response && (
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-slate-500">
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-slate-400">
             {response.cached && (
               <span className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-300">
                 saved walkthrough
@@ -163,6 +197,14 @@ export default function TutorPane({
         </p>
       )}
 
+      {loading && streamNote && (
+        // Connection state, not content — hence `status` rather than the
+        // coaching paragraph's own live region.
+        <p role="status" className="mt-2 text-xs text-amber-300/80">
+          {streamNote}
+        </p>
+      )}
+
       {loading && !liveText && (
         <div className="mt-3 animate-pulse space-y-2 motion-reduce:animate-none">
           <div className="h-3 w-3/4 rounded bg-slate-800" />
@@ -190,7 +232,7 @@ export default function TutorPane({
           </p>
           {response.next_steps.length > 0 && (
             <div className="mt-3">
-              <div className="text-[11px] uppercase tracking-wider text-slate-500">
+              <div className="text-[11px] uppercase tracking-wider text-slate-400">
                 Next steps
               </div>
               <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-300">
@@ -202,7 +244,7 @@ export default function TutorPane({
           )}
           {response.concepts.length > 0 && (
             <div className="mt-3">
-              <div className="text-[11px] uppercase tracking-wider text-slate-500">
+              <div className="text-[11px] uppercase tracking-wider text-slate-400">
                 Concepts in play
               </div>
               <div className="mt-1 flex flex-wrap gap-1.5">

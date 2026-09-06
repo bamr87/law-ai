@@ -36,13 +36,13 @@ export default function SequenceBoard({ rep }: { rep: LsatSequenceRep }) {
   )
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-      <p className="mb-2 text-[11px] uppercase tracking-wider text-slate-500">
+      <p className="mb-2 text-[11px] uppercase tracking-wider text-slate-400">
         Elements:{' '}
         <span className="font-mono normal-case text-slate-300">
           {rep.entities.join('  ')}
         </span>
         {unplaced.length > 0 && unplaced.length < rep.entities.length && (
-          <span className="ml-2 normal-case text-slate-500">
+          <span className="ml-2 normal-case text-slate-400">
             (still floating: {unplaced.join(', ')})
           </span>
         )}
@@ -125,7 +125,7 @@ export default function SequenceBoard({ rep }: { rep: LsatSequenceRep }) {
           })}
         </svg>
       </div>
-      {rep.note && <p className="mt-2 text-xs italic text-slate-500">{rep.note}</p>}
+      {rep.note && <p className="mt-2 text-xs italic text-slate-400">{rep.note}</p>}
     </div>
   )
 }

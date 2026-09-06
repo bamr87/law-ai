@@ -93,6 +93,63 @@ const writingProposal = {
   },
 }
 
+// BL-20260702-02 / BL-20260702-07: what the factory recorded about a draft —
+// the judge's objection and a passage the job parked — beside the draft.
+const judgedProposal = {
+  ...questionProposal,
+  id: 'prop-q-2',
+  draft: { ...questionProposal.draft, stem: 'Judged stem about ferries.' },
+  meta: {
+    factory: {
+      manifest_id: 'mfst-1',
+      job_id: 'mfst-1-job01',
+      tier: 'bulk',
+      executor: 'OllamaExecutor',
+      pending_passage_path: '/app/var/lsat_factory/drafts/pending_passages/mfst-1-job01.passage.json',
+      judge: {
+        verdict: 'fail',
+        single_best_answer: false,
+        solved_key: 'D',
+        key_agrees: false,
+        ambiguity: 0.8,
+        issues: ['C and D are both defensible under the stem.'],
+        confidence: 0.6,
+        rationale: 'The stem does not exclude D.',
+        model: 'ollama/llama3',
+        degraded: false,
+      },
+    },
+  },
+}
+
+// A guide the factory drafted beside a question that is still pending: it
+// names the *proposal*, because the question has no bank id yet.
+const pairedGuideProposal = {
+  ...guideProposal,
+  id: 'prop-g-2',
+  draft: { ...guideProposal.draft, question_id: 'prop-q-2' },
+  meta: { guide_for_proposal: 'prop-q-2' },
+}
+
+const flaggedProposal = {
+  ...questionProposal,
+  id: 'prop-q-flagged',
+  draft: { ...questionProposal.draft, stem: 'Flagged stem about swans.' },
+  meta: {
+    review: {
+      clarity: 0.4,
+      ambiguity: 0.3,
+      single_best_answer: 0.4,
+      overall: 0.37,
+      flags: ['two defensible choices'],
+      rationale: 'C is arguable.',
+      flagged: true,
+      model: 'ollama/llama3',
+      degraded: false,
+    },
+  },
+}
+
 beforeEach(() => {
   server.use(
     http.get('http://localhost:8000/api/lsat/proposals', () =>
@@ -381,4 +438,176 @@ describe('AuthoringPanel', () => {
       ).toBeInTheDocument()
     })
   })
+
+  // BL-20260905-45: the judge tier wrote an objection into the proposal and
+  // the queue rendered none of it, so the reviewer re-derived it by hand.
+  describe('factory judge verdict', () => {
+    beforeEach(() => {
+      server.use(
+        http.get('http://localhost:8000/api/lsat/proposals', () =>
+          HttpResponse.json({
+            proposals: [judgedProposal, pairedGuideProposal],
+            count: 2,
+            status: 'pending',
+          }),
+        ),
+      )
+    })
+
+    it('shows the verdict, the disputed key and the objection', async () => {
+      render(<AuthoringPanel />)
+      await screen.findByText('Judged stem about ferries.')
+      const card = screen.getByText('Judged stem about ferries.').closest('article')
+      expect(card).not.toBeNull()
+      const judged = within(card as HTMLElement)
+      expect(judged.getByText('Judge')).toBeInTheDocument()
+      expect(judged.getByText('fail')).toBeInTheDocument()
+      expect(judged.getByText(/key disputed · solved D/)).toBeInTheDocument()
+      expect(judged.getByText('second defensible choice')).toBeInTheDocument()
+      expect(
+        judged.getByText('C and D are both defensible under the stem.'),
+      ).toBeInTheDocument()
+    })
+
+    it('never reads a degraded verdict as approval', async () => {
+      server.use(
+        http.get('http://localhost:8000/api/lsat/proposals', () =>
+          HttpResponse.json({
+            proposals: [
+              {
+                ...judgedProposal,
+                meta: {
+                  factory: {
+                    judge: {
+                      ...judgedProposal.meta.factory.judge,
+                      verdict: 'pass',
+                      degraded: true,
+                    },
+                  },
+                },
+              },
+            ],
+            count: 1,
+            status: 'pending',
+          }),
+        ),
+      )
+      render(<AuthoringPanel />)
+      expect(
+        await screen.findByText(/not reviewed — no provider answered/),
+      ).toBeInTheDocument()
+      expect(screen.queryByText('pass')).not.toBeInTheDocument()
+    })
+
+    it('names the guide drafted alongside a pending question, from both sides', async () => {
+      render(<AuthoringPanel />)
+      await screen.findByText('Judged stem about ferries.')
+
+      const question = screen
+        .getByText('Judged stem about ferries.')
+        .closest('article') as HTMLElement
+      expect(
+        within(question).getByText(/1 solve guide drafted with this item/),
+      ).toBeInTheDocument()
+      expect(within(question).getByText('prop-g-2')).toBeInTheDocument()
+
+      const guide = screen.getByText('solve guide').closest('article') as HTMLElement
+      // The guide names the question it was drafted with, by proposal id —
+      // the id the question card is titled with, not a bank id it has none of.
+      expect(
+        within(guide).getByText(/Drafted with pending question/).textContent,
+      ).toContain('prop-q-2')
+    })
+  })
+
+  // BL-20260905-56: the passage endpoint existed and only curl could reach it.
+  describe('parked passage promotion', () => {
+    beforeEach(() => {
+      server.use(
+        http.get('http://localhost:8000/api/lsat/proposals', () =>
+          HttpResponse.json({
+            proposals: [judgedProposal],
+            count: 1,
+            status: 'pending',
+          }),
+        ),
+      )
+    })
+
+    it('promotes the parked passage by its path and reloads the queue', async () => {
+      const posted: unknown[] = []
+      server.use(
+        http.post(
+          'http://localhost:8000/api/lsat/proposals/passages/approve',
+          async ({ request }) => {
+            posted.push(await request.json())
+            return HttpResponse.json({
+              passage_id: 'rc-p-009',
+              section: 'RC',
+              title: 'Ferries',
+              pending_passage_path: judgedProposal.meta.factory.pending_passage_path,
+              linked_proposals: ['prop-q-2'],
+              promoted_at: '2026-09-05T00:00:00Z',
+            })
+          },
+        ),
+      )
+      render(<AuthoringPanel />)
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Promote passage' }),
+      )
+      await waitFor(() => expect(posted).toHaveLength(1))
+      expect(posted[0]).toMatchObject({
+        pending_passage_path:
+          judgedProposal.meta.factory.pending_passage_path,
+      })
+    })
+
+    it('offers no promote button once the draft carries a real passage', async () => {
+      server.use(
+        http.get('http://localhost:8000/api/lsat/proposals', () =>
+          HttpResponse.json({
+            proposals: [
+              {
+                ...judgedProposal,
+                draft: { ...judgedProposal.draft, passage_id: 'rc-p-009' },
+              },
+            ],
+            count: 1,
+            status: 'pending',
+          }),
+        ),
+      )
+      render(<AuthoringPanel />)
+      await screen.findByText('Judged stem about ferries.')
+      expect(
+        screen.queryByRole('button', { name: 'Promote passage' }),
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  // BL-20260905-83: a reviewer with fifty rows should not scroll to find the
+  // five the blind pre-review doubted.
+  it('sorts pre-flagged drafts to the top of the queue', async () => {
+    server.use(
+      http.get('http://localhost:8000/api/lsat/proposals', () =>
+        HttpResponse.json({
+          proposals: [questionProposal, guideProposal, flaggedProposal],
+          count: 3,
+          status: 'pending',
+        }),
+      ),
+    )
+    render(<AuthoringPanel />)
+    await screen.findByText('Pending review (3)')
+    const stems = screen
+      .getAllByRole('article')
+      .map((card) => card.textContent ?? '')
+    expect(stems[0]).toContain('Flagged stem about swans.')
+    // …and the unflagged rows keep the order the API returned them in.
+    expect(stems[1]).toContain('Drafted stem about swans.')
+    expect(stems[2]).toContain('solve guide')
+  })
+
+
 })

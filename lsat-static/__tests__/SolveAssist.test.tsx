@@ -113,6 +113,9 @@ describe('SolveAssist carousel keys', () => {
     expect(slide()).toHaveAccessibleName('Step 4 of 4: The answer')
     expect(screen.getByText('Step four text.')).toBeInTheDocument()
     expect(screen.queryByText(/Locked — submit an answer first/)).toBeNull()
+    // ...and so there is no second affordance to press: a "Show final step"
+    // button could only render when nothing was locked (BL-20260905-14).
+    expect(screen.queryByRole('button', { name: 'Show final step' })).toBeNull()
   })
 
   it('navigates by dot, marking the current step', () => {

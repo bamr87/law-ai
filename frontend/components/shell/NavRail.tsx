@@ -1,6 +1,6 @@
 'use client'
 
-import { MODULE_CATALOG } from '@/lib/modules/catalog'
+import { MODULE_CATALOG, moduleForPath } from '@/lib/modules/catalog'
 import { railExpanded } from '@/lib/settings/catalog'
 import Link from 'next/link'
 import { useMediaQuery, WIDE_QUERY } from './useMediaQuery'
@@ -24,6 +24,17 @@ export default function NavRail({ pathname }: { pathname: string }) {
   const [expandPreferred] = useSetting(railExpanded)
   const wide = useMediaQuery(WIDE_QUERY)
   const expanded = expandPreferred && wide
+  // Which entry lights up is the catalog's answer, not a prefix test here: a
+  // module may own a route that does not nest under its own href — /autonomy
+  // belongs to Agent Ops — and `startsWith(mod.nav.href)` left the rail
+  // showing nothing at all on those (BL-20260906-21). Asking `moduleForPath`
+  // also means exactly one entry can ever be current.
+  const owner = moduleForPath(pathname)
+  // `moduleForPath` falls back to Home for a route nobody claims. Home's entry
+  // is current at "/" and nowhere else, so an unclaimed route lights nothing
+  // rather than pointing at the dashboard.
+  const activeId =
+    owner.nav.href === '/' && pathname !== '/' ? null : owner.id
 
   return (
     <nav
@@ -38,10 +49,7 @@ export default function NavRail({ pathname }: { pathname: string }) {
       }
     >
       {MODULE_CATALOG.map((mod) => {
-        const active =
-          mod.nav.href === '/'
-            ? pathname === '/'
-            : pathname.startsWith(mod.nav.href)
+        const active = mod.id === activeId
         return (
           <Link
             key={mod.id}

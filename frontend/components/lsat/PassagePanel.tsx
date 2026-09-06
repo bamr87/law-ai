@@ -19,7 +19,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   fetchLsatPassage,
   fetchLsatPassages,
-  fetchLsatQuestions,
   type LsatPassage,
   type LsatQuestion,
 } from '@/lib/api'
@@ -94,18 +93,15 @@ export default function PassagePanel({
     let live = true
     void (async () => {
       try {
-        // `section` + `concept` together: the bank endpoint already answers
-        // this, so no passage has to be opened to find out whether it carries
-        // the tag.
-        const body = await fetchLsatQuestions({ section, concept, limit: 25 })
+        // `section` + `concept` together, asked of the passages endpoint so
+        // the answer is complete. Reading passage_ids off a `/questions`
+        // sample used to do this, but that endpoint caps at 25 and samples
+        // randomly above it, so a concept on more than 25 questions dropped
+        // sets from the filter — and dropped different ones each time
+        // (BL-20260906-74).
+        const body = await fetchLsatPassages(section, concept)
         if (!live) return
-        setTaggedPassageIds(
-          new Set(
-            body.questions
-              .map((q) => q.passage_id)
-              .filter((id): id is string => Boolean(id)),
-          ),
-        )
+        setTaggedPassageIds(new Set(body.passages.map((p) => p.id)))
       } catch (e) {
         if (!live) return
         setError(e instanceof Error ? e.message : 'Failed to load the concept')
@@ -230,7 +226,7 @@ export default function PassagePanel({
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 backdrop-blur">
-        <div className="text-xs uppercase tracking-wider text-slate-500">
+        <div className="text-xs uppercase tracking-wider text-slate-400">
           Section: {headline}
         </div>
         {concept && <ConceptChip concept={concept} onClear={onClearConcept} />}
@@ -238,7 +234,7 @@ export default function PassagePanel({
           <div className="flex items-center gap-2">
             <label
               htmlFor="passage-select"
-              className="text-xs uppercase tracking-wider text-slate-500"
+              className="text-xs uppercase tracking-wider text-slate-400"
             >
               {section === 'LG' ? 'Game' : 'Passage'}
             </label>
@@ -371,7 +367,7 @@ function QuestionStrip({
       aria-label="Questions in this set"
       className="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-2 backdrop-blur"
     >
-      <span className="mr-1 text-[11px] uppercase tracking-wider text-slate-500">
+      <span className="mr-1 text-[11px] uppercase tracking-wider text-slate-400">
         Question {activeIndex + 1} / {questions.length}
       </span>
       {questions.map((q, i) => {
@@ -430,7 +426,7 @@ export function PassageReader({ passage }: { passage: LsatPassage }) {
         {passage.title}
       </h3>
       {passage.summary && (
-        <p className="mt-1 text-xs italic text-slate-500">{passage.summary}</p>
+        <p className="mt-1 text-xs italic text-slate-400">{passage.summary}</p>
       )}
       {passage.passage && comparative && (
         <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -464,7 +460,7 @@ export function PassageReader({ passage }: { passage: LsatPassage }) {
       )}
       {passage.rules.length > 0 && (
         <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">
+          <div className="text-[11px] uppercase tracking-wider text-slate-400">
             Rules
           </div>
           <ul className="mt-2 list-inside list-decimal space-y-1 text-sm text-slate-200">

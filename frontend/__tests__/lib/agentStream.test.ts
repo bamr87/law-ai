@@ -240,3 +240,125 @@ describe('openAgentStream reconnect + replay', () => {
     vi.useRealTimers()
   })
 })
+
+// --- BL-20260905-79: the reconnect loop has to be visible to the caller ---
+
+describe('openAgentStream connection status', () => {
+  it('reports live, then reconnecting, then lost', async () => {
+    vi.useFakeTimers()
+    const Sock = stubSocket()
+    const status: string[] = []
+
+    const pending = openAgentStream('run-status', () => {}, {
+      reconnectBaseMs: 10,
+      maxReconnects: 1,
+      onStatus: (s) => status.push(s),
+    })
+    await vi.waitUntil(() => Sock.last !== null)
+    Sock.last!.onmessage!({
+      data: JSON.stringify({ type: 'ready', run_id: 'run-status' }),
+    })
+    await pending
+    expect(status).toEqual(['live'])
+
+    // Drop: a retry is scheduled, and the caller is told so it can say
+    // "reconnecting" instead of leaving a frozen trace looking finished.
+    Sock.last!.onclose!()
+    expect(status).toEqual(['live', 'reconnecting'])
+    await vi.advanceTimersByTimeAsync(50)
+    Sock.last!.onmessage!({
+      data: JSON.stringify({ type: 'ready', run_id: 'run-status' }),
+    })
+    expect(status).toEqual(['live', 'reconnecting', 'live'])
+
+    // A second handshake reset the budget, so the next drop retries once more
+    // and only the drop after that is terminal.
+    Sock.last!.onclose!()
+    await vi.advanceTimersByTimeAsync(50)
+    Sock.last!.onclose!()
+    expect(status[status.length - 1]).toBe('lost')
+    vi.useRealTimers()
+  })
+
+  it('stays quiet when the caller closes the stream itself', async () => {
+    vi.useFakeTimers()
+    const Sock = stubSocket()
+    const status: string[] = []
+
+    const pending = openAgentStream('run-quiet', () => {}, {
+      reconnectBaseMs: 10,
+      onStatus: (s) => status.push(s),
+    })
+    await vi.waitUntil(() => Sock.last !== null)
+    Sock.last!.onmessage!({
+      data: JSON.stringify({ type: 'ready', run_id: 'run-quiet' }),
+    })
+    const socket = await pending
+    socket.close()
+    Sock.last!.onclose!()
+    await vi.advanceTimersByTimeAsync(1000)
+
+    // A deliberate close is not a lost connection.
+    expect(status).toEqual(['live'])
+    vi.useRealTimers()
+  })
+})
+
+// --- BL-20260905-21: a lost `ready` race must not silently kill the stream ---
+
+describe('openAgentStream handshake retry', () => {
+  it('opens a second socket when the first never answers ready', async () => {
+    vi.useFakeTimers()
+    const Sock = stubSocket()
+
+    const pending = openAgentStream('run-slow', () => {}, { timeoutMs: 100 })
+    await vi.waitUntil(() => Sock.last !== null)
+    const first = Sock.last!
+
+    // The first handshake times out. On a cold Channels layer that is a race,
+    // not a dead server, so the client must try once more rather than hand
+    // the caller a rejection it turns into an unstreamed run.
+    // 120ms clears the first window without reaching the retry's own.
+    await vi.advanceTimersByTimeAsync(120)
+    expect(Sock.last).not.toBe(first)
+    expect(Sock.urls).toHaveLength(2)
+
+    Sock.last!.onmessage!({
+      data: JSON.stringify({ type: 'ready', run_id: 'run-slow' }),
+    })
+    await expect(pending).resolves.toBeDefined()
+
+    // The abandoned socket is detached, so its close cannot masquerade as a
+    // dropped connection and spawn a reconnect beside the retry.
+    expect(first.onclose).toBeNull()
+    vi.useRealTimers()
+  })
+
+  it('rejects once the retry times out too', async () => {
+    vi.useFakeTimers()
+    const Sock = stubSocket()
+
+    const pending = openAgentStream('run-dead', () => {}, { timeoutMs: 100 })
+    // Attach the expectation before the clock moves: the rejection lands
+    // mid-advance, and an unobserved one is an unhandled rejection.
+    const rejected = expect(pending).rejects.toThrow(/timed out/)
+    await vi.waitUntil(() => Sock.last !== null)
+    await vi.advanceTimersByTimeAsync(120)
+    expect(Sock.urls).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(120)
+
+    await rejected
+    expect(Sock.urls).toHaveLength(2) // bounded: one retry, not a loop
+    vi.useRealTimers()
+  })
+
+  it('does not retry a connection that outright failed', async () => {
+    const Sock = stubSocket()
+    const pending = openAgentStream('run-refused', () => {}, { timeoutMs: 100 })
+    await vi.waitUntil(() => Sock.last !== null)
+    Sock.last!.onerror!()
+
+    await expect(pending).rejects.toThrow(/connection failed/)
+    expect(Sock.urls).toHaveLength(1)
+  })
+})

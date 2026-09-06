@@ -80,5 +80,52 @@ function tryDecode(raw: string): string | null {
   }
 }
 
+/**
+ * The keys worth spending the cookie's ~4KB on (BL-20260905-29).
+ *
+ * The mirror exists for one reason: so the *server* render can lay the shell
+ * out the way this visitor chose, instead of painting the default and
+ * reflowing. That is a claim about the shell's shape — which panels exist, on
+ * which edge, with which chrome — and it is exactly the `LAYOUT_SETTINGS`
+ * group in `lib/shell/layout.ts`. Every other setting reaches the screen
+ * through a client component that is fetching anyway (the graph's citation
+ * counts, the HITL threshold, the drill length the timer adopts in an effect),
+ * so leaving it out of the first paint costs nothing visible.
+ *
+ * Mirroring the whole store instead made the first paint hostage to feature
+ * settings it never reads: a cookie is capped near 4KB by every browser, so
+ * one more verbose feature value could push the blob over `COOKIE_MAX_BYTES`
+ * and silently take the *layout* down with it, reverting every visitor to the
+ * reflow this exists to prevent.
+ *
+ * Kept in step with `LAYOUT_SETTINGS` by a test, not by hope — a layout
+ * setting added there and forgotten here fails the suite. It is a literal
+ * rather than an import because this module is the one both renders share and
+ * it must not reach into the shell.
+ */
+export const MIRRORED_SETTING_KEYS: readonly string[] = [
+  'ui.rail.visible',
+  'ui.rail.expanded',
+  'ui.sidebar.default_open',
+  'ui.sidebar.side',
+  'ui.inspector.default_open',
+  'ui.inspector.side',
+  'ui.masthead.breadcrumbs',
+  'ui.masthead.scope_switcher',
+  'ui.back_to_top',
+  'ui.page_header',
+  'lsat.timer.dock',
+  'lsat.timer.visible',
+  'lsat.library.contents',
+  'lsat.library.outline',
+]
+
+const MIRRORED = new Set(MIRRORED_SETTING_KEYS)
+
+/** The subset of `rows` the cookie carries. */
+export function mirroredRows(rows: SettingValue[]): SettingValue[] {
+  return rows.filter((row) => MIRRORED.has(row.key))
+}
+
 /** Stable empty snapshot — identity matters to `useSyncExternalStore`. */
 export const NO_ROWS: SettingValue[] = []

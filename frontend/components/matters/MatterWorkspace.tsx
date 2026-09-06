@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import StudyFromMatter from '@/components/lsat/StudyFromMatter'
+import MatterResearch from '@/components/matters/MatterResearch'
 import {
   createMatterTask,
   fetchMatter,
@@ -69,7 +70,7 @@ export default function MatterWorkspace({ slug }: { slug: string }) {
     setBundle(JSON.stringify(await fetchMatterExport(slug), null, 2))
   }, [slug])
 
-  if (!resolved) return <p className="text-sm text-slate-500">Opening matter…</p>
+  if (!resolved) return <p className="text-sm text-slate-400">Opening matter…</p>
 
   if (!matter) {
     return (
@@ -84,7 +85,7 @@ export default function MatterWorkspace({ slug }: { slug: string }) {
     <div className="space-y-6">
       <header className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
         <h2 className="text-lg font-semibold text-slate-100">{matter.name}</h2>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-slate-400">
           Stage: {matter.stage}
           {matter.issue_tags.length > 0
             ? ` · ${matter.issue_tags.join(', ')}`
@@ -106,14 +107,14 @@ export default function MatterWorkspace({ slug }: { slug: string }) {
                 <span
                   className={
                     task.status === 'done'
-                      ? 'text-slate-500 line-through'
+                      ? 'text-slate-400 line-through'
                       : 'text-slate-200'
                   }
                 >
                   {task.title}
                 </span>
                 {task.due_at && (
-                  <span className="ml-2 text-xs text-slate-500">
+                  <span className="ml-2 text-xs text-slate-400">
                     due {task.due_at.slice(0, 10)}
                   </span>
                 )}
@@ -133,7 +134,7 @@ export default function MatterWorkspace({ slug }: { slug: string }) {
             </li>
           ))}
           {tasks.length === 0 && (
-            <li className="text-xs text-slate-500">Nothing tracked yet.</li>
+            <li className="text-xs text-slate-400">Nothing tracked yet.</li>
           )}
         </ul>
         <div className="mt-4 flex flex-wrap items-end gap-2">
@@ -164,13 +165,15 @@ export default function MatterWorkspace({ slug }: { slug: string }) {
         </div>
       </section>
 
+      <MatterResearch matterId={matter.id} jurisdiction={matter.jurisdiction} />
+
       <StudyFromMatter slug={slug} />
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
           Export this matter
         </h3>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-slate-400">
           The full bundle — artifacts with their provenance trace ids,
           authorities, tasks and timeline.
         </p>

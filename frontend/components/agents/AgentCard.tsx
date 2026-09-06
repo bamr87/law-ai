@@ -32,7 +32,7 @@ export function AgentCard({
           <span className="font-medium text-slate-100">{agent.name}</span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-slate-500">
+          <span className="text-[10px] uppercase tracking-wider text-slate-400">
             ready
           </span>
           {(agent.name === 'LegalAnalyst' ||

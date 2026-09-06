@@ -3,6 +3,7 @@
 import { breadcrumbsForPath } from '@/lib/modules/catalog'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import AccountMenu from './AccountMenu'
 import ScopeSwitcher from './ScopeSwitcher'
 
 /**
@@ -71,7 +72,7 @@ export default function Masthead({
        * bar already names the section and horizontal room is scarce. */}
       {breadcrumbs && (
       <nav aria-label="Breadcrumb" className="hidden min-w-0 flex-1 md:block">
-        <ol className="flex items-center gap-1.5 text-xs text-slate-500">
+        <ol className="flex items-center gap-1.5 text-xs text-slate-400">
           {crumbs.map((c) => (
             <li key={c.href} className="flex min-w-0 items-center gap-1.5">
               <span aria-hidden="true" className="text-slate-700">
@@ -106,6 +107,11 @@ export default function Masthead({
           </div>
         )}
 
+        {/* Who you are, next to what you are scoped to. Not a preference: a
+         * user who cannot find the way back into their account cannot reach
+         * their matters or share an analysis at all (BL-20260906-08). */}
+        <AccountMenu />
+
         <button
           type="button"
           onClick={onOpenPalette}
@@ -113,7 +119,7 @@ export default function Masthead({
           className="tap-target flex items-center justify-center gap-2 rounded-md border border-slate-700 px-2.5 text-xs text-slate-400 transition hover:border-blue-500/40 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
         >
           <span aria-hidden="true">⌕</span>
-          <kbd className="hidden font-mono text-[10px] text-slate-500 sm:inline">
+          <kbd className="hidden font-mono text-[10px] text-slate-400 sm:inline">
             ⌘K
           </kbd>
         </button>

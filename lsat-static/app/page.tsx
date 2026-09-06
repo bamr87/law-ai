@@ -11,6 +11,7 @@ import Stats from '@/components/Stats'
 import ShortcutHelp from '@/components/ShortcutHelp'
 import { useShortcuts } from '@/lib/keyboard'
 import { useMeasuredCssVar } from '@/lib/useMeasuredCssVar'
+import { readHeaderPinned, writeHeaderPinned } from '@/lib/deviceState'
 
 type View = 'overview' | SectionCode | 'writing' | 'library' | 'stats'
 
@@ -58,38 +59,18 @@ type HeaderState = 'top' | 'condensed' | 'hidden'
 
 /** Below this the page counts as "at the top" and the header is never hidden. */
 const AT_TOP_PX = 8
-/** Don't hide until the reader is past roughly a screenful of content. */
+/**
+ * Don't hide until the reader is past roughly a screenful of content.
+ *
+ * A view whose whole document fits inside this therefore never reaches
+ * `hidden` — Overview on a 390px phone is the case that raised it
+ * (BL-20260906-61). That is deliberate: there is nothing further down to make
+ * room for, so taking the nav away would cost the reader something and buy
+ * them nothing. `__tests__/headerScroll.test.tsx` pins both halves.
+ */
 const HIDE_AFTER_PX = 220
 /** Ignore scrolls smaller than this: momentum and rubber-banding both jitter. */
 const DIRECTION_DELTA_PX = 6
-
-/**
- * The reader's answer to "should the header get out of the way?".
- *
- * Hiding on scroll direction is the right default — a phone spends 136px of a
- * short viewport on chrome — but it is an answer to a question, not a fact,
- * and some readers would rather keep the nav where they can see it. So the
- * behaviour is toggleable and the choice is remembered per device, next to the
- * attempts and drafts that already live there (BL-20260901-05).
- */
-const PIN_KEY = 'lsat-practice.header-pinned.v1'
-
-function loadPinned(): boolean {
-  try {
-    return window.localStorage.getItem(PIN_KEY) === '1'
-  } catch {
-    // Private browsing and blocked site data both throw; the default stands.
-    return false
-  }
-}
-
-function savePinned(pinned: boolean): void {
-  try {
-    window.localStorage.setItem(PIN_KEY, pinned ? '1' : '0')
-  } catch {
-    /* the preference just does not survive this session */
-  }
-}
 
 function indexOfView(view: View): number {
   const i = NAV.findIndex((n) => n.id === view)
@@ -104,12 +85,21 @@ export default function Page() {
   const [navScrollable, setNavScrollable] = useState(false)
   const [headerState, setHeaderState] = useState<HeaderState>('top')
   const [helpOpen, setHelpOpen] = useState(false)
+  // The reader's answer to "should the header get out of the way?". Hiding on
+  // scroll direction is the right default — a phone spends 136px of a short
+  // viewport on chrome — but it is an answer to a question, not a fact, so the
+  // behaviour is toggleable and the choice is remembered per device
+  // (BL-20260901-05). The key and its accessors live in `lib/deviceState.ts`
+  // with the rest of what this site stores, which is also where the decision
+  // to keep preferences out of the export snapshot is written down
+  // (BL-20260905-16).
+  //
   // Read after mount, never during render: the export prerenders this page
   // where there is no localStorage, and a first paint that disagreed with the
   // stored preference would be a hydration mismatch.
   const [pinned, setPinned] = useState(false)
   useEffect(() => {
-    setPinned(loadPinned())
+    setPinned(readHeaderPinned())
   }, [])
 
   // The sticky stack hangs off `--site-header-h`. Measure it rather than
@@ -146,7 +136,7 @@ export default function Page() {
   const togglePinned = useCallback(() => {
     setPinned((was) => {
       const next = !was
-      savePinned(next)
+      writeHeaderPinned(next)
       // Pinning while the bar is away has to bring it back, or the control
       // appears to do nothing until the next scroll.
       if (next) setHeaderState((s) => (s === 'hidden' ? 'condensed' : s))
@@ -159,22 +149,35 @@ export default function Page() {
   // Read through a ref so pinning does not tear down and rebuild the scroll
   // listener — and so the listener always sees the current answer.
   const pinnedRef = useRef(pinned)
-  pinnedRef.current = pinned
+  useEffect(() => {
+    pinnedRef.current = pinned
+  })
 
   // Direction-aware header. A plain "hide past N pixels" rule strands the nav
   // behind a long scroll back; keying on direction means a flick upward brings
   // it straight back, which is the behaviour every reader already expects.
   useEffect(() => {
     let lastY = window.scrollY
+    let lastHeight = document.documentElement.scrollHeight
     let queued = false
 
     const update = () => {
       queued = false
       const y = window.scrollY
       const dy = y - lastY
+      // A page barely taller than the viewport shortens as the header
+      // condenses, and the browser then clamps scrollY down to fit. That
+      // looks exactly like a scroll back up, which used to restore the bar
+      // the reader had just scrolled away — so on a short page `hidden` was
+      // unreachable (BL-20260905-20). A backwards delta that arrives with a
+      // document-height change is reflow, not intent.
+      const height = document.documentElement.scrollHeight
+      const reflowed = height !== lastHeight
+      lastHeight = height
       if (y > AT_TOP_PX && Math.abs(dy) < DIRECTION_DELTA_PX) return
       lastY = y
       if (y <= AT_TOP_PX) setHeaderState('top')
+      else if (reflowed && dy < 0) return
       else if (dy > 0 && y > HIDE_AFTER_PX && !pinnedRef.current)
         setHeaderState('hidden')
       else setHeaderState('condensed')

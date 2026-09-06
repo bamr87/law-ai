@@ -29,7 +29,10 @@ from law_ai.core.schemas.statute_extraction import (
     StatuteSectionPayload,
 )
 from law_ai.ingestionapp.quarantine_kinds import KIND_STATUTE_SECTION
-from law_ai.ingestionapp.services.colorado_statutes import parse_title_html
+from law_ai.ingestionapp.services.colorado_statutes import (
+    parse_title_html,
+    rescore_section,
+)
 
 logger = logging.getLogger("law_ai.ingestion.statute_scout")
 
@@ -129,6 +132,44 @@ class StatuteScout:
             sources=([{"url": extraction.source_url}] if extraction.source_url else []),
         )
         return extraction
+
+    def rescore(self, payload: dict[str, Any]) -> StatuteSectionPayload:
+        """Re-score one quarantined section payload (BL-20260905-96).
+
+        The statute-side entry point for ``approval.reextract_review``:
+        ``extract`` needs title HTML, which a quarantine row does not carry,
+        so re-extraction re-runs today's scorer over the stored section and
+        returns a copy of it with a fresh ``confidence``. Like the case path
+        it only informs a reviewer — nothing is committed here.
+        """
+        start = time.time()
+        section_data = payload.get("section")
+        if not isinstance(section_data, dict):
+            raise ValueError("statute quarantine payload has no 'section'")
+
+        section = StatuteSectionPayload.model_validate(section_data)
+        rescored = section.model_copy(
+            update={
+                "confidence": round(
+                    rescore_section(heading=section.heading, text=section.text), 4
+                )
+            }
+        )
+        provenance.log_agent_call(
+            agent_name=self.name,
+            input_data={"section_id": section.id, "mode": "rescore"},
+            output_data={
+                "previous_confidence": section.confidence,
+                "confidence": rescored.confidence,
+            },
+            model="rule-based+bs4",
+            latency_ms=(time.time() - start) * 1000,
+            confidence=rescored.confidence,
+            sources=(
+                [{"url": payload["source_url"]}] if payload.get("source_url") else []
+            ),
+        )
+        return rescored
 
     # ------------------------------------------------------------------
     # Commit

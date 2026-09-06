@@ -400,6 +400,50 @@ describe('KnowledgeGraph filters and inspector', () => {
     )
   })
 
+  it('offers courts from the whole corpus, not just the loaded page', async () => {
+    // BL-20260905-89: /api/graph/courts seeds the dropdown, so a court with
+    // no case on the first page is still selectable.
+    server.use(
+      http.get(`${BASE}/api/graph/courts`, () =>
+        HttpResponse.json({
+          available: true,
+          count: 2,
+          courts: [
+            { court: 'Supreme Court', count: 12 },
+            { court: '10th Cir.', count: 3 },
+          ],
+        }),
+      ),
+    )
+    render(<KnowledgeGraph />)
+    await screen.findByTestId('case-list')
+    const select = (await screen.findByLabelText('Court')) as HTMLSelectElement
+    await waitFor(() =>
+      expect(Array.from(select.options).map((o) => o.value)).toEqual([
+        '',
+        '10th Cir.',
+        'Supreme Court',
+      ]),
+    )
+  })
+
+  it('falls back to the loaded cases when the court feed is down', async () => {
+    server.use(
+      http.get(`${BASE}/api/graph/courts`, () =>
+        HttpResponse.json({ available: false, courts: [], count: 0 }),
+      ),
+    )
+    render(<KnowledgeGraph />)
+    await screen.findByTestId('case-list')
+    const select = (await screen.findByLabelText('Court')) as HTMLSelectElement
+    await waitFor(() =>
+      expect(Array.from(select.options).map((o) => o.value)).toEqual([
+        '',
+        'Supreme Court',
+      ]),
+    )
+  })
+
   it('resets every filter at once', async () => {
     render(<KnowledgeGraph />)
     await screen.findByTestId('case-list')

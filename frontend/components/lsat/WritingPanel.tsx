@@ -68,7 +68,18 @@ function mmss(totalSeconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-export default function WritingPanel() {
+export default function WritingPanel({
+  onEvaluated,
+}: {
+  /**
+   * Fired once a rubric evaluation comes back (BL-20260905-42). The writing
+   * bands land in `/api/lsat/stats`, and the lab only refreshed those from a
+   * graded MCQ — so an essay read in this tab left the Stats tab's
+   * Argumentative Writing card quoting the previous run until the learner went
+   * back and answered a question. This is the writing half of `onAttempt`.
+   */
+  onEvaluated?: () => void
+} = {}) {
   // Publish this surface's keys to the shell's `?` sheet, so O/T/M/mod+Enter
   // are discoverable somewhere other than the hint line under the textarea.
   usePageShortcuts(LSAT_WRITING_SHORTCUTS)
@@ -115,10 +126,10 @@ export default function WritingPanel() {
   return (
     <section className="space-y-4" aria-label="Argumentative Writing">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 backdrop-blur">
-        <div className="text-xs uppercase tracking-wider text-slate-500">
+        <div className="text-xs uppercase tracking-wider text-slate-400">
           Section: Argumentative Writing
         </div>
-        <div className="text-xs text-slate-500">
+        <div className="text-xs text-slate-400">
           Unscored on the real exam — law schools read it. 35 minutes.
         </div>
       </div>
@@ -139,6 +150,7 @@ export default function WritingPanel() {
           key={open.id}
           prompt={open}
           onBack={() => setOpenId(null)}
+          onEvaluated={onEvaluated}
         />
       )}
     </section>
@@ -159,7 +171,7 @@ function PromptList({
           key={p.id}
           className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 backdrop-blur"
         >
-          <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-500">
+          <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-400">
             <span className="font-mono text-slate-400">{p.id}</span>
             <span className="text-slate-700">·</span>
             <DiffBadge difficulty={p.difficulty} />
@@ -168,7 +180,7 @@ function PromptList({
             {p.title}
           </h3>
           <p className="mt-1 text-sm text-slate-300">{p.issue}</p>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-slate-400">
             {p.positions.length} positions · {p.perspectives.length} perspectives
             · {p.time_limit_minutes} min
           </p>
@@ -188,9 +200,11 @@ function PromptList({
 function PromptWorkspace({
   prompt,
   onBack,
+  onEvaluated,
 }: {
   prompt: LsatWritingPrompt
   onBack: () => void
+  onEvaluated?: () => void
 }) {
   const [detail, setDetail] = useState<LsatWritingPromptDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -243,7 +257,7 @@ function PromptWorkspace({
         >
           ← All prompts
         </button>
-        <span className="text-xs text-slate-500">{prompt.title}</span>
+        <span className="text-xs text-slate-400">{prompt.title}</span>
       </div>
 
       {error && <ErrorBanner message={error} />}
@@ -265,6 +279,7 @@ function PromptWorkspace({
               rubric={detail.rubric}
               draft={draft}
               words={words}
+              onEvaluated={onEvaluated}
             />
           ) : (
             <SkeletonQuestion />
@@ -370,7 +385,7 @@ function DraftPanel({
   return (
     <section aria-label="Drafting" className="space-y-3">
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 backdrop-blur">
-        <span className="text-[11px] uppercase tracking-wider text-slate-500">
+        <span className="text-[11px] uppercase tracking-wider text-slate-400">
           Writing time
         </span>
         <span
@@ -406,7 +421,7 @@ function DraftPanel({
         >
           Reset
         </button>
-        <span className="text-[11px] text-slate-500">
+        <span className="text-[11px] text-slate-400">
           Take the pre-writing period ({prompt.prewriting_minutes} min on the
           real exam) before you start the clock.
         </span>
@@ -435,7 +450,7 @@ function DraftPanel({
         aria-describedby="writing-draft-meta"
         className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm leading-relaxed text-slate-100 focus:border-blue-500 focus-ring"
       />
-      <p id="writing-draft-meta" className="text-[11px] text-slate-500">
+      <p id="writing-draft-meta" className="text-[11px] text-slate-400">
         {words} words · saved in this browser only ·{' '}
         <kbd className="rounded border border-slate-700 bg-slate-800/60 px-1 font-mono text-slate-300">
           Ctrl
@@ -470,7 +485,7 @@ function DraftPanel({
           Submit and unlock feedback
         </button>
         {!canSubmit && (
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-slate-400">
             Write at least {MIN_WORDS} words to submit.
           </span>
         )}
@@ -484,11 +499,13 @@ function ReviewPanel({
   rubric,
   draft,
   words,
+  onEvaluated,
 }: {
   prompt: LsatWritingPrompt
   rubric: LsatWritingRubric
   draft: string
   words: number
+  onEvaluated?: () => void
 }) {
   const [checked, setChecked] = useState<Record<string, boolean>>({})
   const [model, setModel] = useState<LsatWritingModelResponse | null>(null)
@@ -587,10 +604,15 @@ function ReviewPanel({
             )
           })}
         </ul>
-        <p className="mt-3 text-xs text-slate-500">{rubric.summary}</p>
+        <p className="mt-3 text-xs text-slate-400">{rubric.summary}</p>
       </div>
 
-      <EvaluationCard promptId={prompt.id} rubric={rubric} draft={draft} />
+      <EvaluationCard
+        promptId={prompt.id}
+        rubric={rubric}
+        draft={draft}
+        onEvaluated={onEvaluated}
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <button
@@ -607,7 +629,7 @@ function ReviewPanel({
 
       {showModel && model && (
         <article className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 backdrop-blur">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400">
             One defensible response, arguing for{' '}
             <strong className="text-slate-300">
               {modelPosition?.name ?? model.position_id}
@@ -639,7 +661,7 @@ function ReviewPanel({
 
       {draft.trim() && (
         <details className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-200 backdrop-blur">
-          <summary className="cursor-pointer text-xs uppercase tracking-wider text-slate-500">
+          <summary className="cursor-pointer text-xs uppercase tracking-wider text-slate-400">
             Your submitted draft
           </summary>
           <p className="mt-3 whitespace-pre-line leading-relaxed">{draft}</p>
@@ -660,10 +682,12 @@ function EvaluationCard({
   promptId,
   rubric,
   draft,
+  onEvaluated,
 }: {
   promptId: string
   rubric: LsatWritingRubric
   draft: string
+  onEvaluated?: () => void
 }) {
   const [result, setResult] = useState<LsatWritingEvaluationResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -674,6 +698,9 @@ function EvaluationCard({
     setError(null)
     try {
       setResult(await evaluateLsatWriting(promptId, draft))
+      // The band the server just recorded is now part of `/api/lsat/stats`.
+      // Only on success: a failed call changed nothing to refresh.
+      onEvaluated?.()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Evaluation failed')
     } finally {
@@ -709,7 +736,7 @@ function EvaluationCard({
       )}
       {result && (
         <div className="mt-3 space-y-3">
-          <p className="text-[11px] uppercase tracking-wider text-slate-500">
+          <p className="text-[11px] uppercase tracking-wider text-slate-400">
             Machine-derived · {result.model} · prompt {result.prompt_version}
             {result.degraded && ' · degraded fallback'}
           </p>
@@ -728,7 +755,7 @@ function EvaluationCard({
                   key={c.criterion_id}
                   className="rounded-lg border border-slate-800 bg-slate-950/40 p-3 text-sm"
                 >
-                  <p className="text-xs uppercase tracking-wider text-slate-500">
+                  <p className="text-xs uppercase tracking-wider text-slate-400">
                     {criterion?.name ?? c.criterion_id} · band {c.band}
                   </p>
                   <p className="mt-1 text-slate-200">{c.evidence}</p>

@@ -296,3 +296,54 @@ def test_revoking_an_unknown_token_is_a_noop(client) -> None:
     res = client.post("/api/auth/token/revoke", {"token": "nope.nope"}, format="json")
     assert res.status_code == 200
     assert res.json()["revoked"] is False
+
+
+# --------------------------------------------------------------------------
+# The degraded path — the extra absent (BL-20260906-96)
+# --------------------------------------------------------------------------
+# `[future-auth]` is installed by backend/Dockerfile and every CI job, so every
+# test above exercises the *installed* path. `jwt_auth` also has a whole second
+# behaviour for when the two libraries are missing, and nothing covered it —
+# which is the worse half to get wrong: an unimportable dependency must degrade
+# to "key + session only", never to a 500 or, far worse, to an unsigned token.
+class TestDegradesWithoutTheExtra:
+    """`DEPENDENCIES_AVAILABLE = False`: the bearer leg disappears cleanly."""
+
+    @pytest.fixture(autouse=True)
+    def _no_extra(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(jwt_auth, "DEPENDENCIES_AVAILABLE", False)
+
+    def test_minting_refuses_with_a_503_rather_than_an_import_error(
+        self, graph_key
+    ) -> None:
+        token, _raw = graph_key
+        with pytest.raises(jwt_auth.OAuthError) as excinfo:
+            jwt_auth.mint_access_token(token)
+        assert excinfo.value.status == 503
+        assert excinfo.value.code == "temporarily_unavailable"
+
+    def test_the_grant_endpoint_answers_503(self, client, graph_key) -> None:
+        _token, raw = graph_key
+        res = _grant(client, raw)
+        assert res.status_code == 503
+        assert res.json()["error"] == "temporarily_unavailable"
+
+    def test_decoding_returns_none_instead_of_raising(self) -> None:
+        """A bearer header must not 500 the request that carries it."""
+        assert jwt_auth.decode_access_token("anything.at.all") is None
+        assert jwt_auth.resolve_access_token("anything.at.all") is None
+
+    def test_a_bearer_header_falls_through_to_the_other_credentials(
+        self, client, graph_key, settings
+    ) -> None:
+        """The whole promise of the degradation: key + session still work."""
+        settings.GRAPH_API_KEY = "env-secret"
+        _token, raw = graph_key
+
+        refused = client.get(
+            "/api/graph/stats", HTTP_AUTHORIZATION="Bearer not-a-real-token"
+        )
+        assert refused.status_code in (401, 403)
+
+        allowed = client.get("/api/graph/stats", HTTP_X_API_KEY=raw)
+        assert allowed.status_code not in (401, 403)

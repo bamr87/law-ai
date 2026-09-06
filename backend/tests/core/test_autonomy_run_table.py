@@ -222,6 +222,90 @@ class TestDigestReadsTheTable:
         assert section.lstrip().startswith("- *(none)*")
 
 
+class TestDigestFoldsTheRunSummary:
+    """BL-20260906-22: the summary the runner reported is rendered, not lost."""
+
+    def test_summary_entries_land_in_the_four_sections(
+        self, audit_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from law_ai.audit.models import AutonomyRun
+
+        monkeypatch.setattr(settings, "AUTONOMY_DIGEST_DIR", str(tmp_path))
+        anchor_dt = datetime(2026, 5, 11, 7, 0, tzinfo=UTC)
+        AutonomyRun.objects.create(
+            cycle_id="cid-sum",
+            kind="evolve",
+            started_at=anchor_dt.replace(hour=0) - timedelta(hours=3),
+            status="ok",
+            duration_ms=10.0,
+            summary={
+                "result": {
+                    "prs_opened": ["https://example.test/pr/1"],
+                    "backlog_ids": ["BL-20260906-99"],
+                    "quarantined": ["https://example.test/opinion/7"],
+                    "legalbench_delta": {"abercrombie": 0.02},
+                    "docs_queued": 3,
+                }
+            },
+        )
+
+        text = autonomy.compose_digest(date=anchor_dt).read_text(encoding="utf-8")
+
+        assert "https://example.test/pr/1" in text.split("## PRs Opened", 1)[1]
+        assert "BL-20260906-99" in text.split("## BACKLOG Items Appended", 1)[1]
+        assert "opinion/7" in text.split("## Docs Quarantined", 1)[1]
+        assert "abercrombie: +0.02" in text.split("## LegalBench Delta", 1)[1]
+        # The numeric counts ride on the cycle line, so a reader no longer has
+        # to reconstruct them from an AuditEvent scan.
+        assert "docs_queued=3" in text.split("## Autonomy Cycles", 1)[1]
+
+    def test_an_event_and_a_summary_naming_the_same_thing_are_not_doubled(
+        self, audit_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from law_ai.audit.models import AuditEvent, AutonomyRun
+
+        monkeypatch.setattr(settings, "AUTONOMY_DIGEST_DIR", str(tmp_path))
+        anchor_dt = datetime(2026, 5, 11, 7, 0, tzinfo=UTC)
+        when = anchor_dt.replace(hour=0) - timedelta(hours=3)
+        AuditEvent.objects.create(
+            kind="autonomy_pr_opened",
+            timestamp=when,
+            payload={"url": "https://example.test/pr/1"},
+        )
+        AutonomyRun.objects.create(
+            cycle_id="cid-dup",
+            kind="evolve",
+            started_at=when,
+            status="ok",
+            duration_ms=10.0,
+            summary={"result": {"prs_opened": ["https://example.test/pr/1"]}},
+        )
+
+        text = autonomy.compose_digest(date=anchor_dt).read_text(encoding="utf-8")
+        prs = text.split("## PRs Opened", 1)[1].split("##", 1)[0]
+        assert prs.count("https://example.test/pr/1") == 1
+
+    def test_a_summaryless_window_is_unchanged(
+        self, audit_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Legacy rows carry no summary; the sections must still render."""
+        from law_ai.audit.models import AutonomyRun
+
+        monkeypatch.setattr(settings, "AUTONOMY_DIGEST_DIR", str(tmp_path))
+        anchor_dt = datetime(2026, 5, 11, 7, 0, tzinfo=UTC)
+        AutonomyRun.objects.create(
+            cycle_id="cid-plain",
+            kind="digest",
+            started_at=anchor_dt.replace(hour=0) - timedelta(hours=3),
+            status="ok",
+            duration_ms=5.0,
+            summary={},
+        )
+        text = autonomy.compose_digest(date=anchor_dt).read_text(encoding="utf-8")
+        assert "- *(none)*" in text.split("## PRs Opened", 1)[1]
+        assert "cid-plain" in text
+
+
 class TestDigestSurvivesTheTableBeingUnreadable:
     def test_no_db_still_writes_a_usable_digest(
         self, audit_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

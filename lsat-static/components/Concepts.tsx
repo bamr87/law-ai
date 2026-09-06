@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   articlesTeaching,
   conceptById,
@@ -76,6 +76,42 @@ export default function Concepts({
     })
   }, [q, section])
 
+  // Keep the catalog's URL as copyable as the reader's (BL-20260905-17). The
+  // article view rewrites `#article-<id>` on every change, but the catalog
+  // used to leave whatever fragment was written last in place until a
+  // permalink was clicked — so a reader who scrolled to a concept and copied
+  // the address bar shared the wrong entry. The concept nearest the top of
+  // the viewport owns the fragment, written with `replaceState` so it neither
+  // adds history entries nor fires the `hashchange` the library listens on.
+  const listRef = useRef<HTMLUListElement | null>(null)
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return
+    const cards = Array.from(
+      listRef.current?.querySelectorAll<HTMLElement>('li.concept') ?? [],
+    )
+    if (cards.length === 0) return
+    const onScreen = new Map<string, number>()
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          const id = (e.target as HTMLElement).id
+          if (!id) continue
+          if (e.isIntersecting) onScreen.set(id, e.boundingClientRect.top)
+          else onScreen.delete(id)
+        }
+        let best: [string, number] | null = null
+        for (const entry of onScreen) {
+          if (!best || Math.abs(entry[1]) < Math.abs(best[1])) best = entry
+        }
+        if (best) window.history.replaceState(null, '', `#${best[0]}`)
+      },
+      { threshold: 0 },
+    )
+    for (const card of cards) observer.observe(card)
+    return () => observer.disconnect()
+    // Re-observed whenever the filters change the cards on the page.
+  }, [filtered])
+
   return (
     <section aria-label="Concepts">
       <label className="search">
@@ -113,7 +149,7 @@ export default function Concepts({
       {filtered.length === 0 ? (
         <p className="empty">No concept matches that filter.</p>
       ) : (
-        <ul className="concept-list">
+        <ul className="concept-list" ref={listRef}>
           {filtered.map((c) => {
             const taughtIn = articlesTeaching(c.id)
             const drills = questionsForConcept(c.id)

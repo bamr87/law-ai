@@ -78,10 +78,24 @@ class PolishYield(BaseModel):
     #: round that reached the lint.
     error: str = ""
 
+    #: Model calls made, and how many of them never reached the lint
+    #: (BL-20260906-84). ``rate`` only counts rounds that produced proposals,
+    #: so a headline of 1.00 could sit on top of a transport that failed a
+    #: third of the time; these two make that visible next to it.
+    rounds: int = 0
+    rounds_failed: int = 0
+
     @property
     def rate(self) -> float:
         """Accepted over proposed; zero when nothing was proposed."""
         return self.accepted / self.proposed if self.proposed else 0.0
+
+    @property
+    def round_rate(self) -> float:
+        """Rounds that reached the lint over rounds attempted."""
+        if not self.rounds:
+            return 0.0
+        return (self.rounds - self.rounds_failed) / self.rounds
 
     def reject(self, reason: str) -> None:
         self.rejected[reason] = self.rejected.get(reason, 0) + 1
@@ -90,6 +104,8 @@ class PolishYield(BaseModel):
         """Fold another round into this aggregate (provider labels are not kept)."""
         self.proposed += other.proposed
         self.accepted += other.accepted
+        self.rounds += other.rounds
+        self.rounds_failed += other.rounds_failed
         for reason, count in other.rejected.items():
             self.rejected[reason] = self.rejected.get(reason, 0) + count
 
@@ -263,8 +279,15 @@ def _prompt_for(domain: DomainPack, *, count: int) -> str:
     )
 
 
+#: How many extra times an unparseable reply may be re-asked (BL-20260906-84).
+#: One: a re-ask costs a single call and the lint discards junk anyway, so the
+#: cheap fix for a model that answered in prose is to ask again. An
+#: *unavailable* round is not retried — the chain has already tried every tier.
+POLISH_RETRIES = 1
+
+
 async def propose_with_yield(
-    domain: DomainPack, *, count: int = 4
+    domain: DomainPack, *, count: int = 4, retries: int = POLISH_RETRIES
 ) -> tuple[list[Property], PolishYield]:
     """Ask the provider chain for new vocabulary and measure what survived.
 
@@ -273,19 +296,53 @@ async def propose_with_yield(
     records which tier answered — the same prompt yields differently on a
     frontier model and a local one, and a number without its tier is not
     comparable to anything.
+
+    A reply that is not a JSON object is re-asked up to *retries* times
+    (BL-20260906-84). Every attempt is counted in ``rounds``/``rounds_failed``,
+    so the returned yield says how often the transport actually produced
+    something countable rather than hiding the misses behind ``rate``.
     """
-    try:
-        result = await llm.agenerate(
-            _prompt_for(domain, count=count), system=_SYSTEM, agent="lsat_synth_polish"
+    existing = {p.id for p in domain.properties}
+    attempts = max(1, retries + 1)
+    measured = PolishYield()
+    properties: list[Property] = []
+    for attempt in range(attempts):
+        try:
+            result = await llm.agenerate(
+                _prompt_for(domain, count=count),
+                system=_SYSTEM,
+                agent="lsat_synth_polish",
+            )
+        except Exception as exc:
+            logger.info("polish unavailable, keeping the generated vocabulary: %s", exc)
+            measured.rounds += 1
+            measured.rounds_failed += 1
+            measured.error = "unavailable"
+            return [], measured
+        properties, round_yield = parse_proposals_with_yield(
+            result.text, existing=existing
         )
-    except Exception as exc:
-        logger.info("polish unavailable, keeping the generated vocabulary: %s", exc)
-        return [], PolishYield(error="unavailable")
-    properties, measured = parse_proposals_with_yield(
-        result.text, existing={p.id for p in domain.properties}
-    )
-    measured.provider = result.provider
-    measured.model_label = result.model_label
+        round_yield.provider = result.provider
+        round_yield.model_label = result.model_label
+        round_yield.rounds = measured.rounds + 1
+        round_yield.rounds_failed = measured.rounds_failed + (
+            1 if round_yield.error else 0
+        )
+        # A retry *replaces* the round's proposals rather than adding to them,
+        # so the counts come from the latest attempt — but the earlier
+        # attempts' rejects are carried forward, because "the model answered in
+        # prose twice before it answered in JSON" is exactly what the report
+        # is for.
+        for reason, seen in measured.rejected.items():
+            round_yield.rejected[reason] = round_yield.rejected.get(reason, 0) + seen
+        measured = round_yield
+        if measured.error != "unparseable" or attempt == attempts - 1:
+            return properties, measured
+        logger.info(
+            "polish reply was not a JSON object; re-asking (%d of %d)",
+            attempt + 2,
+            attempts,
+        )
     return properties, measured
 
 

@@ -144,9 +144,14 @@ function useLgConceptBank() {
     http.get('http://localhost:8000/api/lsat/questions', () =>
       HttpResponse.json({ count: 1, questions: [lgTagged] }),
     ),
-    http.get('http://localhost:8000/api/lsat/passages', () =>
-      HttpResponse.json({ count: 2, passages: lgGames }),
-    ),
+    // BL-20260906-74: the concept filter is answered by this endpoint now,
+    // so the double serves the same projection the server does — only the
+    // game that carries the tag comes back when one is asked for.
+    http.get('http://localhost:8000/api/lsat/passages', ({ request }) => {
+      const concept = new URL(request.url).searchParams.get('concept')
+      const passages = concept ? [lgGames[0]] : lgGames
+      return HttpResponse.json({ count: passages.length, passages })
+    }),
     http.get('http://localhost:8000/api/lsat/passages/lg-game-001', () =>
       HttpResponse.json({
         count: 2,
@@ -517,6 +522,11 @@ describe('LsatLab', () => {
         http.get('http://localhost:8000/api/lsat/questions', () =>
           HttpResponse.json({ count: 0, questions: [] }),
         ),
+        // No passage carries the tag either (BL-20260906-74: the panel asks
+        // the passages endpoint that question now).
+        http.get('http://localhost:8000/api/lsat/passages', () =>
+          HttpResponse.json({ count: 0, passages: [] }),
+        ),
       )
       // An explicit tab, so this is the passage panel's own empty state and
       // not the section resolver falling back.
@@ -804,5 +814,63 @@ describe('LsatLab', () => {
       await screen.findByRole('tab', { name: 'Writing', selected: true }),
     ).toBeInTheDocument()
     expect(await screen.findByText('Municipal broadband')).toBeInTheDocument()
+  })
+
+  // BL-20260905-42: the lab refreshed the all-time stats only from a graded
+  // MCQ, so an essay read against the rubric left the Stats tab's
+  // Argumentative Writing card quoting the run before it.
+  it('refreshes the all-time stats when a writing evaluation lands', async () => {
+    window.localStorage.clear()
+    let statsCalls = 0
+    server.use(
+      http.get('http://localhost:8000/api/lsat/stats', () => {
+        statsCalls += 1
+        return HttpResponse.json({
+          attempts: 0,
+          correct: 0,
+          accuracy: 0,
+          by_section: {},
+          // The band only exists once the evaluation has been recorded.
+          writing:
+            statsCalls === 1
+              ? undefined
+              : {
+                  attempts: 1,
+                  by_prompt: { 'ws-broadband': 2.8 },
+                  latest_band: 2.8,
+                  best_band: 2.8,
+                  band_trend: [2.8],
+                  degraded: 0,
+                  model: 'claude_code/claude-opus-5',
+                  prompt_version: 'v1',
+                },
+        })
+      }),
+    )
+    nav.reset('tab=WS')
+    render(<LsatLab />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open prompt' }))
+    const editor = await screen.findByLabelText('Your response')
+    fireEvent.change(editor, {
+      target: {
+        value: Array.from({ length: 60 }, (_, i) => `word${i}`).join(' '),
+      },
+    })
+    fireEvent.click(
+      screen.getByRole('button', { name: /Submit and unlock feedback/ }),
+    )
+    await screen.findByText('Self-check')
+    // Submitting grades nothing, so nothing has refreshed yet.
+    expect(statsCalls).toBe(1)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Read my draft against the rubric/ }),
+    )
+    await waitFor(() => expect(statsCalls).toBe(2))
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Stats' }))
+    expect(await screen.findByText('Latest band')).toBeInTheDocument()
+    expect(screen.getAllByText('2.80').length).toBeGreaterThan(0)
   })
 })

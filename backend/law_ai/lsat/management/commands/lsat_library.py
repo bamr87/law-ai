@@ -15,6 +15,13 @@ Spec 048 FR-17. Three subcommands, all Docker-first via ``make``:
     then thin ones, then articles nothing links to, then a capped tail of
     gap-driven expansions, then a routine sweep.
 
+``scaffold``
+    Creates a new article file with valid frontmatter and a stub body
+    (BL-20260905-53). ``expand`` drafts a body and cannot write frontmatter,
+    so a section with no article at all was unreachable by the autonomous
+    cycle; this gives that section a host for the next ``review`` run to
+    expand into.
+
 ``promote``
     The only path that mutates library content, and it takes an explicit
     proposal id. The draft is re-parsed and the whole library re-loaded before
@@ -40,9 +47,10 @@ from law_ai.lsat.services.library import (
     load_library,
     merge_expansion,
     pick_librarian_targets,
+    scaffold_article,
 )
 
-_ACTIONS = ("audit", "review", "promote")
+_ACTIONS = ("audit", "review", "promote", "scaffold")
 
 
 class Command(BaseCommand):
@@ -88,6 +96,33 @@ class Command(BaseCommand):
             "--json",
             action="store_true",
             help="Emit the audit report as JSON rather than a summary.",
+        )
+        # -- scaffold ------------------------------------------------------
+        parser.add_argument("--title", help="Article title (scaffold).")
+        parser.add_argument("--summary", help="One-sentence index summary (scaffold).")
+        parser.add_argument(
+            "--kind", default="technique", help="Article kind (scaffold)."
+        )
+        parser.add_argument(
+            "--level", default="core", help="Reading-order tier (scaffold)."
+        )
+        parser.add_argument(
+            "--section",
+            action="append",
+            default=[],
+            help="Exam section the new article serves. Repeatable (scaffold).",
+        )
+        parser.add_argument(
+            "--concept",
+            action="append",
+            default=[],
+            help="Concept id the new article will teach. Repeatable (scaffold).",
+        )
+        parser.add_argument(
+            "--archetype",
+            action="append",
+            default=[],
+            help="Archetype id the new article will cover. Repeatable (scaffold).",
         )
 
     # -- audit --------------------------------------------------------------
@@ -233,6 +268,36 @@ class Command(BaseCommand):
             )
         )
 
+    # -- scaffold -----------------------------------------------------------
+
+    def _scaffold(self, opts: dict[str, Any]) -> None:
+        """Write a new article's frontmatter so the cycle can expand into it."""
+        targets = opts["article"]
+        if len(targets) != 1:
+            raise CommandError("scaffold takes exactly one --article <id>")
+        if not opts["title"] or not opts["summary"]:
+            raise CommandError("scaffold requires --title and --summary")
+        try:
+            path = scaffold_article(
+                targets[0],
+                title=opts["title"],
+                summary=opts["summary"],
+                kind=opts["kind"],
+                level=opts["level"],
+                sections=opts["section"],
+                concepts=opts["concept"],
+                archetypes=opts["archetype"],
+            )
+        except Exception as exc:
+            raise CommandError(f"scaffold failed: {exc}") from exc
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"scaffolded {targets[0]} → {path}\n"
+                "  The body is a stub: run `lsat_library review --article "
+                f"{targets[0]}` to have the librarian draft into it."
+            )
+        )
+
     # -- promote ------------------------------------------------------------
 
     def _promote(self, opts: dict[str, Any]) -> None:
@@ -258,5 +323,7 @@ class Command(BaseCommand):
             self._audit(opts)
         elif action == "review":
             self._review(opts)
+        elif action == "scaffold":
+            self._scaffold(opts)
         else:
             self._promote(opts)

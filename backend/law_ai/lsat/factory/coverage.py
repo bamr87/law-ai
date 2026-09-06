@@ -87,6 +87,11 @@ class GenerationTarget(BaseModel):
 
 
 def _matches(question: Question, archetype: Archetype) -> bool:
+    # BL-20260905-54: an item stamped with the archetype it was generated for
+    # says so itself, and the proxy below must not then count it under a
+    # *second* archetype that happens to share its primary concept.
+    if question.archetype is not None:
+        return question.archetype == archetype.id
     # Primary-concept matching (the taxonomy's documented contract): an item
     # drills an archetype only when it carries the archetype's *first* concept
     # tag. Any-overlap would let e.g. sequencing must-be-true items masquerade

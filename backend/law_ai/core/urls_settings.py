@@ -83,6 +83,20 @@ def visible_scope_ids(request: Any) -> list[str]:
     return chain
 
 
+def writable_scope_ids(request: Any) -> list[str]:
+    """The subset of the visible chain this caller may actually write.
+
+    BL-20260906-73. Readability and writability are not the same question here
+    — everyone reads the instance row, only staff may set it — and until this
+    shipped the client could not tell them apart. A settings UI that offers an
+    instance write to a non-admin is offering something the server will refuse:
+    the row stays local to that browser and nothing says so. Derived from
+    :func:`may_write` rather than re-deciding, so the answer the client renders
+    and the answer the write gets can never disagree.
+    """
+    return [s for s in visible_scope_ids(request) if may_write(request, s)[0]]
+
+
 class SettingValuesView(APIView):
     """``GET /api/settings/values`` — every row in the caller's scope chain."""
 
@@ -91,7 +105,13 @@ class SettingValuesView(APIView):
     def get(self, request: Any, *args: Any, **kwargs: Any) -> Response:
         scopes = visible_scope_ids(request)
         rows = SettingValue.objects.filter(scope_id__in=scopes)
-        return Response({"scopes": scopes, "values": [row.as_row() for row in rows]})
+        return Response(
+            {
+                "scopes": scopes,
+                "writableScopes": writable_scope_ids(request),
+                "values": [row.as_row() for row in rows],
+            }
+        )
 
 
 class SettingValueDetailView(APIView):

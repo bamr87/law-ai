@@ -159,6 +159,44 @@ class TestSiteStructure:
 # ---------------------------------------------------------------------------
 
 
+class TestLintGate:
+    """BL-20260905-15: the static site is held to the platform's React rules.
+
+    `lsat-static/` had no eslint config, so `npx eslint` refused to start and
+    `npm run lint` was an unconfigured `next lint` — the CI job for this
+    package gated on `tsc --noEmit` and vitest alone, while the platform app
+    next to it was linted on every PR. The two share components by hand; a
+    rule that holds for one and not the other is how a hand mirror rots.
+    """
+
+    def test_flat_config_mirrors_the_platform_app(self) -> None:
+        config = APP / "eslint.config.mjs"
+        assert config.is_file(), "lsat-static needs an eslint flat config"
+        body = config.read_text(encoding="utf-8")
+        assert "eslint-config-next" in body, (
+            "the static site must lint against the same Next preset as frontend/"
+        )
+
+    def test_lint_script_and_devdeps_are_wired(self) -> None:
+        pkg = json.loads((APP / "package.json").read_text(encoding="utf-8"))
+        assert pkg["scripts"]["lint"] == "eslint .", (
+            "`npm run lint` must run eslint, not the unconfigured `next lint`"
+        )
+        for dep in ("eslint", "eslint-config-next"):
+            assert dep in pkg["devDependencies"], f"lsat-static must depend on {dep}"
+
+    def test_ci_runs_the_linter(self) -> None:
+        import yaml
+
+        ci = yaml.safe_load(
+            (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        )
+        runs = [str(s.get("run", "")) for s in ci["jobs"]["lsat-static"]["steps"]]
+        assert any("npm run lint" in r for r in runs), (
+            "the lsat-static CI job must run the linter alongside tsc + vitest"
+        )
+
+
 class TestKeyboardContract:
     """The published drill has to be runnable end to end without a mouse.
 
@@ -218,8 +256,15 @@ class TestKeyboardContract:
         drafts. Behaviour lives in lsat-static/__tests__/headerPin.test.tsx.
         """
         page = self._read("app/page.tsx")
-        assert "lsat-practice.header-pinned.v1" in page, (
+        # The key and its accessors live with everything else this site stores
+        # (BL-20260905-16), which is also where it is written down that a
+        # preference is not progress and stays out of the export snapshot.
+        device_state = self._read("lib/deviceState.ts")
+        assert "lsat-practice.header-pinned.v1" in device_state, (
             "the pin preference must be remembered on this device"
+        )
+        assert "readHeaderPinned" in page and "writeHeaderPinned" in page, (
+            "the page reads and writes the pin through the shared accessors"
         )
         assert 'className="header-pin"' in page and "aria-pressed={pinned}" in page, (
             "the pin needs a real toggle control, not just a shortcut"

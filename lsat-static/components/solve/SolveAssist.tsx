@@ -142,10 +142,12 @@ export default function SolveAssist({
     )
   }
 
+  // The bundle ships every step, so the lock is purely a function of `graded`
+  // and lifts in place on the slide the reader is already looking at. The
+  // platform needs a "Show final step" button here because its locked text
+  // never left the server; here such a button could only ever be rendered
+  // when nothing was locked, so there isn't one (BL-20260905-14).
   const isLocked = (s: SolveStep) => s.spoiler && !graded
-  const hasLockedVisible = guide.steps
-    .slice(0, revealed)
-    .some((s) => isLocked(s))
 
   const setRevealedTo = (n: number) => {
     const next = Math.min(Math.max(n, 0), stepCount)
@@ -170,16 +172,6 @@ export default function SolveAssist({
             onClick={() => setRevealedTo(1)}
           >
             💡 Hint
-          </button>
-        )}
-        {graded && hasLockedVisible && (
-          <button
-            type="button"
-            className="btn btn-reveal"
-            aria-keyshortcuts="R"
-            onClick={() => setRevealedTo(stepCount)}
-          >
-            Show final step
           </button>
         )}
         {revealed > 0 && (

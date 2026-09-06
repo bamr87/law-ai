@@ -81,6 +81,84 @@ def record_attempt(
         return None
 
 
+def record_writing_attempt(
+    user: Any,
+    *,
+    prompt_id: str,
+    rubric_id: str = "",
+    weighted_band: float | None,
+    criteria: dict[str, Any] | None = None,
+    response_chars: int = 0,
+    model: str = "",
+    prompt_version: str = "",
+    degraded: bool = False,
+) -> Any | None:
+    """Persist one evaluated essay. Best-effort, like :func:`record_attempt`.
+
+    BL-20260906-18: writing evaluations used to land in the JSONL audit log
+    alone, so a signed-in learner's writing totals were everyone's.
+    """
+    from law_ai.lsat.models import LsatWritingAttempt
+
+    try:
+        return LsatWritingAttempt.objects.create(
+            user=user,
+            prompt_id=prompt_id,
+            rubric_id=rubric_id or "",
+            weighted_band=weighted_band,
+            criteria=dict(criteria or {}),
+            response_chars=int(response_chars or 0),
+            model=model or "",
+            prompt_version=prompt_version or "",
+            degraded=bool(degraded),
+        )
+    except Exception:  # pragma: no cover - storage hiccup must not break UX
+        logger.warning("failed to persist LSAT writing attempt", exc_info=True)
+        return None
+
+
+def writing_stats(user: Any) -> dict[str, Any]:
+    """This learner's Argumentative Writing practice, oldest first.
+
+    Same shape ``_fold_writing`` builds from the audit tail (BL-20260831-27),
+    so the response does not change when the reading does — only whose essays
+    it counts.
+    """
+    from law_ai.lsat.models import LsatWritingAttempt
+
+    rows = list(
+        LsatWritingAttempt.objects.filter(user=user)
+        .order_by("created_at")
+        .values(
+            "prompt_id",
+            "weighted_band",
+            "degraded",
+            "model",
+            "prompt_version",
+        )
+    )
+    bands = [
+        float(r["weighted_band"])
+        for r in rows
+        if isinstance(r["weighted_band"], (int, float))
+    ]
+    by_prompt: dict[str, int] = {}
+    for row in rows:
+        pid = str(row["prompt_id"])
+        by_prompt[pid] = by_prompt.get(pid, 0) + 1
+    latest = rows[-1] if rows else {}
+    return {
+        "attempts": len(rows),
+        "by_prompt": by_prompt,
+        "latest_band": bands[-1] if bands else None,
+        "best_band": max(bands) if bands else None,
+        "band_trend": [round(b, 4) for b in bands],
+        "degraded": sum(1 for r in rows if r["degraded"] is True),
+        "model": latest.get("model") or None,
+        "prompt_version": latest.get("prompt_version") or None,
+    }
+
+
 def _bucket(rows: list[dict[str, Any]]) -> dict[str, Any]:
     attempts = len(rows)
     correct = sum(1 for r in rows if r["correct"])
@@ -234,6 +312,8 @@ __all__ = [
     "MAX_BOX",
     "interval_days",
     "record_attempt",
+    "record_writing_attempt",
     "review_queue",
     "user_stats",
+    "writing_stats",
 ]

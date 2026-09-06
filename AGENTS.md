@@ -179,6 +179,7 @@ law-ai/                                 # workspace root (GitHub slug stays `law
 
 ### Python
 - Use `ruff` + `black` (line length 88)
+- `make lint` and `make format` cover **`backend/` and `frontend/` only** — they run inside those containers, so repo-root Python (`scripts/*.py`, `tests/*.py`) is deliberately out of scope (BL-20260906-36). Those trees are stdlib-only host tooling; `make lint-root` reports their ruff/black drift on demand and never gates.
 - Strict type hints + `mypy --strict`. The strict run is a real CI gate, ratcheted: `scripts/mypy_ratchet.py` compares per-file error counts against `backend/mypy-baseline.txt` and fails on any growth. **A file that is not already in that baseline must be strict-clean** — that includes every file you create. To clear a legacy file, fix it and re-bank with `make mypy-baseline` (the baseline may only shrink).
 - All public functions must have docstrings with examples
 - Agent prompts must be in `backend/law_ai/agents_runtime/prompts/` as `.md` or `.txt` files (versioned)

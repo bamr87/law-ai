@@ -2,6 +2,19 @@
 export const LSAT_SECTION_SECONDS = 35 * 60
 
 /**
+ * Items in a real scored section, and so the denominator a pace readout is
+ * allowed to quote (BL-20260905-32).
+ *
+ * The Logical Reasoning drill deals one question at a time out of a bank that
+ * is already in the hundreds, and it used to publish `bank - graded` as
+ * "remaining". Against the 35-minute clock that quoted an 8-second-per-
+ * question pace: arithmetically true, and meaningless as practice advice. A
+ * section is 25 items, so that — capped by a bank too small to fill one — is
+ * what the clock paces against.
+ */
+export const LSAT_SECTION_QUESTIONS = 25
+
+/**
  * Format a duration as `M:SS` (or `H:MM:SS` past an hour).
  *
  * @example

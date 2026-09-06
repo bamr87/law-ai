@@ -392,8 +392,9 @@ async def list_cases_with_statute_citations(
     """One batch of ``{"case_id", "pending": [{normalized, confidence}]}``.
 
     *reporters* are lowercased reporter spellings to prune on — the caller
-    passes ``citation_resolver._CRS_REPORTERS`` so the vocabulary lives in one
-    place. Read-only; same keyset-cursor contract as
+    passes ``citation_resolver.STATUTE_REPORTERS`` — the union of every corpus
+    in ``STATUTE_CORPORA`` (BL-20260906-02) — so the vocabulary lives in one
+    place and follows the mapper when a second corpus lands. Read-only; same keyset-cursor contract as
     :func:`list_cases_with_unlinked_citations`.
     """
     result = await session.run(
@@ -412,3 +413,144 @@ async def list_cases_with_statute_citations(
         ]
         batch.append({"case_id": str(record["case_id"]), "pending": pending})
     return batch
+
+
+# ---------------------------------------------------------------------------
+# Holding-summary backfill (BL-20260905-99)
+# ---------------------------------------------------------------------------
+
+#: Cases ingested before ``derive_holding_summary`` landed carry no
+#: ``holding_summary``, so every GraphRAG passage built from them renders
+#: "(no holding summary stored)". Keyset cursor on ``Case.id``, same contract
+#: as :data:`LIST_CASES_WITH_STATUTE_CITATIONS_CYPHER`.
+LIST_CASES_MISSING_HOLDING_SUMMARY_CYPHER = """
+MATCH (c:Case)
+WHERE c.archived_at IS NULL AND c.id > $after
+  AND coalesce(c.holding_summary, '') = ''
+RETURN c.id AS case_id,
+       c.title AS title,
+       c.source AS source,
+       c.source_url AS source_url
+ORDER BY case_id
+LIMIT $limit
+"""
+
+#: Write-once: the ``WHERE`` clause means a re-run can never overwrite a
+#: summary a later ingest (or a model pass) already wrote, so the backfill is
+#: idempotent and cannot clobber better data.
+SET_HOLDING_SUMMARY_CYPHER = """
+MATCH (c:Case {id: $case_id})
+WHERE c.archived_at IS NULL AND coalesce(c.holding_summary, '') = ''
+SET c.holding_summary = $holding_summary,
+    c.holding_summary_kind = $holding_summary_kind
+RETURN c.id AS id
+"""
+
+
+async def list_cases_missing_holding_summary(
+    session: AsyncSession, *, after: str = "", limit: int = 100
+) -> list[dict[str, Any]]:
+    """One batch of cases with no ``holding_summary`` (BL-20260905-99)."""
+    result = await session.run(
+        LIST_CASES_MISSING_HOLDING_SUMMARY_CYPHER, {"after": after, "limit": limit}
+    )
+    batch: list[dict[str, Any]] = []
+    async for record in result:
+        batch.append(
+            {
+                "case_id": str(record["case_id"]),
+                "title": record["title"],
+                "source": record["source"],
+                "source_url": record["source_url"],
+            }
+        )
+    return batch
+
+
+async def set_holding_summary(
+    session: AsyncSession, case_id: str, *, summary: str, kind: str = "excerpt"
+) -> bool:
+    """Fill an empty ``holding_summary``; True when a node was updated."""
+    result = await session.run(
+        SET_HOLDING_SUMMARY_CYPHER,
+        {
+            "case_id": case_id,
+            "holding_summary": summary,
+            "holding_summary_kind": kind,
+        },
+    )
+    return bool([record async for record in result])
+
+
+# ---------------------------------------------------------------------------
+# Statute-citation recall (BL-20260906-88)
+# ---------------------------------------------------------------------------
+
+#: Cases that hold **no** statute-looking citation string at all. Opinions
+#: ingested before ``scout._CRS_CITATION_RES`` landed were scanned by eyecite
+#: alone, which misses the two C.R.S. forms Colorado courts write, so their
+#: statutory cites were never stored and no offline pass can recover them.
+#: ``source`` is bound so the caller only walks corpora it can actually
+#: re-fetch by id.
+LIST_CASES_WITHOUT_STATUTE_CITATIONS_CYPHER = """
+MATCH (c:Case)
+WHERE c.archived_at IS NULL AND c.id > $after AND c.source IN $sources
+  AND NOT EXISTS {
+    MATCH (c)-[:HAS_CITATION]->(x:Citation)
+    WHERE any(
+      reporter IN $reporters
+      WHERE toLower(coalesce(x.normalized, '')) CONTAINS reporter
+    )
+  }
+RETURN c.id AS case_id, c.source AS source
+ORDER BY case_id
+LIMIT $limit
+"""
+
+
+async def list_cases_without_statute_citations(
+    session: AsyncSession,
+    *,
+    reporters: list[str],
+    sources: list[str],
+    after: str = "",
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    """One batch of ``{"case_id", "source"}`` for cases with no statutory cite."""
+    result = await session.run(
+        LIST_CASES_WITHOUT_STATUTE_CITATIONS_CYPHER,
+        {
+            "after": after,
+            "limit": limit,
+            "reporters": reporters,
+            "sources": sources,
+        },
+    )
+    return [
+        {"case_id": str(record["case_id"]), "source": record["source"]}
+        async for record in result
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Authority verification (BL-20260906-16)
+# ---------------------------------------------------------------------------
+
+#: Does this graph node exist, and is it the kind of authority a matter may
+#: cite? MATCH-only, archived nodes excluded (constitution §4), so a recorded
+#: authority can never point at a node that is not in the corpus.
+AUTHORITY_NODE_EXISTS_CYPHER = """
+MATCH (n {id: $node_id})
+WHERE n.archived_at IS NULL AND (n:Case OR n:StatuteSection OR n:OrdinanceSection)
+RETURN labels(n) AS labels
+LIMIT 1
+"""
+
+
+async def authority_node_labels(session: AsyncSession, node_id: str) -> list[str]:
+    """Labels of the authority node with this id, or ``[]`` when there is none."""
+    result = await session.run(AUTHORITY_NODE_EXISTS_CYPHER, {"node_id": node_id})
+    record = await result.single()
+    if record is None:
+        return []
+    return [str(label) for label in (record["labels"] or [])]

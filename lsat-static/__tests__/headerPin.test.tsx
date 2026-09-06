@@ -109,3 +109,61 @@ describe('the header pin', () => {
     }
   })
 })
+
+/**
+ * The bottom of a short page (BL-20260905-20).
+ *
+ * On a page barely taller than the viewport, condensing the header shortens
+ * the document and the browser clamps `scrollY` down to fit. That arrives as
+ * a negative delta — indistinguishable, to a direction-only rule, from the
+ * reader flicking back up — so the bar the reader had just scrolled away came
+ * straight back and `hidden` was unreachable. A backwards delta that lands
+ * together with a document-height change is reflow, not intent.
+ */
+describe('the header on a short page', () => {
+  function setDocHeight(px: number): void {
+    Object.defineProperty(document.documentElement, 'scrollHeight', {
+      value: px,
+      configurable: true,
+    })
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      cb(0)
+      return 1
+    })
+    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true })
+    setDocHeight(1400)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    Reflect.deleteProperty(document.documentElement, 'scrollHeight')
+  })
+
+  it('stays hidden when the page shrinks under it', () => {
+    render(<Page />)
+    act(() => scrollDown())
+    expect(header().className).toContain('site-header-hidden')
+
+    // The condensed header gave the document back 40px, so the browser pulls
+    // the scroll position up with it. Nobody scrolled.
+    act(() => {
+      setDocHeight(1360)
+      scrollDown(560)
+    })
+    expect(header().className).toContain('site-header-hidden')
+  })
+
+  it('still comes back when the reader really does scroll up', () => {
+    render(<Page />)
+    act(() => scrollDown())
+    expect(header().className).toContain('site-header-hidden')
+
+    // Same delta, same depth — but the document did not move.
+    act(() => scrollDown(560))
+    expect(header().className).not.toContain('site-header-hidden')
+    expect(header().className).toContain('site-header-condensed')
+  })
+})

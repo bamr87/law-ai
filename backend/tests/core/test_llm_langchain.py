@@ -124,6 +124,59 @@ class TestGeneration:
         assert _coerce_text(reply) == '{"analysis": "..."}'
 
 
+class TestResponseSchema:
+    """BL-20260905-80: the adapter is feature-equivalent with core.llm."""
+
+    SCHEMA = {
+        "type": "object",
+        "properties": {"issue": {"type": "string"}},
+        "required": ["issue"],
+    }
+
+    async def test_ainvoke_passes_the_schema_to_the_router(self) -> None:
+        model = ChatProviderChain(agent="legal_workflow", response_schema=self.SCHEMA)
+        with patch(
+            "law_ai.core.llm.router.agenerate",
+            new=AsyncMock(return_value=_result('{"issue": "x"}')),
+        ) as agen:
+            await model.ainvoke("q")
+
+        assert agen.call_args.kwargs["response_schema"] == self.SCHEMA
+
+    async def test_no_schema_is_the_default(self) -> None:
+        model = ChatProviderChain()
+        with patch(
+            "law_ai.core.llm.router.agenerate",
+            new=AsyncMock(return_value=_result("prose")),
+        ) as agen:
+            await model.ainvoke("q")
+
+        assert agen.call_args.kwargs["response_schema"] is None
+
+    async def test_the_streamed_path_carries_it_too(self) -> None:
+        """A schema must not evaporate when the caller switches to astream."""
+        model = ChatProviderChain(response_schema=self.SCHEMA)
+        seen: dict[str, Any] = {}
+
+        def _astream(prompt: str, **kwargs: Any) -> Any:
+            seen.update(kwargs)
+
+            async def _gen() -> Any:
+                yield _chunk("x", first=True)
+
+            return _gen()
+
+        with patch("law_ai.core.llm.router.astream", new=_astream):
+            [chunk async for chunk in model.astream("q")]
+
+        assert seen["response_schema"] == self.SCHEMA
+
+    def test_it_is_part_of_the_identifying_params(self) -> None:
+        """LangChain caches on these, so two different schemas are two models."""
+        model = ChatProviderChain(response_schema=self.SCHEMA)
+        assert model._identifying_params["response_schema"] == self.SCHEMA
+
+
 class TestUsageMetadata:
     """Token counts must reach LangChain's own accounting surface."""
 

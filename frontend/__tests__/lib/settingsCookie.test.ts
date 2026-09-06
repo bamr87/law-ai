@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { INSTANCE_SCOPE } from '@/lib/scope/instance'
-import { parseSettingRows, SETTINGS_STORAGE_KEY } from '@/lib/scope/rows'
+import {
+  MIRRORED_SETTING_KEYS,
+  parseSettingRows,
+  SETTINGS_STORAGE_KEY,
+} from '@/lib/scope/rows'
 import {
   deleteSettingValue,
   listSettingValues,
@@ -8,7 +12,8 @@ import {
   reconcileSettingsCookie,
   upsertSettingValue,
 } from '@/lib/scope/store'
-import { railVisible } from '@/lib/settings/catalog'
+import { hitlThreshold, railVisible } from '@/lib/settings/catalog'
+import { LAYOUT_SETTINGS } from '@/lib/shell/layout'
 
 /**
  * The store mirrors its rows into a cookie so the server render can lay the
@@ -68,6 +73,71 @@ describe('settings cookie mirror', () => {
     expect(readSettingsCookie()).toBeTruthy()
     deleteSettingValue(INSTANCE_SCOPE.id, railVisible.key)
     expect(readSettingsCookie()).toBeNull()
+  })
+
+  /**
+   * BL-20260905-29: the cookie carries the layout and nothing else.
+   *
+   * A cookie is capped near 4KB, so mirroring the whole store put the first
+   * paint one verbose feature setting away from blowing the cap — at which
+   * point `mirrorToCookie` drops the blob and every visitor is back to the
+   * reflow this mirror exists to prevent.
+   */
+  it('mirrors only the keys the server render lays out with', () => {
+    upsertSettingValue({
+      scopeId: INSTANCE_SCOPE.id,
+      key: railVisible.key,
+      value: false,
+      locked: false,
+    })
+    upsertSettingValue({
+      scopeId: INSTANCE_SCOPE.id,
+      key: hitlThreshold.key,
+      value: 0.42,
+      locked: false,
+    })
+    // Both are stored…
+    expect(listSettingValues()).toHaveLength(2)
+    // …one travels.
+    const carried = parseSettingRows(readSettingsCookie())
+    expect(carried.map((r) => r.key)).toEqual([railVisible.key])
+  })
+
+  it('keeps the layout in the cookie however big the feature settings grow', () => {
+    // Comfortably past COOKIE_MAX_BYTES on its own: mirroring the whole store
+    // would drop the cookie entirely and lose the layout with it.
+    upsertSettingValue({
+      scopeId: INSTANCE_SCOPE.id,
+      key: hitlThreshold.key,
+      value: 'x'.repeat(8_000),
+      locked: false,
+    })
+    upsertSettingValue({
+      scopeId: INSTANCE_SCOPE.id,
+      key: railVisible.key,
+      value: false,
+      locked: false,
+    })
+    const carried = parseSettingRows(readSettingsCookie())
+    expect(carried.map((r) => r.key)).toEqual([railVisible.key])
+  })
+
+  it('drops the cookie when only unmirrored rows are left', () => {
+    upsertSettingValue({
+      scopeId: INSTANCE_SCOPE.id,
+      key: hitlThreshold.key,
+      value: 0.42,
+      locked: false,
+    })
+    expect(readSettingsCookie()).toBeNull()
+    // …and reconciling agrees there is nothing to write.
+    expect(reconcileSettingsCookie()).toBe(false)
+  })
+
+  it('mirrors exactly the layout group — no drift between the two lists', () => {
+    expect([...MIRRORED_SETTING_KEYS].sort()).toEqual(
+      LAYOUT_SETTINGS.map((d) => d.key).sort(),
+    )
   })
 
   it('reads nothing out of a malformed cookie rather than throwing', () => {

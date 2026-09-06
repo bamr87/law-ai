@@ -84,3 +84,23 @@ def test_no_forbidden_ai_agent_configs(repo_root: Path) -> None:
         f"forbidden AI agent config(s) present (see AGENTS.md § Development "
         f"Orchestration): {found}"
     )
+
+
+def test_shebanged_scripts_are_executable(repo_root: Path) -> None:
+    """BL-20260906-37: one convention for `scripts/*.py`.
+
+    A `#!/usr/bin/env python3` line on a mode-644 file is a lie — `./scripts/x.py`
+    fails while its neighbour works, and ruff flags it as EXE001. Every script
+    that declares an interpreter is executable.
+    """
+    offenders = []
+    for path in sorted((repo_root / "scripts").glob("*.py")):
+        first = path.read_text(encoding="utf-8").splitlines()[:1]
+        if first and first[0].startswith("#!"):
+            # Mode bits, not os.access: the suite runs as root in the container,
+            # where CAP_DAC_OVERRIDE makes every file look executable.
+            if not path.stat().st_mode & 0o111:
+                offenders.append(path.name)
+    assert not offenders, (
+        "scripts with a shebang must be mode 755 (chmod +x): " f"{offenders}"
+    )

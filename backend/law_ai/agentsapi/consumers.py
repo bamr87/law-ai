@@ -13,12 +13,26 @@ was keyed on the server-generated analysis id, which the client could only
 learn from the *response* — i.e. after the run had already finished — so no
 client could ever subscribe in time to receive an event.
 
-Authentication mirrors the REST gate: when an agents API key is configured
-the socket must present it — as a short-lived ``?ticket=`` minted by a
-server that holds the key (the browser path, BL-20260430-07), a raw
-``?api_key=`` (kept for non-browser clients and existing scripts), or an
-``X-API-Key`` header. With no key configured the socket stays open, matching
-the default-open localhost posture of the REST routers.
+Authentication mirrors the REST gate. When an agents API key is configured
+the socket must present one of the four credentials ``core/auth.py`` accepts:
+
+* a short-lived ``?ticket=`` minted by a server that holds the key (the
+  browser path, BL-20260430-07),
+* a raw ``?api_key=`` or ``X-API-Key`` header matching ``AGENT_API_KEY``
+  (kept for non-browser clients and existing scripts),
+* a provisioned ``ApiToken`` with the ``agent`` scope, presented the same way,
+* an authenticated Django **session** (BL-20260906-09).
+
+The last two closed a real hole: every REST route has accepted a session
+since spec 036 FR-2, but this socket compared a query-string key against
+``AGENT_API_KEY`` and nothing else, so a signed-in browser user with no key
+could call ``/api/analysis`` and then be refused the stream of the run they
+had just started. Order is cheapest-first — the two string comparisons
+before either database query — so a key-only client costs exactly what it
+did before.
+
+With no key configured the socket stays open, matching the default-open
+localhost posture of the REST routers.
 
 The ticket exists because a browser cannot set headers on a WebSocket
 handshake: without it the raw key would have to be in the page, which is the
@@ -28,9 +42,11 @@ bundle leak the REST proxy just removed. See ``law_ai.core.ws_ticket``.
 from __future__ import annotations
 
 import re
+import secrets
 from typing import Any
 from urllib.parse import parse_qs
 
+from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
 from law_ai.core.auth import _resolve_env_key
@@ -88,11 +104,60 @@ class _TicketAuth(AsyncJsonWebsocketConsumer):
         values = self._query().get("ticket") or []
         return str(values[0]) if values and values[0] else None
 
-    def _authorized(self, required: str, run_id: str) -> bool:
-        """A raw key or a valid ticket for *this* run — nothing else."""
-        if self._presented_key() == required:
+    async def _authorized(self, required: str, run_id: str) -> bool:
+        """Any credential ``core/auth.py`` accepts, cheapest leg first.
+
+        The two string comparisons run before either database query, so a
+        client presenting the shared key or a ticket never touches the ORM.
+        """
+        presented = self._presented_key()
+        if presented is not None and secrets.compare_digest(
+            presented.encode(), required.encode()
+        ):
             return True
-        return verify_ticket(self._presented_ticket(), run_id, required)
+        if verify_ticket(self._presented_ticket(), run_id, required):
+            return True
+        # `database_sync_to_async` is untyped in the channels stubs, so each
+        # await yields Any; bind to a typed local rather than returning Any
+        # out of a `-> bool` function.
+        if presented is not None:
+            by_token: bool = await database_sync_to_async(self._agent_scoped_token)(
+                presented
+            )
+            if by_token:
+                return True
+        by_session: bool = await database_sync_to_async(self._session_authenticated)()
+        return by_session
+
+    def _agent_scoped_token(self, raw: str) -> bool:
+        """True when *raw* is a live ``ApiToken`` carrying the agent scope.
+
+        Same rule ``HasScope`` applies to ``/api/agents/*``: the agent scope,
+        and a revoked row is no credential at all.
+        """
+        from law_ai.core.models import ApiToken
+
+        return ApiToken.objects.filter(
+            key_hash=ApiToken.hash_key(raw),
+            scope=ApiToken.SCOPE_AGENT,
+            revoked_at__isnull=True,
+        ).exists()
+
+    def _session_authenticated(self) -> bool:
+        """True when the handshake carried a signed-in Django session.
+
+        ``AuthMiddlewareStack`` puts a *lazy* user on the scope, so resolving
+        it runs a query — hence the sync wrapper. A scope with no ``user`` key
+        at all (a consumer instantiated without the auth stack) is anonymous,
+        not an error.
+        """
+        user = self.scope.get("user")
+        if user is None:
+            return False
+        try:
+            return bool(user.is_authenticated)
+        except Exception:  # pragma: no cover - defensive: a broken session
+            return False
 
 
 class AgentRunConsumer(_TicketAuth):
@@ -105,7 +170,7 @@ class AgentRunConsumer(_TicketAuth):
             return
 
         required = _resolve_env_key("AGENT_API_KEY")
-        if required and not self._authorized(required, run_id):
+        if required and not await self._authorized(required, run_id):
             # Reject before joining the group so an unauthorized socket
             # never receives a single event.
             await self.close(code=CLOSE_UNAUTHORIZED)
@@ -177,13 +242,14 @@ class OpsDashboardConsumer(_TicketAuth):
     ``{"type": "runs_changed", ...}`` invalidation, so a burst of agent calls
     costs one small frame each rather than a fan-out of run payloads.
 
-    Auth is the same gate as :class:`AgentRunConsumer` — a raw key, or a
-    ticket minted for the reserved stream id :data:`OPS_STREAM_ID`.
+    Auth is the same gate as :class:`AgentRunConsumer` — a raw key, an
+    agent-scoped ``ApiToken``, a signed-in session, or a ticket minted for the
+    reserved stream id :data:`OPS_STREAM_ID`.
     """
 
     async def connect(self) -> None:
         required = _resolve_env_key("AGENT_API_KEY")
-        if required and not self._authorized(required, OPS_STREAM_ID):
+        if required and not await self._authorized(required, OPS_STREAM_ID):
             await self.close(code=CLOSE_UNAUTHORIZED)
             return
         await self.channel_layer.group_add(OPS_GROUP, self.channel_name)

@@ -2,8 +2,9 @@
 
 The parser is exercised through a faked page extractor so the suite does not
 depend on a binary fixture; one extra test runs the real ``pypdf`` extractor
-over a PDF built in-test, and is skipped when the optional dependency is not
-installed in the image yet.
+over a PDF built in-test. ``pypdf`` is a core dependency shipped in the backend
+image (BL-20260905-93), so that test is unconditional — if it cannot import,
+the image is stale and the suite should say so.
 """
 
 from __future__ import annotations
@@ -68,6 +69,23 @@ def test_pdf_sections_match_the_html_section_ids(fake_pdf: None) -> None:
     html = parse_title_html("us-co/crs/title-18", HTML_FIXTURE)
     assert [s.id for s in pdf.sections] == [s.id for s in html.sections]
     assert [s.citation for s in pdf.sections] == [s.citation for s in html.sections]
+
+
+def test_pdf_sections_keep_decimal_articles(monkeypatch: pytest.MonkeyPatch) -> None:
+    """BL-20260906-89: "18-1.3-401." used to truncate to the id "18-1"."""
+    page = (
+        "COLORADO REVISED STATUTES\n"
+        "18-1.3-401. Felonies classified - presumptive penalties\n" + _BODY + "\n"
+        "18-1.3-401.5. Felony drug offenses classified\n" + _BODY + "\n"
+        "Page 1 of 1"
+    )
+    monkeypatch.setattr(co, "_pdf_page_texts", lambda data: [page])
+    extraction = parse_title_pdf("us-co/crs/title-18", b"%PDF-fake")
+    assert [s.id for s in extraction.sections] == [
+        "us-co/crs/18-1.3-401",
+        "us-co/crs/18-1.3-401.5",
+    ]
+    assert extraction.sections[0].citation == "C.R.S. § 18-1.3-401"
 
 
 def test_pdf_extraction_envelope_matches_the_html_path(fake_pdf: None) -> None:
@@ -243,11 +261,9 @@ def _minimal_pdf(lines: list[str]) -> bytes:
     return bytes(out)
 
 
-@pytest.mark.skipif(
-    importlib.util.find_spec("pypdf") is None,
-    reason="pypdf not installed in this image yet (declared in pyproject)",
-)
 def test_real_pypdf_extraction_finds_sections() -> None:
+    """The image ships ``pypdf`` (BL-20260905-93), so this never skips."""
+    assert importlib.util.find_spec("pypdf") is not None
     pdf = _minimal_pdf(
         [
             "18-3-101. Homicide - definition of terms",

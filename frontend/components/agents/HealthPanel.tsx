@@ -73,7 +73,7 @@ export function HealthPanel({
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3">
-      <div className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">
+      <div className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-400">
         System Health
       </div>
       <div className="flex flex-wrap gap-3">

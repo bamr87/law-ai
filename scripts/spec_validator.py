@@ -59,7 +59,13 @@ PRE_TASKS_STATUSES = {"draft", "clarified", "planned"}
 # when tasks.md still contains any `[ ]` or `[~]` task. Conversely, leaving
 # unchecked tasks while declaring a not-shipped status is fine — that's the
 # normal in-flight case.
-SHIPPED_STATUSES = {"shipped"}
+#
+# `superseded` is the retired-but-finished case (BL-20260906-47): a spec whose
+# work shipped and was then replaced by a later spec. Without it here, the
+# symmetric check below rejected every task-complete spec that said so, and
+# specs/025-lsat-static-site had to hide the word in prose after the status
+# ("shipped — **superseded**") to get past the gate.
+SHIPPED_STATUSES = {"shipped", "superseded"}
 TEMPLATE_PLACEHOLDER = "FR-1"  # appears in _template; ignored there
 
 # --- Constitution §13 review question (BL-20260803-05) -----------------------
@@ -232,7 +238,7 @@ def validate_spec(spec_dir: Path) -> list[str]:
     unfinished = [m for m in task_marks if m != "x"]
     if status in SHIPPED_STATUSES and unfinished:
         errors.append(
-            f"{_rel(spec)}: status='shipped' but "
+            f"{_rel(spec)}: status='{status}' but "
             f"{len(unfinished)} task(s) in tasks.md are not marked `[x]` — "
             "either finish the tasks or downgrade the status to 'in-progress'."
         )
@@ -275,8 +281,17 @@ def validate_spec(spec_dir: Path) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
+    # BL-20260906-48: --strict promotes the §13 WARN lines to failures. The
+    # warnings were advisory while the shipped back-catalogue predated the
+    # review question; they are skipped for SHIPPED_STATUSES, so what is left
+    # is only ever a spec still in the pipeline — which is exactly the spec
+    # whose author can still answer the question. The gate (`make lint-specs`
+    # and CI) passes it; a bare run stays advisory for local exploration.
+    strict = "--strict" in argv[1:]
+    targets = [a for a in argv[1:] if a != "--strict"]
+
     bad_targets: list[str] = []
-    spec_dirs = list(_iter_spec_dirs(argv[1:], bad_targets))
+    spec_dirs = list(_iter_spec_dirs(targets, bad_targets))
     for bad in bad_targets:
         print(f"FAIL {bad}: not a valid spec directory")
     if not spec_dirs:
@@ -286,6 +301,7 @@ def main(argv: list[str]) -> int:
         return 0
 
     failed = len(bad_targets)
+    warned = 0
     for d in spec_dirs:
         errs = validate_spec(d)
         rel = _rel(d)
@@ -297,10 +313,18 @@ def main(argv: list[str]) -> int:
         else:
             print(f"PASS {rel}")
         for warning in stronger_question_warnings(d):
+            warned += 1
             print(f"WARN {warning}")
 
     if failed:
         print(f"\n{failed} spec(s) failed validation")
+        return 1
+    if warned and strict:
+        print(
+            f"\n{warned} spec(s) valid but carry a constitution §13 warning "
+            "(--strict). Answer the review question in §2, or drop --strict "
+            "to see the warning without failing."
+        )
         return 1
     print(f"\nAll {len(spec_dirs)} spec(s) valid")
     return 0

@@ -59,31 +59,56 @@ def _seq_key(stream_id: str) -> str:
     return f"agent-run:{stream_id}:seq"
 
 
-def _client() -> Any:
-    """A redis.asyncio client on ``REDIS_URL``, or ``None``.
+#: The cached (url, client) pair. A ``redis.asyncio`` client *is* a connection
+#: pool, and building one per call meant a connect/handshake/disconnect for
+#: every buffered event — one per delta on a streamed run (BL-20260905-75).
+#: It is held for the process instead, keyed by url so a settings change still
+#: takes effect, and dropped by :func:`_discard_client` whenever a call fails
+#: so a connection reset costs one reconnect rather than a wedged pool.
+_pool: tuple[str, Any] | None = None
 
-    Built per call rather than cached: this is off the hot path (one small
-    write per emitted event), and a cached client outliving a connection reset
-    is a subtler failure than reconnecting.
-    """
+
+def _replay_url() -> str:
     configured = getattr(settings, "AGENT_STREAM_REPLAY_URL", None)
-    url = str(
+    return str(
         (configured if configured is not None else getattr(settings, "REDIS_URL", ""))
         or ""
     ).strip()
+
+
+def _client() -> Any:
+    """The shared redis.asyncio client on ``REDIS_URL``, or ``None``."""
+    global _pool
+    url = _replay_url()
     if not url:
         return None
+    if _pool is not None and _pool[0] == url:
+        return _pool[1]
     try:
         import redis.asyncio as aioredis
 
         # redis's async factory carries no annotations, so --strict sees an
         # untyped call; the client itself is used through `Any` either way.
-        return aioredis.from_url(  # type: ignore[no-untyped-call]
+        client = aioredis.from_url(  # type: ignore[no-untyped-call]
             url, decode_responses=True
         )
     except Exception:  # pragma: no cover - import/config failure
         logger.debug("replay buffer: no redis client available", exc_info=True)
         return None
+    _pool = (url, client)
+    return client
+
+
+async def _discard_client(client: Any) -> None:
+    """Forget the pooled client after a failure, closing it on the way out.
+
+    Only the entry this call actually used is dropped, so a concurrent task
+    that has already installed a fresh pool is left alone.
+    """
+    global _pool
+    if _pool is not None and _pool[1] is client:
+        _pool = None
+    await _aclose(client)
 
 
 def _memory_record(stream_id: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -116,9 +141,8 @@ async def record(stream_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return stamped
     except Exception:
         logger.debug("replay buffer write fell back to memory", exc_info=True)
+        await _discard_client(client)
         return _memory_record(stream_id, payload)
-    finally:
-        await _aclose(client)
 
 
 async def events_since(stream_id: str, since: int) -> list[dict[str, Any]]:
@@ -135,9 +159,8 @@ async def events_since(stream_id: str, since: int) -> list[dict[str, Any]]:
         raw = await client.lrange(_events_key(stream_id), 0, -1)
     except Exception:
         logger.debug("replay buffer read fell back to memory", exc_info=True)
+        await _discard_client(client)
         return _memory_since(stream_id, since)
-    finally:
-        await _aclose(client)
     return [event for event in _decode(raw) if int(event.get("seq", 0)) > since]
 
 
@@ -170,6 +193,8 @@ async def _aclose(client: Any) -> None:
 
 
 def reset() -> None:
-    """Drop the in-process buffer (test helper)."""
+    """Drop the in-process buffer and the pooled client (test helper)."""
+    global _pool
     _memory.clear()
     _memory_seq.clear()
+    _pool = None

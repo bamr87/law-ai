@@ -58,7 +58,7 @@ export default function StatsPanel({
             By section
           </h3>
           <table className="mt-3 w-full text-sm">
-            <thead className="text-left text-[11px] uppercase tracking-wider text-slate-500">
+            <thead className="text-left text-[11px] uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="pb-2">Section</th>
                 <th className="pb-2 text-right">Attempts</th>
@@ -103,12 +103,12 @@ function StatCard({
   const pct = attempts > 0 ? Math.round((correct / attempts) * 100) : 0
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 backdrop-blur">
-      <div className="text-[11px] uppercase tracking-wider text-slate-500">
+      <div className="text-[11px] uppercase tracking-wider text-slate-400">
         {title}
       </div>
       <div className="mt-2 text-3xl font-semibold tabular-nums text-slate-100">
         {correct}
-        <span className="text-slate-500"> / {attempts}</span>
+        <span className="text-slate-400"> / {attempts}</span>
       </div>
       <div className="mt-1 text-sm text-slate-400">{pct}% accuracy</div>
     </div>
@@ -126,12 +126,12 @@ function StatCard({
 function ReadingCard({ read, total }: { read: number; total: number }) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 backdrop-blur">
-      <div className="text-[11px] uppercase tracking-wider text-slate-500">
+      <div className="text-[11px] uppercase tracking-wider text-slate-400">
         Library
       </div>
       <div className="mt-2 text-3xl font-semibold tabular-nums text-slate-100">
         {read}
-        <span className="text-slate-500"> / {total}</span>
+        <span className="text-slate-400"> / {total}</span>
       </div>
       <div className="mt-1 text-sm text-slate-400">
         articles read ·{' '}
@@ -179,7 +179,7 @@ function WritingProgress({
           Draft another
         </Link>
       </div>
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-1 text-xs text-slate-400">
         {writing.attempts} evaluation{writing.attempts === 1 ? '' : 's'} · bands
         are machine-derived
         {writing.model ? ` (${writing.model}` : ''}
@@ -194,7 +194,7 @@ function WritingProgress({
       </p>
       <div className="mt-3 flex flex-wrap gap-6">
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">
+          <div className="text-[11px] uppercase tracking-wider text-slate-400">
             Latest band
           </div>
           <div className="text-2xl font-semibold tabular-nums text-slate-100">
@@ -202,7 +202,7 @@ function WritingProgress({
           </div>
         </div>
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">
+          <div className="text-[11px] uppercase tracking-wider text-slate-400">
             Best band
           </div>
           <div className="text-2xl font-semibold tabular-nums text-slate-100">
@@ -226,7 +226,7 @@ function WritingProgress({
         </ol>
       )}
       {prompts.length > 0 && (
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-slate-400">
           By prompt:{' '}
           {prompts
             .map(([id, n]) => `${id} ×${n}`)
@@ -253,7 +253,7 @@ function ReviewQueue({ items }: { items: LsatReviewItem[] }) {
       <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
         Due for review
       </h3>
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-1 text-xs text-slate-400">
         Missed questions come back first; ones you keep getting right recede.
       </p>
       <ul className="mt-3 space-y-2">
@@ -271,7 +271,7 @@ function ReviewQueue({ items }: { items: LsatReviewItem[] }) {
                 <span className="font-mono text-slate-300">
                   {item.question_id}
                 </span>
-                <span className="ml-2 text-xs text-slate-500">
+                <span className="ml-2 text-xs text-slate-400">
                   {item.reason === 'missed'
                     ? 'missed last time'
                     : `box ${item.box}`}

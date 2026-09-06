@@ -22,7 +22,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import schemaDoc from '../fixtures/api-schema.json'
-import { runAnalysis } from '../../lib/api'
+import { askLsatTutor, runAnalysis } from '../../lib/api'
 
 type JsonSchema = {
   properties?: Record<string, unknown>
@@ -125,5 +125,16 @@ describe('MSW fixtures satisfy the backend contracts', () => {
     assertSatisfies('AnalysisResponse', result)
     assertSatisfies('IRACOutput', result.irac)
     assertSatisfies('PrecedentList', result.precedents)
+  })
+
+  // BL-20260905-35: mocks/server.ts now answers the tutor by default, so every
+  // suite that reaches it renders this payload — it has to be one the real API
+  // could send.
+  it('the default /api/lsat/tutor fixture is a valid LsatTutorResponse', async () => {
+    const reply = await askLsatTutor({
+      question_id: 'lr-001',
+      user_choice: 'A',
+    })
+    assertSatisfies('LsatTutorResponse', reply)
   })
 })

@@ -20,6 +20,7 @@ import {
   type LsatQuestion,
 } from '@/lib/api'
 import { setRemainingQuestions } from '@/lib/lsat/timerStore'
+import { LSAT_SECTION_QUESTIONS } from '@/lib/lsatTimer'
 import {
   ConceptChip,
   ErrorBanner,
@@ -48,9 +49,11 @@ export default function LrPanel({
   const [error, setError] = useState<string | null>(null)
   const cardRef = useRef<HTMLDivElement | null>(null)
   // Pace inputs. LR has no fixed stack — it deals one question at a time out
-  // of the bank — so "remaining" is the bank minus what this session has
-  // already graded, which is the closest analogue to the static drill's
-  // `questions.length - answeredCount`.
+  // of the bank — so the drill borrows the real section's length: 25 items,
+  // minus what this session has already graded. It used to publish the whole
+  // bank, which quoted an 8-second-per-question pace off a 200-item bank
+  // (BL-20260905-32). The bank size still caps it: a 6-question bank cannot
+  // fill a section, and pacing for 25 there would be the same lie inverted.
   const [bankSize, setBankSize] = useState<number | null>(null)
   const [graded, setGraded] = useState(0)
   // Set only by "next", so changing the difficulty — which reloads through the
@@ -82,9 +85,9 @@ export default function LrPanel({
     void load()
   }, [load])
 
-  // The bank size the Overview panel shows as "Items in bank", fetched once.
-  // A failure is silent: no pace readout is a smaller loss than an error
-  // banner over a working drill.
+  // The bank size the Overview panel shows as "Items in bank", fetched once —
+  // here only as the cap on a short bank. A failure is silent: no pace readout
+  // is a smaller loss than an error banner over a working drill.
   useEffect(() => {
     let live = true
     void (async () => {
@@ -104,7 +107,14 @@ export default function LrPanel({
   // Publish the count to the timer store, and clear it on the way out so the
   // clock stops quoting a pace for a section the student has left.
   useEffect(() => {
-    setRemainingQuestions(bankSize === null ? null : bankSize - graded)
+    if (bankSize === null) {
+      setRemainingQuestions(null)
+      return
+    }
+    const section = Math.min(bankSize, LSAT_SECTION_QUESTIONS)
+    // Past a full section the readout blanks rather than going negative: the
+    // section the clock was timing is over.
+    setRemainingQuestions(Math.max(0, section - graded))
   }, [bankSize, graded])
   useEffect(() => () => setRemainingQuestions(null), [])
 
@@ -190,7 +200,7 @@ function Toolbar({
       <div className="flex items-center gap-2">
         <label
           htmlFor="lsat-diff"
-          className="text-xs uppercase tracking-wider text-slate-500"
+          className="text-xs uppercase tracking-wider text-slate-400"
         >
           Difficulty
         </label>
@@ -215,7 +225,7 @@ function Toolbar({
         // Shared with the passage panels, which take the same deep link.
         <ConceptChip concept={concept} onClear={onClearConcept} />
       )}
-      <div className="text-xs uppercase tracking-wider text-slate-500">
+      <div className="text-xs uppercase tracking-wider text-slate-400">
         {rightLabel}
       </div>
     </div>

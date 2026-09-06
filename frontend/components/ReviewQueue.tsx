@@ -4,6 +4,7 @@ import {
   approveReview,
   fetchReview,
   fetchReviews,
+  reextractReview,
   rejectReview,
   type ReviewDetail,
   type ReviewQueue as ReviewQueueBody,
@@ -137,6 +138,44 @@ export default function ReviewQueue() {
     [detail, load, note, reviewer, selectedId, status],
   )
 
+  const reextract = useCallback(async () => {
+    if (!selectedId) return
+    setBusy(true)
+    setFeedback(null)
+    try {
+      const result = await reextractReview(selectedId, {
+        reviewer: reviewer.trim(),
+      })
+      if (!result.reextracted) {
+        setFeedback({
+          tone: 'warn',
+          text:
+            result.error ||
+            result.skipped ||
+            'Nothing to re-extract for this row.',
+        })
+      } else {
+        const before = (result.previous_confidence ?? 0).toFixed(2)
+        const after = (result.confidence ?? 0).toFixed(2)
+        setFeedback({
+          tone: result.clears_threshold ? 'ok' : 'warn',
+          text: result.clears_threshold
+            ? `Re-extracted: ${before} → ${after}. It now clears the threshold — approve it to commit.`
+            : `Re-extracted: ${before} → ${after}. Today's extractor would still quarantine it.`,
+        })
+      }
+      setDetail((prev) => (prev ? { ...prev, ...result.review } : prev))
+      await load(status)
+    } catch (err) {
+      setFeedback({
+        tone: 'error',
+        text: err instanceof Error ? err.message : 'request failed',
+      })
+    } finally {
+      setBusy(false)
+    }
+  }, [load, reviewer, selectedId, status])
+
   return (
     <div className="space-y-4">
       <nav aria-label="Quarantine queue filters" className="flex flex-wrap gap-2">
@@ -174,7 +213,7 @@ export default function ReviewQueue() {
           aria-label="Quarantined documents"
           className="rounded-xl border border-slate-800 bg-slate-900/40 p-4"
         >
-          {loading && <p className="text-sm text-slate-500">Loading…</p>}
+          {loading && <p className="text-sm text-slate-400">Loading…</p>}
           {error && (
             <p
               role="alert"
@@ -230,7 +269,7 @@ export default function ReviewQueue() {
           className="rounded-xl border border-slate-800 bg-slate-900/40 p-4"
         >
           {!selectedId && (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-400">
               Select a document to see why it was quarantined and what the
               extractor produced.
             </p>
@@ -244,7 +283,7 @@ export default function ReviewQueue() {
             </p>
           )}
           {selectedId && !detail && !detailError && (
-            <p className="text-sm text-slate-500">Loading document…</p>
+            <p className="text-sm text-slate-400">Loading document…</p>
           )}
           {detail && (
             <ReviewDetailPanel
@@ -256,6 +295,7 @@ export default function ReviewQueue() {
               onReviewer={setReviewer}
               onNote={setNote}
               onDecide={decide}
+              onReextract={reextract}
             />
           )}
         </section>
@@ -281,6 +321,7 @@ function ReviewDetailPanel({
   onReviewer,
   onNote,
   onDecide,
+  onReextract,
 }: {
   detail: ReviewDetail
   reviewer: string
@@ -290,6 +331,7 @@ function ReviewDetailPanel({
   onReviewer: (value: string) => void
   onNote: (value: string) => void
   onDecide: (verb: 'approve' | 'reject') => void | Promise<void>
+  onReextract: () => void | Promise<void>
 }) {
   const decided = detail.approved !== null
   return (
@@ -315,7 +357,7 @@ function ReviewDetailPanel({
         </dl>
         {detail.review_note && (
           <p className="mt-2 text-xs text-slate-300">
-            <span className="text-slate-500">Rationale: </span>
+            <span className="text-slate-400">Rationale: </span>
             {detail.review_note}
           </p>
         )}
@@ -394,11 +436,21 @@ function ReviewDetailPanel({
         >
           Reject
         </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void onReextract()}
+          className="rounded-md border border-slate-600 bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700/60 disabled:opacity-50"
+        >
+          Re-extract
+        </button>
       </div>
-      <p className="text-[11px] text-slate-500">
+      <p className="text-[11px] text-slate-400">
         Approving writes to the knowledge graph through the same audited
         service the admin actions and <code>manage.py review_queue</code> use.
-        Every decision is recorded with who made it and why.
+        Every decision is recorded with who made it and why. Re-extract only
+        re-scores the stored document with today&apos;s extractor — it never
+        commits, so approval stays the gate.
       </p>
     </div>
   )
@@ -407,7 +459,7 @@ function ReviewDetailPanel({
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <>
-      <dt className="text-slate-500">{label}</dt>
+      <dt className="text-slate-400">{label}</dt>
       <dd className="truncate text-slate-200">{value}</dd>
     </>
   )

@@ -53,7 +53,7 @@ export default function TaskCalendar({ days = 30 }: { days?: number }) {
   if (!calendar) {
     return (
       <Section>
-        <p className="text-sm text-slate-500">Loading deadlines…</p>
+        <p className="text-sm text-slate-400">Loading deadlines…</p>
       </Section>
     )
   }
@@ -88,7 +88,7 @@ export default function TaskCalendar({ days = 30 }: { days?: number }) {
         tasks={calendar.upcoming}
         onComplete={complete}
       />
-      <p className="text-[11px] text-slate-500">
+      <p className="text-[11px] text-slate-400">
         Due dates are the ones you entered. Law AI does not compute filing
         deadlines from court rules.
       </p>
@@ -135,7 +135,7 @@ function Bucket({
           >
             <span className="min-w-0">
               <span className="text-slate-200">{task.title}</span>
-              <span className="ml-2 text-xs text-slate-500">
+              <span className="ml-2 text-xs text-slate-400">
                 {task.matter_name}
                 {task.due_at ? ` · ${formatDue(task.due_at)}` : ''}
               </span>

@@ -131,9 +131,10 @@ test('the browser UI itself opens a real socket and receives the run', async ({
 
   await page.goto('/analysis')
   await page.waitForLoadState('networkidle')
-  // `openAgentStream` gives the server 3s to answer `ready` and silently falls
-  // back to a non-streamed run if it does not. On a cold Channels layer that
-  // handshake can lose the race, so warm it with a throwaway socket first —
+  // `openAgentStream` gives the server 5s to answer `ready`, retries once, and
+  // silently falls back to a non-streamed run if both windows pass
+  // (BL-20260905-21). On a cold Channels layer that handshake can still lose
+  // the race, so warm it with a throwaway socket first —
   // this test is about the UI's socket carrying the run, not about how slowly
   // Redis wakes up.
   await page.evaluate(async (query) => {
@@ -154,6 +155,13 @@ test('the browser UI itself opens a real socket and receives the run', async ({
   })
 
   expect(socketUrl, 'the UI opened an agent-run socket').toContain('/ws/agents/')
+  // BL-20260905-26: the handshake carries a short-lived, stream-scoped ticket
+  // minted server-side, never the shared key — a browser cannot set headers on
+  // a WebSocket, which is how the key used to end up in the query string.
+  expect(socketUrl, 'no shared key in the handshake').not.toContain('api_key=')
+  if (process.env.E2E_AGENT_API_KEY) {
+    expect(socketUrl, 'a gated stack mints a ticket').toContain('ticket=')
+  }
   // The trailing `complete` can land a beat after the REST response.
   await expect
     .poll(() => frames.length, { message: 'socket frames', timeout: 10_000 })

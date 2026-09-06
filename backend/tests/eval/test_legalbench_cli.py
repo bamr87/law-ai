@@ -60,18 +60,39 @@ class TestLegalBenchConfig:
 
 
 class TestLoaders:
-    def test_load_synthetic_stub_when_no_cache(self) -> None:
-        from law_ai.eval.loaders import load_task
+    @pytest.fixture()
+    def empty_cache(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        """Point the loader at a directory with nothing in it (BL-20260906-32).
 
+        Without this these two tests read `backend/var/legalbench/` on any
+        machine that has run `make legalbench-cache`, so "when no cache" was
+        measuring whatever the developer had fetched.
+        """
+        from law_ai.eval import loaders
+
+        monkeypatch.setattr(
+            loaders,
+            "subset_cache_path",
+            lambda subset: tmp_path / subset / "items.jsonl",
+        )
+        return tmp_path
+
+    def test_load_synthetic_stub_when_no_cache(self, empty_cache: Path) -> None:
+        from law_ai.eval.loaders import is_synthetic, load_task
+
+        assert is_synthetic("core_reasoning") is True
         items = load_task("core_reasoning")
         assert len(items) >= 1
+        # The stub, not the dataset: every fixture index is marked as one.
+        assert all(str(item["index"]).startswith("stub-") for item in items)
         for item in items:
             assert "text" in item
             assert "answer" in item
 
-    def test_limit_is_respected(self) -> None:
+    def test_limit_is_respected(self, empty_cache: Path) -> None:
         from law_ai.eval.loaders import load_task
 
+        assert len(load_task("core_reasoning")) > 1
         items = load_task("core_reasoning", limit=1)
         assert len(items) == 1
 

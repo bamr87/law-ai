@@ -371,3 +371,107 @@ class TestCrossReferenceLabels:
         spans = lib._iter_spans(lib.load_library()["pointer"].blocks)
         ref = next(s for s in spans if s.kind == "question")
         assert ref.text == "lr-001"
+
+
+class TestScaffold:
+    """BL-20260905-53 — a section with no article at all is now reachable.
+
+    ``expand`` drafts a body and cannot write frontmatter, so
+    :func:`_host_article` dropped every gap in a section that had no article
+    yet: the autonomous cycle could improve the library but never widen it.
+    :func:`scaffold_article` writes that frontmatter.
+    """
+
+    #: A concept the catalog files under RC only, so an LR-only library has
+    #: nowhere to host it.
+    RC_ONLY_CONCEPT = "main-point"
+
+    @staticmethod
+    def _report_with_rc_gap(concept_id: str) -> dict:
+        report = lib.library_audit()
+        report["coverage"]["concepts_untaught"] = [concept_id]
+        return report
+
+    def test_an_uncovered_section_is_unreachable_until_it_is_scaffolded(
+        self, sandbox: Path
+    ) -> None:
+        _write(sandbox, "lr-hub")  # LR only
+        concept = bank_mod.load_concepts()[self.RC_ONLY_CONCEPT]
+        assert concept.sections == ["RC"]
+
+        before = lib.pick_librarian_targets(
+            self._report_with_rc_gap(self.RC_ONLY_CONCEPT), limit=5
+        )
+        assert not [
+            r for r in before if r.action == "expand"
+        ], "with no RC article the gap has no host and is dropped"
+
+        path = lib.scaffold_article(
+            "rc-hub",
+            title="Reading Comprehension — Where To Start",
+            summary="An orientation to the RC section.",
+            kind="section-guide",
+            sections=["RC"],
+        )
+        assert path == sandbox / "rc-hub.md"
+
+        article = lib.load_library()["rc-hub"]
+        assert article.sections == ["RC"]
+        # The frontmatter the agent cannot write: id, level and review status.
+        assert article.id == "rc-hub"
+        assert article.level == "core"
+        assert article.status == "draft"
+
+        after = lib.pick_librarian_targets(
+            self._report_with_rc_gap(self.RC_ONLY_CONCEPT), limit=5
+        )
+        expansions = [r for r in after if r.action == "expand"]
+        assert [r.article_id for r in expansions] == ["rc-hub"]
+        assert self.RC_ONLY_CONCEPT in (expansions[0].gap or "")
+
+    def test_a_malformed_or_duplicate_id_is_refused(self, sandbox: Path) -> None:
+        with pytest.raises(ValueError, match="lower-case words"):
+            lib.scaffold_article("Not An Id", title="T", summary="S", sections=["LR"])
+        lib.scaffold_article("rc-hub", title="T", summary="S", sections=["RC"])
+        with pytest.raises(ValueError, match="already exists"):
+            lib.scaffold_article("rc-hub", title="T", summary="S", sections=["RC"])
+
+    def test_a_scaffold_that_breaks_the_load_is_rolled_back(
+        self, sandbox: Path
+    ) -> None:
+        """The corpus never keeps an article that fails cross-reference checks."""
+        with pytest.raises(lib.LibraryError, match="no-such-concept"):
+            lib.scaffold_article(
+                "bad-hub",
+                title="T",
+                summary="S",
+                sections=["RC"],
+                concepts=["no-such-concept"],
+            )
+        assert not (sandbox / "bad-hub.md").exists()
+        assert "bad-hub" not in lib.load_library()
+
+    def test_the_command_scaffolds_and_says_what_to_run_next(
+        self, sandbox: Path
+    ) -> None:
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        out = StringIO()
+        call_command(
+            "lsat_library",
+            "scaffold",
+            "--article",
+            "rc-hub",
+            "--title",
+            "Reading Comprehension",
+            "--summary",
+            "An orientation to the RC section.",
+            "--section",
+            "RC",
+            stdout=out,
+        )
+        assert (sandbox / "rc-hub.md").is_file()
+        assert "rc-hub" in lib.load_library()
+        assert "lsat_library review --article rc-hub" in out.getvalue()

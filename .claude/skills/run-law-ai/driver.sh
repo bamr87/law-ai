@@ -111,7 +111,6 @@ if [ "$FRONTEND" = 1 ]; then
   docker compose run --rm --no-deps -d -p "${FPORT}:3000" --name "$FNAME" \
     -e HOSTNAME=0.0.0.0 \
     -e BACKEND_INTERNAL_URL="http://${NAME}:8000" \
-    -e NEXT_PUBLIC_API_URL="http://localhost:${PORT}" \
     -e NEXT_PUBLIC_WS_URL="ws://localhost:${PORT}" \
     -e NEXT_PUBLIC_API_BASE_URL=/api/backend \
     frontend npm run dev \

@@ -1,83 +1,10 @@
 {
-  "/": {
-    "color-contrast": [
-      "#62748e on #03081a @ 7.5pt (10px) normal",
-      "#62748e on #070d1f @ 7.5pt (10px) normal",
-      "#62748e on #070d1f @ 9.0pt (12px) normal",
-      "#62748e on #0a0f22 @ 8.3pt (11px) normal",
-      "#62748e on #0a0f22 @ 9.0pt (12px) normal",
-      "#62748e on #0a1124 @ 9.0pt (12px) normal"
-    ]
-  },
   "/agents": {
     "color-contrast": [
-      "#62748e on #03081a @ 7.5pt (10px) normal",
-      "#62748e on #03081a @ 9.0pt (12px) normal",
-      "#62748e on #04091b @ 8.3pt (11px) normal",
-      "#62748e on #04091b @ 9.0pt (12px) normal",
-      "#62748e on #070d1f @ 7.5pt (10px) normal",
-      "#62748e on #0a1124 @ 9.0pt (12px) normal",
-      "#62748e on #0f172a @ 9.0pt (12px) normal",
       "#a46b73 on #1b182b @ 7.5pt (10px) normal"
     ]
   },
-  "/analysis": {
-    "color-contrast": [
-      "#62748e on #03081a @ 7.5pt (10px) normal",
-      "#62748e on #03081a @ 9.0pt (12px) normal",
-      "#62748e on #05091b @ 7.5pt (10px) normal",
-      "#62748e on #070d1f @ 7.5pt (10px) normal",
-      "#62748e on #0a1124 @ 9.0pt (12px) normal",
-      "#62748e on #0f172a @ 8.3pt (11px) normal",
-      "#62748e on #0f172a @ 9.0pt (12px) normal",
-      "#646dd1 on #04091b @ 8.3pt (11px) normal"
-    ]
-  },
-  "/graph": {
-    "color-contrast": [
-      "#62748e on #03081a @ 7.5pt (10px) normal",
-      "#62748e on #03081a @ 9.0pt (12px) normal",
-      "#62748e on #070d1f @ 7.5pt (10px) normal",
-      "#62748e on #070d1f @ 8.3pt (11px) normal",
-      "#62748e on #0a1023 @ 7.5pt (10px) normal",
-      "#62748e on #0a1124 @ 9.0pt (12px) normal",
-      "#62748e on #0f172a @ 7.5pt (10px) normal",
-      "#62748e on #0f172a @ 9.0pt (12px) normal",
-      "#62748e on #122240 @ 7.5pt (10px) normal"
-    ]
-  },
-  "/lsat": {
-    "color-contrast": [
-      "#62748e on #03081a @ 7.5pt (10px) normal",
-      "#62748e on #03081a @ 9.0pt (12px) normal",
-      "#62748e on #05091b @ 7.5pt (10px) normal",
-      "#62748e on #070d1f @ 7.5pt (10px) normal",
-      "#62748e on #0a1124 @ 9.0pt (12px) normal",
-      "#62748e on #0c1326 @ 7.5pt (10px) normal",
-      "#62748e on #0f172b @ 7.5pt (10px) normal",
-      "#62748e on #0f172b @ 9.0pt (12px) normal"
-    ]
-  },
-  "/settings": {
-    "color-contrast": [
-      "#62748e on #03081a @ 7.5pt (10px) normal",
-      "#62748e on #03081a @ 9.0pt (12px) normal",
-      "#62748e on #04091b @ 8.3pt (11px) normal",
-      "#62748e on #070d1f @ 7.5pt (10px) normal",
-      "#62748e on #0a1124 @ 9.0pt (12px) normal",
-      "#62748e on #0f172a @ 8.3pt (11px) normal",
-      "#62748e on #0f172a @ 9.0pt (12px) normal"
-    ]
-  },
   "/matters": {
-    "color-contrast": [
-      "#62748e on #03081a @ 7.5pt (10px) normal",
-      "#62748e on #03081a @ 9.0pt (12px) normal",
-      "#62748e on #05091b @ 7.5pt (10px) normal",
-      "#62748e on #070d1f @ 7.5pt (10px) normal",
-      "#62748e on #0a1124 @ 9.0pt (12px) normal",
-      "#62748e on #0f172a @ 10.5pt (14px) normal"
-    ],
     "scrollable-region-focusable": [
       "#main"
     ]

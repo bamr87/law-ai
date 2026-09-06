@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime, timedelta
+from functools import cache
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -45,6 +47,19 @@ def _isolate_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     bank_mod.reset_caches()
     yield
     bank_mod.reset_caches()
+
+
+@cache
+def _days_ago(n: int) -> str:
+    """An ISO timestamp *n* days back, stable within a run.
+
+    Relative rather than fixed because the report now drops verdicts older
+    than ``DEFAULT_SINCE_DAYS`` (BL-20260905-59): a literal date would quietly
+    age out of the window and take these tests with it. Cached so that two
+    calls with the same *n* produce the same string — the de-duplication test
+    depends on a JSONL event and a DB row sharing a timestamp exactly.
+    """
+    return (datetime.now(UTC) - timedelta(days=n)).isoformat()
 
 
 def _seed(
@@ -94,8 +109,8 @@ class TestRegressionReport:
         from law_ai.lsat.services.regression import regression_report
 
         qid = _qids("LR")[0]
-        _seed(qid, agree=True, ts="2026-09-01T00:00:00+00:00")
-        _seed(qid, agree=False, ts="2026-09-03T00:00:00+00:00", model="grok-4")
+        _seed(qid, agree=True, ts=_days_ago(5))
+        _seed(qid, agree=False, ts=_days_ago(3), model="grok-4")
         report = regression_report()
         assert report["tracked"] == 1
         assert report["recovered"] == []
@@ -110,8 +125,8 @@ class TestRegressionReport:
         from law_ai.lsat.services.regression import regression_report
 
         qid = _qids("LR")[0]
-        _seed(qid, agree=False, ts="2026-09-01T00:00:00+00:00")
-        _seed(qid, agree=True, ts="2026-09-02T00:00:00+00:00")
+        _seed(qid, agree=False, ts=_days_ago(5))
+        _seed(qid, agree=True, ts=_days_ago(4))
         report = regression_report()
         assert report["regressed"] == []
         assert [r["question_id"] for r in report["recovered"]] == [qid]
@@ -120,8 +135,8 @@ class TestRegressionReport:
         from law_ai.lsat.services.regression import regression_report
 
         qid = _qids("LR")[0]
-        _seed(qid, agree=True, ts="2026-09-01T00:00:00+00:00")
-        _seed(qid, agree=True, ts="2026-09-02T00:00:00+00:00")
+        _seed(qid, agree=True, ts=_days_ago(5))
+        _seed(qid, agree=True, ts=_days_ago(4))
         report = regression_report()
         assert report["tracked"] == 1
         assert report["regressed"] == [] and report["recovered"] == []
@@ -131,35 +146,74 @@ class TestRegressionReport:
         from law_ai.lsat.services.regression import cross_check_history
 
         qid = _qids("LR")[0]
-        _seed(qid, agree=True, ts="2026-09-01T00:00:00+00:00")
-        _seed(qid, agree=True, ts="2026-09-02T00:00:00+00:00", cached=True)
+        _seed(qid, agree=True, ts=_days_ago(5))
+        _seed(qid, agree=True, ts=_days_ago(4), cached=True)
         _seed(
             qid,
             agree=None,
-            ts="2026-09-03T00:00:00+00:00",
+            ts=_days_ago(3),
             used_llm=False,
             model="fallback/offline",
         )
         history = cross_check_history()
-        assert [v["timestamp"] for v in history[qid]] == ["2026-09-01T00:00:00+00:00"]
+        assert [v["timestamp"] for v in history[qid]] == [_days_ago(5)]
 
     def test_history_is_sorted_oldest_first_regardless_of_log_order(self) -> None:
         from law_ai.lsat.services.regression import regression_report
 
         qid = _qids("LR")[0]
         # Written out of order (e.g. a Celery-persisted row landing late).
-        _seed(qid, agree=False, ts="2026-09-05T00:00:00+00:00")
-        _seed(qid, agree=True, ts="2026-09-01T00:00:00+00:00")
+        _seed(qid, agree=False, ts=_days_ago(1))
+        _seed(qid, agree=True, ts=_days_ago(5))
         report = regression_report()
         assert [r["question_id"] for r in report["regressed"]] == [qid]
+
+    def test_an_old_first_verdict_ages_out_of_the_comparison(self) -> None:
+        """BL-20260905-59 — months-old verdicts are not today's baseline.
+
+        A verdict from before the window was produced by a different model and
+        prompt version, so a disagreement with it is not evidence that the
+        item regressed.
+        """
+        from law_ai.lsat.services.regression import (
+            DEFAULT_SINCE_DAYS,
+            regression_report,
+        )
+
+        assert DEFAULT_SINCE_DAYS is not None
+        qid = _qids("LR")[0]
+        _seed(qid, agree=True, ts=_days_ago(DEFAULT_SINCE_DAYS + 30))
+        _seed(qid, agree=False, ts=_days_ago(1))
+
+        report = regression_report()
+        assert report["since_days"] == DEFAULT_SINCE_DAYS
+        assert report["regressed"] == [], "the stale verdict must not anchor a flip"
+        assert report["tracked"] == 1  # the recent verdict is still tracked
+
+        # The whole history is still available on request.
+        all_time = regression_report(since_days=None)
+        assert [r["question_id"] for r in all_time["regressed"]] == [qid]
+        assert all_time["since_days"] is None
+
+    def test_a_verdict_inside_the_window_still_flips(self) -> None:
+        from law_ai.lsat.services.regression import (
+            DEFAULT_SINCE_DAYS,
+            regression_report,
+        )
+
+        assert DEFAULT_SINCE_DAYS is not None
+        qid = _qids("LR")[0]
+        _seed(qid, agree=True, ts=_days_ago(DEFAULT_SINCE_DAYS - 1))
+        _seed(qid, agree=False, ts=_days_ago(1))
+        assert [r["question_id"] for r in regression_report()["regressed"]] == [qid]
 
     def test_section_filter(self) -> None:
         from law_ai.lsat.services.regression import regression_report
 
         lr, rc = _qids("LR")[0], _qids("RC")[0]
         for qid in (lr, rc):
-            _seed(qid, agree=True, ts="2026-09-01T00:00:00+00:00")
-            _seed(qid, agree=False, ts="2026-09-02T00:00:00+00:00")
+            _seed(qid, agree=True, ts=_days_ago(5))
+            _seed(qid, agree=False, ts=_days_ago(4))
         assert {r["question_id"] for r in regression_report()["regressed"]} == {lr, rc}
         only_rc = regression_report(section="RC")
         assert [r["question_id"] for r in only_rc["regressed"]] == [rc]
@@ -168,8 +222,8 @@ class TestRegressionReport:
     def test_unknown_question_ids_are_skipped(self) -> None:
         from law_ai.lsat.services.regression import regression_report
 
-        _seed("nope-999", agree=True, ts="2026-09-01T00:00:00+00:00")
-        _seed("nope-999", agree=False, ts="2026-09-02T00:00:00+00:00")
+        _seed("nope-999", agree=True, ts=_days_ago(5))
+        _seed("nope-999", agree=False, ts=_days_ago(4))
         assert regression_report()["tracked"] == 0
 
     def test_db_rows_and_jsonl_rows_are_deduplicated(self) -> None:
@@ -178,12 +232,12 @@ class TestRegressionReport:
         from law_ai.lsat.services.regression import cross_check_history
 
         qid = _qids("LR")[0]
-        _seed(qid, agree=True, ts="2026-09-01T00:00:00+00:00")
+        _seed(qid, agree=True, ts=_days_ago(5))
         AuditEvent.objects.create(
             kind="lsat_cross_check",
             payload={
                 "type": "lsat_cross_check",
-                "timestamp": "2026-09-01T00:00:00+00:00",
+                "timestamp": _days_ago(5),
                 "question_id": qid,
                 "agree": True,
                 "used_llm": True,
@@ -196,7 +250,7 @@ class TestRegressionReport:
             kind="lsat_cross_check",
             payload={
                 "type": "lsat_cross_check",
-                "timestamp": "2026-09-02T00:00:00+00:00",
+                "timestamp": _days_ago(4),
                 "question_id": qid,
                 "agree": False,
                 "used_llm": True,

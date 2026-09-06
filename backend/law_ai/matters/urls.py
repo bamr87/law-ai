@@ -261,6 +261,24 @@ class MatterAuthorityListView(_Base):
             return Response(
                 {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
             )
+        # BL-20260906-16: an authority is a claim about the corpus, so check it
+        # against the graph when the graph is there. `None` means Neo4j was
+        # unreachable — a graph outage degrades the check, it does not block a
+        # reviewer from recording what they are relying on.
+        from law_ai.matters.services.authorities import graph_labels_for
+
+        labels = graph_labels_for(req.node_id)
+        if labels == []:
+            return Response(
+                {
+                    "detail": (
+                        f"no authority node with id {req.node_id!r} in the graph; "
+                        "record it after the document is ingested"
+                    )
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
         now = datetime.now(UTC)
         authority, created = MatterAuthority.objects.update_or_create(
             matter=matter,
@@ -286,10 +304,12 @@ class MatterAuthorityListView(_Base):
                 "node_id": authority.node_id,
                 "verified": authority.is_verified,
                 "created": created,
+                # Whether the graph confirmed the node, or was unreachable.
+                "graph_labels": labels,
             },
         )
         return Response(
-            authority.as_payload(),
+            {**authority.as_payload(), "graph_labels": labels},
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
 

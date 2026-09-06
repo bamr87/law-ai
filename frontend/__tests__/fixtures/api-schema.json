@@ -197,7 +197,7 @@
                 }
               ],
               "default": null,
-              "description": "Deep-link to the Phoenix span tree (spec 010 FR-3).",
+              "description": "DEPRECATED alias of `trace_url`, kept for clients that already read it (BL-20260906-10). Always equal to `trace_url`.",
               "title": "Phoenix Trace Url"
             },
             "reasoning_trace": {
@@ -258,6 +258,19 @@
               "default": null,
               "description": "Provenance trace_id from log_agent_call",
               "title": "Trace Id"
+            },
+            "trace_url": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Deep-link to this run's span tree (spec 010 FR-3). Named for the backend-agnostic `core.telemetry.trace_url`, since the collector is no longer necessarily Phoenix.",
+              "title": "Trace Url"
             }
           },
           "required": [
@@ -448,6 +461,7 @@
             }
           ],
           "default": null,
+          "description": "DEPRECATED alias of `trace_url`; always equal to it.",
           "title": "Phoenix Trace Url"
         },
         "precedents": {
@@ -466,6 +480,19 @@
         "timestamp": {
           "title": "Timestamp",
           "type": "string"
+        },
+        "trace_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Deep-link to this run's span tree, when telemetry is on.",
+          "title": "Trace Url"
         }
       },
       "required": [
@@ -551,7 +578,7 @@
             }
           ],
           "default": null,
-          "description": "Deep-link to the Phoenix span tree (spec 010 FR-3).",
+          "description": "DEPRECATED alias of `trace_url`, kept for clients that already read it (BL-20260906-10). Always equal to `trace_url`.",
           "title": "Phoenix Trace Url"
         },
         "reasoning_trace": {
@@ -612,6 +639,19 @@
           "default": null,
           "description": "Provenance trace_id from log_agent_call",
           "title": "Trace Id"
+        },
+        "trace_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Deep-link to this run's span tree (spec 010 FR-3). Named for the backend-agnostic `core.telemetry.trace_url`, since the collector is no longer necessarily Phoenix.",
+          "title": "Trace Url"
         }
       },
       "required": [
@@ -967,6 +1007,20 @@
           "description": "Bypass the walkthrough cache and force a fresh model call (spec 041 FR-13).",
           "title": "Refresh",
           "type": "boolean"
+        },
+        "remap": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The shuffle token the question was served with (BL-20260606-01). With it the tutor reasons about the board the learner is looking at \u2014 choices in display order, the key at the position it was shown \u2014 instead of the stored one, so it can never name a letter that is not on screen (BL-20260905-61). Omit for an unshuffled serve. A token minted for another question is rejected.",
+          "title": "Remap"
         },
         "stream_id": {
           "anyOf": [

@@ -255,3 +255,112 @@ class TestStatsEndpoint:
         )
         assert res.status_code == 200
         assert LsatAttempt.objects.count() == 0
+
+
+# ---------------------------------------------------------------------------
+# Writing practice per learner (BL-20260906-18)
+# ---------------------------------------------------------------------------
+@pytest.mark.django_db
+class TestWritingAttempts:
+    """The essay half of "how am *I* doing".
+
+    ``LsatAttempt`` records graded multiple choice only, so writing bands came
+    from the instance-wide audit tail: a signed-in learner saw their own drill
+    accuracy beside everybody's essay scores.
+    """
+
+    def _record(self, learner, **kw: Any):
+        from law_ai.lsat.services.attempts import record_writing_attempt
+
+        payload = {
+            "prompt_id": "ws-001",
+            "rubric_id": "ws-rubric-v1",
+            "weighted_band": 3.0,
+            "criteria": {"argument": 3},
+            "response_chars": 1200,
+            "model": "claude_code/claude-opus-5",
+            "prompt_version": "lsat_writing_evaluator.v1",
+        }
+        payload.update(kw)
+        return record_writing_attempt(learner, **payload)
+
+    def test_stats_are_the_learners_own_not_the_instances(self, learner) -> None:
+        from law_ai.core import audit_jsonl as audit_store
+
+        # Somebody else's essay, in the shared audit log.
+        audit_store.record(
+            {
+                "type": "lsat_writing_evaluate",
+                "prompt_id": "ws-999",
+                "weighted_band": 1.0,
+            }
+        )
+        self._record(learner, weighted_band=2.0)
+        self._record(learner, weighted_band=3.5)
+
+        client = APIClient()
+        client.force_authenticate(user=learner)
+        writing = client.get("/api/lsat/stats").json()["writing"]
+
+        assert writing["attempts"] == 2
+        assert writing["by_prompt"] == {"ws-001": 2}
+        # Oldest first, and the stranger's 1.0 is nowhere in it.
+        assert writing["band_trend"] == [2.0, 3.5]
+        assert writing["latest_band"] == 3.5
+        assert writing["best_band"] == 3.5
+        # NFR-PROV-1: a band is machine-derived and says whose machine.
+        assert writing["model"] == "claude_code/claude-opus-5"
+        assert writing["prompt_version"] == "lsat_writing_evaluator.v1"
+
+    def test_a_learner_with_no_essays_reports_zero_not_the_instances(
+        self, learner
+    ) -> None:
+        from law_ai.core import audit_jsonl as audit_store
+
+        audit_store.record(
+            {"type": "lsat_writing_evaluate", "prompt_id": "ws-999", "weighted_band": 4}
+        )
+        client = APIClient()
+        client.force_authenticate(user=learner)
+        writing = client.get("/api/lsat/stats").json()["writing"]
+        assert writing["attempts"] == 0
+        assert writing["band_trend"] == []
+        assert writing["latest_band"] is None
+
+    def test_the_anonymous_reading_still_comes_from_the_audit_tail(self) -> None:
+        from law_ai.core import audit_jsonl as audit_store
+
+        audit_store.record(
+            {
+                "type": "lsat_writing_evaluate",
+                "prompt_id": "ws-999",
+                "weighted_band": 4.0,
+            }
+        )
+        writing = APIClient().get("/api/lsat/stats").json()["writing"]
+        assert writing["attempts"] == 1
+        assert writing["latest_band"] == 4.0
+
+    def test_a_degraded_evaluation_is_counted_not_scored(self, learner) -> None:
+        """No provider reached is not a band of zero."""
+        self._record(learner, weighted_band=None, degraded=True)
+        client = APIClient()
+        client.force_authenticate(user=learner)
+        writing = client.get("/api/lsat/stats").json()["writing"]
+        assert writing["attempts"] == 1
+        assert writing["degraded"] == 1
+        assert writing["band_trend"] == []
+        assert writing["latest_band"] is None
+
+    def test_persisting_never_breaks_the_response(
+        self, learner, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from law_ai.lsat import models as lsat_models
+
+        class _Boom:
+            @property
+            def objects(self) -> Any:
+                raise RuntimeError("db down")
+
+        monkeypatch.setattr(lsat_models, "LsatWritingAttempt", _Boom())
+        assert self._record(learner) is None

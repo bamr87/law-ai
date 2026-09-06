@@ -292,3 +292,31 @@ class TestEndpoint:
     def test_empty_source_text_is_422(self, client) -> None:
         resp = client.post("/api/lsat/intake/ocr", {"source_text": ""}, format="json")
         assert resp.status_code == 422
+
+    def test_intake_writes_an_audit_event(
+        self, client, tmp_path, settings, monkeypatch
+    ) -> None:
+        """BL-20260905-37: the record() call used to be a swallowed TypeError."""
+        from law_ai.core import audit_jsonl as audit_store
+
+        settings.LSAT_PROPOSALS_DIR = str(tmp_path)
+        monkeypatch.setattr(settings, "AUDIT_PATH", str(tmp_path / "audit.jsonl"))
+        with patch(
+            "law_ai.core.llm.agenerate",
+            new=AsyncMock(return_value=_llm_result(_extract_payload())),
+        ):
+            resp = client.post(
+                "/api/lsat/intake/ocr",
+                {
+                    "source_text": PAGE_TEXT,
+                    "hint": "question 15",
+                    "provenance": {"tool": "ocrmd", "document": "lsat", "page": 15},
+                },
+                format="json",
+            )
+        assert resp.status_code == 202, resp.content
+        events = [e for e in audit_store.tail(50) if e.get("type") == "lsat_intake_ocr"]
+        assert len(events) == 1, audit_store.tail(50)
+        assert events[0]["document"] == "lsat"
+        assert events[0]["page"] == 15
+        assert events[0]["accepted"] == 1

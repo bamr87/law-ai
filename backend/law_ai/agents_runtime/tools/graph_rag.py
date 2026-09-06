@@ -51,6 +51,11 @@ _LUCENE_SPECIALS = re.compile(r'([+\-!(){}\[\]^"~*?:\\/]|&&|\|\|)')
 
 CASE_FULLTEXT_INDEX = "case_text_fulltext"
 STATUTE_FULLTEXT_INDEX = "statute_section_text_fulltext"
+#: BL-20260906-07: local law. `007_fulltext_indexes.cypher` has indexed
+#: `:OrdinanceSection` since spec 015, but nothing queried it, so the sections
+#: `ordinance_queries.commit_ordinance_extraction` writes were invisible to
+#: every answer.
+ORDINANCE_FULLTEXT_INDEX = "ordinance_section_text_fulltext"
 
 #: Reciprocal-rank-fusion damping constant. 60 is the value from the original
 #: RRF paper and the one every mainstream hybrid-search stack uses; it makes
@@ -161,6 +166,31 @@ RETURN node.citation AS citation,
        node.confidence AS confidence,
        score
 ORDER BY score DESC
+"""
+
+# The ordinance leg (BL-20260906-07). Unlike `:StatuteSection`, an
+# `:OrdinanceSection` carries no `jurisdiction_code` of its own — jurisdiction
+# hangs off the parent `:Ordinance` via `IN_JURISDICTION` — so the filter has
+# to walk there. OPTIONAL, because a section whose ordinance anchor is missing
+# should still be findable when no jurisdiction was asked for.
+ORDINANCE_FULLTEXT_CYPHER = """
+CALL db.index.fulltext.queryNodes($index, $query, {limit: $limit})
+YIELD node, score
+WHERE node.archived_at IS NULL
+OPTIONAL MATCH (node)-[:PART_OF]->(:Ordinance)-[:IN_JURISDICTION]->(j:Jurisdiction)
+WITH node, score, toLower(coalesce(j.code, '')) AS jurisdiction_code
+WHERE $jurisdiction = '' OR jurisdiction_code = $jurisdiction
+RETURN node.id AS id,
+       node.citation AS citation,
+       node.heading AS heading,
+       node.text AS text,
+       jurisdiction_code AS jurisdiction_code,
+       node.source AS source,
+       node.source_url AS source_url,
+       node.confidence AS confidence,
+       score AS score
+ORDER BY score DESC
+LIMIT $limit
 """
 
 EXPAND_CITES_CYPHER = """
@@ -338,6 +368,32 @@ def _statute_passage(record: Any, *, retrieval_mode: str = "lexical") -> dict[st
     }
 
 
+def _ordinance_passage(
+    record: Any, *, retrieval_mode: str = "lexical"
+) -> dict[str, Any]:
+    """Shape one ``:OrdinanceSection`` row (BL-20260906-07).
+
+    Deliberately its own ``type`` rather than reusing ``StatuteSection``: a
+    municipal code section and a state statute are different authorities, and
+    a reader who cannot tell them apart cannot judge which one binds.
+    """
+    citation = record.get("citation") or "(uncited ordinance section)"
+    heading = record.get("heading") or ""
+    return {
+        "id": record.get("id") or citation,
+        "type": "OrdinanceSection",
+        "title": f"{citation} {heading}".strip(),
+        "snippet": (record.get("text") or "")[:1200],
+        "source_url": record.get("source_url"),
+        "court": None,
+        "jurisdiction_code": record.get("jurisdiction_code") or None,
+        "source": record.get("source"),
+        "confidence": record.get("confidence"),
+        "score": record.get("score"),
+        "retrieval_mode": retrieval_mode,
+    }
+
+
 def reciprocal_rank_fusion(
     ranked_lists: list[list[dict[str, Any]]], *, k: int = RRF_K
 ) -> list[dict[str, Any]]:
@@ -414,6 +470,7 @@ class GraphRAGRetriever:
         limit: int = 8,
         expand_limit: int = 4,
         include_statutes: bool = True,
+        include_ordinances: bool = True,
         boost_ids: Iterable[str] | None = None,
         boost_source: str = "",
     ) -> None:
@@ -421,6 +478,10 @@ class GraphRAGRetriever:
         self._limit = limit
         self._expand_limit = expand_limit
         self._include_statutes = include_statutes
+        # BL-20260906-07: local law is on by default — an ordinance that was
+        # ingested but never retrievable is worse than not ingesting it, since
+        # the coverage note would count it as corpus the answer had seen.
+        self._include_ordinances = include_ordinances
         # BL-20260817-05: node ids a human has already verified on this
         # matter. Opt-in and never inferred — an unverified candidate must not
         # get a ranking advantage from having been guessed once before.
@@ -575,6 +636,14 @@ class GraphRAGRetriever:
                     )
                     for passage in fused_sections[: self._limit]:
                         seen.setdefault(str(passage["id"]), passage)
+                if self._include_ordinances:
+                    # Lexical only: no ordinance embeddings are written yet,
+                    # so there is no vector half to fuse with.
+                    ordinances = await self._lexical_ordinances(
+                        session, query, jurisdiction
+                    )
+                    for passage in ordinances[: self._limit]:
+                        seen.setdefault(str(passage["id"]), passage)
 
             coverage.lexical_count = len(seen)
             coverage.vector_count = sum(1 for pid in seen if pid in vector_ids)
@@ -707,6 +776,30 @@ class GraphRAGRetriever:
             return []
         return [_statute_passage(r) for r in records]
 
+    async def _lexical_ordinances(
+        self, session: Any, query: str, jurisdiction: str | None
+    ) -> list[dict[str, Any]]:
+        """Fulltext top-K over ``:OrdinanceSection`` (BL-20260906-07).
+
+        Degrades like the statute leg: a missing index logs and yields
+        nothing rather than failing the run.
+        """
+        try:
+            records = await _run_logged(
+                session,
+                ORDINANCE_FULLTEXT_CYPHER,
+                {
+                    "index": ORDINANCE_FULLTEXT_INDEX,
+                    "query": escape_lucene(query),
+                    "limit": self._limit,
+                    "jurisdiction": str(jurisdiction).lower() if jurisdiction else "",
+                },
+            )
+        except Exception as exc:
+            logger.info("fulltext ordinance search unavailable (%s); skipping", exc)
+            return []
+        return [_ordinance_passage(r) for r in records]
+
     async def _vector_statutes(
         self,
         session: Any,
@@ -751,6 +844,8 @@ def build_default_retriever() -> GraphRAGRetriever:
 
 __all__ = [
     "CASE_FULLTEXT_INDEX",
+    "ORDINANCE_FULLTEXT_CYPHER",
+    "ORDINANCE_FULLTEXT_INDEX",
     "RRF_K",
     "STATUTE_FULLTEXT_INDEX",
     "STATUTE_VECTOR_CYPHER",

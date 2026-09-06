@@ -56,6 +56,12 @@ class FakeAsyncSession:
         ("c.r.s. § 18-3-102(1)(a)", "us-co/crs/18-3-102"),
         ("§ 13-80-102, c.r.s.", "us-co/crs/13-80-102"),
         ("c.r.s. § 13-21-115.7", "us-co/crs/13-21-115.7"),
+        # Decimal articles are ordinary in the CRS (BL-20260906-89): the older
+        # pattern allowed a decimal only in the last part, so this whole
+        # family of sections produced no CITES_STATUTE edge.
+        ("c.r.s. § 18-1.3-401", "us-co/crs/18-1.3-401"),
+        ("c.r.s. § 18-1.3-401(1)(a)(V)", "us-co/crs/18-1.3-401"),
+        ("§ 24-4.1-302, c.r.s.", "us-co/crs/24-4.1-302"),
     ],
 )
 def test_statute_section_id_matches_the_spec_015_id_format(
@@ -84,6 +90,45 @@ def test_statute_section_id_returns_none_rather_than_guessing(normalized: str) -
 def test_crs_reporters_all_keep_their_periods() -> None:
     """A bare "crs" would match inside unrelated words; a false link is worse."""
     assert all("." in reporter for reporter in citation_resolver.CRS_REPORTERS)
+
+
+def test_every_corpus_is_reachable_through_the_table() -> None:
+    """BL-20260906-02: the mapper reads STATUTE_CORPORA, not a hard-coded CRS."""
+    corpora = citation_resolver.STATUTE_CORPORA
+    assert [c.code_id for c in corpora] == ["us-co/crs"]
+    # The scan vocabulary is the union of the table's reporters, so a second
+    # corpus is picked up by `list_cases_with_statute_citations` for free.
+    assert set(citation_resolver.STATUTE_REPORTERS) == {
+        reporter for corpus in corpora for reporter in corpus.reporters
+    }
+    assert all("." in reporter for reporter in citation_resolver.STATUTE_REPORTERS)
+
+
+def test_a_new_corpus_needs_no_change_to_the_mapper(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An added table entry maps its own citations; CRS keeps working."""
+    import re
+
+    usc = citation_resolver.StatuteCorpus(
+        code_id="us/usc",
+        id_prefix="us/usc",
+        reporters=("u.s.c.",),
+        section_re=re.compile(r"§\s*(\d{1,5})"),
+    )
+    monkeypatch.setattr(
+        citation_resolver,
+        "STATUTE_CORPORA",
+        (*citation_resolver.STATUTE_CORPORA, usc),
+    )
+    assert (
+        citation_resolver.statute_section_id_from_normalized("42 u.s.c. § 1983")
+        == "us/usc/1983"
+    )
+    assert (
+        citation_resolver.statute_section_id_from_normalized("c.r.s. § 18-3-102")
+        == "us-co/crs/18-3-102"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -291,6 +336,25 @@ def test_scout_extracts_crs_citations_eyecite_misses() -> None:
     assert "us-co/crs/18-3-102" in ids
     assert "us-co/crs/13-80-102" in ids
     assert "us-co/crs/24-4-106" in ids
+
+
+def test_scout_extracts_decimal_article_crs_citations() -> None:
+    """BL-20260906-89: "18-1.3-401" must survive extraction *and* resolution."""
+    from law_ai.ingestionapp.services.scout import IngestionScout
+
+    text = (
+        "He was sentenced under C.R.S. § 18-1.3-401(1)(a)(V)(A). "
+        "See also section 24-4.1-302, C.R.S. "
+    )
+    result = IngestionScout().extract(
+        {"id": 9, "case_name": "People v. Doe", "plain_text": text}
+    )
+    ids = {
+        citation_resolver.statute_section_id_from_normalized(c.normalized)
+        for c in result.citations
+    }
+    assert "us-co/crs/18-1.3-401" in ids
+    assert "us-co/crs/24-4.1-302" in ids
 
 
 def test_scout_does_not_invent_crs_citations_from_bare_numbers() -> None:

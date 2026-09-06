@@ -22,7 +22,6 @@ env = environ.Env(
     APP_NAME=(str, "Law AI"),
     # LLM
     OLLAMA_BASE_URL=(str, "http://ollama:11434"),
-    DEFAULT_MODEL=(str, "llama3.1:70b-q4_K_M"),
     FALLBACK_MODEL=(str, "mistral:7b-instruct-q4_K_M"),
     OLLAMA_DEFAULT_MODEL=(str, "mistral:7b-instruct-q4_K_M"),
     OLLAMA_REQUEST_TIMEOUT_S=(float, 120.0),
@@ -157,6 +156,7 @@ env = environ.Env(
     # default: it needs the `nlp` extra's model wheel and adds per-document
     # latency, and generic NER on case text is noisy.
     ENABLE_NER=(bool, False),
+    INGEST_LLM_SUMMARY=(bool, False),
     LOCAL_ONLY_MODE=(bool, True),
     # Auth / API keys
     AGENT_API_KEY=(str, ""),
@@ -214,15 +214,15 @@ ENVIRONMENT: str = env("ENVIRONMENT")
 DEBUG: bool = env.bool("DEBUG")
 
 OLLAMA_BASE_URL: str = env("OLLAMA_BASE_URL")
-# NOTE (BL-20260502-02): nothing reads DEFAULT_MODEL — the Ollama provider
-# selects on OLLAMA_DEFAULT_MODEL. Kept for compatibility with existing .env
-# files, but do not reach for it when changing which model a tier serves; the
-# GPU overlay sets OLLAMA_DEFAULT_MODEL for that reason.
+# BL-20260906-43: ``DEFAULT_MODEL`` is gone. Nothing read it — the Ollama
+# provider has always selected on OLLAMA_DEFAULT_MODEL — and a dead setting
+# advertising a 70B read like the live knob. A ``DEFAULT_MODEL`` line left in
+# an existing ``.env`` is simply ignored; OLLAMA_DEFAULT_MODEL is the one to
+# change (the GPU overlay sets exactly that).
 # FALLBACK_MODEL *is* read (BL-20260810-05): it is the second model the Ollama
 # provider tries when the primary answers 404 (not pulled on this box). Blank
 # it, or leave it equal to OLLAMA_DEFAULT_MODEL, to make the local tier a
 # single-model call.
-DEFAULT_MODEL: str = env("DEFAULT_MODEL")
 FALLBACK_MODEL: str = env("FALLBACK_MODEL")
 OLLAMA_DEFAULT_MODEL: str = env("OLLAMA_DEFAULT_MODEL")
 OLLAMA_REQUEST_TIMEOUT_S: float = env.float("OLLAMA_REQUEST_TIMEOUT_S")
@@ -323,6 +323,10 @@ RECAP_PASSWORD: str | None = env("RECAP_PASSWORD") or None
 ENABLE_LEGALBENCH_EVAL: bool = env.bool("ENABLE_LEGALBENCH_EVAL")
 ENABLE_HUMAN_APPROVAL_GATES: bool = env.bool("ENABLE_HUMAN_APPROVAL_GATES")
 ENABLE_NER: bool = env.bool("ENABLE_NER")
+# BL-20260906-01: optional audited LLM holding-summary pass in IngestionScout.
+# Off by default — the rule-based excerpt is deterministic and free, a
+# per-document model call is neither.
+INGEST_LLM_SUMMARY: bool = env.bool("INGEST_LLM_SUMMARY")
 LOCAL_ONLY_MODE: bool = env.bool("LOCAL_ONLY_MODE")
 
 AGENT_API_KEY: str | None = env("AGENT_API_KEY") or None
@@ -375,6 +379,9 @@ MATTER_TASK_REMINDER_LEAD_HOURS: int = env.int(
 # handed to a worker thread bracketed by close_old_connections(), so dev
 # matches prod. Off by default because pytest-django wraps each test in a
 # transaction a second connection cannot see; settings/dev.py turns it on.
+# Read in that one branch only, so it is INERT in production (a real broker
+# means the Celery hand-off already lands in a worker's sync context): the
+# base default names no prod/dev divergence (BL-20260906-13).
 AUDIT_DB_THREAD_OFFLOAD: bool = env.bool("AUDIT_DB_THREAD_OFFLOAD", default=False)
 
 AUDIT_PATH: str = env("AUDIT_PATH")

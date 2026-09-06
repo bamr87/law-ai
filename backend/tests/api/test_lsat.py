@@ -485,6 +485,80 @@ async def test_tutor_falls_back_when_the_provider_errors(
 
 
 @pytest.mark.asyncio
+async def test_tutor_reasons_about_the_board_the_learner_saw(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """BL-20260905-61 — under a shuffle the tutor speaks in displayed labels.
+
+    It used to reason in the stored ones, so it could name a letter that was
+    somewhere else on the learner's screen.
+    """
+    from law_ai.lsat.services import tutor as tutor_mod
+    from law_ai.lsat.services.shuffle import (
+        LABELS,
+        permute,
+        to_display,
+    )
+
+    bank = load_bank()
+    qid, q = next(
+        (i, x) for i, x in bank.items() if x.correct != "A" and not x.passage_id
+    )
+    # An order that moves the key: display position 0 shows the stored key.
+    stored_index = LABELS.index(q.correct)
+    order = (stored_index, *[i for i in range(len(q.choices)) if i != stored_index])
+    shown, token, _ = permute(q.choices, qid, order)
+    assert to_display(q.correct, order) == "A" != q.correct
+
+    seen: dict[str, str] = {}
+
+    async def capture(prompt: str, *args: object, **kwargs: object) -> object:
+        from law_ai.core.llm.base import LLMResult
+
+        seen["prompt"] = prompt
+        return LLMResult(
+            text='{"coaching": "Board-aware.", "next_steps": []}',
+            provider="claude_code",
+            model="claude-opus-5",
+            latency_ms=1.0,
+        )
+
+    monkeypatch.setattr(tutor_mod.llm, "agenerate", capture)
+
+    res = await client.post(
+        "/api/lsat/tutor",
+        json={"question_id": qid, "user_choice": "A", "remap": token},
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+    # The key the learner is looking at, and their pick graded against it.
+    assert body["correct_choice"] == "A"
+    assert body["is_correct"] is True
+    # The prompt carries the displayed board, in display order.
+    prompt = seen["prompt"]
+    assert f"A. {shown[0].text}" in prompt
+    assert "Authoritative correct choice: A" in prompt
+    assert f"Authoritative correct choice: {q.correct}" not in prompt
+
+
+@pytest.mark.asyncio
+async def test_tutor_rejects_a_token_minted_for_another_question(
+    client: AsyncClient,
+) -> None:
+    from law_ai.lsat.services.shuffle import permute
+
+    bank = load_bank()
+    ids = list(bank)
+    _shown, token, _order = permute(bank[ids[0]].choices, ids[0])
+    res = await client.post(
+        "/api/lsat/tutor",
+        json={"question_id": ids[1], "user_choice": "A", "remap": token},
+    )
+    assert res.status_code == 400
+    assert "signed" in res.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_tutor_unknown_question_returns_404(client: AsyncClient) -> None:
     res = await client.post(
         "/api/lsat/tutor", json={"question_id": "nope", "user_choice": "A"}
@@ -1407,6 +1481,28 @@ async def test_stats_writing_survives_the_ws_section_filter(
     assert "writing" not in lr
 
 
+@pytest.mark.asyncio
+async def test_stats_reads_the_audit_tail_once(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """BL-20260905-38: grades + three folds used to be four full JSONL reads."""
+    from law_ai.core import audit_jsonl
+
+    _record_evaluation()
+    calls: list[int] = []
+    real = audit_jsonl.tail
+
+    def counting_tail(limit: int = 50) -> Any:
+        calls.append(limit)
+        return real(limit)
+
+    monkeypatch.setattr(audit_jsonl, "tail", counting_tail)
+    res = await client.get("/api/lsat/stats")
+    assert res.status_code == 200
+    assert res.json()["writing"]["attempts"] == 1
+    assert len(calls) == 1, calls
+
+
 # ---------------------------------------------------------------------------
 # Versioned tutor prompt (BL-20260503-01)
 # ---------------------------------------------------------------------------
@@ -1761,3 +1857,46 @@ async def test_tutor_audit_event_carries_the_trace_id(
     # Present as a key whether or not telemetry produced one, so the ops
     # dashboard can join on it without guessing.
     assert "trace_id" in event
+
+
+@pytest.mark.asyncio
+async def test_passages_filter_by_concept_without_a_sample_cap(
+    client: AsyncClient,
+) -> None:
+    """BL-20260906-74: "which sets carry this concept?" answered in full.
+
+    The panel used to read passage_ids off ``/questions?concept=…&limit=25``.
+    That endpoint caps at 25 and — with no ``passage_id`` — samples the pool
+    at random above it, so a concept tagged on more questions than the cap
+    would drop sets from the filter, and drop different ones each call. This
+    projection is passage-shaped, so there is nothing to cap: every passage
+    with a tagged question is returned, and nothing else.
+    """
+    bank = load_bank()
+    tagged = {
+        concept: {
+            q.passage_id
+            for q in bank.values()
+            if q.passage_id and concept in q.concepts
+        }
+        for concept in load_concepts()
+    }
+    concept, expected = max(tagged.items(), key=lambda kv: len(kv[1]))
+    assert expected, "no concept is tagged on a passage-backed question"
+
+    res = await client.get("/api/lsat/passages", params={"concept": concept})
+    assert res.status_code == 200
+    body = res.json()
+    assert {p["id"] for p in body["passages"]} == expected
+    assert body["count"] == len(expected)
+
+    # Still composable with the section filter, and never widened by it.
+    section = next(iter({p["section"] for p in body["passages"]}))
+    scoped = await client.get(
+        "/api/lsat/passages", params={"concept": concept, "section": section}
+    )
+    assert {p["id"] for p in scoped.json()["passages"]} <= expected
+
+    # An unknown concept is an empty answer, not the whole section.
+    none = await client.get("/api/lsat/passages", params={"concept": "no-such-concept"})
+    assert none.json() == {"passages": [], "count": 0}

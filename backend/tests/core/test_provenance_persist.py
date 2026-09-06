@@ -123,6 +123,43 @@ def test_the_offload_setting_is_off_for_the_suite(settings) -> None:
     assert settings.AUDIT_DB_THREAD_OFFLOAD is False
 
 
+@pytest.mark.parametrize("offload", [True, False])
+def test_the_offload_setting_is_inert_without_eager_celery(
+    monkeypatch: pytest.MonkeyPatch, settings, offload: bool
+) -> None:
+    """BL-20260906-13: there are not two prod paths to collapse.
+
+    ``AUDIT_DB_THREAD_OFFLOAD`` is read in exactly one branch — async *and*
+    eager. Outside it (production: a real broker, a real worker) the Celery
+    hand-off runs whatever the flag says, so the flag's base default of
+    ``False`` describes no prod/dev divergence at all. Parametrized over both
+    values because the claim is that neither changes the outcome.
+    """
+    settings.CELERY_TASK_ALWAYS_EAGER = False
+    settings.AUDIT_DB_THREAD_OFFLOAD = offload
+    monkeypatch.setattr(prov, "_in_async_context", lambda: True)
+    monkeypatch.setattr(
+        prov,
+        "_audit_executor",
+        lambda: pytest.fail("thread offload must not run outside eager Celery"),
+    )
+
+    dispatched: list[dict[str, Any]] = []
+
+    class FakeTask:
+        @staticmethod
+        def delay(event: dict[str, Any]) -> None:
+            dispatched.append(event)
+
+    import law_ai.core.tasks as tasks_module
+
+    monkeypatch.setattr(tasks_module, "persist_audit_event", FakeTask)
+
+    prov._persist(dict(EVENT))
+
+    assert dispatched == [EVENT]
+
+
 # --------------------------------------------------------------------------
 # The offloaded write itself
 # --------------------------------------------------------------------------

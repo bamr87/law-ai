@@ -65,6 +65,48 @@ describe('TutorPane', () => {
     expect(screen.queryByText(/offline fallback/)).not.toBeInTheDocument()
   })
 
+  it('renders the default mock reply with no per-suite handler (BL-20260905-35)', async () => {
+    // No `server.use` here on purpose: mocks/server.ts ships a default
+    // POST /api/lsat/tutor so every suite that merely reaches the tutor gets a
+    // stable, model-answered reply instead of an unhandled-request error.
+    render(<TutorPane questionId="lr-001" userChoice="A" />)
+    expect(
+      await screen.findByText(/Start with the conclusion/),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/claude_code\/claude-opus-5/)).toBeInTheDocument()
+    expect(screen.queryByText(/offline fallback/)).not.toBeInTheDocument()
+  })
+
+  it('sends the shuffle token so the coaching is about the board on screen', async () => {
+    // BL-20260905-61: without it the tutor reasons in stored labels and can
+    // name a letter the learner is not looking at.
+    let body: Record<string, unknown> | null = null
+    server.use(
+      http.post('http://localhost:8000/api/lsat/tutor', async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json(base)
+      }),
+    )
+    render(
+      <TutorPane questionId="lr-001" userChoice="A" remap="41302.abcdef0123456789" />,
+    )
+    await screen.findByText(/Walkthrough — the inductive leap/)
+    expect(body).toMatchObject({ remap: '41302.abcdef0123456789' })
+  })
+
+  it('omits the token entirely for an unshuffled serve', async () => {
+    let body: Record<string, unknown> | null = null
+    server.use(
+      http.post('http://localhost:8000/api/lsat/tutor', async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json(base)
+      }),
+    )
+    render(<TutorPane questionId="lr-001" userChoice="A" />)
+    await screen.findByText(/Walkthrough — the inductive leap/)
+    expect(body).not.toHaveProperty('remap')
+  })
+
   it('labels a fallback answer as offline instead of naming a model', async () => {
     server.use(
       http.post('http://localhost:8000/api/lsat/tutor', () =>
@@ -205,6 +247,76 @@ describe('TutorPane token streaming', () => {
       `https://phoenix.test/traces/${traceId}`,
     )
     expect(link).toHaveAttribute('title', traceId)
+  })
+
+  // BL-20260905-79: the reconnect loop was silent. A learner watching a
+  // half-written walkthrough could not tell "still coming" from "stuck".
+  it('tells the learner when the live stream is interrupted or dropped', async () => {
+    class DropSocket {
+      static last: DropSocket | null = null
+      onmessage: ((e: { data: string }) => void) | null = null
+      onerror: (() => void) | null = null
+      onclose: (() => void) | null = null
+      close = vi.fn()
+      constructor() {
+        DropSocket.last = this
+        setTimeout(() => {
+          this.onmessage?.({
+            data: JSON.stringify({ type: 'ready', run_id: 'r', since: 0 }),
+          })
+        }, 0)
+      }
+    }
+    vi.stubGlobal('WebSocket', DropSocket as unknown as typeof WebSocket)
+
+    let release: (() => void) | null = null
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    server.use(
+      http.post('http://localhost:8000/api/lsat/tutor', async () => {
+        await held
+        return HttpResponse.json({ ...base, model: 'claude', used_llm: true })
+      }),
+    )
+
+    render(<TutorPane questionId="lr-001" userChoice="A" />)
+    await waitFor(() => expect(DropSocket.last).not.toBeNull())
+    DropSocket.last!.onmessage!({
+      data: JSON.stringify({
+        type: 'tutor_token',
+        question_id: 'lr-001',
+        text: 'Contrapositive first.',
+        model: 'claude_code/claude-opus-5',
+        seq: 1,
+      }),
+    })
+    await screen.findByText(/Contrapositive first\./)
+
+    // The model stopped mid-answer: the draft is wiped, and now it says why
+    // instead of leaving a blank pane behind.
+    DropSocket.last!.onmessage!({
+      data: JSON.stringify({
+        type: 'tutor_step',
+        stage: 'interrupted',
+        question_id: 'lr-001',
+        seq: 2,
+      }),
+    })
+    expect(
+      await screen.findByText(/The live answer stopped early/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Contrapositive first\./)).not.toBeInTheDocument()
+
+    // And a dropped socket says "reconnecting" rather than nothing at all.
+    DropSocket.last!.onclose!()
+    expect(await screen.findByText('Reconnecting…')).toBeInTheDocument()
+
+    release!()
+    await screen.findByText(/inductive leap/)
+    // The notice belongs to the in-flight stream, not to the answer.
+    expect(screen.queryByText('Reconnecting…')).not.toBeInTheDocument()
+    vi.unstubAllGlobals()
   })
 
   it('renders no trace link when telemetry is off', async () => {

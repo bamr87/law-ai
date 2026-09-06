@@ -21,13 +21,32 @@ const BACKEND =
   process.env.NEXT_PUBLIC_API_BASE_URL_INTERNAL ||
   'http://backend:8000'
 
-/** Hop-by-hop and identity headers the upstream must set for itself. */
+/**
+ * Hop-by-hop and identity headers the upstream must set for itself.
+ *
+ * `cookie` used to be here, which quietly made this proxy incapable of
+ * carrying a signed-in caller: `/api/auth/login` sets a Django session cookie
+ * and every account-scoped route reads it, so with the cookie stripped the
+ * only way to hold a session was to visit `/admin/` and talk to the backend's
+ * origin directly (BL-20260906-08). It now rides through, together with the
+ * `Set-Cookie` headers coming back.
+ *
+ * `origin` and `referer` do *not*, and that is load-bearing. Django checks
+ * `Origin` against its own host on any session-authenticated write; the
+ * browser's origin (`http://localhost:3000`) is not the backend's
+ * (`http://backend:8000`), so forwarding it would 403 every login on a
+ * mismatch that means nothing here — this hop is a server-side fetch, not a
+ * cross-origin browser request. CSRF is still enforced, by the token: the
+ * client reads it from `GET /api/auth/csrf` and echoes it in `X-CSRFToken`,
+ * which Django compares against the cookie it set.
+ */
 const STRIP_REQUEST = new Set([
   'host',
   'connection',
   'content-length',
   'x-api-key',
-  'cookie',
+  'origin',
+  'referer',
 ])
 
 const STRIP_RESPONSE = new Set([
@@ -76,8 +95,15 @@ async function forward(request: Request, { params }: Params) {
 
   const out = new Headers()
   response.headers.forEach((value, name) => {
+    // `Set-Cookie` is handled below: `forEach` folds several of them into one
+    // comma-joined string, and a browser handed that back as a single header
+    // drops every cookie after the first.
+    if (name.toLowerCase() === 'set-cookie') return
     if (!STRIP_RESPONSE.has(name.toLowerCase())) out.set(name, value)
   })
+  for (const cookie of response.headers.getSetCookie?.() ?? []) {
+    out.append('set-cookie', cookie)
+  }
 
   return new NextResponse(response.body, {
     status: response.status,

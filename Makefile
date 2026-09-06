@@ -2,15 +2,17 @@
 	test test-backend test-frontend test-lsat-static test-coverage test-smoke test-specs \
 	test-integration test-integration-ollama test-e2e test-e2e-typecheck test-e2e-down \
 	test-legalbench test-legalbench-gate legalbench-cache legalbench-baseline \
-	lint format typecheck mypy-baseline migrate ingest densify-backfill backfill-embeddings \
+	lint lint-root format typecheck mypy-baseline migrate ingest densify-backfill backfill-embeddings \
 	evolve-audit lint-specs ux-audit ui-sync nightly-dry-run \
 	autonomy-run autonomy-status autonomy-stop \
-	local-ai-up local-ai-down local-ai-pull local-ai-verify local-ai-health validate-claude-code \
-	xai-login validate-xai studio-up studio-down \
+	local-ai-up local-ai-down local-ai-pull local-ai-pull-small local-ai-verify \
+	local-ai-health validate-claude-code \
+	xai-login validate-xai studio-up studio-down llm-spend \
 	local-ai-up-gpu local-ai-down-gpu dev-gpu logs-gpu vllm-up vllm-down \
 	local-ai-bundle local-ai-offline-install \
 	observability-up observability-down local-ai-up-server local-ai-down-server \
 	lsat-author-demo lsat-export lsat-guide-backfill lsat-static-build lsat-static-e2e \
+	lsat-static-e2e-cached \
 	lsat-library-audit lsat-library-review \
 	lsat-synth-list lsat-synth-preview lsat-synth-generate lsat-synth-sweep \
 	lsat-synth-polish-yield lsat-synth-calibrate lsat-cross-check-sweep \
@@ -67,6 +69,7 @@ help:
 	@echo ""
 	@echo "Quality:"
 	@echo "  make lint              - ruff + black + frontend lint --fix (in containers)"
+	@echo "  make lint-root         - Report ruff/black drift in scripts/ + tests/ (never gates)"
 	@echo "  make format            - black + ruff fix + prettier (in containers)"
 	@echo "  make typecheck         - mypy --strict (ratcheted) + tsc --noEmit (in containers)"
 	@echo "  make mypy-baseline     - re-bank backend/mypy-baseline.txt after a burn-down"
@@ -76,11 +79,13 @@ help:
 	@echo "  make ui-sync           - mirror the shared UI/keyboard/timer primitives into lsat-static"
 	@echo "  make lsat-static-build - build the static LSAT site in a container (as Pages does)"
 	@echo "  make lsat-static-e2e   - viewport/sticky measurements over the built export (real browser)"
+	@echo "  make lsat-static-e2e-cached - the same suite, reusing node_modules and out/ when they are current"
 	@echo ""
 	@echo "Local AI stack (Spec 010):"
 	@echo "  make local-ai-up       - Start postgres/redis/neo4j/ollama/phoenix"
 	@echo "  make local-ai-down     - Stop the above"
 	@echo "  make local-ai-pull     - Pull default Ollama models"
+	@echo "  make local-ai-pull-small - Pull one small instruct model so the local integration tests can run on a laptop"
 	@echo "  make local-ai-health   - Hit /api/agents/health/local-ai"
 	@echo "  make local-ai-up-gpu   - Workstation tier: Ollama on NVIDIA GPUs, 70B default (docker-compose.gpu.yml)"
 	@echo "  make dev-gpu           - Full stack on the GPU overlay"
@@ -90,6 +95,7 @@ help:
 	@echo "  make observability-up  - Prometheus :9090 + Grafana :3002 (queue depth; GPU panels need the server tier)"
 	@echo "  make local-ai-up-server - Server tier: GPU + vLLM + Prometheus/Grafana/DCGM"
 	@echo "  make validate-claude-code - Validate the dev-time Claude Code OAuth integration (LSAT)"
+	@echo "  make llm-spend         - Roll up llm_call token/cost accounting by agent + tier"
 	@echo "  make xai-login       - Authorise the xAI Grok tier (subscription OAuth, device code)"
 	@echo "  make validate-xai    - Validate the xAI Grok tier end-to-end"
 	@echo "  make studio-up         - LangGraph Studio host for LegalWorkflow (needs LANGSMITH_API_KEY; docs/local-ai.md)"
@@ -227,16 +233,29 @@ test-integration:
 # API) end to end. Both tests pin LLM_PROVIDER_CHAIN to ollama so no hosted
 # tier is ever billed, and both skip themselves when the model is not pulled,
 # so an ollama-less box still passes.
-# OLLAMA_INTEGRATION_MODEL overrides the model BOTH tests generate with — the
-# compose default is a 7B that needs ~5 GiB resident, which a laptop Docker VM
-# often cannot spare; point it at a smaller pulled model
-# (e.g. `make test-integration-ollama OLLAMA_INTEGRATION_MODEL=qwen2.5:3b-instruct-q4_K_M`)
-# rather than let the tests skip forever. Both refuse to pass against a dead
-# model: the autonomy test asserts the cycle was not degraded and that an
-# `llm_call` succeeded on the ollama tier (BL-20260527-08), because the author
-# files fallback drafts and the router logs an llm_call even on total failure.
+# OLLAMA_INTEGRATION_MODEL is the model BOTH tests generate with, and it
+# DEFAULTS SMALL (BL-20260906-24). The compose bootstrap model is a 7B needing
+# ~4.9 GiB resident, which the ~4 GiB a laptop Docker VM gives Ollama cannot
+# hold — so on every box tried so far these two tests skipped, every time, and
+# the live-model leg had never once executed. A 3B q4 fits in about 2 GiB.
+# Override it to run against a bigger model:
+#
+#   make test-integration-ollama OLLAMA_INTEGRATION_MODEL=mistral:7b-instruct-q4_K_M
+#
+# The model is pulled if the container does not already have it; a pull that
+# fails (offline, registry down) is not fatal — the tests skip themselves, as
+# they always did. Both refuse to pass against a dead model: the autonomy test
+# asserts the cycle was not degraded and that an `llm_call` succeeded on the
+# ollama tier (BL-20260527-08), because the author files fallback drafts and
+# the router logs an llm_call even on total failure.
+# One definition of "the small model": `make local-ai-pull-small` pulls the
+# same tag, so the target and the pull cannot drift apart.
+OLLAMA_INTEGRATION_MODEL ?= $(LOCAL_AI_SMALL_MODEL)
 test-integration-ollama:
 	$(DC) up -d ollama postgres redis --wait
+	@$(DC) exec -T ollama ollama list | grep -q "$(OLLAMA_INTEGRATION_MODEL)" || \
+	  $(DC) exec -T ollama ollama pull "$(OLLAMA_INTEGRATION_MODEL)" || \
+	  echo "could not pull $(OLLAMA_INTEGRATION_MODEL) — the tests will skip"
 	@trap '$(DC) stop ollama postgres redis' EXIT INT TERM; \
 	  $(DC) run --rm \
 	    -e DATABASE_URL=postgresql://law_ai:law_ai-dev@postgres:5432/law_ai \
@@ -350,9 +369,23 @@ legalbench-baseline:
 # Quality (Docker-only)
 # ---------------------------------------------------------------------------
 
+# SCOPE, stated because it is not obvious (BL-20260906-36): `lint` and
+# `format` run inside the containers, whose working directories are ./backend
+# and ./frontend. Repo-root Python — scripts/*.py and tests/*.py — is therefore
+# NOT formatted or linted by them, and is deliberately out of scope: those two
+# trees are stdlib-only host tooling with no container of their own, and they
+# have drifted far enough from black that reformatting them would bury a real
+# change under a whole-tree diff. `make lint-root` below reports that drift on
+# demand for anyone who wants to see or fix it; nothing gates on it.
 lint:
 	$(RUN_BACKEND) sh -c "ruff check --fix . && black ."
 	$(RUN_FRONTEND) npm run lint -- --fix
+
+# Opt-in, report-only, never a gate. Mounts the repo so ruff/black can see the
+# root Python that `make lint` cannot reach. Exits 0 whatever it finds.
+lint-root:
+	-$(DC) run --rm --no-deps -v "$(PWD)":/repo -w /repo backend \
+		sh -c "ruff check scripts tests; black --check scripts tests"
 
 format:
 	$(RUN_BACKEND) sh -c "black . && ruff check --fix ."
@@ -377,7 +410,9 @@ mypy-baseline:
 # ---------------------------------------------------------------------------
 
 lint-specs:
-	python3 scripts/spec_validator.py
+	@# BL-20260906-48: --strict makes the constitution §13 review-question
+	@# WARN lines fail the gate instead of scrolling past unread.
+	python3 scripts/spec_validator.py --strict
 	python3 scripts/backlog_lint.py
 	python3 scripts/ux_audit.py
 	@# BL-20260511-14: scripts/evolve_audit.py is the fourth validator in this
@@ -455,6 +490,21 @@ local-ai-down:
 # ollama-bootstrap.sh from drifting apart (BL-20260810-12).
 local-ai-pull:
 	$(DC) exec ollama sh -c 'for m in $$OLLAMA_BOOTSTRAP_MODELS; do echo "pulling $$m"; ollama pull "$$m"; done'
+
+# A small instruct model for the opt-in local-model integration tests
+# (BL-20260906-82). The bootstrap set is a 7B and an 8B; on a Docker VM with
+# less than ~6 GiB free neither loads, so `make test-integration-ollama`
+# skipped everywhere and the tests verified nothing on an ordinary laptop.
+# This is deliberately NOT in OLLAMA_BOOTSTRAP_MODELS: its first entry is the
+# healthcheck's gate model and OLLAMA_DEFAULT_MODEL is the 7B, so quietly
+# prepending a 3B would change which model the stack gates on and serves.
+LOCAL_AI_SMALL_MODEL ?= qwen2.5:3b-instruct-q4_K_M
+
+local-ai-pull-small:
+	$(DC) exec ollama ollama pull $(LOCAL_AI_SMALL_MODEL)
+	@echo ""
+	@echo "Pulled $(LOCAL_AI_SMALL_MODEL). Run the local-model integration tests with:"
+	@echo "  make test-integration-ollama OLLAMA_INTEGRATION_MODEL=$(LOCAL_AI_SMALL_MODEL)"
 
 # Is the configured gate model actually present? (same check the container
 # healthcheck runs)
@@ -567,6 +617,12 @@ studio-down:
 validate-claude-code:
 	$(RUN_BACKEND_FULL) python manage.py validate_claude_code
 
+# The read side of the token/cost accounting on every `llm_call` audit event
+# (BL-20260905-69). ARGS='--days 7' narrows the window, ARGS='--json' emits a
+# machine-readable rollup, ARGS='--days 0' reports all time.
+llm-spend:
+	$(RUN_BACKEND_FULL) python manage.py llm_spend $(ARGS)
+
 # xAI Grok tier (spec 050). Device-code flow by default, which is the one that
 # works from inside a container; ARGS='--loopback' is for a host with a browser
 # and ARGS='--status' reports the stored credential without changing it.
@@ -631,6 +687,25 @@ lsat-static-e2e:
 		-w /repo/lsat-static -e PAGES_BASE_PATH=/law-ai -e CI=$(CI) \
 		mcr.microsoft.com/playwright:v1.59.1-noble \
 		sh -c "npm ci --no-audit --no-fund && npm run build && npx playwright test"
+
+# Same suite, same image, without paying for `npm ci` and a full `next build`
+# every time (BL-20260906-63): the browser run itself is ~18s, the rebuild
+# around two minutes. The install is skipped when the shared node_modules
+# volume already has one, and `out/` is reused when nothing under the sources
+# is newer than it — so an edit to a component still rebuilds, and a second
+# run over untouched code does not. `lsat-static-e2e` stays the honest,
+# always-from-scratch target; use it in CI and when in doubt.
+lsat-static-e2e-cached:
+	docker run --rm --ipc=host -v "$(PWD)":/repo \
+		-v law_ai_lsat_static_node_modules:/repo/lsat-static/node_modules \
+		-w /repo/lsat-static -e PAGES_BASE_PATH=/law-ai -e CI=$(CI) \
+		mcr.microsoft.com/playwright:v1.59.1-noble \
+		sh -c 'set -e; \
+		[ -x node_modules/.bin/next ] || npm ci --no-audit --no-fund; \
+		if [ -f out/index.html ] && [ -z "$$(find app components lib content.json package.json next.config.mjs -newer out/index.html 2>/dev/null | head -1)" ]; then \
+			echo "lsat-static: out/ is newer than every source — reusing it"; \
+		else npm run build; fi; \
+		npx playwright test'
 
 # Live LSATContentAuthor agent run. Routes through the LLM_PROVIDER_CHAIN
 # (Claude first; pin `LLM_PROVIDER_CHAIN=ollama` for local-only). Pass extra flags via

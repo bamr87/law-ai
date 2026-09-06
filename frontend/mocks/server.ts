@@ -107,6 +107,31 @@ export const lsatConceptsFixture = {
   ],
 }
 
+/**
+ * Default tutor reply (BL-20260905-35), served by the handler below for every
+ * suite that reaches `/api/lsat/tutor` without installing its own. A real
+ * model answered it — `used_llm` true, a named model, not cached — because
+ * that is the case every consumer renders; the fallback and cache variants
+ * stay opt-in through `server.use`.
+ */
+export const lsatTutorFixture = {
+  question_id: 'lr-001',
+  user_choice: 'A' as string | null,
+  correct_choice: 'C',
+  is_correct: false,
+  explanation: 'The argument generalises from a sample that is too small.',
+  coaching: 'Start with the conclusion, then ask what the evidence licenses.',
+  next_steps: ['Review sampling bias'],
+  concepts: [lsatConceptsFixture.concepts[1]],
+  references: [],
+  model: 'claude_code/claude-opus-5',
+  used_llm: true,
+  cached: false,
+  confidence: 0.82,
+  requires_human_review: false,
+  latency_ms: 140,
+}
+
 /** Validation report fixture (spec 045 FR-15). */
 export const lsatValidationFixture = {
   generated_at: '2026-08-31T00:00:00Z',
@@ -387,6 +412,41 @@ export const autonomyHandlers = [
       ],
     }),
   ),
+  // BL-20260906-23: the fourth panel — audit.AutonomyRun as a cycle log.
+  http.get('http://localhost:8000/api/agents/autonomy/runs', () =>
+    HttpResponse.json({
+      available: true,
+      count: 2,
+      kind: '',
+      by_status: { ok: 1, error: 1 },
+      runs: [
+        {
+          cycle_id: 'cid-digest-1',
+          kind: 'digest',
+          source: '',
+          trace_id: 'trace-1',
+          status: 'ok',
+          started_at: '2026-09-06T03:00:00Z',
+          ended_at: '2026-09-06T03:00:12Z',
+          duration_ms: 12000,
+          error: '',
+          summary: { digest_path: 'var/autonomy/digest-2026-09-06.md' },
+        },
+        {
+          cycle_id: 'cid-corpus-1',
+          kind: 'corpus_growth',
+          source: 'courtlistener',
+          trace_id: 'trace-2',
+          status: 'error',
+          started_at: '2026-09-06T02:00:00Z',
+          ended_at: '2026-09-06T02:00:00.450Z',
+          duration_ms: 450,
+          error: 'adapter timeout',
+          summary: {},
+        },
+      ],
+    }),
+  ),
 ]
 
 /**
@@ -472,6 +532,17 @@ export const reviewQueueHandlers = [
     HttpResponse.json({
       review: { ...reviewQueueRows[0], approved: false, review_note: 'out of scope' },
       committed: false,
+    }),
+  ),
+  // The third verb (BL-20260906-04): re-scores, never commits.
+  http.post('http://localhost:8000/api/ingestion/reviews/re-extract', () =>
+    HttpResponse.json({
+      review: { ...reviewQueueRows[0], confidence: 0.81 },
+      reextracted: true,
+      previous_confidence: reviewQueueRows[0].confidence,
+      confidence: 0.81,
+      clears_threshold: true,
+      n_citations: 3,
     }),
   ),
 ]
@@ -787,6 +858,23 @@ export const handlers = [
     },
   ),
 
+  // Default tutor reply (BL-20260905-35). Every suite that reaches the tutor
+  // used to install its own handler; this one answers the common case — a real
+  // model call, uncached — so only the tests that care about a specific reply
+  // (fallback, cache, streaming) still need `server.use`. It echoes the posted
+  // question and choice so the answer belongs to the question on screen.
+  http.post('http://localhost:8000/api/lsat/tutor', async ({ request }) => {
+    const body = (await request.json()) as {
+      question_id?: string
+      user_choice?: string | null
+    }
+    return HttpResponse.json({
+      ...lsatTutorFixture,
+      question_id: body.question_id ?? lsatTutorFixture.question_id,
+      user_choice: body.user_choice ?? null,
+    })
+  }),
+
   http.post(
     'http://localhost:8000/api/lsat/questions/:questionId/hint',
     async ({ params, request }) => {
@@ -958,11 +1046,44 @@ export const handlers = [
     }),
   ),
 
+  // Account identity (spec 036 / BL-20260906-68). AllowAny, so signed out is
+  // a 200 rather than a 401 — the shell asks this before anything
+  // account-scoped, and the default here is "signed out".
+  http.get('http://localhost:8000/api/auth/me', () =>
+    HttpResponse.json({
+      authenticated: false,
+      username: null,
+      id: null,
+      is_staff: false,
+      scopes: [],
+    }),
+  ),
+
+  // The session half of spec 036, now that something in the app renders a
+  // form for it (BL-20260906-08). The default is a refusal: a test that wants
+  // a successful sign-in says so with `server.use`, and every other test gets
+  // the anonymous shell it was written against.
+  http.get('http://localhost:8000/api/auth/csrf', () =>
+    HttpResponse.json({ csrf_token: 'test-csrf-token' }),
+  ),
+  http.post('http://localhost:8000/api/auth/login', () =>
+    HttpResponse.json({ detail: 'invalid credentials' }, { status: 401 }),
+  ),
+  http.post('http://localhost:8000/api/auth/logout', () =>
+    HttpResponse.json({ authenticated: false, was_authenticated: true }),
+  ),
+
   // Matters (spec 036). The shell's ScopeSwitcher asks on every render, so a
   // default of "signed out, no matters" keeps unrelated shell tests quiet;
   // tests that care override it with server.use().
   http.get('http://localhost:8000/api/matters', () =>
     HttpResponse.json({ matters: [], count: 0 }),
+  ),
+
+  // Court vocabulary (BL-20260905-89). Also ahead of the `:caseId`
+  // catch-all, which would otherwise answer /api/graph/courts with a case.
+  http.get('http://localhost:8000/api/graph/courts', () =>
+    HttpResponse.json({ available: true, courts: [], count: 0 }),
   ),
 
   // Mock graph query

@@ -128,6 +128,8 @@ Use the curl smoke as the mechanical gate and the browser only when you need to 
 
 Extracting a shared launcher would have to abstract over all five rows, and the only caller that would use the abstraction is the one it was extracted from. So the launch logic stays here, in the one script that needs it, and this paragraph is the record of the decision rather than a `scripts/` helper nobody imports. Revisit it if a second caller ever wants a throwaway no-deps stack — `tests/test_run_law_ai_driver.py` will hold the contract steady in the meantime.
 
+The other half of `BL-20260906-39` — "run the smoke in CI" — is answered by the e2e suite rather than by scheduling this script: `frontend/e2e/proxy-origin.spec.ts` asserts, in a real browser on the nightly stack, that four fetching routes reach the backend only through `/api/backend/...`, which is the same Next → Django hop the `FRONTEND=1` block checks with its `curl` of `/api/backend/api/lsat/sections`. What this driver keeps that the suite does not is the *throwaway* boot: two `--no-deps` containers, no databases, seconds instead of minutes — an agent's "does it boot" answer, not a gate.
+
 ## Test
 
 The backend suite runs in a container. For an isolated run that doesn't need the compose Postgres, override `DATABASE_URL` to SQLite (verified form):

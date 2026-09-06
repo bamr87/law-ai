@@ -31,6 +31,13 @@ const fullResponse = (overrides: Record<string, unknown> = {}) => ({
         relevance_score: 0.91,
         distinguishing_factors: ['signage present in Smith'],
         url: 'https://example.test/smith',
+        attribution: {
+          court: 'CA Sup. Ct.',
+          jurisdiction: 'us-ca',
+          decided_at: '1999-06-01',
+          authority: 'binding',
+          opinion_part: 'majority',
+        },
       },
     ],
     summary: 'One on-point negligence case from California.',
@@ -736,6 +743,36 @@ describe('AnalysisStudio source attribution', () => {
     expect(screen.getByText('no issuing authority')).toBeInTheDocument()
   })
 
+  it('draws the binding weight on each precedent (BL-20260905-84)', async () => {
+    await renderResult({})
+    expect(screen.getByText('1999-06-01 · us-ca')).toBeInTheDocument()
+    const weight = screen.getByTitle(
+      /This authority is binding for the requested jurisdiction/i,
+    )
+    expect(weight).toHaveTextContent('binding')
+  })
+
+  it('labels a precedent the graph cannot attribute', async () => {
+    await renderResult({
+      precedents: {
+        ...fullResponse().precedents,
+        precedents: [
+          {
+            ...fullResponse().precedents.precedents[0],
+            attribution: {
+              court: null,
+              jurisdiction: null,
+              decided_at: null,
+              authority: 'unknown',
+              opinion_part: 'unknown',
+            },
+          },
+        ],
+      },
+    })
+    expect(screen.getByText('no issuing authority')).toBeInTheDocument()
+  })
+
   it('explains an under-attributed precedent set in the review banner', async () => {
     await renderResult({
       requires_human_review: true,
@@ -743,6 +780,96 @@ describe('AnalysisStudio source attribution', () => {
     })
     expect(
       screen.getByText(/carries no issuing authority/i),
+    ).toBeInTheDocument()
+  })
+})
+
+
+// ---------------------------------------------------------------------------
+// BL-20260906-15: a matter's ranking boost is a bias, so it is shown
+// ---------------------------------------------------------------------------
+
+describe('AnalysisStudio ranking boost', () => {
+  async function renderWithRetrieval(retrieval: Record<string, unknown>) {
+    server.use(
+      http.post('http://localhost:8000/api/analysis', async () =>
+        HttpResponse.json(
+          fullResponse({
+            irac: { ...fullResponse().irac, retrieval },
+          }),
+        ),
+      ),
+    )
+    render(<AnalysisStudio />)
+    fireEvent.click(screen.getByRole('button', { name: /Load sample/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: /IRAC Brief/i }),
+      ).toBeInTheDocument(),
+    )
+  }
+
+  it('names the boost and where it came from', async () => {
+    await renderWithRetrieval({
+      queries: ['premises liability'],
+      result_count: 5,
+      boosted_count: 2,
+      boost_source: 'matter:acme-v-roe',
+    })
+    const row = screen.getByTestId('retrieval-boost')
+    expect(row).toHaveTextContent('2 passage(s) promoted')
+    expect(row).toHaveTextContent('matter:acme-v-roe')
+  })
+
+  it('says nothing when no boost was applied', async () => {
+    await renderWithRetrieval({
+      queries: ['premises liability'],
+      result_count: 5,
+      boosted_count: 0,
+      boost_source: '',
+    })
+    expect(screen.queryByTestId('retrieval-boost')).not.toBeInTheDocument()
+  })
+})
+
+
+// ---------------------------------------------------------------------------
+// BL-20260906-10: `trace_url` supersedes `phoenix_trace_url`
+// ---------------------------------------------------------------------------
+
+describe('AnalysisStudio trace link', () => {
+  async function renderWith(overrides: Record<string, unknown>) {
+    server.use(
+      http.post('http://localhost:8000/api/analysis', async () =>
+        HttpResponse.json(fullResponse(overrides)),
+      ),
+    )
+    render(<AnalysisStudio />)
+    fireEvent.click(screen.getByRole('button', { name: /Load sample/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: /IRAC Brief/i }),
+      ).toBeInTheDocument(),
+    )
+  }
+
+  it('prefers trace_url', async () => {
+    await renderWith({
+      trace_url: 'https://collector.test/traces/new',
+      phoenix_trace_url: 'https://collector.test/traces/old',
+    })
+    const link = screen.getByRole('link', {
+      name: 'https://collector.test/traces/new',
+    })
+    expect(link).toHaveAttribute('href', 'https://collector.test/traces/new')
+  })
+
+  it('still follows the deprecated spelling on its own', async () => {
+    await renderWith({ phoenix_trace_url: 'https://collector.test/traces/old' })
+    expect(
+      screen.getByRole('link', { name: 'https://collector.test/traces/old' }),
     ).toBeInTheDocument()
   })
 })

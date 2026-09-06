@@ -86,7 +86,7 @@ The response includes `phoenix_trace_url` and `langgraph_thread_id` — paste ei
 | `OLLAMA_REQUEST_TIMEOUT_S` | `120.0` | Raise for very long contexts. Applies per attempt. |
 | `OLLAMA_MAX_RETRIES` | `2` | Total attempts per Ollama call on transient failures (connect/read-timeout, 429, 5xx), retried by tenacity with short exponential backoff and jitter (constitution §8); `1` disables retry. Ollama sits at the tail of the chain, so keep this low. |
 | `FALLBACK_MODEL` | `mistral:7b-instruct-q4_K_M` | Second model the local tier tries when the primary answers `404` — "model not pulled", the one failure waiting cannot fix (BL-20260810-05). Skipped when blank or equal to `OLLAMA_DEFAULT_MODEL`, so the stock laptop config makes exactly one call; on the GPU overlay (`OLLAMA_DEFAULT_MODEL=llama3.1:70b-q4_K_M`) it is the 7B safety net. The `llm_call` event records the model that actually answered, not the one that was asked for. |
-| `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Local embedding model. Used by the LSAT factory's paraphrase dedup gate (BL-20260702-01), which embeds each draft's question text and rejects anything at/above `LSAT_FACTORY_EMBED_THRESHOLD` cosine to an existing item. Vectors are cached per bank revision under `var/lsat_factory/embeddings/`; when Ollama or the model is missing, intake falls back to token-Jaccard alone and records a warning on the ingest result. Set `LSAT_FACTORY_EMBED_DEDUP=false` to switch the gate off. |
+| `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Local embedding model — load-bearing for retrieval quality, see [Embeddings](#embeddings-nomic-embed-text) below. Also used by the LSAT factory's paraphrase dedup gate (BL-20260702-01), which embeds each draft's question text and rejects anything at/above `LSAT_FACTORY_EMBED_THRESHOLD` cosine to an existing item. Vectors are cached per bank revision under `var/lsat_factory/embeddings/`; when Ollama or the model is missing, intake falls back to token-Jaccard alone and records a warning on the ingest result. Set `LSAT_FACTORY_EMBED_DEDUP=false` to switch the gate off. |
 | `LANGGRAPH_CHECKPOINTER` | `postgres` | `postgres` \| `redis` \| `memory`. Postgres reads `POSTGRES_URL` (not `DATABASE_URL`, spec 035). |
 | `PHOENIX_COLLECTOR_ENDPOINT` | _(blank in `settings/base.py`; `docker-compose.yml` sets it to `http://phoenix:6006/v1/traces` for the `backend` service)_ | **Unset disables tracing entirely.** Blank it in `.env` to opt out even inside the compose stack. |
 | `PHOENIX_UI_URL` | `http://localhost:6006` | Used to build deep-links in API responses. |
@@ -102,6 +102,38 @@ The response includes `phoenix_trace_url` and `langgraph_thread_id` — paste ei
 | `AUTONOMY_DIGEST_EMAIL_TO` | `[]` | Comma-separated recipients for the daily digest. Empty = no mail. |
 | `AUTONOMY_DIGEST_EMAIL_FROM` | `law-ai-autonomy@localhost` | Envelope sender for the digest mail. |
 | `EMAIL_BACKEND` | `django.core.mail.backends.console.EmailBackend` | Django mail backend. The console default prints the digest instead of sending it, so a half-configured deployment is visible rather than silent. |
+
+## Embeddings (`nomic-embed-text`)
+
+`nomic-embed-text` is load-bearing for **retrieval quality**, not just for the LSAT factory's intake dedup gate. Since BL-20260810-17 the GraphRAG retriever has a vector leg: `:Case` and `:StatuteSection` nodes carry a 768-float `embedding`, and a query that the lexical leg misses can still be answered through cosine similarity. A corpus with no vectors silently degrades to lexical + citation-expansion retrieval — it answers, but worse, and nothing errors.
+
+Two rules follow from that, both enforced in [`backend/law_ai/core/llm/embeddings.py`](../backend/law_ai/core/llm/embeddings.py):
+
+- **Embeddings are always local.** They talk to `OLLAMA_BASE_URL` regardless of `LLM_PROVIDER_CHAIN`, because every vector in one index must come from one model; routing them through the chain would mix embedding spaces the first time the Claude tier answered.
+- **The dimension is pinned to the model.** `nomic-embed-text` emits 768 floats, which is what `008_vector_indexes.cypher` declares. Changing `OLLAMA_EMBED_MODEL` means a new migration and a full re-backfill, not a settings tweak.
+
+On an **existing corpus** the vector column starts empty, so after `make migrate` run the backfill once:
+
+```bash
+make backfill-embeddings              # dry run: reports how many nodes lack a vector
+make backfill-embeddings COMMIT=1     # write them (LIMIT=N to do it in batches)
+```
+
+It is idempotent and resumable — nodes that already carry a current vector are skipped — so re-running it after a later ingest is cheap. Fresh ingests embed as they commit, so a corpus built from scratch on a healthy Ollama needs no backfill.
+
+### Running the local-model integration tests on a laptop
+
+The bootstrap set is a 7B and an 8B, and neither loads on a Docker VM with less than ~6 GiB free — which made `make test-integration-ollama` a permanent skip on an ordinary laptop (BL-20260906-82). The target therefore *defaults* to the small model and pulls it if the volume does not already hold it (BL-20260906-24), so the live-model leg runs rather than skips:
+
+```bash
+make test-integration-ollama                                        # qwen2.5:3b-instruct-q4_K_M
+make local-ai-pull-small                                            # pull it ahead of time
+make test-integration-ollama OLLAMA_INTEGRATION_MODEL=mistral:7b-instruct-q4_K_M   # a bigger box
+```
+
+The nightly workflow runs the same target as its last step before teardown (BL-20260906-81, BL-20260906-94), `continue-on-error` until the step has earned a green streak.
+
+`LOCAL_AI_SMALL_MODEL` overrides which model that pulls. It is deliberately not added to `OLLAMA_BOOTSTRAP_MODELS`: the first entry of that list is the healthcheck's gate model and `OLLAMA_DEFAULT_MODEL` is the 7B, so prepending a 3B would silently change which model the stack gates on and serves. The tests still **skip** (never fail) when even the small model cannot load — a one-token generation is the gate, because a model on disk is not the same as a model that fits in RAM.
 
 ## Hardware tiers
 
@@ -201,7 +233,7 @@ The bundle is:
 
 | File | Contents |
 |------|----------|
-| `dist/ollama-models.tar` | The `ollama` named volume — blobs plus manifests, i.e. every model in `OLLAMA_BOOTSTRAP_MODELS` that was actually pulled. |
+| `dist/ollama-models.tar` | The `ollama` named volume — blobs plus manifests, i.e. every model in `OLLAMA_BOOTSTRAP_MODELS` that was actually pulled, or just the ones `--models` named. |
 | `dist/images.tar` | `docker save` of every image `docker compose config --images` names, pinned ones and locally built ones alike. |
 | `dist/images.txt` | That image list, so the receiving side can audit what it is about to load. |
 | `dist/bundle.env` | Project name, volume name, Ollama image, creation timestamp. |
@@ -213,7 +245,13 @@ Why `OLLAMA_OFFLINE=1` matters: `ollama-bootstrap.sh` normally runs `ollama pull
 
 Redistribution: the bundle carries model weights. Llama models are under the **Llama Community License** (see the Licensing table below) and Mistral under Apache-2.0. Moving a bundle between organisations is redistribution — check the licence before handing one over.
 
-Partial bundles: `--models-only` and `--images-only` split the two halves when only one of them changed, which turns a routine model refresh into a few GB instead of the whole set.
+Partial bundles: `--models-only` and `--images-only` split the two halves when only one of them changed. `--models` narrows the model half further (BL-20260906-45) — it tars only the named manifests and the blobs they reference, deduplicated, so refreshing one model ships that model instead of the whole volume:
+
+```bash
+scripts/ollama-bundle.sh --models-only --models 'nomic-embed-text'
+```
+
+A bare name means `:latest`, as `ollama pull` reads it, and a model that is not in the volume is an error rather than a silently thinner bundle. `dist/bundle.env` records the subset in `BUNDLE_MODELS` (empty = the whole volume). On the target host, `offline-install.sh` refuses a volume that already holds models unless you pass `--force`; with it, the restore untars over the existing volume, so a subset bundle *adds* its models rather than replacing the rest.
 
 ## Licensing
 

@@ -8,7 +8,7 @@
 # reaches zero entries, delete it and drop the ratchet call so plain
 # `mypy law_ai --strict` is the gate.
 #
-# total: 59
+# total: 34
 1	law_ai/agents_runtime/graphs/__init__.py
 3	law_ai/agents_runtime/graphs/runtime.py
 1	law_ai/agents_runtime/registry.py
@@ -23,4 +23,3 @@
 2	law_ai/ingestionapp/tasks.py
 5	law_ai/lsat/services/bank.py
 1	law_ai/lsat/services/ocr_intake.py
-25	law_ai/lsat/urls.py

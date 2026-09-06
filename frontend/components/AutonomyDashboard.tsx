@@ -4,20 +4,23 @@ import {
   fetchAutonomyCoverage,
   fetchAutonomyLegalbenchHistory,
   fetchAutonomyQuarantine,
+  fetchAutonomyRuns,
   type AutonomyCoverage,
   type AutonomyLegalbenchHistory,
   type AutonomyLegalbenchSeries,
   type AutonomyQuarantine,
+  type AutonomyRuns,
 } from '@/lib/api'
 import { useCallback, useEffect, useState } from 'react'
 
 /**
  * Read-only autonomy dashboard (BL-20260511-03).
  *
- * Three questions about a self-driving repo that previously had no answer
+ * Four questions about a self-driving repo that previously had no answer
  * outside a container shell: is the benchmark moving, where is the code
- * thinnest, and what is waiting on a human. Every panel is a *view* — nothing
- * here triggers a cycle, approves a document, or calls a model.
+ * thinnest, what is waiting on a human, and — since BL-20260906-23 — did the
+ * loop actually run. Every panel is a *view*: nothing here triggers a cycle,
+ * approves a document, or calls a model.
  *
  * Each panel reports absence explicitly (constitution §13). `history.jsonl`
  * and `coverage.xml` are CI artifacts a fresh checkout does not have, and the
@@ -43,6 +46,7 @@ export default function AutonomyDashboard() {
   const [coverage, setCoverage] = useState<PanelState<AutonomyCoverage>>(initial)
   const [quarantine, setQuarantine] =
     useState<PanelState<AutonomyQuarantine>>(initial)
+  const [runs, setRuns] = useState<PanelState<AutonomyRuns>>(initial)
   const [refreshedAt, setRefreshedAt] = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -65,6 +69,7 @@ export default function AutonomyDashboard() {
       run(() => fetchAutonomyLegalbenchHistory(), setHistory),
       run(fetchAutonomyCoverage, setCoverage),
       run(fetchAutonomyQuarantine, setQuarantine),
+      run(() => fetchAutonomyRuns(), setRuns),
     ])
     setRefreshedAt(new Date().toISOString())
   }, [])
@@ -76,7 +81,7 @@ export default function AutonomyDashboard() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-400">
           {refreshedAt
             ? `Last refreshed ${new Date(refreshedAt).toLocaleTimeString()}`
             : 'Loading…'}
@@ -104,6 +109,14 @@ export default function AutonomyDashboard() {
         state={coverage}
       >
         <CoveragePanel data={coverage.data} />
+      </Panel>
+
+      <Panel
+        title="Recent autonomy cycles"
+        subtitle="The last twenty runs by kind, status and duration. Read straight off audit.AutonomyRun."
+        state={runs}
+      >
+        <RunsPanel data={runs.data} />
       </Panel>
 
       <Panel
@@ -135,10 +148,10 @@ function Panel<T>({
     >
       <header className="mb-3">
         <h2 className="text-base font-semibold text-slate-100">{title}</h2>
-        <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
+        <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>
       </header>
       {state.loading && (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-slate-400">Loading…</p>
       )}
       {state.error && (
         <p
@@ -197,7 +210,7 @@ function LegalbenchPanel({ data }: { data: AutonomyLegalbenchHistory | null }) {
 function Delta({ deltaPp }: { deltaPp: number | null }) {
   if (deltaPp === null) {
     return (
-      <span className="text-xs text-slate-500" title="One run is not a trend">
+      <span className="text-xs text-slate-400" title="One run is not a trend">
         no trend
       </span>
     )
@@ -303,7 +316,7 @@ function CoveragePanel({ data }: { data: AutonomyCoverage | null }) {
         Five lowest-coverage modules, ascending
       </caption>
       <thead>
-        <tr className="text-xs uppercase tracking-wide text-slate-500">
+        <tr className="text-xs uppercase tracking-wide text-slate-400">
           <th scope="col" className="pb-2 font-medium">
             Module
           </th>
@@ -377,16 +390,104 @@ function QuarantinePanel({ data }: { data: AutonomyQuarantine | null }) {
             <span className="rounded border border-slate-700 px-1.5 py-0.5 text-xs text-slate-400">
               {doc.kind}
             </span>
-            <span className="text-xs text-slate-500">{doc.source}</span>
+            <span className="text-xs text-slate-400">{doc.source}</span>
             <span className="ml-auto font-mono text-xs text-slate-300">
               conf {doc.confidence.toFixed(2)}
             </span>
           </div>
           {doc.reason && (
-            <p className="mt-1 text-xs text-slate-500">{doc.reason}</p>
+            <p className="mt-1 text-xs text-slate-400">{doc.reason}</p>
           )}
         </li>
       ))}
     </ul>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Autonomy cycles
+// ---------------------------------------------------------------------------
+
+/** `1234` ms → `1.2s`; a duration panel that prints six digits is not read. */
+function formatDuration(ms: number | null): string {
+  if (ms === null || !Number.isFinite(ms)) return '—'
+  if (ms < 1000) return `${Math.round(ms)}ms`
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`
+  return `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const tone =
+    status === 'error'
+      ? 'border-red-500/40 bg-red-500/10 text-red-300'
+      : status === 'ok'
+        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+        : 'border-slate-700 bg-slate-800/50 text-slate-400'
+  return (
+    <span className={`rounded border px-1.5 py-0.5 text-xs ${tone}`}>
+      {status}
+    </span>
+  )
+}
+
+function RunsPanel({ data }: { data: AutonomyRuns | null }) {
+  if (!data || !data.available) {
+    return (
+      <Unavailable what="the autonomy run table could not be read (is Postgres up?)." />
+    )
+  }
+  if (data.runs.length === 0) {
+    return (
+      <p className="text-sm text-slate-400">
+        No cycle has run yet — start one with{' '}
+        <code className="font-mono">make autonomy-run KIND=…</code>.
+      </p>
+    )
+  }
+  return (
+    <table className="w-full text-left text-sm">
+      <caption className="sr-only">
+        Recent autonomy cycles, newest first
+      </caption>
+      <thead>
+        <tr className="text-xs uppercase tracking-wide text-slate-400">
+          <th scope="col" className="pb-2 font-medium">
+            Kind
+          </th>
+          <th scope="col" className="pb-2 font-medium">
+            Status
+          </th>
+          <th scope="col" className="pb-2 font-medium">
+            Duration
+          </th>
+          <th scope="col" className="pb-2 font-medium">
+            Started
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {data.runs.map((run) => (
+          <tr key={run.cycle_id} className="border-t border-slate-800">
+            <td className="py-1.5 font-mono text-xs text-slate-300">
+              {run.kind}
+              {run.source && (
+                <span className="ml-1 text-slate-400">({run.source})</span>
+              )}
+            </td>
+            <td className="py-1.5">
+              <StatusBadge status={run.status} />
+            </td>
+            <td className="py-1.5 font-mono text-xs text-slate-200">
+              {formatDuration(run.duration_ms)}
+            </td>
+            <td className="py-1.5 font-mono text-xs text-slate-400">
+              {run.started_at
+                ? new Date(run.started_at).toLocaleString()
+                : '—'}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }

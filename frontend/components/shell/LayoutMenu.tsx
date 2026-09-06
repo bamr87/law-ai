@@ -30,6 +30,12 @@ interface Item {
   run: () => void
   /** Actions close the menu; toggles keep it open so several can be flipped. */
   closes?: boolean
+  /**
+   * Present when the row controls nothing right now, and why. The row stays
+   * in the menu and stays arrow-reachable — a control that vanishes is harder
+   * to find again than one that says why it is inert (BL-20260905-30).
+   */
+  disabledReason?: string
 }
 
 interface Section {
@@ -108,12 +114,22 @@ export default function LayoutMenu({
       label: 'Show',
       items: [
         check('rail', 'Navigation rail', rail, () => setRail(!rail)),
-        // Only meaningful with the rail on, and only in effect at `xl`; the
-        // row stays visible either way so the choice is discoverable where it
-        // is made rather than only where it applies.
-        check('rail-labels', 'Labelled rail (wide screens)', railLabels, () =>
-          setRailLabels(!railLabels),
-        ),
+        // Only meaningful with the rail on, and only in effect at `xl`. With
+        // the rail hidden the row controlled nothing visible while still
+        // reading as a live toggle, so it is inert and says so — kept in the
+        // menu, under the row that governs it, because a control that
+        // disappears is harder to find again than one that explains itself
+        // (BL-20260905-30). Narrower than `xl` the preference is simply
+        // remembered and not in effect, which is not the same thing: the rail
+        // is on screen and the choice will apply the moment there is room.
+        {
+          ...check('rail-labels', 'Labelled rail (wide screens)', railLabels, () =>
+            setRailLabels(!railLabels),
+          ),
+          disabledReason: rail
+            ? undefined
+            : 'Turn the navigation rail on to label it',
+        },
         check('sidebar', 'Contextual sidebar', sidebarOpen, onToggleSidebar, '['),
         check('inspector', 'Inspector', inspectorOpen, onToggleInspector, ']'),
         check('breadcrumbs', 'Breadcrumb trail', crumbs, () => setCrumbs(!crumbs)),
@@ -224,7 +240,7 @@ export default function LayoutMenu({
               {section.label && (
                 <p
                   id={`${menuId}-${section.id}`}
-                  className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500"
+                  className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400"
                 >
                   {section.label}
                 </p>
@@ -246,16 +262,27 @@ export default function LayoutMenu({
                     type="button"
                     role={item.role}
                     aria-checked={item.role === 'menuitem' ? undefined : item.checked}
+                    // `aria-disabled`, not `disabled`: a disabled button drops
+                    // out of the tab order, and the menu is one tab stop whose
+                    // arrow keys walk every row.
+                    aria-disabled={item.disabledReason ? true : undefined}
+                    title={item.disabledReason}
                     onClick={() => {
+                      if (item.disabledReason) {
+                        setActive(index)
+                        return
+                      }
                       item.run()
                       if (item.closes) close(true)
                       else setActive(index)
                     }}
                     className={
                       'flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-xs transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-400 ' +
-                      (item.checked
-                        ? 'text-blue-200'
-                        : 'text-slate-300 hover:bg-slate-800')
+                      (item.disabledReason
+                        ? 'cursor-not-allowed text-slate-600'
+                        : item.checked
+                          ? 'text-blue-200'
+                          : 'text-slate-300 hover:bg-slate-800')
                     }
                   >
                     <span className="flex items-center gap-2">
@@ -264,8 +291,13 @@ export default function LayoutMenu({
                       </span>
                       {item.label}
                     </span>
+                    {item.disabledReason && (
+                      <span className="text-[10px] text-slate-600">
+                        needs the rail
+                      </span>
+                    )}
                     {item.hint && (
-                      <kbd className="font-mono text-[10px] text-slate-500">
+                      <kbd className="font-mono text-[10px] text-slate-400">
                         {item.hint}
                       </kbd>
                     )}

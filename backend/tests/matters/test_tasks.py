@@ -247,3 +247,39 @@ class TestReminders:
         _task(matter, "File answer", days=0.5)
         with self._events()[1]:
             assert sweep_task_reminders() == {"reminded": 1, "emailed": 0}
+
+
+class TestBeatRegistration:
+    """The schedule actually registers the sweep (BL-20260906-19).
+
+    Until now the only coverage was a direct call to ``sweep_task_reminders``,
+    which passes whether or not beat ever runs it: a renamed entry key or a
+    changed interval would have shipped silently. Reminders are a promise to
+    the user about a date they typed, so "who calls this hourly" is part of
+    the contract, not an implementation detail.
+    """
+
+    ENTRY = "matter-task-reminders"
+
+    def test_the_entry_exists_and_names_the_registered_task(self) -> None:
+        from law_ai.celery import app
+        from law_ai.matters.tasks import sweep_task_reminders
+
+        entry = app.conf.beat_schedule[self.ENTRY]
+        assert entry["task"] == "law_ai.matters.sweep_task_reminders"
+        # The beat entry names a task by string; this is what proves the
+        # string resolves to the function the tests above exercise.
+        assert sweep_task_reminders.name == entry["task"]
+
+    def test_it_runs_hourly(self) -> None:
+        from law_ai.celery import app
+
+        assert app.conf.beat_schedule[self.ENTRY]["schedule"] == 3600
+
+    def test_it_is_not_routed_through_the_autonomy_kill_switch(self) -> None:
+        """Reminders read the user's own tasks; autonomy off must not stop them."""
+        from law_ai.celery import app
+
+        entry = app.conf.beat_schedule[self.ENTRY]
+        assert "autonomy" not in entry["task"]
+        assert entry.get("options", {}).get("queue") != "autonomy"

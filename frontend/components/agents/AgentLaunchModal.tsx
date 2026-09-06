@@ -96,7 +96,7 @@ export function AgentLaunchModal({
         <header className="flex items-center justify-between border-b border-slate-800 px-5 py-3">
           <div>
             <h2 className="font-semibold text-slate-100">Run {agent.name}</h2>
-            <p className="mt-0.5 text-xs text-slate-500">
+            <p className="mt-0.5 text-xs text-slate-400">
               {AGENT_DESCRIPTIONS[agent.name]}
             </p>
           </div>
@@ -104,7 +104,7 @@ export function AgentLaunchModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded p-1 text-slate-500 hover:text-slate-200"
+            className="rounded p-1 text-slate-400 hover:text-slate-200"
           >
             ✕
           </button>
@@ -161,7 +161,7 @@ export function AgentLaunchModal({
               <span className="font-medium">
                 Real mode (LangGraph + Ollama)
               </span>
-              <span className="block text-[11px] text-slate-500">
+              <span className="block text-[11px] text-slate-400">
                 When off, returns a canned IRAC for fast UI testing (legacy
                 stub). When on, invokes the real LegalWorkflow against Ollama
                 and Neo4j.

@@ -84,7 +84,7 @@ export default function OverviewPanel({ onJump }: { onJump: (t: Tab) => void }) 
               <p className="mt-2 text-sm leading-relaxed text-slate-400">
                 {s.description}
               </p>
-              <dl className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-slate-500">
+              <dl className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-slate-400">
                 <Detail label="Format" value={s.format} />
                 <Detail label="Timing" value={s.timing} />
                 <Detail label="Scoring" value={s.scoring} />
@@ -113,7 +113,7 @@ export default function OverviewPanel({ onJump }: { onJump: (t: Tab) => void }) 
                     Practice {s.code} →
                   </button>
                 ) : (
-                  <span className="rounded-lg border border-slate-800 px-3 py-1.5 text-xs text-slate-500">
+                  <span className="rounded-lg border border-slate-800 px-3 py-1.5 text-xs text-slate-400">
                     No drill in the lab yet
                   </span>
                 )}

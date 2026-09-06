@@ -228,6 +228,36 @@ def commit_approved_reviews(limit: int = DEFAULT_SWEEP_LIMIT) -> list[dict[str, 
     return results
 
 
+def _reextract_by_kind(kind: str, payload: dict[str, Any]) -> tuple[float, bool, int]:
+    """Re-score a quarantined payload with today's extractor for its ``kind``.
+
+    Returns ``(confidence, clears_threshold, n_citations)``. Case rows are
+    re-parsed from the stored raw document; statute rows are re-scored from
+    the stored section, because the quarantine envelope carries the parsed
+    section rather than the title HTML (BL-20260905-96). Kinds with no
+    re-extraction path fail loudly, the way the commit path does.
+    """
+    from law_ai.ingestionapp.quarantine_kinds import KIND_CASE, KIND_STATUTE_SECTION
+
+    if kind == KIND_CASE:
+        from law_ai.ingestionapp.services.scout import IngestionScout
+
+        result = IngestionScout().extract(payload)
+        return result.confidence, result.is_high_confidence(), len(result.citations)
+    if kind == KIND_STATUTE_SECTION:
+        from law_ai.ingestionapp.services.statute_scout import (
+            CONFIDENCE_THRESHOLD,
+            StatuteScout,
+        )
+
+        section = StatuteScout().rescore(payload)
+        return section.confidence, section.confidence >= CONFIDENCE_THRESHOLD, 0
+    raise ApprovalError(
+        f"kind={kind!r} has no re-extraction path; re-extraction supports "
+        "case and statute_section rows"
+    )
+
+
 def reextract_review(review: Any, *, reviewer: str = "") -> dict[str, Any]:
     """Re-run the extractor over a quarantined row's stored raw document.
 
@@ -237,7 +267,10 @@ def reextract_review(review: Any, *, reviewer: str = "") -> dict[str, Any]:
     ask "would it still be quarantined today?" without re-fetching the
     source. ``PendingReview.payload`` already carries the raw document
     (``IngestionScout._quarantine_via_celery`` stores it under
-    ``payload["payload"]``), so re-extraction is purely local.
+    ``payload["payload"]``), so re-extraction is purely local. Statute rows
+    carry the parsed section rather than the title HTML, so they are
+    re-scored instead of re-parsed (BL-20260905-96); see
+    :func:`_reextract_by_kind`.
 
     Refreshes ``confidence`` and ``reason`` on the row and emits a
     provenance event. It deliberately does **not** commit, even when the
@@ -246,14 +279,8 @@ def reextract_review(review: Any, *, reviewer: str = "") -> dict[str, Any]:
     never bypass them.
     """
     from law_ai.ingestionapp.quarantine_kinds import KIND_CASE
-    from law_ai.ingestionapp.services.scout import IngestionScout
 
     kind = review.kind or KIND_CASE
-    if kind != KIND_CASE:
-        raise ApprovalError(
-            f"review {review.pk} has kind={kind!r}; re-extraction supports "
-            "case documents only (statute rows: BL-20260811-03)"
-        )
     if review.committed_at is not None:
         return {
             "id": review.pk,
@@ -263,9 +290,10 @@ def reextract_review(review: Any, *, reviewer: str = "") -> dict[str, Any]:
 
     payload = _extraction_payload(review)
     previous = review.confidence
-    scout = IngestionScout()
     try:
-        result = scout.extract(payload)
+        confidence, clears, n_citations = _reextract_by_kind(kind, payload)
+    except ApprovalError:
+        raise
     except Exception as exc:
         message = f"{type(exc).__name__}: {exc}"[:500]
         logger.warning("re-extraction failed for review %s: %s", review.pk, message)
@@ -277,12 +305,11 @@ def reextract_review(review: Any, *, reviewer: str = "") -> dict[str, Any]:
         )
         return {"id": review.pk, "reextracted": False, "error": message}
 
-    clears = result.is_high_confidence()
-    review.confidence = result.confidence
+    review.confidence = confidence
     review.reason = (
         "re-extracted: now clears the confidence threshold, awaiting approval"
         if clears
-        else f"low_confidence (re-extracted at {result.confidence:.3f})"
+        else f"low_confidence (re-extracted at {confidence:.3f})"
     )
     review.commit_error = ""
     review.save(update_fields=["confidence", "reason", "commit_error"])
@@ -294,18 +321,18 @@ def reextract_review(review: Any, *, reviewer: str = "") -> dict[str, Any]:
             "kind": kind,
             "reviewer": reviewer or "(unattributed)",
             "previous_confidence": previous,
-            "confidence": result.confidence,
+            "confidence": confidence,
             "clears_threshold": clears,
-            "n_citations": len(result.citations),
+            "n_citations": n_citations,
         },
     )
     return {
         "id": review.pk,
         "reextracted": True,
         "previous_confidence": previous,
-        "confidence": result.confidence,
+        "confidence": confidence,
         "clears_threshold": clears,
-        "n_citations": len(result.citations),
+        "n_citations": n_citations,
     }
 
 

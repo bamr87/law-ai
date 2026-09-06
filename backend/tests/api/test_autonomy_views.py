@@ -271,6 +271,7 @@ async def test_quarantine_returns_the_ten_newest(
         "/api/agents/autonomy/legalbench-history",
         "/api/agents/autonomy/lowest-coverage",
         "/api/agents/autonomy/recent-quarantine",
+        "/api/agents/autonomy/runs",
     ],
 )
 async def test_panels_are_behind_the_agent_key(

@@ -2,6 +2,7 @@
 
 import {
   fetchGraphCases,
+  fetchGraphCourts,
   fetchGraphNeighborhood,
   fetchGraphPath,
   fetchGraphStats,
@@ -107,14 +108,24 @@ export default function KnowledgeGraph() {
     let cancelled = false
     void (async () => {
       try {
-        const [s, c] = await Promise.all([
+        const [s, c, courts] = await Promise.all([
           fetchGraphStats(),
           fetchGraphCases('', 25),
+          // Corpus-wide court vocabulary (BL-20260905-89): the picker filters
+          // court by substring, so the dropdown must offer every court in the
+          // graph, not just those of the 25 cases on this page. Soft-fails
+          // back to the loaded page when the feed is unavailable.
+          fetchGraphCourts().catch(() => null),
         ])
         if (cancelled) return
         setStats(s)
         setCases(c.cases)
-        setCourtOptions(collectCourts([], c.cases))
+        setCourtOptions(
+          collectCourts(
+            courts?.available ? courts.courts.map((row) => row.court) : [],
+            c.cases,
+          ),
+        )
         setAvailable(s.available && c.available)
         // Auto-select the first case only when the URL did not name one —
         // a shared link must land on the case it names.
@@ -273,7 +284,7 @@ export default function KnowledgeGraph() {
             >
               Cases
             </h2>
-            <span className="text-[10px] text-slate-500">
+            <span className="text-[10px] text-slate-400">
               {cases.length} loaded
             </span>
           </header>
@@ -312,7 +323,7 @@ export default function KnowledgeGraph() {
                   }`}
                 >
                   <div className="truncate font-medium">{c.title || c.id}</div>
-                  <div className="mt-0.5 truncate font-mono text-[10px] text-slate-500">
+                  <div className="mt-0.5 truncate font-mono text-[10px] text-slate-400">
                     {c.id}
                     {c.court && <span className="ml-2">· {c.court}</span>}
                   </div>
@@ -361,7 +372,7 @@ export default function KnowledgeGraph() {
             >
               Neighborhood
             </h2>
-            <div className="text-xs text-slate-500">
+            <div className="text-xs text-slate-400">
               {selectedCase ? (
                 <span className="font-mono">{selectedCase.id}</span>
               ) : (
@@ -377,7 +388,7 @@ export default function KnowledgeGraph() {
               <div className="text-sm font-semibold text-slate-100">
                 {selectedCase.title || selectedCase.id}
               </div>
-              <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-slate-500">
+              <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-slate-400">
                 {selectedCase.court && <span>{selectedCase.court}</span>}
                 {selectedCase.decided_at && (
                   <span>Decided {selectedCase.decided_at}</span>
@@ -398,7 +409,7 @@ export default function KnowledgeGraph() {
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_260px]">
             <div>
               <GraphViewer elements={elements} onSelectNode={setInspectedId} />
-              <div className="mt-2 flex justify-between text-[10px] text-slate-500">
+              <div className="mt-2 flex justify-between text-[10px] text-slate-400">
                 <span>{elements.nodes.length} nodes</span>
                 <span>{elements.edges.length} edges</span>
               </div>
@@ -452,7 +463,7 @@ function CaseFilters({
       <div>
         <label
           htmlFor="graph-court"
-          className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500"
+          className="mb-1 block text-[10px] uppercase tracking-wider text-slate-400"
         >
           Court
         </label>
@@ -474,7 +485,7 @@ function CaseFilters({
         <div>
           <label
             htmlFor="graph-decided-from"
-            className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500"
+            className="mb-1 block text-[10px] uppercase tracking-wider text-slate-400"
           >
             Decided from
           </label>
@@ -489,7 +500,7 @@ function CaseFilters({
         <div>
           <label
             htmlFor="graph-decided-to"
-            className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500"
+            className="mb-1 block text-[10px] uppercase tracking-wider text-slate-400"
           >
             Decided to
           </label>
@@ -571,7 +582,7 @@ function NodeInspector({
         Inspector
       </h3>
       {!node ? (
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-slate-400">
           Select a case, or click a node on the canvas, to see its full
           properties.
         </p>
@@ -580,7 +591,7 @@ function NodeInspector({
           <dl className="space-y-1.5 text-[11px]">
             {entries.map(([key, value]) => (
               <div key={key}>
-                <dt className="text-slate-500">
+                <dt className="text-slate-400">
                   {INSPECTOR_LABELS[key] ?? key}
                 </dt>
                 <dd className="break-words font-mono text-slate-200">
@@ -626,7 +637,7 @@ function StatsStrip({ stats }: { stats: GraphStats | null }) {
           key={it.label}
           className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3"
         >
-          <div className="text-[10px] uppercase tracking-wider text-slate-500">
+          <div className="text-[10px] uppercase tracking-wider text-slate-400">
             {it.label}
           </div>
           <div className={`mt-1 text-2xl font-semibold ${it.tone}`}>
@@ -688,7 +699,7 @@ function PathPicker({
           Clear chain
         </button>
       )}
-      <span role="status" className="text-slate-500">
+      <span role="status" className="text-slate-400">
         {loading
           ? 'Finding chain…'
           : !compareId
@@ -752,7 +763,7 @@ function CitesTraversal({
 
   return (
     <div className="mt-3" data-testid="cites-traversal">
-      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
         Follow a citation
       </h3>
       <div className="mt-2 grid gap-3 sm:grid-cols-2">
@@ -803,13 +814,13 @@ function TraversalList({
                 >
                   {node.data.title || node.data.label || node.data.id}
                   {node.data.court && (
-                    <span className="ml-1 text-[10px] text-slate-500">
+                    <span className="ml-1 text-[10px] text-slate-400">
                       {node.data.court}
                     </span>
                   )}
                 </button>
               ) : (
-                <span className="block px-2 py-1 text-xs text-slate-500">
+                <span className="block px-2 py-1 text-xs text-slate-400">
                   {node.data.label || node.data.id}{' '}
                   <span className="text-[10px] uppercase tracking-wider">
                     citation
@@ -831,7 +842,7 @@ function Legend({ hasPath = false }: { hasPath?: boolean }) {
   // frequency", never "importance" or "authority" — whenever it is on.
   const [showCounts] = useSetting(showCitationCounts)
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-4 text-[10px] text-slate-500">
+    <div className="mb-3 flex flex-wrap items-center gap-4 text-[10px] text-slate-400">
       <LegendDot color="bg-blue-500" label="Case" />
       <LegendDot color="bg-amber-500" label="Citation" shape="rotate-45" />
       <span className="inline-flex items-center gap-1.5">

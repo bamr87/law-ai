@@ -22,6 +22,7 @@ from law_ai.eval import paths
 from law_ai.eval.legalbench import (
     EvalInfrastructureError,
     LegalBenchConfig,
+    baseline_comparability,
     check_regression,
     run_eval,
     update_baseline,
@@ -152,6 +153,61 @@ class TestBaselineAndHistory:
     def test_improvement_is_never_a_regression(self) -> None:
         report = {"delta": {"c": {"before": 0.5, "after": 0.9, "delta_pp": 40.0}}}
         assert check_regression(report) == []
+
+
+class TestBaselineComparability:
+    """BL-20260906-29: a delta across two different models is not a regression."""
+
+    REPORT = {
+        "model": "mistral:7b-instruct-q4_K_M",
+        "subsets": [
+            {"subset": "core_reasoning", "accuracy": 0.75, "scorer": "default_match"}
+        ],
+        "delta": {"core_reasoning": {"before": 0.80, "after": 0.75, "delta_pp": -5.0}},
+    }
+
+    @pytest.fixture()
+    def baseline(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        import law_ai.eval.legalbench as lb
+
+        path = tmp_path / "baseline.json"
+        monkeypatch.setattr(lb, "BASELINE_PATH", path)
+        return path
+
+    def _write(self, path: Path, **overrides: Any) -> None:
+        payload = {
+            "model": "mistral:7b-instruct-q4_K_M",
+            "accuracies": {"core_reasoning": 0.80},
+            "scorers": {"core_reasoning": "default_match"},
+        }
+        payload.update(overrides)
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+    def test_matching_model_and_scorers_still_flags_the_drop(
+        self, baseline: Path
+    ) -> None:
+        self._write(baseline)
+        problems = check_regression(dict(self.REPORT))
+        assert len(problems) == 1 and "core_reasoning" in problems[0]
+
+    def test_a_different_model_skips_the_comparison(self, baseline: Path) -> None:
+        self._write(baseline, model="llama3:8b")
+        reasons = baseline_comparability(dict(self.REPORT))
+        assert reasons and "llama3:8b" in reasons[0]
+        assert check_regression(dict(self.REPORT)) == []
+
+    def test_a_different_scorer_skips_the_comparison(self, baseline: Path) -> None:
+        self._write(baseline, scorers={"core_reasoning": "yes_no"})
+        reasons = baseline_comparability(dict(self.REPORT))
+        assert reasons and "yes_no" in reasons[0]
+        assert check_regression(dict(self.REPORT)) == []
+
+    def test_a_legacy_bare_baseline_claims_nothing_and_stays_comparable(
+        self, baseline: Path
+    ) -> None:
+        baseline.write_text(json.dumps({"core_reasoning": 0.80}), encoding="utf-8")
+        assert baseline_comparability(dict(self.REPORT)) == []
+        assert len(check_regression(dict(self.REPORT))) == 1
 
 
 # ---------------------------------------------------------------------------

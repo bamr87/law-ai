@@ -15,7 +15,7 @@ import { describe, expect, it } from 'vitest'
 const BASE = 'http://localhost:8000'
 
 describe('AutonomyDashboard', () => {
-  it('renders the three read-only panels', async () => {
+  it('renders the four read-only panels', async () => {
     render(<AutonomyDashboard />)
 
     expect(
@@ -29,6 +29,68 @@ describe('AutonomyDashboard', () => {
     expect(
       screen.getByRole('region', { name: /Recently quarantined documents/i }),
     ).toBeInTheDocument()
+    expect(
+      screen.getByRole('region', { name: /Recent autonomy cycles/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('lists recent cycles by kind, status and duration', async () => {
+    render(<AutonomyDashboard />)
+
+    const panel = await screen.findByRole('region', {
+      name: /Recent autonomy cycles/i,
+    })
+    expect(within(panel).getByText('digest')).toBeInTheDocument()
+    expect(within(panel).getByText('ok')).toBeInTheDocument()
+    expect(within(panel).getByText('12.0s')).toBeInTheDocument()
+    // The failing cycle is the one an operator came for, and it says so.
+    expect(within(panel).getByText(/corpus_growth/)).toBeInTheDocument()
+    expect(within(panel).getByText('(courtlistener)')).toBeInTheDocument()
+    expect(within(panel).getByText('error')).toBeInTheDocument()
+    expect(within(panel).getByText('450ms')).toBeInTheDocument()
+  })
+
+  it('distinguishes an unreadable run table from a loop that never ran', async () => {
+    server.use(
+      http.get(`${BASE}/api/agents/autonomy/runs`, () =>
+        HttpResponse.json({
+          available: false,
+          runs: [],
+          count: 0,
+          kind: '',
+          by_status: {},
+        }),
+      ),
+    )
+    render(<AutonomyDashboard />)
+
+    const panel = await screen.findByRole('region', {
+      name: /Recent autonomy cycles/i,
+    })
+    expect(within(panel).getByText(/is Postgres up/i)).toBeInTheDocument()
+    expect(
+      within(panel).queryByText(/No cycle has run yet/i),
+    ).not.toBeInTheDocument()
+  })
+
+  it('says no cycle has run when the table is simply empty', async () => {
+    server.use(
+      http.get(`${BASE}/api/agents/autonomy/runs`, () =>
+        HttpResponse.json({
+          available: true,
+          runs: [],
+          count: 0,
+          kind: '',
+          by_status: {},
+        }),
+      ),
+    )
+    render(<AutonomyDashboard />)
+
+    const panel = await screen.findByRole('region', {
+      name: /Recent autonomy cycles/i,
+    })
+    expect(within(panel).getByText(/No cycle has run yet/i)).toBeInTheDocument()
   })
 
   it('draws one labelled sparkline per LegalBench subset', async () => {

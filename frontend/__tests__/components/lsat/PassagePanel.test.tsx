@@ -269,3 +269,45 @@ describe('PassageReader', () => {
     expect(screen.getByText('M is not last')).toBeInTheDocument()
   })
 })
+
+// BL-20260906-74: the concept filter used to read passage_ids off a
+// `/questions?limit=25` sample, which is that endpoint's hard cap — and above
+// it the sample is random, so a well-covered concept lost sets, and lost
+// different ones on each fetch. The passages endpoint answers it whole.
+describe('PassagePanel concept filter', () => {
+  it('asks the passages endpoint for the sets carrying the concept', async () => {
+    const asked: string[] = []
+    const tagged = { ...passage, id: 'rc-passage-002', title: 'Tagged set' }
+    server.use(
+      http.get('http://localhost:8000/api/lsat/passages', ({ request }) => {
+        const url = new URL(request.url)
+        asked.push(url.search)
+        if (url.searchParams.get('concept')) {
+          return HttpResponse.json({ count: 1, passages: [tagged] })
+        }
+        return HttpResponse.json({ count: 2, passages: [passage, tagged] })
+      }),
+      http.get('http://localhost:8000/api/lsat/passages/rc-passage-002', () =>
+        HttpResponse.json({
+          count: 1,
+          passage: tagged,
+          questions: [{ ...question, id: 'rc-003', concepts: ['assumption'] }],
+        }),
+      ),
+    )
+
+    render(
+      <PassagePanel section="RC" concept="assumption" onAttempt={() => {}} />,
+    )
+
+    expect(await screen.findByText(/main point of the passage/)).toBeInTheDocument()
+    // The concept reached the server, and no /questions sample was consulted.
+    expect(asked.some((s) => s.includes('concept=assumption'))).toBe(true)
+    // Only the tagged set is on offer.
+    const select = screen.getByRole('combobox')
+    expect(select).toHaveValue('rc-passage-002')
+    expect(
+      screen.queryByRole('option', { name: /Federal pleading evolution/ }),
+    ).toBeNull()
+  })
+})

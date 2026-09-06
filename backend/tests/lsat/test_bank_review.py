@@ -81,6 +81,40 @@ class TestReviewProvenance:
             ), f"{q.id}: an adversarial judge is not editorial review"
 
 
+class TestHandAuthoredConvention:
+    """What ``review: null`` means (BL-20260905-51).
+
+    Hand-authored items were reviewed in the pull request that added them —
+    a gate the model has no ``method`` for, and inventing one would mean
+    writing a reviewer name nobody can check. So the null slot carries that
+    meaning, and the asymmetry below is what keeps it honest: a machine may
+    never sit in it.
+    """
+
+    def test_the_convention_is_documented_on_the_field(self) -> None:
+        description = Question.model_fields["review"].description or ""
+        assert "pull request" in description, (
+            "the meaning of review=None is a convention; it has to be stated "
+            "where a reader of the model looks for it (BL-20260905-51)"
+        )
+
+    def test_only_hand_authored_items_may_omit_a_review(self) -> None:
+        machine_without_record = [
+            q.id
+            for q in _bank_questions()
+            if q.review is None and q.source.startswith(_MACHINE_SOURCES)
+        ]
+        assert not machine_without_record, (
+            "the null review slot means 'a person wrote this and the PR "
+            f"reviewed it'; these are machine-authored: {machine_without_record[:10]}"
+        )
+
+    def test_the_convention_is_actually_in_use(self) -> None:
+        # If every item ends up with a record the convention is dead and the
+        # docstring above should go with it.
+        assert any(q.review is None for q in _bank_questions())
+
+
 class TestApprovalStampsEditorialReview:
     """The HITL queue is the editorial-review path for everything new."""
 

@@ -164,26 +164,7 @@ make lsat-export
 
 ## The neighbouring loop: solve guides
 
-Guides are not library articles — a guide walks one bank question, an article explains a pattern — but they are maintained the same way, through the same proposal queue, and the operator's runbook belongs beside the library's (BL-20260831-23).
-
-Coverage is the problem: 40 of 208 bank questions carry a guide, so most of the published site still shows "No step-by-step guide for this question yet." (LR is short 80, RC 55, LG 33). `lsat_guide_backfill` closes it in reviewed batches, and now has a target of its own:
-
-```bash
-# What would be drafted, and how many are left. No provider needed.
-make lsat-guide-backfill ARGS='--dry-run'
-
-# Draft a batch. Needs a provider: `make claude-login`, ANTHROPIC_API_KEY, or
-# LLM_PROVIDER_CHAIN=ollama for a local-only run.
-make lsat-guide-backfill SECTION=LR LIMIT=20
-
-# Then review every draft on the Authoring tab and approve or reject it,
-# and refresh the offline site once the batch is in.
-make lsat-export
-```
-
-Each draft lands as a **pending `guide` proposal** carrying the judge tier's verdict in its meta; approval is what writes it to `guides.json` (`promote_guide_to_bank`), and the guide serves immediately after. A question already carrying a guide, or already sitting in the queue, is never offered twice, so batches can be run back to back without duplicating work. Degraded offline-fallback drafts are skipped by default — they carry no walkthrough and would only cost a reviewer time.
-
-The run is deliberately **operator-triggered**: 168 drafts is real model spend and, more to the point, real review time, and guide quality is only lint-checked. `backend/tests/lsat/test_guide_backfill.py` exercises the whole loop — draft, approve, serve, and skip on the next run — against a stubbed provider, so the machinery is verified without spending anything.
+Guides are not library articles — a guide walks one bank question, an article explains a pattern — but they are maintained the same way, through the same proposal queue. Their runbook (backfill, judge tier, `guides.json` promotion) has its own page: [docs/lsat-solve-guides.md](lsat-solve-guides.md).
 
 ## The maintenance loop
 
@@ -205,7 +186,7 @@ A Celery beat entry (`autonomy-lsat-library`, Mondays 05:00 UTC) runs it gated b
 | 4 | `coverage.concepts_untaught` and `coverage.archetypes_uncovered`, hosted in that section's hub article, capped at `MAX_EXPANSIONS_PER_RUN` | `expand` |
 | 5 | everything else, in id order | `review` |
 
-Each article appears once, under the first signal that named it, and `--limit` (or the run's budget) caps how many targets come back. Expansions rank last and are capped tightly because a draft costs a reviewer far more than a report does: an `expand` result is merged into the article's current source (`merge_expansion`) and filed as a whole `library_article` draft, so what a reviewer approves is exactly the file that lands. A gap in a section with no article at all is dropped rather than targeted — starting a new article means writing frontmatter, which is a human's job.
+Each article appears once, under the first signal that named it, and `--limit` (or the run's budget) caps how many targets come back. Expansions rank last and are capped tightly because a draft costs a reviewer far more than a report does: an `expand` result is merged into the article's current source (`merge_expansion`) and filed as a whole `library_article` draft, so what a reviewer approves is exactly the file that lands. A gap in a section with no article at all has no host to expand into, because `expand` drafts a body and cannot write frontmatter. `make manage CMD='lsat_library scaffold --article rc-hub --title "…" --summary "…" --section RC'` writes that frontmatter and a stub body, after which the section has a host and the cycle can widen the library rather than only deepen it (BL-20260905-53). A scaffold a gap names is expanded rather than reviewed — it is thin and orphaned by construction, and reviewing an empty stub would claim it forever.
 
 ## Guardrails
 

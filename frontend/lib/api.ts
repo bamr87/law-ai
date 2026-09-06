@@ -65,6 +65,15 @@ export interface RetrievalStats {
   date_earliest?: string | null
   /** Latest decision date among retrieved passages, ISO (BL-20260803-02). */
   date_latest?: string | null
+  /**
+   * How many passages were ranked first because a matter had already had them
+   * verified (BL-20260817-05). A boost is a deliberate bias in the ordering,
+   * so the Studio shows it rather than leaving the reader to assume the order
+   * is the corpus's own (BL-20260906-15).
+   */
+  boosted_count?: number
+  /** Where that boost set came from, e.g. `matter:acme-v-roe`. */
+  boost_source?: string
   coverage_note?: string
 }
 
@@ -103,8 +112,13 @@ export interface IRACOutput {
   retrieval?: RetrievalStats | null
   reasoning_trace: string[]
   trace_id?: string | null
-  /** Phoenix span for this run, when telemetry is configured. */
+  /**
+   * DEPRECATED alias of `trace_url`, still emitted for clients that read it
+   * (BL-20260906-10). Always equal to `trace_url`; prefer that one.
+   */
   phoenix_trace_url?: string | null
+  /** Span tree for this run, when telemetry is configured. */
+  trace_url?: string | null
   /** LangGraph checkpoint thread, when the LangGraph engine produced it. */
   langgraph_thread_id?: string | null
   /** True when this run continued an existing thread (BL-20260810-13). */
@@ -178,7 +192,10 @@ export interface AnalysisResponse {
   irac: IRACOutput
   precedents: PrecedentList
   agent_trace: AnalysisAgentTrace[]
+  /** DEPRECATED alias of `trace_url` (BL-20260906-10); always equal to it. */
   phoenix_trace_url?: string | null
+  /** Span tree for this run, when telemetry is configured. */
+  trace_url?: string | null
   langgraph_thread_id?: string | null
   /** True when `thread_id` already had checkpointed state (BL-20260810-13). */
   resumed?: boolean
@@ -425,6 +442,98 @@ async function matterFetch<T>(
   return (await res.json()) as T
 }
 
+export interface AccountIdentity {
+  authenticated: boolean
+  username: string | null
+  id: number | string | null
+  is_staff: boolean
+  email?: string
+  scopes: string[]
+}
+
+const ANONYMOUS: AccountIdentity = {
+  authenticated: false,
+  username: null,
+  id: null,
+  is_staff: false,
+  scopes: [],
+}
+
+/**
+ * Who the caller is (`GET /api/auth/me`, BL-20260906-68).
+ *
+ * The account route is `AllowAny` — establishing identity cannot be gated on
+ * having one — so signed out is a 200 saying `authenticated: false`, not a
+ * 401. That is the whole point: it lets the shell ask "am I signed in?"
+ * without spending a denial on every anonymous page view. Anything that goes
+ * wrong (offline, a 502 from the proxy) reads as anonymous, because the only
+ * thing a caller does with this is decide whether to ask for account-scoped
+ * data, and guessing "yes" there is what produces the 401s.
+ */
+export async function fetchIdentity(): Promise<AccountIdentity> {
+  try {
+    const res = await apiFetch('/api/auth/me', { credentials: 'include' })
+    if (!res.ok) return ANONYMOUS
+    return { ...ANONYMOUS, ...((await res.json()) as Partial<AccountIdentity>) }
+  } catch {
+    return ANONYMOUS
+  }
+}
+
+/**
+ * Sign in, sign out (BL-20260906-08).
+ *
+ * `/api/auth/login` has existed since spec 036, but nothing in the app ever
+ * rendered a form for it, so the only way to hold a session was to log into
+ * `/admin/` — which meant the Share control, the matters screens, and
+ * per-user settings were reachable only by someone who knew that. These three
+ * are the whole browser half of the session flow.
+ *
+ * The CSRF dance is the reason `signIn` is not one `fetch`. Django's session
+ * auth is double-submit: `GET csrf` sets the `csrftoken` cookie and hands back
+ * the same token in the body, and the write must echo it in `X-CSRFToken`.
+ * Both hops go through the same-origin proxy, which forwards the cookie jar
+ * in each direction — see `app/api/backend/[...path]/route.ts`.
+ */
+export async function fetchCsrfToken(): Promise<string> {
+  const res = await apiFetch('/api/auth/csrf', { credentials: 'include' })
+  if (!res.ok) throw new Error('Could not reach the sign-in service.')
+  const body = (await res.json()) as { csrf_token?: string }
+  return body.csrf_token ?? ''
+}
+
+export async function signIn(
+  username: string,
+  password: string,
+): Promise<AccountIdentity> {
+  const csrf = await fetchCsrfToken()
+  const res = await apiFetch('/api/auth/login', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+    body: JSON.stringify({ username, password }),
+  })
+  if (!res.ok) {
+    // The backend distinguishes "missing field" (400) from "wrong" (401) and
+    // says so; anything else is ours to phrase, and never guesses which half
+    // of the credential was wrong.
+    const detail = (await res.json().catch(() => null)) as {
+      detail?: string
+    } | null
+    throw new Error(detail?.detail || 'Sign-in failed.')
+  }
+  return { ...ANONYMOUS, ...((await res.json()) as Partial<AccountIdentity>) }
+}
+
+export async function signOut(): Promise<void> {
+  const csrf = await fetchCsrfToken()
+  await apiFetch('/api/auth/logout', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'X-CSRFToken': csrf },
+  })
+}
+
 /** The caller's own matters. Signed out, this throws rather than inventing rows. */
 export function fetchMatters() {
   return matterFetch<{ matters: MatterRow[]; count: number }>('/api/matters')
@@ -528,6 +637,14 @@ export interface StoredSettingValue {
 export interface SettingValuesResponse {
   /** The caller's scope chain, root-first. */
   scopes: string[]
+  /**
+   * The subset of `scopes` this caller may write (BL-20260906-73).
+   *
+   * Optional because a backend older than that change omits it; the client
+   * then falls back to "assume writable", which is the pre-existing
+   * behaviour — an optimistic write the server refuses.
+   */
+  writableScopes?: string[]
   values: StoredSettingValue[]
 }
 
@@ -952,6 +1069,13 @@ export interface LsatTutorRequest {
   /** The learner's attempt trace, when the lab captured one. */
   trace?: LsatTutorTrace
   /**
+   * The signed shuffle token this serve used (BL-20260905-61). With it the
+   * tutor reasons about the board on screen — choices in display order, the
+   * key where it was shown — instead of the stored one, so it can never name
+   * a letter the learner is not looking at. Omit for an unshuffled serve.
+   */
+  remap?: string | null
+  /**
    * Client-chosen WebSocket correlation id (BL-20260811-15). Subscribe to
    * `/ws/agents/<stream_id>` before posting and the tutor publishes its
    * progress there instead of leaving the learner on a spinner.
@@ -1164,9 +1288,13 @@ export function fetchLsatConcept(id: string) {
   )
 }
 
-export function fetchLsatPassages(section?: LsatSection) {
+export function fetchLsatPassages(section?: LsatSection, concept?: string) {
   const qs = new URLSearchParams()
   if (section) qs.set('section', section)
+  // BL-20260906-74: the passage-shaped answer to "which sets carry this
+  // concept?". The questions endpoint caps at 25 and samples randomly above
+  // it, so it could not answer this completely.
+  if (concept) qs.set('concept', concept)
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
   return getJson<{ passages: LsatPassage[]; count: number }>(
     `/api/lsat/passages${suffix}`,
@@ -1651,8 +1779,49 @@ export interface LsatProposal {
      * `LsatGuideReview` (BL-20260830-15). Neither ever gates promotion.
      */
     review?: LsatDraftReview | LsatGuideReview | null
+    /**
+     * Set on a guide draft the factory authored beside a question that is
+     * still pending: the *proposal* id of that question (BL-20260901-04).
+     */
+    guide_for_proposal?: string | null
+    /** Factory lineage: which run, tier and executor produced the draft. */
+    factory?: {
+      manifest_id?: string | null
+      job_id?: string | null
+      tier?: string | null
+      executor?: string | null
+      /** Adversarial judge-tier verdict, advisory only (BL-20260702-02). */
+      judge?: LsatJudgeVerdict | null
+      /**
+       * A passage the job invented, parked until a reviewer promotes it
+       * (BL-20260702-07). Approving the drafts first returns 409.
+       */
+      pending_passage_path?: string | null
+      [k: string]: unknown
+    } | null
     [k: string]: unknown
   } | null
+}
+
+/**
+ * Judge-tier verdict on a drafted question (BL-20260702-02).
+ *
+ * Advisory: `fail` does not reject and `pass` does not promote. `degraded`
+ * means no provider answered — never read it as approval. `key_agrees` is
+ * computed backend-side by comparing the judge's own blind key with the
+ * draft's, so `false` is the single most important thing on the card.
+ */
+export interface LsatJudgeVerdict {
+  verdict: 'pass' | 'flag' | 'fail'
+  single_best_answer: boolean
+  solved_key: string | null
+  key_agrees: boolean | null
+  ambiguity: number
+  issues: string[]
+  confidence: number
+  rationale: string
+  model: string
+  degraded: boolean
 }
 
 /**
@@ -1778,6 +1947,44 @@ export async function rejectLsatProposal(
     throw new Error(`Reject failed (${res.status}): ${detail.slice(0, 200)}`)
   }
   return (await res.json()) as LsatProposal
+}
+
+/**
+ * Promote a parked factory passage (BL-20260702-07).
+ *
+ * A `passage_set` job invents its own reading context, which intake parks
+ * rather than writing to the live data. Until a reviewer promotes it, every
+ * draft from that job refuses promotion with a 409, so this is the button
+ * that has to come first.
+ */
+export interface LsatPassagePromotion {
+  passage_id: string
+  section: LsatSection
+  title: string
+  pending_passage_path: string
+  linked_proposals: string[]
+  promoted_at: string
+}
+
+export async function promoteLsatPassage(
+  pendingPassagePath: string,
+  note?: string,
+): Promise<LsatPassagePromotion> {
+  const res = await apiFetch('/api/lsat/proposals/passages/approve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      pending_passage_path: pendingPassagePath,
+      note: note ?? null,
+    }),
+  })
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(
+      `Passage promotion failed (${res.status}): ${detail.slice(0, 200)}`,
+    )
+  }
+  return (await res.json()) as LsatPassagePromotion
 }
 
 /**
@@ -2137,6 +2344,29 @@ export function fetchGraphCases(
   return getJson<GraphCasesResponse>(`/api/graph/cases?${qs.toString()}`)
 }
 
+/** One row of /api/graph/courts (BL-20260905-89). */
+export interface GraphCourt {
+  court: string
+  count: number
+}
+
+export interface GraphCourtsResponse {
+  available: boolean
+  courts: GraphCourt[]
+  count: number
+}
+
+/**
+ * Distinct `Case.court` values across the whole corpus (BL-20260905-89).
+ *
+ * The case picker filters `court` by substring, so its dropdown would
+ * otherwise only ever offer the courts of the 25 cases it has loaded.
+ */
+export function fetchGraphCourts(limit = 200) {
+  const qs = new URLSearchParams({ limit: String(limit) })
+  return getJson<GraphCourtsResponse>(`/api/graph/courts?${qs.toString()}`)
+}
+
 export function fetchGraphNeighborhood(caseId: string, limit = 50) {
   const qs = new URLSearchParams({ limit: String(limit) })
   return getJson<GraphNeighborhood>(
@@ -2233,6 +2463,36 @@ export function fetchAutonomyCoverage() {
 
 export function fetchAutonomyQuarantine() {
   return getJson<AutonomyQuarantine>('/api/agents/autonomy/recent-quarantine')
+}
+
+/** One `audit.AutonomyRun` row — a single autonomy cycle (BL-20260906-23). */
+export interface AutonomyRun {
+  cycle_id: string
+  kind: string
+  source: string
+  trace_id: string
+  /** `ok` | `error` | `disabled` | `replayed`, as the model names them. */
+  status: string
+  started_at: string | null
+  ended_at: string | null
+  duration_ms: number | null
+  error: string
+  summary: Record<string, unknown>
+}
+
+export interface AutonomyRuns {
+  /** False when the table could not be read (Postgres down) — not "no runs". */
+  available: boolean
+  runs: AutonomyRun[]
+  count: number
+  kind: string
+  by_status: Record<string, number>
+}
+
+export function fetchAutonomyRuns(limit = 20, kind = '') {
+  const query = new URLSearchParams({ limit: String(limit) })
+  if (kind) query.set('kind', kind)
+  return getJson<AutonomyRuns>(`/api/agents/autonomy/runs?${query.toString()}`)
 }
 
 // --- Quarantine review queue (BL-20260811-01) ---
@@ -2338,4 +2598,36 @@ export function rejectReview(
   body: { reviewer?: string; note?: string } = {},
 ): Promise<ReviewDecision> {
   return decideReview('reject', id, body)
+}
+
+/** Result of the third review verb (BL-20260906-04). Never commits. */
+export interface ReviewReextraction {
+  review: ReviewRow
+  reextracted: boolean
+  previous_confidence?: number | null
+  confidence?: number | null
+  clears_threshold: boolean
+  n_citations?: number
+  /** Set when the re-extraction itself failed, or the row was skipped. */
+  error?: string
+  skipped?: string
+}
+
+/**
+ * Ask whether today's extractor would still quarantine this row.
+ *
+ * Refreshes `confidence` and `reason` and writes nothing to the graph:
+ * approval remains the HITL gate (constitution §5).
+ */
+export async function reextractReview(
+  id: string,
+  body: { reviewer?: string } = {},
+): Promise<ReviewReextraction> {
+  const res = await apiFetch('/api/ingestion/reviews/re-extract', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, reviewer: body.reviewer ?? '' }),
+  })
+  if (!res.ok) throw new Error(`Review re-extract failed (${res.status})`)
+  return (await res.json()) as ReviewReextraction
 }

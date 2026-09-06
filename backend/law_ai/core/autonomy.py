@@ -506,6 +506,75 @@ def _digest_cycles(
     ]
 
 
+#: How a cycle's ``AutonomyRun.summary`` maps onto the digest's four content
+#: sections (BL-20260906-22). Before this, the summary the runner already
+#: reported was rendered nowhere, so per-cycle counts had to be reconstructed
+#: from an ``AuditEvent`` scan even for windows the table fully covers. Keys are
+#: read from the summary itself and from its nested ``result`` (that is where
+#: ``run_cycle`` stores the runner's return value).
+_SUMMARY_SECTION_KEYS: dict[str, tuple[str, ...]] = {
+    "prs": ("prs_opened", "pr_urls", "pr_url"),
+    "backlog": ("backlog_ids", "backlog_appended"),
+    "docs": ("quarantined", "docs_quarantined"),
+    "legalbench": ("legalbench_delta", "legalbench_deltas"),
+}
+
+
+def _as_entries(value: Any) -> list[str]:
+    """Render one summary value as digest bullet text."""
+    if value is None or value in ("", [], {}):
+        return []
+    if isinstance(value, dict):
+        return [
+            f"{key}: {val:+}" if isinstance(val, (int, float)) else f"{key}: {val}"
+            for key, val in value.items()
+        ]
+    if isinstance(value, (list, tuple, set)):
+        return [str(item) for item in value if item not in (None, "")]
+    return [str(value)]
+
+
+def _fold_cycle_summaries(
+    cycles: list[dict[str, Any]], sections: dict[str, list[str]]
+) -> None:
+    """Merge the runs table's own summaries into the digest sections.
+
+    Additive and de-duplicating: an entry an ``AuditEvent`` already
+    contributed is not repeated, and legacy windows with no table rows are
+    unaffected — which is why the event scan stays rather than being retired
+    outright (BL-20260906-22).
+    """
+    for cycle in cycles:
+        summary = cycle.get("summary") or {}
+        if not isinstance(summary, dict):
+            continue
+        nested = summary.get("result")
+        scopes = [summary] + ([nested] if isinstance(nested, dict) else [])
+        for section, keys in _SUMMARY_SECTION_KEYS.items():
+            for scope in scopes:
+                for key in keys:
+                    if key not in scope:
+                        continue
+                    for entry in _as_entries(scope[key]):
+                        if entry not in sections[section]:
+                            sections[section].append(entry)
+
+
+def _cycle_counts(summary: dict[str, Any]) -> str:
+    """A compact ``k=v`` tail of the numeric counts a runner reported."""
+    if not isinstance(summary, dict):
+        return ""
+    nested = summary.get("result")
+    scope: dict[str, Any] = dict(nested) if isinstance(nested, dict) else {}
+    scope.update({k: v for k, v in summary.items() if k != "result"})
+    counts = [
+        f"{key}={value}"
+        for key, value in sorted(scope.items())
+        if isinstance(value, (int, float)) and not isinstance(value, bool)
+    ]
+    return f" — {', '.join(counts)}" if counts else ""
+
+
 def compose_digest(
     *,
     date: datetime | None = None,
@@ -627,12 +696,26 @@ def compose_digest(
     if error_note:
         lines.append(error_note)
 
+    # BL-20260906-22: the runs table already carries each cycle's own result,
+    # so fold it into the four content sections instead of leaving the digest
+    # to be reconstructed from an event scan.
+    _fold_cycle_summaries(
+        cycles,
+        {
+            "prs": prs_opened,
+            "backlog": backlog_appended,
+            "docs": docs_quarantined,
+            "legalbench": legalbench_deltas,
+        },
+    )
+
     lines += [
         "## Autonomy Cycles",
         *(
             [
                 f"- `{c['kind']}` {c['status']} "
                 f"({c['duration_ms']:.0f} ms, cycle_id `{c['cycle_id']}`)"
+                f"{_cycle_counts(c.get('summary') or {})}"
                 for c in cycles
             ]
             or ["- *(none)*"]

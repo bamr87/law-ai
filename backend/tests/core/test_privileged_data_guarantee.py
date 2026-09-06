@@ -269,6 +269,76 @@ class TestPinnedChainNeverLeaves:
         assert result.provider == "claude_code"
 
 
+class TestPinnedChainAtTheServiceLayer:
+    """The same guarantee, one layer below the ASGI app (BL-20260905-73).
+
+    The two endpoint tests above drive the real ASGI application, so they
+    import ``law_ai.urls`` and every router beneath it — and they went red,
+    transiently, while an unrelated urlconf module was landing. A guarantee
+    this load-bearing should not be breakable by a module it does not depend
+    on, so these two cases call the tutor service and the analyst crew
+    directly. Same pin, same respx interception, no urlconf.
+
+    They are additive: the endpoint variants still run, because only they
+    prove the pin survives the view layer's own model calls.
+    """
+
+    @respx.mock
+    async def test_tutor_service_stays_local(self, local_only) -> None:
+        from law_ai.lsat.services.bank import load_bank
+        from law_ai.lsat.services.tutor import TutorRequest, tutor
+
+        anthropic, xai = _hosted_routes()
+        _tags, generate = _ollama_routes(
+            json.dumps(
+                {"coaching": "Look at the conclusion.", "next_steps": ["Re-read"]}
+            )
+        )
+        qid, question = next(iter(load_bank().items()))
+
+        body = await tutor(
+            TutorRequest(question_id=qid, user_choice=question.correct), question
+        )
+
+        assert body is not None
+        assert anthropic.called is False
+        assert xai.called is False
+        assert generate.called is True
+
+    @respx.mock
+    async def test_analyst_crew_stays_local(self, local_only) -> None:
+        from law_ai.agents_runtime.crews.legal_analyst import LegalAnalyst
+
+        anthropic, xai = _hosted_routes()
+        _tags, generate = _ollama_routes(_IRAC_JSON)
+        sink, provenance_patch = _sink()
+
+        # Grounding is stubbed, not mocked out: the analyst still runs its
+        # §13 path, but against fakes, so this test needs no Neo4j and says
+        # nothing about the graph — only about which vendor sockets opened.
+        async def _no_cases(names: list[str]) -> dict[str, str | None]:
+            return {name: None for name in names}
+
+        async def _no_passages(_state: dict[str, Any]) -> list[dict[str, Any]]:
+            return []
+
+        analyst = LegalAnalyst(cite_resolver=_no_cases, name_retriever=_no_passages)
+        with provenance_patch:
+            output = await analyst.run(
+                {
+                    "text": "Privileged: our client admits the late delivery.",
+                    "jurisdiction": "US",
+                    "use_langgraph": False,
+                }
+            )
+
+        assert output.issue
+        assert anthropic.called is False
+        assert xai.called is False
+        assert generate.called is True
+        assert {c["provider"] for c in sink.llm_calls} == {"ollama"}
+
+
 class TestNoTransportBypass:
     """The guarantee only holds if features route through ``core.llm``."""
 

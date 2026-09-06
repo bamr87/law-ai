@@ -44,6 +44,22 @@ CONFIDENCE_THRESHOLD = 0.7
 PENDING_REVIEW_DIR = Path("backend/var/pending_review")
 
 
+def _llm_summary_enabled() -> bool:
+    """Whether the optional audited LLM holding-summary pass is on.
+
+    ``INGEST_LLM_SUMMARY`` (BL-20260906-01) is off by default: the excerpt is
+    deterministic and free, and a per-document model call is neither. Read at
+    call time so an operator can flip it per run, and defaulting to *False* —
+    the cheap, offline reading — when settings are unavailable.
+    """
+    try:
+        from django.conf import settings
+
+        return bool(getattr(settings, "INGEST_LLM_SUMMARY", False))
+    except Exception:  # pragma: no cover - settings always configured in app
+        return False
+
+
 def _hitl_gates_enabled() -> bool:
     """Whether the ingestion HITL gate is armed (constitution §5).
 
@@ -174,6 +190,54 @@ class IngestionScout:
         )
         return result
 
+    async def aextract(self, payload: dict[str, Any]) -> ExtractionResult:
+        """:meth:`extract`, plus the optional audited LLM summary pass.
+
+        BL-20260906-01. ``ExtractionResult.holding_summary_kind`` reserved
+        ``"summary"`` for prose written by a model, but ``extract`` is sync
+        and had no way to make the call, so only the rule-based ``"excerpt"``
+        was ever produced. This is the async variant that can: gated behind
+        ``INGEST_LLM_SUMMARY``, routed through :mod:`law_ai.core.llm` so the
+        ``llm_call`` provenance event is written (constitution §4), and
+        fail-open — a provider outage leaves the excerpt in place rather than
+        failing the ingest.
+        """
+        result = self.extract(payload)
+        if not _llm_summary_enabled():
+            return result
+        text = payload.get("plain_text") or payload.get("html_with_citations") or ""
+        if not str(text).strip():
+            return result
+
+        summary = await self._llm_holding_summary(str(text), result.case_id)
+        if summary:
+            result.holding_summary = summary
+            result.holding_summary_kind = "summary"
+        return result
+
+    async def _llm_holding_summary(self, text: str, case_id: str) -> str | None:
+        """One audited model call for a holding summary, or ``None``.
+
+        Never raises: the summary is an enrichment, so a refusal, an outage or
+        an empty answer degrades to the excerpt the extractor already wrote.
+        """
+        from law_ai.core import llm
+
+        try:
+            result = await llm.agenerate(
+                HOLDING_SUMMARY_PROMPT.format(text=text[:LLM_SUMMARY_INPUT_CHARS]),
+                system=HOLDING_SUMMARY_SYSTEM,
+                max_tokens=300,
+                agent=self.name,
+            )
+        except Exception as exc:
+            logger.warning("holding-summary pass failed for %s: %s", case_id, exc)
+            return None
+        summary = " ".join((result.text or "").split()).strip()
+        if not summary:
+            return None
+        return summary[:HOLDING_EXCERPT_MAX_CHARS]
+
     # ------------------------------------------------------------------
     # Commit
     # ------------------------------------------------------------------
@@ -207,16 +271,23 @@ class IngestionScout:
         (constitution §12 invariant I1) — the approval path routes through
         here rather than writing to the graph itself.
         """
-        result = self.extract(payload)
+        result = await self.aextract(payload)
         gates_enabled = _hitl_gates_enabled()
+        below_threshold = not result.is_high_confidence(self._threshold)
         should_quarantine = force_quarantine or (
-            not force_commit
-            and gates_enabled
-            and not result.is_high_confidence(self._threshold)
+            not force_commit and gates_enabled and below_threshold
         )
-        if not gates_enabled and not force_quarantine and not force_commit:
-            # Constitution §5 requires HITL on ingestion; running with the
-            # gate off is an operator override that must leave a trace.
+        if (
+            not gates_enabled
+            and not force_quarantine
+            and not force_commit
+            and below_threshold
+        ):
+            # Constitution §5 requires HITL on ingestion; running with the gate
+            # off is an operator override that must leave a trace. Only a
+            # sub-threshold extraction is an override, though: a high-confidence
+            # one commits with the gate armed too, so logging it here would
+            # over-report overrides and mislabel them (BL-20260906-92).
             provenance.log_event(
                 "hitl_gate_disabled",
                 {
@@ -224,8 +295,10 @@ class IngestionScout:
                     "case_id": result.case_id,
                     "confidence": result.confidence,
                     "detail": (
-                        "ENABLE_HUMAN_APPROVAL_GATES=False — low-confidence "
-                        "extraction committed without human review"
+                        "ENABLE_HUMAN_APPROVAL_GATES=False — extraction scoring "
+                        f"{result.confidence:.3f} (below the "
+                        f"{self._threshold:.2f} threshold) committed without "
+                        "human review"
                     ),
                 },
             )
@@ -383,7 +456,9 @@ def _parse_date(raw: Any) -> datetime | None:
 #: never matches the trailing-reporter form "§ 13-80-102, C.R.S." at all. Both
 #: orders are picked up here so a statutory cite becomes a real ``:Citation``
 #: node that ``densify_statute_extraction`` can point at a ``:StatuteSection``.
-_CRS_SECTION_NUMBER = r"\d{1,2}-\d{1,3}-\d{1,4}(?:\.\d+)?"
+#: Decimal articles ("18-1.3-401") are ordinary in the CRS, so each dotted
+#: part carries its own optional decimal (BL-20260906-89).
+_CRS_SECTION_NUMBER = r"\d{1,2}(?:\.\d+)?-\d{1,3}(?:\.\d+)?-\d{1,4}(?:\.\d+)?"
 _CRS_REPORTER_PATTERN = (
     r"C\.\s?R\.\s?S\.(?:\s?A\.)?|Colo\.\s?Rev\.\s?Stat\.(?:\s?Ann\.)?"
 )
@@ -594,6 +669,27 @@ HOLDING_EXCERPT_MAX_CHARS = 600
 #: A paragraph shorter than this is almost always a caption, docket line or
 #: section heading rather than reasoning, so the excerpt skips past it.
 _MIN_PARAGRAPH_CHARS = 120
+
+#: How much opinion text the optional LLM summary pass reads (BL-20260906-01).
+#: Bounded so one long opinion cannot blow a context window or a budget; the
+#: holding is in the opening reasoning far more often than in the tail.
+LLM_SUMMARY_INPUT_CHARS = 12_000
+
+#: The summary pass says what the court *held*, in the court's own terms, and
+#: refuses rather than guessing — a fabricated holding is worse than none, and
+#: the caller falls back to the verbatim excerpt when this returns nothing
+#: (ADR 0004 P3: the graph never acquires an outcome the record does not state).
+HOLDING_SUMMARY_SYSTEM = (
+    "You summarise judicial opinions for a legal knowledge graph. Report only "
+    "what the opinion itself states. Never infer an outcome the text does not "
+    "state, never add citations, and answer with the summary alone. If the "
+    "text does not state a holding, answer with an empty string."
+)
+
+HOLDING_SUMMARY_PROMPT = (
+    "Summarise the holding of this opinion in at most three sentences.\n\n"
+    "OPINION:\n{text}"
+)
 
 _WHITESPACE_RE = re.compile(r"\s+")
 

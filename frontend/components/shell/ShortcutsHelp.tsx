@@ -60,7 +60,7 @@ export default function ShortcutsHelp({
             <section key={group.title} aria-labelledby={`shortcuts-${slug(group.title)}`}>
               <h3
                 id={`shortcuts-${slug(group.title)}`}
-                className="pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500"
+                className="pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"
               >
                 {group.title}
               </h3>
@@ -82,7 +82,7 @@ export default function ShortcutsHelp({
             </section>
           ))}
         </div>
-        <p className="mt-4 text-[11px] leading-relaxed text-slate-500">
+        <p className="mt-4 text-[11px] leading-relaxed text-slate-400">
           Shortcuts stay out of the way while you are typing — a bare key never
           fires from inside a text field.
         </p>

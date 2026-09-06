@@ -323,7 +323,7 @@ export default function QuestionCard({
             : `Incorrect. The correct answer was ${result.correct_choice}.`
           : ''}
       </p>
-      <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-500">
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-400">
         <span className="font-mono text-slate-400">{question.id}</span>
         <span className="text-slate-700">·</span>
         <span>{question.section}</span>
@@ -431,7 +431,7 @@ export default function QuestionCard({
                     'mt-1 shrink-0 rounded-md border px-2 py-1 text-xs transition focus-ring ' +
                     (isEliminated
                       ? 'border-amber-500/50 bg-amber-500/10 text-amber-200'
-                      : 'border-slate-800 text-slate-500 hover:border-slate-600 hover:text-slate-300')
+                      : 'border-slate-800 text-slate-400 hover:border-slate-600 hover:text-slate-300')
                   }
                 >
                   ✗
@@ -442,7 +442,7 @@ export default function QuestionCard({
         })}
       </ul>
       {!result && (
-        <p className="mt-2 text-[11px] text-slate-500">
+        <p className="mt-2 text-[11px] text-slate-400">
           Cross out a choice with{' '}
           <kbd className="rounded border border-slate-700 bg-slate-800/60 px-1 font-mono text-slate-300">
             X
@@ -452,7 +452,7 @@ export default function QuestionCard({
       )}
 
       {result && onNext && (
-        <p className="mt-2 text-[11px] text-slate-500">
+        <p className="mt-2 text-[11px] text-slate-400">
           Keyboard:{' '}
           <kbd className="rounded border border-slate-700 bg-slate-800/60 px-1 font-mono text-slate-300">
             N
@@ -475,7 +475,7 @@ export default function QuestionCard({
       )}
 
       {!result && (
-        <p className="mt-2 text-[11px] text-slate-500">
+        <p className="mt-2 text-[11px] text-slate-400">
           Keyboard:{' '}
           <kbd className="rounded border border-slate-700 bg-slate-800/60 px-1 font-mono text-slate-300">
             A
@@ -521,6 +521,7 @@ export default function QuestionCard({
           userChoice={selected}
           initialQuestion="Walk me through the setup step by step without revealing the answer."
           trace={attemptTrace}
+          remap={question.remap}
         />
       )}
 
@@ -592,6 +593,7 @@ export default function QuestionCard({
           questionId={question.id}
           userChoice={selected}
           trace={attemptTrace}
+          remap={question.remap}
         />
       )}
     </div>

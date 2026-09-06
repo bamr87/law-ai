@@ -44,6 +44,8 @@ Both e2e services sit behind the compose `e2e` profile, so `make dev`, `make tes
 | `shell-sticky.spec.ts` | One scroller, chrome that does not move, a header that condenses, a toolbar parked beneath it — measured at two viewports | BL-20260831-05 |
 | `a11y.spec.ts` | axe-core WCAG 2.1 AA over all seven catalog routes (`/matters` included), plus tab-order checks. **Runs on every PR touching `frontend/`** via the `a11y` job in `.github/workflows/ci.yml`, not only nightly | BL-20260831-09 |
 | `admin-hitl.spec.ts` | Admin login → quarantine changelist → approve + commit → the case appears via `/api/graph` | BL-20260503-17 |
+| `proxy-origin.spec.ts` | Every API call four fetching routes make is same-origin `/api/backend/...` (a hard-coded backend origin in a component is how the shared key reached the bundle), plus `/agents/reviews`: nav registration, render, and a served — not denied — trip through the proxy | BL-20260905-26, BL-20260906-05 |
+| `graph-keyboard.spec.ts` | Arrow keys cycle the citation canvas's nodes and Enter selects one, in a real browser with a real Cytoscape `<canvas>` (jsdom renders none, so the RTL suite can only assert `tabIndex` and the label); the graph comes from `page.route` fixtures, not from Neo4j | BL-20260906-54 |
 | `lsat-static/e2e/responsive.spec.ts` | The static site's header heights, 44px targets, overflow and sticky passage column at 390px and 1280px | BL-20260901-03 |
 
 ## The accessibility baseline

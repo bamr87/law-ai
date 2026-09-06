@@ -64,7 +64,7 @@ export function RunDetailModal({
         <header className="flex items-center justify-between border-b border-slate-800 px-5 py-3">
           <div>
             <h2 className="font-semibold text-slate-100">Provenance Trace</h2>
-            <p className="mt-0.5 font-mono text-[11px] text-slate-500">
+            <p className="mt-0.5 font-mono text-[11px] text-slate-400">
               {traceId}
             </p>
           </div>
@@ -72,7 +72,7 @@ export function RunDetailModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded p-1 text-slate-500 hover:text-slate-200"
+            className="rounded p-1 text-slate-400 hover:text-slate-200"
           >
             ✕
           </button>
@@ -129,7 +129,7 @@ export function RunDetailModal({
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400">
                           {ev.latency_ms != null && (
                             <span>{Math.round(Number(ev.latency_ms))} ms</span>
                           )}

@@ -65,6 +65,69 @@ describe('backend proxy route', () => {
     expect(sent.get('x-trace')).toBe('keep-me')
   })
 
+  /**
+   * BL-20260906-08: the session has to survive the hop, in both directions.
+   *
+   * With `cookie` stripped, no browser session could ever reach Django through
+   * this proxy — the Share control and the matters screens worked only for
+   * someone who had logged into `/admin/` and was talking to the backend's
+   * origin directly.
+   */
+  it('carries the session cookie upstream and Set-Cookie back', async () => {
+    const upstream = stubUpstream(
+      () =>
+        new Response(JSON.stringify({ authenticated: true }), {
+          status: 200,
+          headers: [
+            ['content-type', 'application/json'],
+            ['set-cookie', 'sessionid=abc; Path=/; HttpOnly'],
+            ['set-cookie', 'csrftoken=xyz; Path=/'],
+          ],
+        }),
+    )
+
+    const res = await proxyPost(
+      new Request('http://app.test/api/backend/api/auth/login', {
+        method: 'POST',
+        headers: {
+          cookie: 'csrftoken=xyz',
+          'X-CSRFToken': 'xyz',
+          'Content-Type': 'application/json',
+        },
+        body: '{}',
+      }),
+      params(['api', 'auth', 'login']),
+    )
+
+    const sent = new Headers(upstream.mock.calls[0][1].headers as HeadersInit)
+    expect(sent.get('cookie')).toBe('csrftoken=xyz')
+    expect(sent.get('x-csrftoken')).toBe('xyz')
+    // Both cookies come back as separate headers: folded into one, a browser
+    // keeps the first and drops the session.
+    expect(res.headers.getSetCookie()).toEqual([
+      'sessionid=abc; Path=/; HttpOnly',
+      'csrftoken=xyz; Path=/',
+    ])
+  })
+
+  it('does not forward the browser origin, which Django would reject', async () => {
+    // This hop is a server-side fetch, not a cross-origin browser request:
+    // `http://app.test` is never going to match the backend's own host, and
+    // DRF's session CSRF check verifies `Origin` when one is present.
+    const upstream = stubUpstream(() => Response.json({ ok: true }))
+    await proxyPost(
+      new Request('http://app.test/api/backend/api/auth/login', {
+        method: 'POST',
+        headers: { origin: 'http://app.test', referer: 'http://app.test/x' },
+        body: '{}',
+      }),
+      params(['api', 'auth', 'login']),
+    )
+    const sent = new Headers(upstream.mock.calls[0][1].headers as HeadersInit)
+    expect(sent.get('origin')).toBeNull()
+    expect(sent.get('referer')).toBeNull()
+  })
+
   it('sends no key at all when none is configured', async () => {
     const upstream = stubUpstream(() => Response.json({ ok: true }))
     await proxyGet(

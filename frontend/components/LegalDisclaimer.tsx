@@ -51,7 +51,7 @@ export default function LegalDisclaimerFooter() {
         authorities against the official record and consult a licensed attorney
         in your jurisdiction before relying on anything here.
       </p>
-      <p className="mt-2 text-slate-500">
+      <p className="mt-2 text-slate-400">
         Open source · local-first · every agent decision is logged for audit.
       </p>
     </footer>

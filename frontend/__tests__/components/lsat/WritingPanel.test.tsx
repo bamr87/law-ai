@@ -176,4 +176,20 @@ describe('WritingPanel', () => {
     fireEvent.keyDown(document.body, { key: 'o' })
     await waitFor(() => expect(document.activeElement).toBe(editor))
   })
+
+  it('keeps the second Escape out of the way of the shell', async () => {
+    // The static site's Escape has a second stage that returns to the prompt
+    // list; here the shell owns Escape on every route, so the editor claims
+    // only the first press and the way back is the button. The `?` sheet says
+    // exactly that (`drillShortcuts.ts`), so the behaviour is pinned rather
+    // than left to drift away from its own documentation (BL-20260905-41).
+    const editor = await openPrompt()
+    editor.focus()
+    fireEvent.keyDown(editor, { key: 'Escape' })
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(screen.getByLabelText('Your response')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /All prompts/ }),
+    ).toBeInTheDocument()
+  })
 })

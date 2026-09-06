@@ -1684,6 +1684,94 @@ class LibrarianRequest(BaseModel):
         return payload
 
 
+_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+def scaffold_article(
+    article_id: str,
+    *,
+    title: str,
+    summary: str,
+    kind: ArticleKind = "technique",
+    level: ArticleLevel = "core",
+    sections: list[str] | None = None,
+    concepts: list[str] | None = None,
+    archetypes: list[str] | None = None,
+) -> Path:
+    """Create a new article file with valid frontmatter and a stub body.
+
+    BL-20260905-53. ``expand`` drafts a body and cannot write the frontmatter
+    that gives an article its id, level and review status, so a section with
+    no article at all was unreachable by the autonomous cycle
+    (:func:`_host_article` dropped the gap). This is the missing half: it
+    writes the frontmatter, and the librarian's ``expand`` pass then has
+    somewhere to draft into.
+
+    The file is written, the whole library re-loaded, and the file removed
+    again if that load fails — the corpus never keeps an article that breaks
+    it. Raises ``ValueError`` for a malformed id or an id that already exists.
+    """
+    if not _ID_RE.match(article_id):
+        raise ValueError(
+            f"article id {article_id!r} must be lower-case words joined by "
+            "hyphens (it becomes the file name and the link target)"
+        )
+    path = _library_dir() / f"{article_id}.md"
+    if path.exists():
+        raise ValueError(f"article {article_id!r} already exists at {path}")
+
+    def _seq(values: list[str] | None) -> str:
+        return "[" + ", ".join(values or []) + "]"
+
+    body = (
+        "---\n"
+        f"id: {article_id}\n"
+        f"title: {title}\n"
+        f"kind: {kind}\n"
+        f"level: {level}\n"
+        f"sections: {_seq(sections)}\n"
+        f"summary: {summary}\n"
+        f"concepts: {_seq(concepts)}\n"
+        f"archetypes: {_seq(archetypes)}\n"
+        "prerequisites: []\n"
+        "related: []\n"
+        "tags: [scaffold]\n"
+        "status: draft\n"
+        f"last_reviewed: {date.today().isoformat()}\n"
+        "revision: 1\n"
+        "---\n"
+        "\n"
+        "## Overview\n"
+        "\n"
+        f"{summary}\n"
+        "\n"
+        "This article is a scaffold: its frontmatter is complete and the "
+        "library loads it, but the body is a stub. The next librarian "
+        "`expand` pass drafts the first real section into it, and a reviewer "
+        "approves that draft in the usual queue.\n"
+        "\n"
+        "## Worked example\n"
+        "\n"
+        "> [!example] Not yet written\n"
+        "> Replace this callout with a worked instance of what this article "
+        "teaches.\n"
+        "\n"
+        "## Key takeaways\n"
+        "\n"
+        "- This article is a scaffold and has not been written yet.\n"
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding="utf-8")
+    reset_library_caches()
+    try:
+        load_library()
+    except Exception:
+        path.unlink(missing_ok=True)
+        reset_library_caches()
+        raise
+    return path
+
+
 def article_source(article_id: str) -> str:
     """The article's on-disk Markdown — what an expansion is appended to."""
     path = _library_dir() / f"{article_id}.md"
@@ -1710,9 +1798,11 @@ def _host_article(section: str, articles: dict[str, Article]) -> str | None:
 
     The section's hub: among the articles serving it, the one already teaching
     the most concepts, ties broken by id. A section with no article at all
-    returns ``None`` and the gap is dropped — starting a *new* article is a
-    human's job, because ``expand`` drafts a body and only a human writes the
-    frontmatter that gives an article its id, level and review status.
+    returns ``None`` and the gap is dropped — ``expand`` drafts a body and
+    cannot write the frontmatter that gives an article its id, level and
+    review status. :func:`scaffold_article` (``manage.py lsat_library
+    scaffold``) writes that frontmatter, after which the section has a host
+    and the gap becomes reachable by the cycle again (BL-20260905-53).
     """
     candidates = [a for a in articles.values() if section in a.sections]
     if not candidates:
@@ -1845,9 +1935,24 @@ def pick_librarian_targets(
     ``limit`` is the number of targets returned, not the number considered.
     """
     articles = load_library()
-    ranked = _review_targets(report, articles)
-    gaps = _concept_gaps(report, articles) + _archetype_gaps(report, articles)
-    ranked += gaps[:MAX_EXPANSIONS_PER_RUN]
+    gaps = (_concept_gaps(report, articles) + _archetype_gaps(report, articles))[
+        :MAX_EXPANSIONS_PER_RUN
+    ]
+    # A scaffolded stub exists to be written into, and it is thin and orphaned
+    # by construction — so the review signals would claim it first and it
+    # would be reviewed forever instead of filled (BL-20260905-53). When a gap
+    # names one, the expansion wins.
+    scaffolds = {
+        request.article_id
+        for request in gaps
+        if "scaffold" in articles[request.article_id].tags
+    }
+    ranked = [
+        request
+        for request in _review_targets(report, articles)
+        if request.article_id not in scaffolds
+    ]
+    ranked += gaps
     ranked += [
         LibrarianRequest(article_id=article_id, reason="routine sweep")
         for article_id in sorted(articles)

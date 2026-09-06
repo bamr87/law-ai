@@ -506,6 +506,92 @@ class TestPolishYield:
         assert measured.model_label == "ollama/model"
         assert measured.accepted == 3
 
+    def test_an_unparseable_reply_is_re_asked_once(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """BL-20260906-84: a re-ask costs one call and the lint discards junk."""
+        from law_ai.core import llm
+        from law_ai.lsat.synth.lexicon import get_domain
+        from law_ai.lsat.synth.polish import propose_with_yield
+
+        replies: list[object] = [
+            "Sure! Here are some predicates:",
+            {"properties": [_clean_property(i) for i in range(2)]},
+        ]
+
+        async def _agenerate(prompt, *, system=None, agent=None):  # type: ignore[no-untyped-def]
+            return _StubResult(replies.pop(0))
+
+        monkeypatch.setattr(llm, "agenerate", _agenerate)
+        properties, measured = asyncio.run(
+            propose_with_yield(get_domain("municipal-policy"), count=2)
+        )
+
+        assert replies == []  # both calls were made
+        assert len(properties) == 2
+        assert measured.error == ""
+        assert measured.accepted == 2
+        # The prose attempt is still on the record, in both places.
+        assert measured.rejected["unparseable"] == 1
+        assert (measured.rounds, measured.rounds_failed) == (2, 1)
+        assert measured.round_rate == 0.5
+
+    def test_the_retry_is_bounded(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A model that never returns JSON must not be asked forever."""
+        from law_ai.core import llm
+        from law_ai.lsat.synth.lexicon import get_domain
+        from law_ai.lsat.synth.polish import POLISH_RETRIES, propose_with_yield
+
+        calls = {"n": 0}
+
+        async def _agenerate(prompt, *, system=None, agent=None):  # type: ignore[no-untyped-def]
+            calls["n"] += 1
+            return _StubResult("still prose")
+
+        monkeypatch.setattr(llm, "agenerate", _agenerate)
+        properties, measured = asyncio.run(
+            propose_with_yield(get_domain("municipal-policy"))
+        )
+
+        assert calls["n"] == POLISH_RETRIES + 1
+        assert properties == []
+        assert measured.error == "unparseable"
+        assert (measured.rounds, measured.rounds_failed) == (2, 2)
+        assert measured.round_rate == 0.0
+
+    def test_an_unavailable_round_is_not_retried(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The chain has already tried every tier; re-asking buys nothing."""
+        from law_ai.core import llm
+        from law_ai.lsat.synth.lexicon import get_domain
+        from law_ai.lsat.synth.polish import propose_with_yield
+
+        calls = {"n": 0}
+
+        async def _unavailable(prompt, *, system=None, agent=None):  # type: ignore[no-untyped-def]
+            calls["n"] += 1
+            raise llm.LLMUnavailableError("no provider")
+
+        monkeypatch.setattr(llm, "agenerate", _unavailable)
+        _properties, measured = asyncio.run(
+            propose_with_yield(get_domain("municipal-policy"))
+        )
+
+        assert calls["n"] == 1
+        assert (measured.rounds, measured.rounds_failed) == (1, 1)
+
+    def test_the_round_rate_survives_aggregation(self) -> None:
+        """A 1.00 yield on top of a 50% round-failure rate must still say so."""
+        from law_ai.lsat.synth.polish import PolishYield
+
+        overall = PolishYield()
+        overall.merge(PolishYield(proposed=4, accepted=4, rounds=1))
+        overall.merge(PolishYield(error="unavailable", rounds=1, rounds_failed=1))
+
+        assert overall.rate == 1.0
+        assert overall.round_rate == 0.5
+
     def test_the_yield_rides_on_the_polished_item_provenance(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -562,8 +648,14 @@ class TestPolishYieldCommand:
             "proposed": 8,
             "accepted": 8,
             "rate": 1.0,
+            # BL-20260906-84: the transport's own success rate, next to the
+            # lint's — every round here reached the lint.
+            "rounds": 2,
+            "rounds_failed": 0,
+            "round_rate": 1.0,
             "rejected": {},
         }
+        assert "rounds that produced proposals: 2/2 = 1.00" in text
         assert report["by_provider"]["claude/model"]["accepted"] == 8
         assert report["rounds_per_domain"] == 2
         row = report["by_domain"][0]

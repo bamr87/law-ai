@@ -37,7 +37,7 @@ export default function StudyFromMatter({ slug }: { slug: string }) {
   }, [slug])
 
   if (error) return null
-  if (!plan) return <p className="text-sm text-slate-500">Building a study plan…</p>
+  if (!plan) return <p className="text-sm text-slate-400">Building a study plan…</p>
 
   if (plan.concepts.length === 0) {
     return (
@@ -56,7 +56,7 @@ export default function StudyFromMatter({ slug }: { slug: string }) {
       <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
         Study from this matter
       </h3>
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-1 text-xs text-slate-400">
         Reasoning concepts this matter&rsquo;s issues rely on, weakest first.
       </p>
       <ul className="mt-3 space-y-3">
@@ -69,13 +69,13 @@ export default function StudyFromMatter({ slug }: { slug: string }) {
               >
                 {concept.name}
               </Link>
-              <span className="text-[11px] uppercase tracking-wider text-slate-500">
+              <span className="text-[11px] uppercase tracking-wider text-slate-400">
                 {concept.status === 'unpractised'
                   ? 'not practised'
                   : `${Math.round((concept.accuracy ?? 0) * 100)}% over ${concept.attempts}`}
               </span>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-slate-400">
               {concept.why || concept.summary}
             </p>
             <p className="mt-1 text-[11px] text-slate-600">

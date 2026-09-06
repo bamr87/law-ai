@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 import AccountData from '@/components/matters/AccountData'
 import MatterList from '@/components/matters/MatterList'
+import MatterResearch from '@/components/matters/MatterResearch'
+import MatterWorkspace from '@/components/matters/MatterWorkspace'
 import StudyFromMatter from '@/components/lsat/StudyFromMatter'
 import TaskCalendar from '@/components/matters/TaskCalendar'
 import { server } from '@/mocks/server'
@@ -216,5 +218,122 @@ describe('AccountData', () => {
     expect(
       await screen.findByText(/confirm_username must match/),
     ).toBeInTheDocument()
+  })
+})
+
+// --- BL-20260906-95: research scoped to the matter on screen ---
+
+const IRAC_REPLY = {
+  id: 'analysis-matter-1',
+  timestamp: '2026-09-06T00:00:00Z',
+  latency_ms: 900,
+  confidence: 0.81,
+  requires_human_review: false,
+  irac: {
+    issue: 'Whether notice was properly served.',
+    rule: 'Notice must be in writing.',
+    application: 'The landlord posted it.',
+    conclusion: 'Service was defective.',
+    confidence: 0.81,
+    sources: [],
+    retrieval: {
+      queries: ['notice'],
+      result_count: 5,
+      boosted_count: 2,
+      boost_source: 'matter:smith-lease',
+    },
+  },
+  precedents: { precedents: [], summary: '', confidence: 0.8 },
+  agent_trace: [],
+}
+
+describe('MatterResearch', () => {
+  it('scopes the run to the matter and names the ranking boost', async () => {
+    let body: Record<string, unknown> | null = null
+    server.use(
+      http.post('*/api/analysis', async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json(IRAC_REPLY)
+      }),
+    )
+    render(<MatterResearch matterId={7} jurisdiction="co" />)
+    fireEvent.change(screen.getByLabelText(/Question or fact pattern/), {
+      target: { value: 'Was the notice good?' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Research' }))
+    expect(await screen.findByText(/Service was defective/)).toBeInTheDocument()
+    expect(body).toMatchObject({
+      text: 'Was the notice good?',
+      matter_id: 7,
+      jurisdiction: 'co',
+    })
+    expect(screen.getByTestId('matter-research-boost')).toHaveTextContent(
+      /2 passage\(s\) promoted because matter:smith-lease/,
+    )
+  })
+
+  it('says nothing about ranking when no authority was promoted', async () => {
+    server.use(
+      http.post('*/api/analysis', () =>
+        HttpResponse.json({
+          ...IRAC_REPLY,
+          irac: {
+            ...IRAC_REPLY.irac,
+            retrieval: { queries: ['notice'], result_count: 5 },
+          },
+        }),
+      ),
+    )
+    render(<MatterResearch matterId={7} />)
+    fireEvent.change(screen.getByLabelText(/Question or fact pattern/), {
+      target: { value: 'Was the notice good?' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Research' }))
+    await screen.findByText(/Service was defective/)
+    expect(screen.queryByTestId('matter-research-boost')).toBeNull()
+  })
+
+  it('reports a refused round without saying whether the matter exists', async () => {
+    server.use(
+      http.post('*/api/analysis', () =>
+        HttpResponse.json({ detail: 'not found' }, { status: 404 }),
+      ),
+    )
+    render(<MatterResearch matterId={7} />)
+    fireEvent.change(screen.getByLabelText(/Question or fact pattern/), {
+      target: { value: 'Was the notice good?' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Research' }))
+    expect(await screen.findByText(/could not be run/)).toBeInTheDocument()
+    expect(screen.queryByText(/not found/)).toBeNull()
+  })
+
+  it('refuses to run on an empty question', () => {
+    render(<MatterResearch matterId={7} />)
+    expect(screen.getByRole('button', { name: 'Research' })).toBeDisabled()
+  })
+})
+
+describe('MatterWorkspace', () => {
+  it('offers the matter-scoped research entry point', async () => {
+    server.use(
+      http.get('*/api/matters/smith-lease', () => HttpResponse.json(MATTER)),
+      http.get('*/api/matters/smith-lease/tasks', () =>
+        HttpResponse.json({ count: 0, tasks: [] }),
+      ),
+      http.get('*/api/matters/smith-lease/study-plan', () =>
+        HttpResponse.json({
+          matter: { slug: 'smith-lease', name: 'Smith', issue_tags: [] },
+          covered_tags: [],
+          unmapped_tags: [],
+          concepts: [],
+        }),
+      ),
+    )
+    render(<MatterWorkspace slug="smith-lease" />)
+    expect(
+      await screen.findByRole('heading', { name: /Research in this matter/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Research' })).toBeInTheDocument()
   })
 })

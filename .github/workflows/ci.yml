@@ -74,7 +74,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Validate specs
-        run: python scripts/spec_validator.py
+        # --strict (BL-20260906-48): the constitution §13 review-question
+        # warnings fail the gate here rather than printing into a log nobody
+        # reads. Shipped specs are exempt inside the validator, so this only
+        # ever fires on a spec whose author can still answer the question.
+        run: python scripts/spec_validator.py --strict
       - name: Validate BACKLOG.md
         run: python scripts/backlog_lint.py
         env:
@@ -312,6 +316,10 @@ jobs:
           cache: npm
           cache-dependency-path: lsat-static/package-lock.json
       - run: npm ci
+      # BL-20260905-15: this package had no eslint config, so `npm run lint`
+      # was an unconfigured `next lint` and the job gated on types + vitest
+      # alone. It now runs the same flat config the platform app does.
+      - run: npm run lint
       - run: npx tsc --noEmit
       - run: npm test -- --run
 

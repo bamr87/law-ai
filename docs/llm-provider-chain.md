@@ -29,7 +29,7 @@ Constitution §1 makes this **required**, not optional, for any matter under a c
 
 ## The Claude transport (`law_ai.core.claude_code`)
 
-Everything from here to [Configuration reference](#configuration-reference) documents tiers 1–2.
+Tiers 1 and 2 are one transport with two auth modes. Setting it up, validating it, and running a live agent through it are the three subsections below; the xAI tier and the shared configuration reference follow them.
 
 ### Two auth modes, one transport
 
@@ -46,7 +46,7 @@ anthropic-beta: oauth-2025-04-20
 anthropic-version: 2023-06-01
 ```
 
-## Setup (OAuth, for local dev)
+### Setup (OAuth, for local dev)
 
 1. Mint a long-lived token from your Claude Code subscription:
 
@@ -65,7 +65,7 @@ anthropic-version: 2023-06-01
 
    The former `LSAT_LLM_PROVIDER` single-provider pin was removed (BL-20260811-22); an `LSAT_LLM_PROVIDER` line left in a local `.env` is silently ignored. `LLM_PROVIDER_CHAIN` is the only selector; use the local-only pin above if you want to force Ollama instead of Claude.
 
-## Validate the connection
+### Validate the connection
 
 ```bash
 make validate-claude-code
@@ -81,7 +81,7 @@ make local-ai-health   # GET /api/agents/health/local-ai
 
 The response includes a `claude_code` object (the OAuth-tier probe) and an `llm_chain` array — every provider in `LLM_PROVIDER_CHAIN`, in try order, with reachability — answering "which provider will actually serve the next request, and why" in one payload.
 
-## Run a live agent
+### Run a live agent
 
 ```bash
 make lsat-author-demo

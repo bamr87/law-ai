@@ -38,7 +38,7 @@ export default function SharedAnalysisPanel({ slug }: { slug: string }) {
 
   if (state.kind === 'loading') {
     return (
-      <p className="text-sm text-slate-500" role="status">
+      <p className="text-sm text-slate-400" role="status">
         Loading shared analysis…
       </p>
     )
@@ -69,7 +69,7 @@ export default function SharedAnalysisPanel({ slug }: { slug: string }) {
       )}
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-        <h2 className="text-xs uppercase tracking-wider text-slate-500">
+        <h2 className="text-xs uppercase tracking-wider text-slate-400">
           Fact pattern
         </h2>
         <p className="mt-2 whitespace-pre-wrap text-sm text-slate-300">
@@ -89,7 +89,7 @@ export default function SharedAnalysisPanel({ slug }: { slug: string }) {
             ] as const
           ).map(([label, value]) => (
             <div key={label}>
-              <dt className="text-xs uppercase tracking-wider text-slate-500">
+              <dt className="text-xs uppercase tracking-wider text-slate-400">
                 {label}
               </dt>
               <dd className="mt-1 whitespace-pre-wrap text-slate-300">{value}</dd>
@@ -112,7 +112,7 @@ export default function SharedAnalysisPanel({ slug }: { slug: string }) {
                 >
                   {p.title}
                 </a>{' '}
-                <span className="text-slate-500">
+                <span className="text-slate-400">
                   {p.court}
                   {p.year ? ` (${p.year})` : ''}
                 </span>
@@ -122,7 +122,7 @@ export default function SharedAnalysisPanel({ slug }: { slug: string }) {
         </section>
       )}
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-400">
         Shared run <code className="text-slate-400">{run.id}</code>
         {run.created_at ? ` · analysed ${run.created_at}` : ''}
       </p>

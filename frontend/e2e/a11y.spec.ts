@@ -31,6 +31,19 @@ async function settleNetwork(page: Page): Promise<void> {
   await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => {})
 }
 
+/**
+ * The same route with its heartbeat off (BL-20260905-23).
+ *
+ * The keyboard specs below press Tab up to fifteen times, and on `/agents`
+ * each press raced the dashboard's 5s poll — a minute per case. `?poll=off`
+ * starts that screen paused (see `pollDisabledByUrl` in AgentDashboard), which
+ * changes nothing about focus order. The axe sweep deliberately does NOT use
+ * it: the recorded baseline describes the page as it actually ships.
+ */
+function frozen(route: string): string {
+  return route === '/agents' ? '/agents?poll=off' : route
+}
+
 const AXE_PATH = path.join(
   process.cwd(),
   'node_modules',
@@ -151,7 +164,7 @@ function describeViolations(violations: Violation[]): string {
 /**
  * Pre-existing debt, recorded once and ratcheted down (never up).
  *
- * The catalog routes carry real violations today — a palette that puts
+ * The catalog routes used to carry a page of violations — a palette that put
  * `text-slate-500` on `bg-slate-950`, and one scroll container without a
  * keyboard entry point. Failing every route on day one would mean the gate is
  * switched off within a week, so instead the baseline records, per route and
@@ -172,7 +185,13 @@ function describeViolations(violations: Violation[]): string {
  *
  * The residual hole, stated plainly: re-using an already-baselined colour pair
  * on new text does not fail. Closing that needs the debt itself paid off and
- * the baseline emptied, not a stricter gate on top of it.
+ * the baseline emptied, not a stricter gate on top of it. Fifty-one of the
+ * fifty-three recorded signatures are now gone (BL-20260905-18): every muted
+ * label moved from `text-slate-500` to `text-slate-400`, and the indigo page
+ * eyebrow from `indigo-400/80` to `indigo-300/80`. What is left is one
+ * data-dependent red badge on `/agents` and the `/matters` scroller
+ * (BL-20260906-66) — so a colour pair nobody has accepted still fails on all
+ * seven routes, and the amnesty now covers one pair, not seven.
  *
  * Re-record with:
  *
@@ -256,7 +275,7 @@ for (const route of ROUTES) {
   })
 
   test(`${route} starts its tab order on the skip link`, async ({ page }) => {
-    await page.goto(route)
+    await page.goto(frozen(route))
     await expect(page.getByRole('main')).toBeVisible()
 
     await page.keyboard.press('Tab')
@@ -279,7 +298,7 @@ for (const route of ROUTES) {
   test(`${route} never focuses a hidden element while tabbing the chrome`, async ({
     page,
   }) => {
-    await page.goto(route)
+    await page.goto(frozen(route))
     await expect(page.getByRole('main')).toBeVisible()
 
     const offenders: string[] = []

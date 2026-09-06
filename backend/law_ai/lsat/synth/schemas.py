@@ -47,6 +47,8 @@ from law_ai.lsat.synth.logic import (
     AssignSpace,
     Before,
     DiffGroup,
+    GroupAtLeast,
+    GroupAtMost,
     GroupSize,
     Immediately,
     Implies,
@@ -71,7 +73,7 @@ from law_ai.lsat.synth.logic import (
     entails,
     evaluate,
 )
-from law_ai.lsat.synth.realize import Binding
+from law_ai.lsat.synth.realize import Binding, render_arrangement
 
 Family = Literal[
     "must_be_true",
@@ -79,6 +81,7 @@ Family = Literal[
     "sufficient_assumption",
     "necessary_assumption",
     "acceptability",
+    "rule_substitution",
     "structural",
 ]
 ProofKind = Literal["logical", "structural"]
@@ -137,6 +140,11 @@ class Blueprint:
     #: this field only tells the renderer to put it in the question sentence
     #: instead of the board, which is where the exam puts it.
     local_condition: Statement | None = None
+    #: The premise this item offers to *replace* (a rule-substitution item).
+    #: It is a rule like any other for the proof; this field tells the verifier
+    #: which rule the choices are candidates for, since "the same effect" is a
+    #: claim about the board the other rules leave.
+    substituted: Statement | None = None
     #: The premise *arrangement* the schema drew for this item — chain length,
     #: trigger position, rule count, which rule menu entries — so provenance
     #: records the shape and not only the seed that produced it. Empty for a
@@ -368,6 +376,11 @@ _CHAIN_LENGTHS = (2, 3, 4)
 #: How many extra conditionals hang off the chain. At least one, or a short
 #: chain with an early trigger pins every atom it mentions.
 _SIDE_COUNTS = (1, 2)
+#: The ``intro`` draw (BL-20260905-50): one conditional, one trigger, nothing
+#: hanging off it. The atoms the chain does not mention are still free, so the
+#: distractor pool stays populated without a side conditional to loosen it.
+_ONE_STEP_LENGTHS = (2,)
+_ONE_STEP_SIDES = (0,)
 
 
 def _draw_until(
@@ -407,19 +420,27 @@ class ConditionalChain:
     something to infer, and one or two further conditionals hang off it. Every
     draw goes through the same proof, so the variety costs nothing in validity —
     a draw the checker cannot certify is simply re-drawn.
+
+    ``chain_lengths`` and ``side_counts`` narrow that draw. The ``intro``
+    variant pins them to one conditional and no side arrows (BL-20260905-50):
+    the pattern in its cleanest form, one inference, nothing to hold in mind —
+    which is what the band means, and what a low-band item cannot get by
+    happening to draw short.
     """
 
     forward: bool
     meta: SchemaMeta
+    chain_lengths: tuple[int, ...] = _CHAIN_LENGTHS
+    side_counts: tuple[int, ...] = _SIDE_COUNTS
 
     def _attempt(self, rng: random.Random) -> Blueprint:
         space = PropSpace(atoms=_PROP_SLOTS)
-        length = rng.choice(_CHAIN_LENGTHS)
+        length = rng.choice(self.chain_lengths)
         slots = list(_PROP_SLOTS)
         rng.shuffle(slots)
         chain_atoms = slots[:length]
         spare = slots[length:]
-        sides = min(rng.choice(_SIDE_COUNTS), len(spare))
+        sides = min(rng.choice(self.side_counts), len(spare))
         side_atoms = spare[:sides]
         chain: list[Statement] = [
             Implies(Atom(a), Atom(b)) for a, b in itertools.pairwise(chain_atoms)
@@ -486,11 +507,19 @@ class ConditionalChain:
         )
 
     def explain(self, blueprint: Blueprint, binding: Binding, credited: str) -> str:
-        direction = (
-            "Chaining the conditionals forward from the stated fact"
-            if self.forward
-            else "The stated fact denies the far end of the chain, so the contrapositive runs backward"
-        )
+        one_step = blueprint.arrangement.get("rule_count") == 2
+        if one_step:
+            direction = (
+                "The stated fact affirms the antecedent of the one conditional"
+                if self.forward
+                else "The stated fact denies the consequent of the one conditional, so the contrapositive applies"
+            )
+        else:
+            direction = (
+                "Chaining the conditionals forward from the stated fact"
+                if self.forward
+                else "The stated fact denies the far end of the chain, so the contrapositive runs backward"
+            )
         return (
             f"{direction} yields exactly one choice that holds in every case "
             f"consistent with the premises: {credited} Each other choice is "
@@ -1040,6 +1069,7 @@ def _order_rules(
     *,
     min_valid: int = MIN_ORDERINGS,
     max_valid: int = MAX_ORDERINGS,
+    rule_counts: tuple[int, ...] = _RULE_COUNTS,
 ) -> tuple[tuple[str, ...], tuple[Statement, ...], list[OrderModel]]:
     """A rule set that constrains without over-determining.
 
@@ -1048,11 +1078,15 @@ def _order_rules(
     makes every true statement entailed, and too many makes the must-be-true
     variant have no answer. Returns the menu ids drawn, the rules, and the
     arrangements they permit.
+
+    ``rule_counts`` narrows how many rules a draw may take — the ``intro``
+    game asks for exactly one (BL-20260905-50), and the band that leaves too
+    many arrangements standing rejects the loose single rules on its own.
     """
     space = OrderSpace(entities=_GAME_ENTITIES)
     menu = _order_menu(_GAME_ENTITIES)
     for _ in range(MAX_ARRANGEMENT_DRAWS):
-        count = rng.choice(_RULE_COUNTS)
+        count = rng.choice(rule_counts)
         ids, rules = _draw_rules(rng, menu, count)
         valid = [m for m in space.models() if all(r.holds(m) for r in rules)]
         if min_valid <= len(valid) <= max_valid:
@@ -1061,6 +1095,16 @@ def _order_rules(
         f"sequencing rules never landed in the {min_valid}-{max_valid} "
         f"arrangement band in {MAX_ARRANGEMENT_DRAWS} draws"
     )
+
+
+def _mask_over(models: Sequence[object], statement: Statement) -> int:
+    """Which of ``models`` the statement keeps, as a bitmask.
+
+    Set relations over these masks are what a substitution item is decided by:
+    equality is "the same effect", a strict superset permits something new and
+    a strict subset forbids something old.
+    """
+    return sum(1 << i for i, model in enumerate(models) if statement.holds(model))
 
 
 @dataclass(frozen=True)
@@ -1072,10 +1116,15 @@ class SequencingGame:
     until it leaves a usable number of arrangements. Every draw is proved the
     same way, so a loose three-rule game and a tight four-rule one carry the
     same guarantee.
+
+    ``rule_counts`` narrows the draw; ``(1,)`` is the ``intro`` game
+    (BL-20260905-50), where a single rule decides every choice and the learner
+    meets the elimination grid with nothing else to hold in mind.
     """
 
     acceptability: bool
     meta: SchemaMeta
+    rule_counts: tuple[int, ...] = _RULE_COUNTS
 
     def build(self, rng: random.Random, domain: DomainPack) -> Blueprint:
         return _draw_until(rng, self._attempt, what=self.meta.id)
@@ -1085,7 +1134,9 @@ class SequencingGame:
         # The must-be-true variant needs enough arrangements for four distinct
         # truth patterns; an acceptability item only needs one valid ordering.
         rule_ids, premises, valid = _order_rules(
-            rng, min_valid=MIN_ORDERINGS if self.acceptability else CHOICE_COUNT
+            rng,
+            min_valid=MIN_ORDERINGS if self.acceptability else CHOICE_COUNT,
+            rule_counts=self.rule_counts,
         )
         arrangement: dict[str, int | str] = {
             "rule_count": len(premises),
@@ -1163,6 +1214,13 @@ class SequencingGame:
 
     def explain(self, blueprint: Blueprint, binding: Binding, credited: str) -> str:
         if self.acceptability:
+            if len(blueprint.premises) == 1:
+                return (
+                    "Four of the orderings break the one stated rule; the "
+                    "credited answer keeps it. With a single rule the whole "
+                    "item is one pass down the choices, checking that rule and "
+                    "nothing else — the habit the longer games are built on."
+                )
             return (
                 "Four of the orderings break at least one stated rule; the "
                 "credited answer breaks none. Work rule by rule across the "
@@ -1459,6 +1517,203 @@ class SequencingLocalConditional:
         )
 
 
+def _wrong_substitutes(
+    weaker: list[tuple[int, Statement]],
+    stronger: list[tuple[int, Statement]],
+    rng: random.Random,
+) -> list[Statement] | None:
+    """Four wrong substitutes, drawn from both failure directions when it can.
+
+    Two of each is the target: a set of distractors that are all too weak lets
+    a solver eliminate on one question ("does it permit more?") and never meet
+    the other half of equivalence. Masks are distinct, so no two choices move
+    the board in the same way.
+    """
+    rng.shuffle(weaker)
+    rng.shuffle(stronger)
+    chosen: list[Statement] = []
+    used: set[int] = set()
+    for bucket, quota in ((weaker, 2), (stronger, 4), (weaker, 4)):
+        for mask, candidate in bucket:
+            if len(chosen) >= quota:
+                break
+            if mask in used:
+                continue
+            used.add(mask)
+            chosen.append(candidate)
+    if len(chosen) < CHOICE_COUNT - 1:
+        return None
+    return chosen[: CHOICE_COUNT - 1]
+
+
+#: Rule counts a substitution item draws. Two or three: the substitute has to
+#: be read against the rules that stay, and five rules leave nothing for it to
+#: interact with once one is lifted out.
+_SUBSTITUTION_RULE_COUNTS = (2, 3)
+
+
+@dataclass(frozen=True)
+class RuleSubstitution:
+    """Replace the last rule with one that changes nothing (BL-20260905-62).
+
+    The exam's hardest games question: *which one of the following, if
+    substituted for the third rule, would have the same effect?* The credited
+    answer must permit nothing new and forbid nothing old, and each distractor
+    fails in exactly one of those directions — the too-strong / too-weak split
+    that is the whole lesson.
+
+    Both halves are decided here rather than asserted. Every candidate is
+    reduced to a bitmask over the arrangements the *remaining* rules allow, so
+    "same effect" is mask equality, "too weak" is a strict superset and "too
+    strong" a strict subset. That is the equivalence the archetype asks for,
+    in both directions, by construction — and it is the reason this family
+    needs its own rule in :mod:`law_ai.lsat.synth.verify`: the criterion is a
+    statement about the *set of models*, which no per-choice entailment status
+    can express. Every choice here is true in every premise model, so the
+    ordinary must-be-true machinery would call all five correct.
+    """
+
+    meta: SchemaMeta
+
+    def build(self, rng: random.Random, domain: DomainPack) -> Blueprint:
+        return _draw_until(rng, self._attempt, what=self.meta.id)
+
+    def _attempt(self, rng: random.Random) -> Blueprint:
+        space = OrderSpace(entities=_GAME_ENTITIES)
+        rule_ids, premises, valid = _order_rules(
+            rng, rule_counts=_SUBSTITUTION_RULE_COUNTS
+        )
+        target = premises[-1]
+        kept = premises[:-1]
+        # The arrangements the rules that *stay* allow. The whole item lives
+        # inside this set: a candidate is judged only by which of these it
+        # keeps, because the other rules apply to it either way.
+        board = [m for m in space.models() if all(r.holds(m) for r in kept)]
+        want = _mask_over(board, target)
+        if want == (1 << len(board)) - 1:
+            # The rule to be replaced forbids nothing the others do not forbid
+            # already, so every candidate that keeps the board has "the same
+            # effect" and the question has no content.
+            raise SchemaError("the rule to be replaced is redundant")
+
+        # A candidate that restates a rule which stays on the board reads as an
+        # editing slip rather than a substitute, so the menu drops the premises
+        # themselves — the replaced rule included. Each candidate carries the
+        # menu kind it came from: choices drawn from one kind render at
+        # comparable lengths, and a credited answer that is visibly longer than
+        # its neighbours is solvable without being read.
+        singles = [
+            (_mask_over(board, statement), (menu_id,), statement)
+            for menu_id, statement in _order_menu(_GAME_ENTITIES)
+            if statement not in premises
+        ]
+        drawn = self._choices(singles, want, rng)
+        shape = "single-rule"
+        if drawn is None:
+            # A disjunction of two menu rules keeps the union of what they
+            # keep, so the pair masks come out of the single ones with no
+            # further model walking. "Either X or Y" is also the form the exam
+            # reaches for when no single rule has the same effect.
+            pairs = [
+                (
+                    one_mask | other_mask,
+                    tuple(sorted(one_kind + other_kind)),
+                    Or((one, other)),
+                )
+                for i, (one_mask, one_kind, one) in enumerate(singles)
+                for other_mask, other_kind, other in singles[i + 1 :]
+            ]
+            drawn = self._choices(pairs, want, rng)
+            shape = "disjunction"
+        if drawn is None:
+            raise SchemaError("no candidate has the same effect as the drawn rule")
+        credited, distractors = drawn
+
+        return Blueprint(
+            family="rule_substitution",
+            proof_kind="logical",
+            binding_spec=BindingSpec(entity_slots=_GAME_ENTITIES, needs_ordering=True),
+            premises=premises,
+            substituted=target,
+            choices=(
+                FormalChoice(role="credited", statement=credited),
+                *(FormalChoice(role="distractor", statement=d) for d in distractors),
+            ),
+            space=space,
+            arrangement={
+                "rule_count": len(premises),
+                "rules": "+".join(rule_ids),
+                "valid_orderings": len(valid),
+                "substitute_shape": shape,
+            },
+        )
+
+    def _choices(
+        self,
+        candidates: Sequence[tuple[int, tuple[str, ...], Statement]],
+        want: int,
+        rng: random.Random,
+    ) -> tuple[Statement, list[Statement]] | None:
+        """One equivalent substitute plus four that move the board, or ``None``.
+
+        The four are split across the two ways a substitute can be wrong — too
+        weak (a strict superset of the arrangements, so it permits something
+        the original forbade) and too strong (a strict subset, so it forbids
+        something the original allowed) — because an item whose wrong answers
+        all fail in the same direction teaches half the lesson.
+
+        All five come from one menu kind, so the credited answer is not the
+        long one; a candidate whose kind cannot field four wrong answers is
+        passed over rather than mixed.
+        """
+        same: list[tuple[tuple[str, ...], Statement]] = []
+        weaker: dict[tuple[str, ...], list[tuple[int, Statement]]] = {}
+        stronger: dict[tuple[str, ...], list[tuple[int, Statement]]] = {}
+        for mask, kind, candidate in candidates:
+            if mask == want:
+                same.append((kind, candidate))
+            elif mask == 0:
+                # Forbids every remaining arrangement: no game is left, and a
+                # choice that empties the board is eliminable without thought.
+                continue
+            elif mask & want == want:
+                weaker.setdefault(kind, []).append((mask, candidate))
+            elif mask & want == mask:
+                stronger.setdefault(kind, []).append((mask, candidate))
+        rng.shuffle(same)
+        for kind, credited in same:
+            wrong = _wrong_substitutes(
+                weaker.get(kind, []), stronger.get(kind, []), rng
+            )
+            if wrong is not None:
+                return credited, wrong
+        return None
+
+    def stem(self, rng: random.Random) -> str:
+        return (
+            "Which one of the following, if substituted for the last of the "
+            "rules above, would have the same effect in determining the order?"
+        )
+
+    def explain(self, blueprint: Blueprint, binding: Binding, credited: str) -> str:
+        return (
+            "Lift the last rule out and enumerate the arrangements the "
+            "remaining rules allow. The credited answer keeps exactly the "
+            f"arrangements the lifted rule kept and no others: {credited} "
+            "Each other choice either permits an arrangement the original "
+            "forbade or forbids one it allowed — a substitute that is too "
+            "weak or too strong, which is the same mistake in two directions."
+        )
+
+    def method(self) -> str:
+        return (
+            "Set the rule to be replaced aside, list what the remaining rules "
+            "still allow, and ask of each choice whether it keeps exactly that "
+            "list — nothing added, nothing lost. Equivalence has two "
+            "directions and a substitute has to pass both."
+        )
+
+
 _SELECT_ENTITIES = ("e1", "e2", "e3", "e4")
 _SELECT_GROUPS = ("g1", "g2")
 
@@ -1660,6 +1915,161 @@ class NumericDistribution:
         return (
             "Write the possible size distributions first, discard the ones the "
             "rules forbid, and read the answer off what every survivor shares."
+        )
+
+
+_MAXMIN_ENTITIES = ("e1", "e2", "e3", "e4", "e5")
+#: Three groups, not two. With two, a bound on one group is a bound on the
+#: other written backwards — "at most two here" and "at least three there" are
+#: the same claim — so half the answer choices would be restatements of each
+#: other and the item would have two credited answers by arithmetic.
+_MAXMIN_GROUPS = ("g1", "g2", "g3")
+
+
+@dataclass(frozen=True)
+class MaxMinGame:
+    """How many can sit in one group at once (BL-20260905-62).
+
+    The maximum question has two halves, and the archetype demands both: a
+    bound nothing can exceed, and a witness that reaches it. Both are decided
+    here rather than asserted. The credited bound is read off the arrangements
+    the rules actually permit — the largest group size that occurs — so it is
+    entailed *and* tight by construction, and the explanation exhibits the
+    arrangement that reaches it.
+
+    The tell this schema has to avoid is arithmetic rather than logical. Every
+    looser bound in the same direction on the same group is entailed too ("at
+    most four" follows from "at most three"), so a choice set drawn from one
+    group and one direction is solved by picking the largest number without
+    reading a rule. The distractor pool therefore drops the credited answer's
+    own group-and-direction family entirely: the other four choices bound a
+    different group, or bound in the other direction, and the proof engine
+    still decides each of them.
+    """
+
+    meta: SchemaMeta
+
+    def build(self, rng: random.Random, domain: DomainPack) -> Blueprint:
+        return _draw_until(rng, self._attempt, what=self.meta.id)
+
+    def _attempt(self, rng: random.Random) -> Blueprint:
+        space = AssignSpace(entities=_MAXMIN_ENTITIES, groups=_MAXMIN_GROUPS)
+        rule_ids, premises = _draw_rules(
+            rng,
+            _group_menu(_MAXMIN_ENTITIES, _MAXMIN_GROUPS),
+            rng.choice(_RULE_COUNTS),
+        )
+        valid = [m for m in space.models() if all(r.holds(m) for r in premises)]
+        if len(valid) < CHOICE_COUNT:
+            raise SchemaError("the rules leave too few assignments to bound")
+
+        limit = len(_MAXMIN_ENTITIES)
+        tight: list[Statement] = []
+        for group in _MAXMIN_GROUPS:
+            sizes = {m.size_of(group) for m in valid if isinstance(m, AssignModel)}
+            most, fewest = max(sizes), min(sizes)
+            # A bound at the extremes of the board states nothing: every
+            # assignment puts at most five and at least none in a group.
+            if 1 <= most < limit:
+                tight.append(GroupAtMost(group, most))
+            if 0 < fewest <= limit:
+                tight.append(GroupAtLeast(group, fewest))
+        if not tight:
+            raise SchemaError("the rules bound no group away from the extremes")
+        credited = rng.choice(tight)
+
+        pool: list[Statement] = [
+            bound(group, count)
+            for group in _MAXMIN_GROUPS
+            for count in range(1, limit)
+            for bound in (GroupAtMost, GroupAtLeast)
+        ]
+        assert isinstance(credited, GroupAtMost | GroupAtLeast)
+        candidates = [
+            c
+            for c in pool
+            if not (
+                isinstance(c, type(credited))
+                and isinstance(c, GroupAtMost | GroupAtLeast)
+                and c.group == credited.group
+            )
+        ]
+        distractors = select_distractors(
+            space, premises, candidates, rng, exclude=credited
+        )
+        return Blueprint(
+            family="must_be_true",
+            proof_kind="logical",
+            binding_spec=BindingSpec(
+                entity_slots=_MAXMIN_ENTITIES, group_slots=_MAXMIN_GROUPS
+            ),
+            premises=premises,
+            choices=(
+                FormalChoice(role="credited", statement=credited),
+                *(FormalChoice(role="distractor", statement=d) for d in distractors),
+            ),
+            space=space,
+            arrangement={
+                "rule_count": len(premises),
+                "rules": "+".join(rule_ids),
+                "valid_splits": len(valid),
+                "bound": (
+                    "maximum" if isinstance(credited, GroupAtMost) else "minimum"
+                ),
+            },
+        )
+
+    def _witness(self, blueprint: Blueprint, binding: Binding) -> str:
+        """The arrangement that reaches the bound, rendered — or ``""``.
+
+        The half of a max/min explanation that a bound alone does not give: a
+        limit nobody can reach is not the answer to "how many can".
+        """
+        credited = blueprint.choices[0].statement
+        space = blueprint.space
+        if space is None or not isinstance(credited, GroupAtMost | GroupAtLeast):
+            return ""  # pragma: no cover - the schema always builds a bound
+        for model in space.models():
+            if not isinstance(model, AssignModel):
+                break  # pragma: no cover - the space is an assignment space
+            if not all(rule.holds(model) for rule in blueprint.premises):
+                continue
+            if model.size_of(credited.group) != credited.count:
+                continue
+            return render_arrangement(
+                And(tuple(InGroup(e, g) for e, g in model.placement)), binding
+            )
+        return ""  # pragma: no cover - the bound is read off a real arrangement
+
+    def stem(self, rng: random.Random) -> str:
+        # The choices name their own group, so the stem does not have to — and
+        # a generic "group" in the question beside "panel" in the stimulus is
+        # the one place this family can leak the template.
+        return rng.choice(
+            [
+                "Which one of the following must be true?",
+                "The rules alone establish which one of the following?",
+            ]
+        )
+
+    def explain(self, blueprint: Blueprint, binding: Binding, credited: str) -> str:
+        witness = self._witness(blueprint, binding)
+        reached = (
+            f" and the limit is reached — {witness} breaks no rule" if witness else ""
+        )
+        return (
+            "Work the counting rather than the placements. Every assignment the "
+            f"rules permit satisfies exactly one of these limits: {credited}"
+            f"{reached}. Each other choice names a limit some permitted "
+            "assignment breaks, so the rules do not establish it."
+        )
+
+    def method(self) -> str:
+        return (
+            "Ask how full a group can get, and how empty. Push one group as far "
+            "as the rules allow, find the rule that stops it, and check that the "
+            "number you land on is actually reachable — a bound and a witness "
+            "are two different claims and a maximum needs both."
         )
 
 
@@ -1955,6 +2365,37 @@ def _meta(
 _REGISTRY: tuple[Schema, ...] = (
     ConditionalChain(
         forward=True,
+        chain_lengths=_ONE_STEP_LENGTHS,
+        side_counts=_ONE_STEP_SIDES,
+        meta=_meta(
+            "lr-conditional-one-step",
+            section="LR",
+            archetype="lr-conditional-inference",
+            family="must_be_true",
+            proof="logical",
+            difficulty="intro",
+            concepts=("modus-ponens", "conditional-reasoning", "must-be-true"),
+            capability="prop",
+            summary="One conditional, one fact, one inference.",
+        ),
+    ),
+    SequencingGame(
+        acceptability=True,
+        rule_counts=(1,),
+        meta=_meta(
+            "lg-sequencing-one-rule",
+            section="LG",
+            archetype="lg-acceptability",
+            family="acceptability",
+            proof="logical",
+            difficulty="intro",
+            concepts=("sequencing", "elimination-grid"),
+            capability="order",
+            summary="A single rule, and the four orderings that break it.",
+        ),
+    ),
+    ConditionalChain(
+        forward=True,
         meta=_meta(
             "lr-conditional-chain-forward",
             section="LR",
@@ -2074,6 +2515,19 @@ _REGISTRY: tuple[Schema, ...] = (
             summary="Fixed group sizes; what the counting forces.",
         ),
     ),
+    MaxMinGame(
+        meta=_meta(
+            "lg-max-min",
+            section="LG",
+            archetype="lg-max-min",
+            family="must_be_true",
+            proof="logical",
+            difficulty="med",
+            concepts=("max-min", "numeric-distribution"),
+            capability="assign",
+            summary="The most a group can hold, and the least — with a witness.",
+        ),
+    ),
     SupportedInference(
         meta=_meta(
             "lr-supported-inference",
@@ -2154,6 +2608,19 @@ _REGISTRY: tuple[Schema, ...] = (
             concepts=("sequencing", "must-be-true"),
             capability="order",
             summary="What holds in every arrangement the rules permit.",
+        ),
+    ),
+    RuleSubstitution(
+        meta=_meta(
+            "lg-rule-substitution",
+            section="LG",
+            archetype="lg-rule-substitution",
+            family="rule_substitution",
+            proof="logical",
+            difficulty="hard",
+            concepts=("rule-substitution", "must-be-true"),
+            capability="order",
+            summary="Which substitute leaves the board exactly as it was.",
         ),
     ),
     GroupingGame(

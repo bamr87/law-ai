@@ -215,6 +215,7 @@ async def test_default_engine_path_never_500s_when_engine_explodes(
     request 500'd. The boundary now catches broadly and degrades honestly.
     """
     from law_ai.agents_runtime import llm
+    from law_ai.agents_runtime.crews.precedent_hunter import PrecedentHunter
     from law_ai.agents_runtime.graphs import LegalWorkflow
 
     class WeirdEngineError(Exception):
@@ -224,12 +225,20 @@ async def test_default_engine_path_never_500s_when_engine_explodes(
     monkeypatch.setattr(
         LegalWorkflow, "invoke", _raises(WeirdEngineError("model not pulled"))
     )
+    # BL-20260905-78/97: the assertion below is about the *analyst* boundary,
+    # but `confidence` is the mean over non-degraded agents — so a shared
+    # Neo4j that happens to hold :Case rows made the hunter succeed and the
+    # mean drift off 0.0. Pin the retrieval half to a degraded result so this
+    # test measures the engine boundary and nothing else.
+    monkeypatch.setattr(PrecedentHunter, "run", _degraded_hunter())
 
     res = await client.post("/api/analysis", json={"text": "Is X liable?"})
     assert res.status_code == 200
     body = res.json()
     assert body["irac"]["degraded"] is True
     assert body["requires_human_review"] is True
+    # No non-degraded contribution on either side ⇒ no fabricated confidence.
+    assert body["agent_trace"][0]["confidence"] == 0.0
     assert body["confidence"] == 0.0
 
 
@@ -259,6 +268,26 @@ def _always(value: object):
 def _raises(exc: Exception):
     async def _inner(*args: object, **kwargs: object) -> object:
         raise exc
+
+    return _inner
+
+
+def _degraded_hunter():
+    """A ``PrecedentHunter.run`` replacement that never touches Neo4j.
+
+    Keeps tests that assert on the aggregate confidence independent of
+    whatever rows the shared dev graph happens to hold (BL-20260905-78 /
+    BL-20260905-97).
+    """
+    from law_ai.agents_runtime.crews.precedent_hunter import PrecedentList
+
+    async def _inner(self: object, *args: object, **kwargs: object) -> PrecedentList:
+        return PrecedentList(
+            precedents=[],
+            summary="retrieval stubbed out for this test",
+            confidence=0.0,
+            degraded=True,
+        )
 
     return _inner
 
@@ -412,12 +441,14 @@ async def test_thread_id_reaches_the_workflow(
         return True, ""
 
     async def fake_has_state(workflow, thread_id):  # type: ignore[no-untyped-def]
-        return thread_id == "thread-x"
+        # Same question the request below sends, so the BL-20260905-81
+        # continuity check sees a matching resume.
+        return {"question": "Is X liable?"} if thread_id == "thread-x" else {}
 
     monkeypatch.setattr(LegalWorkflow, "invoke", fake_invoke)
     monkeypatch.setattr(mod, "_analysis_checkpointer", fake_saver)
     monkeypatch.setattr(mod, "_engine_ready", fake_ready)
-    monkeypatch.setattr(mod, "_thread_has_state", fake_has_state)
+    monkeypatch.setattr(mod, "_thread_state_values", fake_has_state)
 
     res = await client.post(
         "/api/analysis",
@@ -456,16 +487,187 @@ async def test_fresh_thread_is_not_reported_as_resumed(
         return True, ""
 
     async def no_state(workflow, thread_id):  # type: ignore[no-untyped-def]
-        return False
+        return {}
 
     monkeypatch.setattr(LegalWorkflow, "invoke", fake_invoke)
     monkeypatch.setattr(mod, "_analysis_checkpointer", fake_saver)
     monkeypatch.setattr(mod, "_engine_ready", fake_ready)
-    monkeypatch.setattr(mod, "_thread_has_state", no_state)
+    monkeypatch.setattr(mod, "_thread_state_values", no_state)
 
     res = await client.post("/api/analysis", json={"text": "q", "use_langgraph": True})
     assert res.status_code == 200
     assert res.json()["resumed"] is False
+
+
+@pytest.mark.parametrize(
+    ("payload", "field"),
+    [
+        ({"text": "A completely different question?"}, "question"),
+        ({"text": "Is X liable?", "jurisdiction": "us-ny"}, "jurisdiction"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_divergent_resume_is_refused_with_409(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    payload: dict[str, object],
+    field: str,
+) -> None:
+    """BL-20260905-81: a resume may not quietly rewrite the thread's ask.
+
+    The checkpointed channels record what was asked; resuming with a
+    different question or jurisdiction used to overwrite them in place, so
+    the earlier run stopped being reproducible from its own thread.
+    """
+    pytest.importorskip("langgraph")
+    from contextlib import asynccontextmanager
+
+    from law_ai.agents_runtime.crews import legal_analyst as mod
+    from law_ai.agents_runtime.graphs.legal_workflow import LegalWorkflow
+
+    invoked = False
+
+    async def fake_invoke(self, question, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal invoked
+        invoked = True
+        raise AssertionError("a divergent resume must not reach the workflow")
+
+    @asynccontextmanager
+    async def fake_saver():  # type: ignore[no-untyped-def]
+        yield object()
+
+    async def fake_ready():  # type: ignore[no-untyped-def]
+        return True, ""
+
+    async def prior_state(workflow, thread_id):  # type: ignore[no-untyped-def]
+        return {"question": "Is X liable?", "jurisdiction": "us-ca"}
+
+    monkeypatch.setattr(LegalWorkflow, "invoke", fake_invoke)
+    monkeypatch.setattr(mod, "_analysis_checkpointer", fake_saver)
+    monkeypatch.setattr(mod, "_engine_ready", fake_ready)
+    monkeypatch.setattr(mod, "_thread_state_values", prior_state)
+
+    res = await client.post(
+        "/api/analysis",
+        json={"thread_id": "thread-x", "use_langgraph": True, **payload},
+    )
+    assert res.status_code == 409
+    body = res.json()
+    assert body["thread_id"] == "thread-x"
+    assert body["field"] == field
+    assert "omit thread_id" in body["detail"]
+    assert invoked is False
+
+
+@pytest.mark.asyncio
+async def test_matching_resume_is_allowed_through(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same question in the same jurisdiction resumes normally."""
+    pytest.importorskip("langgraph")
+    from contextlib import asynccontextmanager
+
+    from law_ai.agents_runtime.crews import legal_analyst as mod
+    from law_ai.agents_runtime.graphs.legal_workflow import (
+        LegalWorkflow,
+        LegalWorkflowOutput,
+    )
+
+    async def fake_invoke(self, question, **kwargs):  # type: ignore[no-untyped-def]
+        return LegalWorkflowOutput(
+            answer="a", citations=[], confidence=0.9, langgraph_thread_id="thread-x"
+        )
+
+    @asynccontextmanager
+    async def fake_saver():  # type: ignore[no-untyped-def]
+        yield object()
+
+    async def fake_ready():  # type: ignore[no-untyped-def]
+        return True, ""
+
+    async def prior_state(workflow, thread_id):  # type: ignore[no-untyped-def]
+        return {"question": "Is X liable?", "jurisdiction": "us-ca"}
+
+    monkeypatch.setattr(LegalWorkflow, "invoke", fake_invoke)
+    monkeypatch.setattr(mod, "_analysis_checkpointer", fake_saver)
+    monkeypatch.setattr(mod, "_engine_ready", fake_ready)
+    monkeypatch.setattr(mod, "_thread_state_values", prior_state)
+
+    res = await client.post(
+        "/api/analysis",
+        json={
+            "text": "Is X liable?",
+            "jurisdiction": "us-ca",
+            "thread_id": "thread-x",
+            "use_langgraph": True,
+        },
+    )
+    assert res.status_code == 200
+    assert res.json()["resumed"] is True
+
+
+@pytest.mark.asyncio
+async def test_trace_url_ships_next_to_the_deprecated_spelling(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """BL-20260906-10: the deprecation window emits both names, identically.
+
+    `phoenix_trace_url` outlived Phoenix — `core.telemetry.trace_url` is
+    backend-agnostic — so `trace_url` is the name going forward. Until no
+    client reads the old one, a response that carries either must carry both,
+    or a client that switched would silently lose the link.
+    """
+    pytest.importorskip("langgraph")
+    from contextlib import asynccontextmanager
+
+    from law_ai.agents_runtime.crews import legal_analyst as mod
+    from law_ai.agents_runtime.graphs.legal_workflow import (
+        LegalWorkflow,
+        LegalWorkflowOutput,
+    )
+
+    async def fake_invoke(self, question, **kwargs):  # type: ignore[no-untyped-def]
+        return LegalWorkflowOutput(
+            answer="a",
+            citations=[],
+            confidence=0.9,
+            langgraph_thread_id="lwf-trace",
+            phoenix_trace_url="https://collector.test/traces/abc",
+        )
+
+    @asynccontextmanager
+    async def fake_saver():  # type: ignore[no-untyped-def]
+        yield None
+
+    async def fake_ready():  # type: ignore[no-untyped-def]
+        return True, ""
+
+    monkeypatch.setattr(LegalWorkflow, "invoke", fake_invoke)
+    monkeypatch.setattr(mod, "_analysis_checkpointer", fake_saver)
+    monkeypatch.setattr(mod, "_engine_ready", fake_ready)
+
+    res = await client.post("/api/analysis", json={"text": "q"})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["trace_url"] == "https://collector.test/traces/abc"
+    assert body["phoenix_trace_url"] == body["trace_url"]
+    assert body["irac"]["trace_url"] == body["trace_url"]
+    assert body["irac"]["phoenix_trace_url"] == body["trace_url"]
+
+
+def test_the_new_spelling_backfills_the_old_one() -> None:
+    """Mirroring runs both ways, so a `trace_url`-only caller is safe too."""
+    from law_ai.agents_runtime.crews.legal_analyst import IRACOutput
+
+    irac = IRACOutput(
+        issue="i",
+        rule="r",
+        application="a",
+        conclusion="c",
+        confidence=0.5,
+        trace_url="https://collector.test/traces/xyz",
+    )
+    assert irac.phoenix_trace_url == "https://collector.test/traces/xyz"
 
 
 @pytest.mark.asyncio

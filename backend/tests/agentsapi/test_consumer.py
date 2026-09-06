@@ -248,6 +248,56 @@ async def _emit(stream_id: str, payload: dict) -> dict:
 
 
 @pytest.mark.asyncio
+async def test_token_deltas_never_enter_the_replay_buffer() -> None:
+    """BL-20260906-77: a long answer must not evict the run's milestones.
+
+    The buffer is 200 payloads deep. One frame per token delta filled it
+    several times over, so a reconnecting client replayed the tail of a token
+    stream it discards anyway and none of the ``agent_step`` frames it needed.
+    """
+    from law_ai.agentsapi import replay
+    from law_ai.agentsapi.streaming import emit_stream_event
+
+    await emit_stream_event("run-deltas", {"type": "agent_step", "agent": "A"})
+    for i in range(50):
+        await emit_stream_event(
+            "run-deltas",
+            {"type": "analysis_token", "text": "x", "chars": i + 1},
+            source="analysis",
+        )
+    await emit_stream_event(
+        "run-deltas", {"type": "tutor_token", "text": "y"}, source="lsat_tutor"
+    )
+    await emit_stream_event("run-deltas", {"type": "complete"})
+
+    buffered = await replay.events_since("run-deltas", 0)
+    assert [e["type"] for e in buffered] == ["agent_step", "complete"]
+    # Milestones keep a dense, contiguous cursor: deltas consume no seq.
+    assert [e["seq"] for e in buffered] == [1, 2]
+
+
+@pytest.mark.asyncio
+async def test_a_token_delta_still_reaches_a_live_subscriber() -> None:
+    """Unbuffered is not undelivered — and it carries no ``seq`` to cursor on."""
+    from law_ai.agentsapi.streaming import emit_stream_event
+
+    comm = _communicator("run-live-delta")
+    assert (await comm.connect())[0]
+    await comm.receive_json_from()  # ready
+
+    await emit_stream_event(
+        "run-live-delta",
+        {"type": "analysis_token", "text": "partial", "chars": 7},
+        source="analysis",
+    )
+    frame = await comm.receive_json_from()
+    assert frame["type"] == "analysis_token"
+    assert frame["text"] == "partial"
+    assert "seq" not in frame
+    await comm.disconnect()
+
+
+@pytest.mark.asyncio
 async def test_emitted_events_carry_a_monotonic_seq() -> None:
     """The cursor a reconnecting client uses has to exist on the live frames."""
     from law_ai.agentsapi import replay
@@ -344,3 +394,132 @@ async def test_the_buffer_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
 
     kept = await replay.events_since("run-cap", 0)
     assert [e["i"] for e in kept] == [2, 3, 4]
+
+
+# --- BL-20260906-09: the socket accepts the same credentials REST does ---
+
+
+class TestSocketAcceptsSessionAndApiToken:
+    """A signed-in browser user could start a run and not watch it.
+
+    Every REST route has accepted a Django session since spec 036 FR-2, but
+    the consumer compared a query-string key against ``AGENT_API_KEY`` and
+    nothing else. These pin the two legs that closes: a provisioned
+    ``ApiToken`` with the agent scope, and an authenticated session.
+    """
+
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_agent_scoped_api_token_is_accepted(self, settings) -> None:
+        from channels.db import database_sync_to_async
+
+        from law_ai.core.models import ApiToken
+
+        settings.AGENT_API_KEY = "secret-key"
+        await database_sync_to_async(ApiToken.objects.create)(
+            scope=ApiToken.SCOPE_AGENT,
+            name="ws",
+            key_hash=ApiToken.hash_key("provisioned-token"),
+        )
+
+        comm = _communicator("run-abc", query="api_key=provisioned-token")
+        connected, _ = await comm.connect()
+        assert connected is True
+        await comm.disconnect()
+
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_a_token_for_another_scope_is_not_a_socket_credential(
+        self, settings
+    ) -> None:
+        from channels.db import database_sync_to_async
+
+        from law_ai.agentsapi.consumers import CLOSE_UNAUTHORIZED
+        from law_ai.core.models import ApiToken
+
+        settings.AGENT_API_KEY = "secret-key"
+        await database_sync_to_async(ApiToken.objects.create)(
+            scope=ApiToken.SCOPE_LSAT,
+            name="ws-lsat",
+            key_hash=ApiToken.hash_key("lsat-only"),
+        )
+
+        comm = _communicator("run-abc", query="api_key=lsat-only")
+        connected, code = await comm.connect()
+        assert connected is False
+        assert code == CLOSE_UNAUTHORIZED
+
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_a_revoked_token_is_no_credential_at_all(self, settings) -> None:
+        from channels.db import database_sync_to_async
+        from django.utils import timezone
+
+        from law_ai.agentsapi.consumers import CLOSE_UNAUTHORIZED
+        from law_ai.core.models import ApiToken
+
+        settings.AGENT_API_KEY = "secret-key"
+        await database_sync_to_async(ApiToken.objects.create)(
+            scope=ApiToken.SCOPE_AGENT,
+            name="ws-dead",
+            key_hash=ApiToken.hash_key("revoked-token"),
+            revoked_at=timezone.now(),
+        )
+
+        comm = _communicator("run-abc", query="api_key=revoked-token")
+        connected, code = await comm.connect()
+        assert connected is False
+        assert code == CLOSE_UNAUTHORIZED
+
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_an_authenticated_session_opens_the_socket(self, settings) -> None:
+        """The browser case the item names: signed in, holding no key."""
+        from channels.db import database_sync_to_async
+        from django.contrib.auth import get_user_model
+
+        settings.AGENT_API_KEY = "secret-key"
+        user = await database_sync_to_async(get_user_model().objects.create_user)(
+            username="ws-user", password="pw"
+        )
+
+        comm = _communicator("run-abc")
+        comm.scope["user"] = user
+        connected, _ = await comm.connect()
+        assert connected is True
+        await comm.disconnect()
+
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_an_anonymous_scope_user_is_still_refused(self, settings) -> None:
+        from django.contrib.auth.models import AnonymousUser
+
+        from law_ai.agentsapi.consumers import CLOSE_UNAUTHORIZED
+
+        settings.AGENT_API_KEY = "secret-key"
+
+        comm = _communicator("run-abc")
+        comm.scope["user"] = AnonymousUser()
+        connected, code = await comm.connect()
+        assert connected is False
+        assert code == CLOSE_UNAUTHORIZED
+
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_the_ops_channel_takes_the_same_credentials(self, settings) -> None:
+        from channels.testing import WebsocketCommunicator
+        from django.contrib.auth import get_user_model
+
+        from channels.db import database_sync_to_async
+        from law_ai.agentsapi.consumers import OpsDashboardConsumer
+
+        settings.AGENT_API_KEY = "secret-key"
+        user = await database_sync_to_async(get_user_model().objects.create_user)(
+            username="ops-user", password="pw"
+        )
+
+        comm = WebsocketCommunicator(OpsDashboardConsumer.as_asgi(), "/ws/agents/ops")
+        comm.scope["user"] = user
+        connected, _ = await comm.connect()
+        assert connected is True
+        await comm.disconnect()

@@ -43,7 +43,7 @@ from django.core.management.base import BaseCommand, CommandError
 from neo4j import AsyncSession
 
 from law_ai.core.neo4j.citation_resolver import (
-    CRS_REPORTERS,
+    STATUTE_REPORTERS,
     resolve_statute_citations,
     statute_section_id_from_normalized,
 )
@@ -51,12 +51,22 @@ from law_ai.core.neo4j.driver import get_neo4j_driver
 from law_ai.core.neo4j.queries import (
     MERGE_CITES_STATUTE_CYPHER,
     list_cases_with_statute_citations,
+    list_cases_without_statute_citations,
 )
 from law_ai.core.provenance import provenance
 
 #: Provenance `source` written on every edge this command creates, so an
 #: auditor can tell a backfilled edge from one an ingest wrote.
 BACKFILL_SOURCE = "resolve_statute_citations_backfill"
+
+#: Provenance `source` for edges recovered by re-reading the opinion upstream
+#: (BL-20260906-88), kept distinct from the offline pass above so an auditor
+#: can tell which cites came from stored strings and which from a re-fetch.
+REFETCH_SOURCE = "resolve_statute_citations_refetch"
+
+#: Corpora whose documents can be re-fetched by ``:Case.id``. Only opinions
+#: with a per-document upstream endpoint qualify.
+REFETCHABLE_SOURCES = ("courtlistener",)
 
 #: The limit of what an offline pass can recover, printed on every run.
 #:
@@ -70,11 +80,13 @@ BACKFILL_SOURCE = "resolve_statute_citations_backfill"
 #: can conjure them: those cases must be re-ingested (their text re-run
 #: through ``_extract_citations``) before this command can link them.
 RECALL_CAVEAT = (
-    "Recall limit: this pass reads the citation strings earlier ingests stored; "
-    "it never re-reads opinion text (:Case nodes persist none). Opinions "
+    "Recall limit: the offline pass reads the citation strings earlier ingests "
+    "stored; it never re-reads opinion text (:Case nodes persist none). Opinions "
     "ingested before the C.R.S. patterns landed had only eyecite, which misses "
-    '"C.R.S. § 18-3-102" and "section 13-80-102, C.R.S." entirely — re-ingest '
-    "those opinions to recover their statutory cites; this command cannot."
+    '"C.R.S. § 18-3-102" and "section 13-80-102, C.R.S." entirely, so they hold '
+    "no string to resolve. Pass --refetch to re-read those opinions upstream and "
+    "re-run today's extractor over them (BL-20260906-88); without it, only "
+    "re-ingestion recovers them."
 )
 
 
@@ -86,6 +98,10 @@ class StatuteBackfillStats:
         self.candidates = 0
         self.resolved = 0
         self.edges_created = 0
+        # BL-20260906-88: the recall pass's own counters.
+        self.refetched = 0
+        self.refetch_failed = 0
+        self.recovered = 0
 
     def as_dict(self) -> dict[str, int]:
         return {
@@ -93,11 +109,19 @@ class StatuteBackfillStats:
             "candidates": self.candidates,
             "resolved": self.resolved,
             "edges_created": self.edges_created,
+            "refetched": self.refetched,
+            "refetch_failed": self.refetch_failed,
+            "recovered": self.recovered,
         }
 
 
 async def _merge_cites_statute(
-    session: AsyncSession, case_id: str, section_id: str, confidence: float
+    session: AsyncSession,
+    case_id: str,
+    section_id: str,
+    confidence: float,
+    *,
+    source: str = BACKFILL_SOURCE,
 ) -> bool:
     """MERGE one ``CITES_STATUTE`` edge; True when Neo4j returned one."""
     result = await session.run(
@@ -106,7 +130,7 @@ async def _merge_cites_statute(
             "case_id": case_id,
             "section_id": section_id,
             "confidence": confidence,
-            "source": BACKFILL_SOURCE,
+            "source": source,
             "ingest_timestamp": datetime.now(UTC).isoformat(),
         },
     )
@@ -157,6 +181,114 @@ async def _backfill_case(
     return lines
 
 
+async def _refetch_case(
+    session: AsyncSession,
+    row: dict[str, Any],
+    *,
+    client: Any,
+    commit: bool,
+    stats: StatuteBackfillStats,
+) -> list[str]:
+    """Re-read one opinion upstream and link the statutes it cites.
+
+    BL-20260906-88. The offline pass can only resolve citation strings an
+    earlier ingest stored, and opinions ingested before the C.R.S. patterns
+    landed stored none — eyecite misses both forms Colorado courts write. So
+    this re-fetches the opinion, runs *today's* extractor over it, and merges
+    the edges its citations resolve to. Nothing else about the case is
+    rewritten: this is a citation-recall pass, not a re-ingest.
+    """
+    from law_ai.ingestionapp.services.scout import IngestionScout
+
+    case_id = row["case_id"]
+    try:
+        opinion = await client.fetch_opinion(case_id)
+    except Exception as exc:
+        stats.refetch_failed += 1
+        return [f"  {case_id}: re-fetch failed ({type(exc).__name__}: {exc})"]
+    stats.refetched += 1
+
+    result = IngestionScout().extract({**opinion, "id": case_id})
+    candidates: dict[str, str] = {}
+    for citation in result.citations:
+        section_id = statute_section_id_from_normalized(citation.normalized)
+        if section_id:
+            candidates[citation.normalized] = section_id
+    if not candidates:
+        return []
+    stats.candidates += len(candidates)
+
+    mapping = await resolve_statute_citations(session, sorted(set(candidates.values())))
+    lines: list[str] = []
+    for normalized, section_id in candidates.items():
+        if not mapping.get(section_id):
+            continue
+        stats.resolved += 1
+        if not commit:
+            lines.append(f"    {normalized} -> {section_id} (would merge, re-fetched)")
+            continue
+        if await _merge_cites_statute(
+            session,
+            case_id,
+            section_id,
+            float(result.confidence),
+            source=REFETCH_SOURCE,
+        ):
+            stats.edges_created += 1
+            stats.recovered += 1
+            lines.append(f"    {normalized} -> {section_id} (edge merged, re-fetched)")
+    return lines
+
+
+async def run_refetch(
+    *, commit: bool, batch_size: int, limit: int | None, client: Any
+) -> tuple[StatuteBackfillStats, list[str]]:
+    """Walk cases holding no statutory citation at all and re-read them."""
+    stats = StatuteBackfillStats()
+    report: list[str] = []
+    driver = get_neo4j_driver()
+    after = ""
+    cases_seen = 0
+
+    async with driver.session() as session:
+        while True:
+            take = batch_size if limit is None else min(batch_size, limit - cases_seen)
+            if take <= 0:
+                break
+            started = time.perf_counter()
+            batch = await list_cases_without_statute_citations(
+                session,
+                reporters=list(STATUTE_REPORTERS),
+                sources=list(REFETCHABLE_SOURCES),
+                after=after,
+                limit=take,
+            )
+            if not batch:
+                break
+            stats.scanned += len(batch)
+            for row in batch:
+                lines = await _refetch_case(
+                    session, row, client=client, commit=commit, stats=stats
+                )
+                if lines:
+                    report.append(f"  {row['case_id']}:")
+                    report.extend(lines)
+            cases_seen += len(batch)
+            after = batch[-1]["case_id"]
+            provenance.log_graph_query(
+                cypher="resolve_statute_citations.refetch_batch",
+                params={
+                    "after": after,
+                    "limit": take,
+                    "commit": commit,
+                    "cases": len(batch),
+                },
+                result_count=stats.recovered,
+                latency_ms=(time.perf_counter() - started) * 1000.0,
+            )
+    return stats, report
+
+
 async def run_backfill(
     *, commit: bool, batch_size: int, limit: int | None
 ) -> tuple[StatuteBackfillStats, list[str]]:
@@ -174,7 +306,7 @@ async def run_backfill(
                 break
             started = time.perf_counter()
             batch = await list_cases_with_statute_citations(
-                session, reporters=list(CRS_REPORTERS), after=after, limit=take
+                session, reporters=list(STATUTE_REPORTERS), after=after, limit=take
             )
             if not batch:
                 break
@@ -230,6 +362,14 @@ class Command(BaseCommand):
             help="max cases to process this run (default: all)",
         )
         parser.add_argument(
+            "--refetch",
+            action="store_true",
+            help=(
+                "also re-read opinions that hold no statutory citation at all "
+                "and re-run today's extractor over them (BL-20260906-88)"
+            ),
+        )
+        parser.add_argument(
             "--verbose-pairs",
             action="store_true",
             help="print every citation -> section pair, not just the totals",
@@ -261,6 +401,23 @@ class Command(BaseCommand):
             batch_size=batch_size,
             limit=None if limit is None else int(limit),
         )
+        if opts["refetch"]:
+            # BL-20260906-88: the second, upstream-reading pass. Its counters
+            # are merged into the summary so one run reports one total.
+            recall_stats, recall_report = async_to_sync(self._run_refetch)(
+                commit=commit,
+                batch_size=batch_size,
+                limit=None if limit is None else int(limit),
+            )
+            report.extend(recall_report)
+            stats.scanned += recall_stats.scanned
+            stats.candidates += recall_stats.candidates
+            stats.resolved += recall_stats.resolved
+            stats.edges_created += recall_stats.edges_created
+            stats.refetched += recall_stats.refetched
+            stats.refetch_failed += recall_stats.refetch_failed
+            stats.recovered += recall_stats.recovered
+
         if opts["verbose_pairs"]:
             for line in report:
                 self.stdout.write(line)
@@ -269,7 +426,9 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 "scanned={scanned} candidates={candidates} "
-                "resolved={resolved} edges_created={edges_created}".format(**counts)
+                "resolved={resolved} edges_created={edges_created} "
+                "refetched={refetched} refetch_failed={refetch_failed} "
+                "recovered={recovered}".format(**counts)
             )
         )
         if not commit and counts["resolved"]:
@@ -283,3 +442,14 @@ class Command(BaseCommand):
         # does NOT mean the historical corpus has no statutory cites left to
         # link — it means none are visible to an offline pass.
         self.stdout.write(self.style.WARNING(RECALL_CAVEAT))
+
+    async def _run_refetch(
+        self, *, commit: bool, batch_size: int, limit: int | None
+    ) -> tuple[StatuteBackfillStats, list[str]]:
+        """Open a source client only for the pass that actually fetches."""
+        from law_ai.ingestionapp.services.courtlistener import CourtListenerClient
+
+        async with CourtListenerClient() as client:
+            return await run_refetch(
+                commit=commit, batch_size=batch_size, limit=limit, client=client
+            )

@@ -47,37 +47,16 @@ def autonomy_cycle(kind: str = "test_pillar", **kwargs: Any) -> dict[str, Any]:
     ``status="disabled"`` when ``AUTONOMY_ENABLED=False`` (constitution §12 I3).
     """
     from law_ai.core import autonomy
-    from law_ai.core.management.commands.run_autonomy import (
-        _run_commit_approved,
-        _run_corpus_growth,
-        _run_digest,
-        _run_lsat_content,
-        _run_lsat_factory,
-        _run_lsat_library,
-        _run_test_pillar,
-    )
+    from law_ai.core.management.commands.run_autonomy import build_runner
 
     budget: int | None = kwargs.pop("budget", None)
     source: str | None = kwargs.pop("source", None)
 
-    # PLR0911 is suppressed below: one `if` per autonomy kind is the clearest
-    # form this dispatch can take; the pillar count, not the function, grew.
-    def _runner(context: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0911
-        if kind == "test_pillar":
-            return _run_test_pillar(context, budget=budget)
-        if kind == "corpus_growth":
-            return _run_corpus_growth(context, source=source, budget=budget)
-        if kind == "digest":
-            return _run_digest(context)
-        if kind == "lsat_content":
-            return _run_lsat_content(context, budget=budget)
-        if kind == "lsat_factory":
-            return _run_lsat_factory(context, budget=budget)
-        if kind == "lsat_library":
-            return _run_lsat_library(context, budget=budget)
-        if kind == "commit_approved":
-            return _run_commit_approved(context, budget=budget)
-        raise ValueError(f"Unknown kind: {kind!r}")  # unreachable via beat config
+    # One dispatch table for both entry points (BL-20260906-26). This used to
+    # be a second copy of the command's if-chain, and it silently fell behind
+    # it: the `lsat_cross_check` beat entry raised `Unknown kind` here while
+    # `manage.py run_autonomy --kind lsat_cross_check` worked.
+    runner = build_runner(kind, source=source, budget=budget)
 
     payload: dict[str, Any] = {
         "kind": kind,
@@ -85,7 +64,7 @@ def autonomy_cycle(kind: str = "test_pillar", **kwargs: Any) -> dict[str, Any]:
         "source": source,
         **kwargs,
     }
-    return autonomy.run_cycle(kind, _runner, payload=payload)
+    return autonomy.run_cycle(kind, runner, payload=payload)
 
 
 @shared_task(  # type: ignore[untyped-decorator]

@@ -30,7 +30,7 @@ export function Panel({
         <div>
           <h2 className="text-base font-semibold text-slate-100">{title}</h2>
           {subtitle && (
-            <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
+            <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>
           )}
         </div>
         {actions}
@@ -65,7 +65,7 @@ export function SkeletonLines() {
 
 export function EmptyState({ message }: { message: string }) {
   return (
-    <li className="rounded-md border border-dashed border-slate-800 p-3 text-center text-xs text-slate-500">
+    <li className="rounded-md border border-dashed border-slate-800 p-3 text-center text-xs text-slate-400">
       {message}
     </li>
   )

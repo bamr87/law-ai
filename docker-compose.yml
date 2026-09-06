@@ -128,7 +128,6 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
       # Browser → same-origin proxy → backend, so the API key never reaches
       # the bundle (BL-20260430-07). AGENT_API_KEY is read by the Next server
       # only; it is blank by default, matching the open localhost posture.

@@ -6,6 +6,7 @@ import {
   newStreamId,
   openAgentStream,
   type AgentStepEvent,
+  type AgentStreamStatus,
 } from '@/lib/agentStream'
 import {
   createShareLink,
@@ -28,11 +29,23 @@ const HITL_THRESHOLD = 0.7
 function LiveTrace({
   steps,
   writing,
+  live,
+  connection,
 }: {
   steps: AgentStepEvent[]
   writing: { agent: string; chars: number; model?: string } | null
+  live: boolean
+  /**
+   * Connection state of the run's socket (BL-20260905-79). A dropped stream
+   * used to freeze the trace with no explanation, which reads as a stalled
+   * analysis rather than a lost connection.
+   */
+  connection?: AgentStreamStatus
 }) {
-  if (steps.length === 0 && writing === null) return null
+  const dropped = live && connection && connection !== 'live'
+  // A drop before the first step still has something to say, so the panel
+  // opens for that case even with nothing to list.
+  if (steps.length === 0 && writing === null && !dropped) return null
   return (
     <section
       aria-labelledby="live-trace-heading"
@@ -43,8 +56,15 @@ function LiveTrace({
         id="live-trace-heading"
         className="mb-2 text-xs uppercase tracking-wider text-indigo-300"
       >
-        Agents reporting
+        {live ? 'Agents reporting' : 'Agents reported'}
       </h2>
+      {dropped && (
+        <p role="status" className="mb-2 text-xs text-amber-300">
+          {connection === 'reconnecting'
+            ? 'Reconnecting…'
+            : 'Live trace disconnected — the analysis still finishes below.'}
+        </p>
+      )}
       <ul className="space-y-1 text-sm text-slate-300">
         {steps.map((step) => (
           <li
@@ -53,7 +73,7 @@ function LiveTrace({
           >
             <span aria-hidden="true">✓</span>
             <span className="font-medium text-slate-200">{step.agent}</span>
-            <span className="text-slate-500">
+            <span className="text-slate-400">
               {Math.round(step.latency_ms)} ms
             </span>
             {step.degraded && (
@@ -65,7 +85,7 @@ function LiveTrace({
           <li className="flex gap-2" data-testid="analysis-writing">
             <span aria-hidden="true">✍️</span>
             <span className="font-medium text-slate-200">{writing.agent}</span>
-            <span className="text-slate-500">
+            <span className="text-slate-400">
               writing… {writing.chars.toLocaleString()} characters
               {writing.model ? ` · ${writing.model}` : ''}
             </span>
@@ -102,10 +122,64 @@ function SourceAttribution({
     )
   }
   return (
-    <span className="text-[11px] text-slate-500">
+    <span className="text-[11px] text-slate-400">
       {court} · {decidedAt}
       {authority && authority !== 'unknown' ? ` · ${authority}` : ''}
     </span>
+  )
+}
+
+/**
+ * The issuing authority behind one retrieved precedent (BL-20260905-84).
+ *
+ * The row already prints the court and the year off the `:Case` node; what a
+ * reader cannot get from those is whether the case *binds* the jurisdiction
+ * they asked about. That is exactly what `attribution.authority` records, and
+ * until now it travelled to the browser and was never drawn. An incomplete
+ * attribution is labelled rather than silently omitted — a precedent nobody
+ * can attribute is the one to check first.
+ */
+function PrecedentAuthority({
+  attribution,
+}: {
+  attribution?: Attribution | null
+}) {
+  const court = attribution?.court
+  const decidedAt = attribution?.decided_at
+  if (!court || !decidedAt) {
+    return (
+      <span
+        title="This precedent carries no complete issuing authority (court and decision date) from the knowledge graph, so the set is pinned for human review."
+        className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] text-amber-300"
+      >
+        no issuing authority
+      </span>
+    )
+  }
+  const authority = attribution?.authority ?? 'unknown'
+  const weight =
+    authority === 'binding'
+      ? 'bg-emerald-500/10 text-emerald-300'
+      : authority === 'persuasive'
+        ? 'bg-sky-500/10 text-sky-300'
+        : 'bg-slate-700/40 text-slate-400'
+  return (
+    <>
+      <span className="text-[11px] text-slate-400">
+        {decidedAt}
+        {attribution?.jurisdiction ? ` · ${attribution.jurisdiction}` : ''}
+      </span>
+      <span
+        title={
+          authority === 'unknown'
+            ? 'Binding force is unknown: the graph does not record a jurisdiction for this court, or none was requested.'
+            : `This authority is ${authority} for the requested jurisdiction.`
+        }
+        className={`rounded px-1.5 py-0.5 text-[11px] ${weight}`}
+      >
+        {authority}
+      </span>
+    </>
   )
 }
 
@@ -185,6 +259,9 @@ export default function AnalysisStudio() {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AnalysisResponse | null>(null)
   const [liveSteps, setLiveSteps] = useState<AgentStepEvent[]>([])
+  // Whether the run's socket is still attached (BL-20260905-79). Reset at the
+  // start of every submit; only ever shown while a run is in flight.
+  const [connection, setConnection] = useState<AgentStreamStatus>('live')
   // BL-20260905-11: what the analyst has produced so far, while it is still
   // producing it. The IRAC pass is the slow one (56-103s on the xAI tier), and
   // a page that shows nothing for a minute reads as broken.
@@ -223,6 +300,7 @@ export default function AnalysisStudio() {
     setError(null)
     setLiveSteps([])
     setWriting(null)
+    setConnection('live')
 
     // Spec 032: subscribe BEFORE posting. `openAgentStream` resolves on the
     // server's `ready`, so by the time we POST the group membership exists
@@ -232,20 +310,24 @@ export default function AnalysisStudio() {
     const streamId = newStreamId()
     let socket: WebSocket | null = null
     try {
-      socket = await openAgentStream(streamId, (event) => {
-        if (event.type === 'agent_step') {
-          setLiveSteps((prev) => [...prev, event])
-          setWriting((prev) => (prev?.agent === event.agent ? null : prev))
-        } else if (event.type === 'analysis_token') {
-          // Progress, not content: the deltas are a JSON payload being
-          // written, so the count is shown rather than half-parsed prose.
-          setWriting({
-            agent: event.agent,
-            chars: event.chars,
-            ...(event.model ? { model: event.model } : {}),
-          })
-        }
-      })
+      socket = await openAgentStream(
+        streamId,
+        (event) => {
+          if (event.type === 'agent_step') {
+            setLiveSteps((prev) => [...prev, event])
+            setWriting((prev) => (prev?.agent === event.agent ? null : prev))
+          } else if (event.type === 'analysis_token') {
+            // Progress, not content: the deltas are a JSON payload being
+            // written, so the count is shown rather than half-parsed prose.
+            setWriting({
+              agent: event.agent,
+              chars: event.chars,
+              ...(event.model ? { model: event.model } : {}),
+            })
+          }
+        },
+        { onStatus: setConnection },
+      )
     } catch {
       socket = null
     }
@@ -285,7 +367,7 @@ export default function AnalysisStudio() {
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <label
             htmlFor="analysis-text"
-            className="text-xs uppercase tracking-wider text-slate-500"
+            className="text-xs uppercase tracking-wider text-slate-400"
           >
             Fact pattern
           </label>
@@ -322,7 +404,7 @@ export default function AnalysisStudio() {
           <div className="flex items-center gap-2">
             <label
               htmlFor="analysis-jur"
-              className="text-xs uppercase tracking-wider text-slate-500"
+              className="text-xs uppercase tracking-wider text-slate-400"
             >
               Jurisdiction
             </label>
@@ -338,7 +420,7 @@ export default function AnalysisStudio() {
                 </option>
               ))}
             </select>
-            <span className="text-[11px] text-slate-500">
+            <span className="text-[11px] text-slate-400">
               {remaining.toLocaleString()} chars remaining
             </span>
             {dropped > 0 && (
@@ -368,7 +450,7 @@ export default function AnalysisStudio() {
             </label>
             <label
               htmlFor="analysis-thread"
-              className="ml-2 text-xs uppercase tracking-wider text-slate-500"
+              className="ml-2 text-xs uppercase tracking-wider text-slate-400"
             >
               Resume thread
             </label>
@@ -410,7 +492,19 @@ export default function AnalysisStudio() {
         </div>
       )}
 
-      {submitting && <LiveTrace steps={liveSteps} writing={writing} />}
+      {/* BL-20260905-22: the trace outlives the run that produced it. The
+          REST response can land within a few hundred milliseconds on the
+          degraded path, and unmounting the panel with `submitting` threw the
+          streamed detail away before anyone could read it. `liveSteps` is
+          cleared by the next submit, so this never shows a stale run. */}
+      {(submitting || liveSteps.length > 0) && (
+        <LiveTrace
+          steps={liveSteps}
+          writing={submitting ? writing : null}
+          live={submitting}
+          connection={connection}
+        />
+      )}
       {submitting && <SkeletonResult />}
 
       {result && !submitting && <ResultPanel result={result} />}
@@ -454,7 +548,7 @@ function Permalink({ id }: { id: string }) {
   return (
     <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-900/40 px-4 py-3 text-xs text-slate-400">
       <div>
-        <span className="text-slate-500">Permalink:</span>{' '}
+        <span className="text-slate-400">Permalink:</span>{' '}
         <a
           href={href}
           className="text-blue-300 underline-offset-2 hover:underline"
@@ -463,7 +557,7 @@ function Permalink({ id }: { id: string }) {
         </a>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <label htmlFor="share-slug" className="text-slate-500">
+        <label htmlFor="share-slug" className="text-slate-400">
           Share as
         </label>
         <input
@@ -484,7 +578,7 @@ function Permalink({ id }: { id: string }) {
       </div>
       {link && (
         <div>
-          <span className="text-slate-500">Shareable URL:</span>{' '}
+          <span className="text-slate-400">Shareable URL:</span>{' '}
           <a
             href={link.url}
             className="text-emerald-300 underline-offset-2 hover:underline"
@@ -601,11 +695,11 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
         <EngineStatePanel result={result} />
         <section
           aria-labelledby="no-analysis-heading"
-          className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 text-sm text-slate-500"
+          className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 text-sm text-slate-400"
         >
           <h2
             id="no-analysis-heading"
-            className="text-xs uppercase tracking-wider text-slate-500"
+            className="text-xs uppercase tracking-wider text-slate-400"
           >
             No analysis produced
           </h2>
@@ -625,10 +719,14 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
     )
   }
 
+  // BL-20260906-10: `trace_url` is the name going forward; `phoenix_trace_url`
+  // is the deprecated alias the server still emits for older clients.
+  const traceUrl = result.trace_url ?? result.phoenix_trace_url
+
   return (
     <div className="space-y-6">
       <Permalink id={result.id} />
-      {(result.phoenix_trace_url || result.langgraph_thread_id) && (
+      {(traceUrl || result.langgraph_thread_id) && (
         <div className="rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-200">
           <div className="font-semibold">
             Local LLM run (LangGraph + Ollama)
@@ -647,16 +745,16 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
                 )}
               </div>
             )}
-            {result.phoenix_trace_url && (
+            {traceUrl && (
               <div>
-                <span className="text-indigo-400">Phoenix trace:</span>{' '}
+                <span className="text-indigo-400">Trace:</span>{' '}
                 <a
-                  href={result.phoenix_trace_url}
+                  href={traceUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="text-blue-300 underline-offset-2 hover:underline"
                 >
-                  {result.phoenix_trace_url}
+                  {traceUrl}
                 </a>
               </div>
             )}
@@ -689,7 +787,7 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
         >
           <h2
             id="coverage-heading"
-            className="mb-1 text-xs uppercase tracking-wider text-slate-500"
+            className="mb-1 text-xs uppercase tracking-wider text-slate-400"
           >
             Corpus coverage
           </h2>
@@ -721,13 +819,13 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
               </p>
             )}
           {result.irac.retrieval.queries.length > 0 && (
-            <p className="mt-1 text-slate-500">
+            <p className="mt-1 text-slate-400">
               Searched: {result.irac.retrieval.queries.join(' · ')}
             </p>
           )}
           {/* Structured envelope rows (BL-20260803-02): the prose note above
               is the model-facing text; these are the fields a reviewer scans. */}
-          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-slate-500">
+          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-slate-400">
             {(result.irac.retrieval.jurisdictions_present?.length ?? 0) > 0 && (
               <>
                 <dt>Jurisdictions present</dt>
@@ -746,6 +844,17 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
                   </dd>
                 </>
               )}
+            {(result.irac.retrieval.boosted_count ?? 0) > 0 && (
+              <>
+                <dt>Ranking boost</dt>
+                <dd data-testid="retrieval-boost" className="text-indigo-300">
+                  {result.irac.retrieval.boosted_count} passage(s) promoted
+                  because {result.irac.retrieval.boost_source || 'a matter'} had
+                  already verified them — this order is not the corpus&rsquo;s
+                  own.
+                </dd>
+              </>
+            )}
             {(result.irac.retrieval.date_earliest ||
               result.irac.retrieval.date_latest) && (
               <>
@@ -784,7 +893,7 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
         </dl>
         {result.irac.sources.length > 0 && (
           <div className="mt-5">
-            <h3 className="mb-2 text-xs uppercase tracking-wider text-slate-500">
+            <h3 className="mb-2 text-xs uppercase tracking-wider text-slate-400">
               Sources
             </h3>
             <ul className="space-y-1 text-sm">
@@ -871,9 +980,14 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
                     p.title
                   )}
                 </h3>
-                <span className="text-[11px] text-slate-500">
+                <span className="text-[11px] text-slate-400">
                   {p.court} · {p.year}
                 </span>
+              </div>
+              {/* BL-20260905-84: §13 — the binding/persuasive weight the
+                  backend already carries, drawn where the precedent is read. */}
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <PrecedentAuthority attribution={p.attribution} />
               </div>
               <div className="mt-2 flex items-center gap-2">
                 <div
@@ -911,7 +1025,7 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
       />
 
       {/* Footer chip */}
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
         <span>
           Analysis{' '}
           <code className="rounded bg-slate-800 px-1.5 py-0.5 text-slate-300">
@@ -976,7 +1090,7 @@ function CopyTraceId({ traceId }: { traceId: string }) {
 function IracField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="mb-1 text-xs uppercase tracking-wider text-slate-500">
+      <dt className="mb-1 text-xs uppercase tracking-wider text-slate-400">
         {label}
       </dt>
       <dd className="text-sm leading-relaxed text-slate-200">{value}</dd>

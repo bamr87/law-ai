@@ -83,8 +83,11 @@ _EFFECTIVE_DATE_RE = re.compile(
 # PDF fallback (BL-20260509-06). CRS PDFs print section starts as
 # "18-3-102. Murder in the first degree." (the § is often dropped), one per
 # line, so a line-anchored match is the reliable split point.
+# Decimal articles get their own decimal here too (BL-20260906-89): the older
+# shape allowed a decimal only after the last dashed part, so "18-1.3-401."
+# truncated to the section id "18-1".
 _PDF_SECTION_RE = re.compile(
-    r"(?m)^[ \t]*(?:§[ \t]*)?(\d+[A-Z]?(?:-\d+)+(?:\.\d+)?)\.[ \t]*(.*)$"
+    r"(?m)^[ \t]*(?:§[ \t]*)?(\d+[A-Z]?(?:\.\d+)?(?:-\d+(?:\.\d+)?)+)\.[ \t]*(.*)$"
 )
 
 #: Every PDF-derived section is penalised by this much so column-interleaved
@@ -328,6 +331,16 @@ def _score_section(*, text: str, number: str | None, heading: str) -> float:
     elif body_len < 20:
         score -= 0.4
     return max(0.0, min(1.0, score))
+
+
+def rescore_section(*, heading: str, text: str) -> float:
+    """Re-score an already-parsed section with today's scorer (BL-20260905-96).
+
+    A quarantined statute row stores the parsed section, not the title HTML,
+    so re-extraction cannot re-parse the page; it re-runs the same rule-based
+    scorer :func:`parse_title_html` used, over the stored heading and text.
+    """
+    return _score_section(text=text, number=_section_number(heading), heading=heading)
 
 
 def _section_id(title_id: str, number: str) -> str:

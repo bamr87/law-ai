@@ -141,6 +141,14 @@ class PassageContext(BaseModel):
 #: stamps this); ``machine-judge`` is an automated adversarial pass, which is
 #: weaker and must never be labelled as editorial; ``proof`` is a
 #: finite-model-checked synthesized item (spec 049).
+#:
+#: There is deliberately no value for "a person wrote this and it was reviewed
+#: in the pull request that added it" (BL-20260905-51). That path leaves its
+#: record in git, not in the data file, and inventing a ``pr-review`` method
+#: would mean writing a reviewer name no one can check. The convention is
+#: instead: ``review is None`` on a hand-authored item means PR review, and a
+#: *machine*-authored item must always carry a record (test_bank_review.py
+#: enforces exactly that asymmetry).
 ReviewMethod = Literal["editorial", "machine-judge", "proof"]
 
 
@@ -180,10 +188,20 @@ class Question(BaseModel):
         default=None,
         description="Set on RC + LG items to link them to a PassageContext.",
     )
+    archetype: str | None = Field(
+        default=None,
+        description="Factory taxonomy archetype this item instantiates "
+        "(BL-20260905-54). Stamped at promotion from the generation job that "
+        "drafted it. None means it predates the stamp, and the coverage "
+        "census falls back to matching on the archetype's primary concept.",
+    )
     review: QuestionReview | None = Field(
         default=None,
         description="How this item was reviewed before it entered the bank "
-        "(BL-20260429-19). None means no review is on record.",
+        "(BL-20260429-19). None is the hand-authored convention "
+        "(BL-20260905-51): the item was written by a person and reviewed in "
+        "the pull request that added it, which leaves no record here. A "
+        "machine-authored item may never rely on it — see ReviewMethod.",
     )
 
     @model_validator(mode="before")

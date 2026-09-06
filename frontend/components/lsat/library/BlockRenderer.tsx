@@ -200,7 +200,7 @@ function Notation({ block }: { block: LsatNotationBlock }) {
         {block.lines.join('\n')}
       </pre>
       {block.caption && (
-        <figcaption className="mt-1 text-xs text-slate-500">{block.caption}</figcaption>
+        <figcaption className="mt-1 text-xs text-slate-400">{block.caption}</figcaption>
       )}
     </figure>
   )

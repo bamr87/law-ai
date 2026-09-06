@@ -1,6 +1,6 @@
 """Read-only autonomy panels for the operator dashboard (BL-20260511-03).
 
-Three questions an operator asks about a self-driving repo, none of which had
+Four questions an operator asks about a self-driving repo, none of which had
 an answer outside a container shell before this module:
 
 * **Is the benchmark moving?** — ``/api/agents/autonomy/legalbench-history``
@@ -9,6 +9,8 @@ an answer outside a container shell before this module:
   ranks ``coverage.xml`` ascending and returns the worst five.
 * **What is waiting on a human?** — ``/api/agents/autonomy/recent-quarantine``
   returns the ten newest ``PendingReview`` rows.
+* **Did the loop actually run?** — ``/api/agents/autonomy/runs`` returns the
+  last N ``audit.AutonomyRun`` rows by kind, status and duration.
 
 Every view is **read-only**: no LLM call, no graph write, no cycle trigger.
 They sit behind the same ``RequireAgent`` gate as the rest of ``/api/agents/*``.
@@ -80,6 +82,10 @@ HISTORY_DEFAULT = 20
 HISTORY_MAX = 200
 COVERAGE_LIMIT = 5
 QUARANTINE_LIMIT = 10
+#: Cycles per page for the runs panel (BL-20260906-23). Bounded like the
+#: history panel: this reads a table an operator can grow without limit.
+RUNS_DEFAULT = 20
+RUNS_MAX = 200
 
 
 def _read_history(limit: int) -> tuple[list[dict[str, Any]], bool]:
@@ -217,6 +223,69 @@ class AutonomyCoverageView(_Base):
         )
 
 
+class AutonomyRunsView(_Base):
+    """The last N autonomy cycles: kind, status, duration (BL-20260906-23).
+
+    ``audit.AutonomyRun`` existed with a composite ``(kind, -started_at)``
+    index and exactly one consumer — ``compose_digest``, which reads a single
+    24-hour window. So "did the nightly run, and how did it end" was a question
+    only a container shell could answer. This is that query, and ``?kind=`` is
+    the index's first column rather than a filter bolted on after the fact.
+
+    Read-only and never fatal: Postgres being down returns the empty envelope
+    with ``available: false``, like every other panel in this module.
+    """
+
+    def get(self, request, *args, **kwargs):  # type: ignore[no-untyped-def]
+        limit = _parse_limit(
+            request.query_params.get("limit"),
+            default=RUNS_DEFAULT,
+            lo=1,
+            hi=RUNS_MAX,
+        )
+        kind = (request.query_params.get("kind") or "").strip()
+        try:
+            from law_ai.audit.models import AutonomyRun
+
+            query = AutonomyRun.objects.all()
+            if kind:
+                query = query.filter(kind=kind)
+            rows = list(query.order_by("-started_at")[:limit])
+            available = True
+        except Exception as exc:
+            logger.warning("autonomy runs unavailable: %s", exc)
+            rows, available = [], False
+
+        runs = [
+            {
+                "cycle_id": row.cycle_id,
+                "kind": row.kind,
+                "source": row.source,
+                "trace_id": row.trace_id,
+                "status": row.status,
+                "started_at": row.started_at.isoformat() if row.started_at else None,
+                "ended_at": row.ended_at.isoformat() if row.ended_at else None,
+                "duration_ms": row.duration_ms,
+                # Truncated: an error panel is a signal, not a log viewer.
+                "error": (row.error or "")[:300],
+                "summary": row.summary or {},
+            }
+            for row in rows
+        ]
+        by_status: dict[str, int] = {}
+        for run in runs:
+            by_status[run["status"]] = by_status.get(run["status"], 0) + 1
+        return Response(
+            {
+                "available": available,
+                "runs": runs,
+                "count": len(runs),
+                "kind": kind,
+                "by_status": by_status,
+            }
+        )
+
+
 class AutonomyQuarantineView(_Base):
     """The ten newest quarantined documents still waiting on a human (§5)."""
 
@@ -258,6 +327,11 @@ urlpatterns = [
         "autonomy/lowest-coverage",
         AutonomyCoverageView.as_view(),
         name="agents-autonomy-lowest-coverage",
+    ),
+    path(
+        "autonomy/runs",
+        AutonomyRunsView.as_view(),
+        name="agents-autonomy-runs",
     ),
     path(
         "autonomy/recent-quarantine",

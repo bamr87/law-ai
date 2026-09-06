@@ -422,3 +422,31 @@ describe('AgentDashboard auth header (spec 008, BL-20260430-07)', () => {
     for (const value of seen) expect(value).toBeNull()
   })
 })
+
+// --- BL-20260905-23: a test mode that stops the 5s heartbeat ---
+
+describe('?poll=off', () => {
+  afterEach(() => {
+    window.history.replaceState({}, '', '/agents')
+  })
+
+  it('starts paused so a frozen screen makes no round trips', async () => {
+    window.history.replaceState({}, '', '/agents?poll=off')
+    render(<AgentDashboard />)
+
+    const toggle = await screen.findByRole('button', { name: /resume/i })
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText(/polling paused/i)).toBeInTheDocument()
+  })
+
+  it('polls as usual without it, and the control still toggles', async () => {
+    render(<AgentDashboard />)
+
+    const toggle = await screen.findByRole('button', { name: /pause/i })
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(toggle)
+    expect(
+      await screen.findByRole('button', { name: /resume/i }),
+    ).toHaveAttribute('aria-pressed', 'true')
+  })
+})

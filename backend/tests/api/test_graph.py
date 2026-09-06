@@ -431,3 +431,50 @@ async def test_neighborhood_nodes_carry_full_properties(
     cit = nodes["cit:410 us 113"]
     assert cit["normalized"] == "410 us 113"
     assert cit["text"] == "410 U.S. 113"
+
+
+@pytest.mark.asyncio
+async def test_courts_lists_corpus_wide_vocabulary(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """BL-20260905-89: /api/graph/courts feeds the picker's court dropdown."""
+    session = FakeAsyncSession(
+        canned=[
+            [
+                {"court": "Supreme Court", "count": 12},
+                {"court": "10th Cir.", "count": 3},
+            ]
+        ]
+    )
+    _patch_session(monkeypatch, session)
+    res = await client.get("/api/graph/courts")
+    assert res.status_code == 200
+    assert res.json() == {
+        "available": True,
+        "count": 2,
+        "courts": [
+            {"court": "Supreme Court", "count": 12},
+            {"court": "10th Cir.", "count": 3},
+        ],
+    }
+    assert session.calls[0][1] == {"limit": 200}
+
+
+@pytest.mark.asyncio
+async def test_courts_rejects_out_of_range_limit(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session = FakeAsyncSession(canned=[[]])
+    _patch_session(monkeypatch, session)
+    res = await client.get("/api/graph/courts", params={"limit": 5000})
+    assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_courts_degrades_when_graph_is_down(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_session_failure(monkeypatch, RuntimeError("neo4j down"))
+    res = await client.get("/api/graph/courts")
+    assert res.status_code == 200
+    assert res.json() == {"available": False, "courts": [], "count": 0}

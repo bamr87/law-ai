@@ -47,7 +47,7 @@ export function SpecsPanel({
         <div key={status} className="mb-3">
           <div className="mb-1 flex items-center gap-2">
             <SpecStatusBadge status={status} />
-            <span className="text-[10px] text-slate-500">{items.length}</span>
+            <span className="text-[10px] text-slate-400">{items.length}</span>
           </div>
           <ul className="space-y-1">
             {(showAll ? items : items.slice(0, 3)).map((spec) => (
@@ -72,7 +72,7 @@ export function SpecsPanel({
         <button
           type="button"
           onClick={() => setShowAll((v) => !v)}
-          className="mt-1 text-[11px] text-slate-500 underline hover:text-slate-300"
+          className="mt-1 text-[11px] text-slate-400 underline hover:text-slate-300"
         >
           {showAll ? 'Show less' : `Show all ${specs.length} specs`}
         </button>

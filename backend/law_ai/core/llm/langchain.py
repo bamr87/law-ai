@@ -97,6 +97,16 @@ class ChatProviderChain(BaseChatModel):
     json_mode: bool = False
     """Ask providers for JSON output (Ollama JSON mode; prompt-level on Claude)."""
 
+    response_schema: dict[str, Any] | None = None
+    """JSON Schema pinning the reply to schema-valid JSON (BL-20260905-80).
+
+    The strict form of :attr:`json_mode`: ``core.llm.agenerate`` has taken one
+    since spec 034, and the adapter dropped it, so a LangGraph node could not
+    ask for the structured output every other call site can. Passed through
+    unchanged on all three paths — buffered, sync and streamed — so a schema
+    does not quietly evaporate when a caller switches to ``astream``.
+    """
+
     agent: str | None = None
     """Caller name recorded on the ``llm_call`` provenance event."""
 
@@ -118,6 +128,7 @@ class ChatProviderChain(BaseChatModel):
         return {
             "chain": list(router.chain_names(self.providers)),
             "json_mode": self.json_mode,
+            "response_schema": self.response_schema,
             "agent": self.agent,
         }
 
@@ -186,6 +197,7 @@ class ChatProviderChain(BaseChatModel):
             prompt,
             system=system,
             json_mode=self.json_mode,
+            response_schema=self.response_schema,
             max_tokens=self.max_tokens,
             temperature=self.temperature,
             models=self.models,
@@ -219,6 +231,7 @@ class ChatProviderChain(BaseChatModel):
             prompt,
             system=system,
             json_mode=self.json_mode,
+            response_schema=self.response_schema,
             max_tokens=self.max_tokens,
             temperature=self.temperature,
             models=self.models,
@@ -252,6 +265,7 @@ class ChatProviderChain(BaseChatModel):
             prompt,
             system=system,
             json_mode=self.json_mode,
+            response_schema=self.response_schema,
             max_tokens=self.max_tokens,
             temperature=self.temperature,
             models=self.models,

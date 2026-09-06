@@ -125,6 +125,19 @@ class GenerateQuestionsInput(BaseModel):
     count: int = Field(default=1, ge=1, le=_MAX_COUNT)
     concepts: list[str] = Field(default_factory=list)
     passage_id: str | None = None
+    stream_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9._-]+$",
+        description=(
+            "Client-chosen WebSocket correlation id (BL-20260906-76). "
+            "Subscribe to /ws/agents/<stream_id> BEFORE posting and the "
+            "drafting call relays its deltas there as ``authoring_token`` "
+            "events, so a 68-second wait is visible instead of a spinner. "
+            "Progress only: the REST body is still the authoritative result."
+        ),
+    )
 
 
 class DraftChoice(BaseModel):
@@ -277,25 +290,72 @@ _DRAFTS_RESPONSE_SCHEMA: dict[str, Any] = {
 }
 
 
-async def _generate(prompt: str) -> tuple[str, str]:
+async def _emit_delta(stream_id: str, payload: dict[str, Any]) -> None:
+    """Relay one progress event; never fatal (BL-20260906-76).
+
+    Fire-and-forget like every other event on this socket: a Redis outage must
+    not cost an author the drafts the chain already produced.
+    """
+    try:
+        from law_ai.agentsapi.streaming import emit_stream_event
+
+        await emit_stream_event(stream_id, payload, source="lsat_content_author")
+    except Exception:  # pragma: no cover - defensive
+        logger.debug("authoring delta not delivered", exc_info=True)
+
+
+async def _generate(prompt: str, stream_id: str | None = None) -> tuple[str, str]:
     """Generate drafts through the shared provider chain (spec 034).
 
     Claude first, the Anthropic API key second, local Ollama last, with
     structured outputs pinning schema-valid JSON on the Claude tiers. Returns
     ``(raw, model_label)`` and raises when every provider fails, so
     :meth:`LSATContentAuthor.run` degrades to the deterministic offline draft.
+
+    Buffered by default — batch callers, the factory, tests. With a
+    ``stream_id`` the same call is streamed and each delta relayed as an
+    ``authoring_token`` event (BL-20260906-76), so the 68-second authoring
+    wait is visible the way the IRAC one is. Either way the caller parses one
+    complete JSON payload: the deltas are progress, never the result.
     """
-    result = await llm.agenerate(
+    # Authoring runs with an author waiting on the page — measured at 68s
+    # on the xAI tier — so it takes the faster Grok id when one is
+    # configured, like the other user-facing calls (BL-20260905-11).
+    overrides = xai.interactive_overrides()
+    if not stream_id:
+        result = await llm.agenerate(
+            prompt,
+            system=_LLM_SYSTEM,
+            response_schema=_DRAFTS_RESPONSE_SCHEMA,
+            agent="lsat_content_author",
+            models=overrides,
+        )
+        return result.text, result.model_label
+
+    parts: list[str] = []
+    label = "(provider chain)"
+    chars = 0
+    async for chunk in llm.astream(
         prompt,
         system=_LLM_SYSTEM,
         response_schema=_DRAFTS_RESPONSE_SCHEMA,
         agent="lsat_content_author",
-        # Authoring runs with an author waiting on the page — measured at 68s
-        # on the xAI tier — so it takes the faster Grok id when one is
-        # configured, like the other user-facing calls (BL-20260905-11).
-        models=xai.interactive_overrides(),
-    )
-    return result.text, result.model_label
+        models=overrides,
+    ):
+        parts.append(chunk.text)
+        label = chunk.model_label
+        chars += len(chunk.text)
+        await _emit_delta(
+            stream_id,
+            {
+                "type": "authoring_token",
+                "agent": "LSATContentAuthor",
+                "text": chunk.text,
+                "chars": chars,
+                "model": chunk.model_label,
+            },
+        )
+    return "".join(parts), label
 
 
 def _normalize_choices(item: dict[str, Any]) -> None:
@@ -446,7 +506,7 @@ class LSATContentAuthor:
         # placeholder only survives if _generate raises before returning.
         model_used = "fallback/offline"
         try:
-            raw, model_used = await _generate(prompt)
+            raw, model_used = await _generate(prompt, inp.stream_id)
             drafts = _parse_drafts(raw, section=inp.section, difficulty=inp.difficulty)
             drafts = drafts[: inp.count]
             # Pad with fallback drafts if the LLM returned fewer than asked.

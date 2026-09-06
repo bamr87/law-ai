@@ -155,6 +155,7 @@ Limits worth knowing, stated so nobody over-reads the gate. The body check is a 
 | R12 | The two copies of `frontend/ui/base.css` have drifted. Run `make ui-sync`. |
 | R13 | A platform LSAT component with no `lsat-static` counterpart and no `static-parity: none — <reason>`. A component ported under a different filename names its counterpart instead — `static-parity: lsat-static/components/Writing.tsx` — and the path is resolved, so a stale claim fails. |
 | R14 | A `<button>` in the masthead or the LSAT section tab bar without `.tap-target` — the 44px HIG/AAA guideline, not the 24px WCAG 2.5.8 floor. |
+| R15 | An `animate-*` utility with no reduced-motion opt-out. Write `motion-safe:animate-*`, or pair the utility with `motion-reduce:animate-none` on the same element — otherwise the animation runs for a viewer whose OS asked it not to (BL-20260906-72). |
 
 **Opting out.** Put `ux-audit: exempt — <reason>` in a comment to exempt a whole file, or `ux-audit: bare-page — <reason>` to exempt one route from R7. A reason is required on the same line, so every exemption explains itself to the next reader. One exists today: the dashboard route (full-bleed hero). The other, `components/NavBar.tsx` (superseded dead code), was deleted under BL-20260831-01.
 

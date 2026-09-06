@@ -57,7 +57,7 @@ export default function ConceptRefs({ conceptIds }: { conceptIds: string[] }) {
 
   return (
     <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950/60 p-4">
-      <div className="text-[11px] uppercase tracking-wider text-slate-500">
+      <div className="text-[11px] uppercase tracking-wider text-slate-400">
         Derived from
       </div>
       <ul className="mt-2 space-y-2">

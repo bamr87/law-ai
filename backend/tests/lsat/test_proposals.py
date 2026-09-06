@@ -125,6 +125,61 @@ class TestStoreRoundTrip:
         assert row["status"] == "approved"
         assert row["question_id"] in after
 
+    def test_promotion_keeps_the_bank_file_in_its_on_disk_format(self) -> None:
+        """BL-20260905-48: append an item, do not reformat the whole file.
+
+        The checked-in banks are 2-space JSON. A promotion that rewrote them
+        at indent=4 would make the first production approval a whole-file
+        diff, hiding the one line a reviewer needs to read.
+        """
+        from law_ai.lsat.services import bank as bank_mod
+        from law_ai.lsat.services import proposals
+
+        bank_path = bank_mod.DATA_DIR / "lr_bank.json"
+        before = bank_path.read_text(encoding="utf-8")
+
+        pid = proposals.record_proposal(
+            _draft("LR"), agent_trace_id="t1", model="m", confidence=0.9
+        )
+        proposals.promote_to_bank(pid, reviewer="alice")
+
+        after = bank_path.read_text(encoding="utf-8")
+        # Same serialization convention as the file that was read in.
+        assert (
+            after == json.dumps(json.loads(after), indent=2, ensure_ascii=False) + "\n"
+        )
+        # And the existing items are untouched: every line of the old file up
+        # to its final closing bracket survives verbatim.
+        kept = before.rstrip().rsplit("\n", 2)[0]
+        assert after.startswith(kept)
+
+    def test_promotion_stamps_the_generating_archetype(self) -> None:
+        """BL-20260905-54: the job knew the archetype; the item now says so."""
+        from law_ai.lsat.services import bank as bank_mod
+        from law_ai.lsat.services import proposals
+
+        pid = proposals.record_proposal(
+            _draft("LR"),
+            agent_trace_id="t1",
+            model="m",
+            confidence=0.9,
+            meta={"factory": {"archetype_id": "lr-weaken", "tier": "bulk"}},
+        )
+        row = proposals.promote_to_bank(pid, reviewer="alice")
+        item = bank_mod.load_bank()[row["question_id"]]
+        assert item.archetype == "lr-weaken"
+
+    def test_a_hand_drafted_promotion_carries_no_archetype(self) -> None:
+        from law_ai.lsat.services import bank as bank_mod
+        from law_ai.lsat.services import proposals
+
+        pid = proposals.record_proposal(
+            _draft("LR"), agent_trace_id="t1", model="m", confidence=0.9
+        )
+        row = proposals.promote_to_bank(pid, reviewer="alice")
+        # None, not a guess: the census falls back to the concept proxy.
+        assert bank_mod.load_bank()[row["question_id"]].archetype is None
+
     def test_double_promote_raises(self) -> None:
         from law_ai.lsat.services import proposals
 
@@ -134,6 +189,45 @@ class TestStoreRoundTrip:
         proposals.promote_to_bank(pid, reviewer="a")
         with pytest.raises(ValueError):
             proposals.promote_to_bank(pid, reviewer="a")
+
+
+class TestLongLog:
+    """BL-20260905-57 — a queue that outgrows the replay window.
+
+    The reader used to replay only the last 5000 events, so once the log
+    passed that, a proposal's ``create`` event dropped out and the row simply
+    vanished from the queue — with no error and nothing in the UI to say so.
+    """
+
+    def test_a_proposal_survives_a_log_longer_than_the_old_window(self) -> None:
+        import json as _json
+
+        from law_ai.lsat.services import proposals
+
+        pid = proposals.record_proposal(
+            _draft(), agent_trace_id="t1", model="m", confidence=0.8
+        )
+        # Bury the create event under more events than the old tail kept.
+        path = proposals._proposals_path()
+        with path.open("a", encoding="utf-8") as fh:
+            for i in range(5200):
+                fh.write(
+                    _json.dumps(
+                        {
+                            "type": "lsat_proposal.judge",
+                            "id": f"prop-noise-{i}",
+                            "timestamp": "2026-09-05T00:00:00+00:00",
+                            "judge": {"verdict": "pass"},
+                        }
+                    )
+                    + "\n"
+                )
+
+        rows = proposals.list_proposals("pending")
+        assert [r["id"] for r in rows] == [pid]
+        assert proposals.get_proposal(pid) is not None
+        # …and it is still promotable: the draft came back whole, not a stub.
+        assert proposals.get_proposal(pid)["draft"]["stem"] == "Sample stem."
 
 
 class TestGapAnalysis:

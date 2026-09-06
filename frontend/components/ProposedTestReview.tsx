@@ -48,12 +48,12 @@ export default function ProposedTestReview() {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2
           id="proposed-tests-heading"
-          className="text-xs font-medium uppercase tracking-wider text-slate-500"
+          className="text-xs font-medium uppercase tracking-wider text-slate-400"
         >
           Proposed tests awaiting review
         </h2>
         {files && files.length > 0 && (
-          <span className="text-[11px] text-slate-500">
+          <span className="text-[11px] text-slate-400">
             {files.length} file{files.length === 1 ? '' : 's'} · skipped until a
             human promotes them
           </span>
@@ -67,7 +67,7 @@ export default function ProposedTestReview() {
       )}
 
       {!error && files && files.length === 0 && (
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-slate-400">
           {available
             ? 'No proposed tests pending review.'
             : 'No proposals directory in this checkout.'}
@@ -94,7 +94,7 @@ export default function ProposedTestReview() {
                   </span>
                 )}
               </div>
-              <div className="mt-1 text-slate-500">
+              <div className="mt-1 text-slate-400">
                 <span className="font-mono">{file.module}</span> ·{' '}
                 <span className="font-mono">{file.path}</span> ·{' '}
                 {new Date(file.mtime).toLocaleString()}

@@ -29,6 +29,8 @@ EXPECTED_SPECS = {
     "shell-sticky.spec.ts": "BL-20260831-05",
     "a11y.spec.ts": "BL-20260831-09",
     "admin-hitl.spec.ts": "BL-20260503-17",
+    "proxy-origin.spec.ts": "BL-20260905-26",
+    "graph-keyboard.spec.ts": "BL-20260906-54",
 }
 
 
@@ -147,6 +149,38 @@ def test_the_static_viewport_suite_is_run_by_a_workflow(repo_root: Path) -> None
         "no workflow runs `make lsat-static-e2e` — the viewport measurements "
         "would be automatable but never automatic"
     )
+
+
+def test_the_static_viewport_suite_has_a_cached_variant(repo_root: Path) -> None:
+    """BL-20260906-63: the browser run is 18 seconds; the rebuild is two minutes.
+
+    ``make lsat-static-e2e`` re-runs ``npm ci`` and a full ``next build`` on
+    every invocation, which is what keeps the viewport measurements a nightly
+    job rather than something anyone runs while editing the CSS they are
+    measuring. The cached variant reuses the shared node_modules volume and
+    the existing export when nothing under the sources is newer than it — and
+    it must reuse them *conditionally*, or it would silently measure a stale
+    build.
+    """
+    makefile = (repo_root / "Makefile").read_text(encoding="utf-8")
+    assert "\nlsat-static-e2e-cached:" in makefile, (
+        "Makefile is missing `lsat-static-e2e-cached`"
+    )
+    target = makefile.split("\nlsat-static-e2e-cached:", 1)[1].split("\n\n", 1)[0]
+    assert "-newer out/index.html" in target, (
+        "the cached variant must rebuild when a source is newer than the export"
+    )
+    assert "[ -x node_modules/.bin/next ] ||" in target, (
+        "the install must be skipped only when the volume already has one"
+    )
+    # Same browser image as the uncached target, so one pin serves both.
+    full = makefile.split("\nlsat-static-e2e:", 1)[1].split("\n\n", 1)[0]
+    image = re.search(r"mcr\.microsoft\.com/playwright:\S+", full)
+    assert image and image.group(0) in target, (
+        "both static e2e targets must use the same pinned Playwright image"
+    )
+    # The uncached target stays the from-scratch one CI runs.
+    assert "npm ci --no-audit --no-fund && npm run build" in full
 
 
 def test_static_playwright_version_matches_the_frontend(repo_root: Path) -> None:

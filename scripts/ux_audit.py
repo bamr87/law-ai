@@ -591,6 +591,28 @@ def rule_tap_targets(audit: Audit) -> None:
             audit.add(path, line, "R14", "control under 44px — add tap-target")
 
 
+# A Tailwind `animate-*` utility with nothing gating it runs for every viewer,
+# including the one whose OS says "reduce motion". Five sampled components in
+# `HomeMotion.test.tsx` proved the components they import; nothing stopped the
+# sixth file from re-introducing the regression (BL-20260906-72), which is what
+# a mechanical rule is for. Satisfied by `motion-reduce:animate-none` beside the
+# utility, or by writing it as `motion-safe:animate-*` in the first place.
+ANIMATE_RE = re.compile(r"(?<!motion-reduce:)(?<!motion-safe:)\banimate-[a-z0-9-]+")
+
+
+def rule_reduced_motion(path: Path, lines: list[str], audit: Audit) -> None:
+    """R15 — every animation opts out under prefers-reduced-motion."""
+    for i, line in enumerate(lines, 1):
+        matches = [m.group(0) for m in ANIMATE_RE.finditer(line)]
+        if not matches or all(m == "animate-none" for m in matches):
+            continue
+        if "motion-reduce:animate-none" in line or "motion-safe:animate-" in line:
+            continue
+        audit.add(
+            path, i, "R15", f"{matches[0]} with no reduced-motion opt-out"
+        )
+
+
 RULES = [
     ("R1", "one scroller: no ad-hoc overflow-auto"),
     ("R2", "viewport height: only the shell claims it"),
@@ -606,6 +628,7 @@ RULES = [
     ("R12", "the mirrored base.css / rovingFocus.ts copies are identical"),
     ("R13", "every platform LSAT component is ported or explains why not"),
     ("R14", "masthead controls and LSAT tabs are 44px tap targets"),
+    ("R15", "every animate-* utility opts out of reduced motion"),
 ]
 
 
@@ -642,6 +665,7 @@ def main(argv: list[str]) -> int:
         rule_sticky_offsets(path, lines, audit)
         rule_composite_widgets(path, text, audit)
         rule_control_names(path, text, audit)
+        rule_reduced_motion(path, lines, audit)
 
         # Shell-only — the static export has no `.shell-scroll` and no shell
         # that owns the viewport.

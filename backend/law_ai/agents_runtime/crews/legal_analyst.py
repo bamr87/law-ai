@@ -33,7 +33,7 @@ from contextlib import (
 from typing import Any, Literal, Protocol
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from law_ai.agents_runtime.attribution import (
     Attribution,
@@ -95,7 +95,18 @@ class IRACOutput(BaseModel):
     )
     phoenix_trace_url: str | None = Field(
         default=None,
-        description="Deep-link to the Phoenix span tree (spec 010 FR-3).",
+        description=(
+            "DEPRECATED alias of `trace_url`, kept for clients that already "
+            "read it (BL-20260906-10). Always equal to `trace_url`."
+        ),
+    )
+    trace_url: str | None = Field(
+        default=None,
+        description=(
+            "Deep-link to this run's span tree (spec 010 FR-3). Named for the "
+            "backend-agnostic `core.telemetry.trace_url`, since the collector "
+            "is no longer necessarily Phoenix."
+        ),
     )
     langgraph_thread_id: str | None = Field(
         default=None,
@@ -109,6 +120,21 @@ class IRACOutput(BaseModel):
             "starting one (BL-20260810-13)."
         ),
     )
+
+    @model_validator(mode="after")
+    def _mirror_trace_url(self) -> IRACOutput:
+        """Emit both spellings from whichever one the caller set.
+
+        The deprecation window (BL-20260906-10) is only safe if the two can
+        never disagree, so it is enforced here rather than at each of the
+        construction sites — one of which is the checkpoint replay path, where
+        a stored payload may carry only the old name.
+        """
+        if self.trace_url is None:
+            self.trace_url = self.phoenix_trace_url
+        elif self.phoenix_trace_url is None:
+            self.phoenix_trace_url = self.trace_url
+        return self
 
 
 # ---------------------------------------------------------------------------
@@ -396,19 +422,74 @@ async def _analysis_checkpointer() -> AsyncIterator[Any]:
         yield saver
 
 
-async def _thread_has_state(workflow: Any, thread_id: str) -> bool:
-    """True when ``thread_id`` already carries checkpointed state.
+class ThreadDivergence(Exception):
+    """A resume request that contradicts the thread it names (BL-20260905-81).
+
+    Resuming ``thread_id`` with a different question or jurisdiction used to
+    overwrite the checkpointed channels silently, so the thread's own record
+    of what was asked changed under it and the earlier run became
+    unreproducible. A divergent resume is a caller mistake, not an engine
+    failure: ``/api/analysis`` refuses it with 409 and the caller either
+    restates the original question or omits ``thread_id`` to branch a fresh
+    thread.
+    """
+
+    def __init__(
+        self, thread_id: str, field: str, checkpointed: str, requested: str
+    ) -> None:
+        self.thread_id = thread_id
+        self.field = field
+        self.checkpointed = checkpointed
+        self.requested = requested
+        super().__init__(
+            f"thread {thread_id!r} was checkpointed with a different {field} "
+            f"({checkpointed[:200]!r}, not {requested[:200]!r}); restate it or "
+            "omit thread_id to start a new thread"
+        )
+
+
+async def _thread_state_values(workflow: Any, thread_id: str) -> dict[str, Any]:
+    """The checkpointed channel values for ``thread_id`` (``{}`` when fresh).
 
     Probed *before* the run so ``resumed`` describes what the caller asked
-    for, not what this run just wrote. A probe failure reports False rather
-    than raising — an unknown resume status must not fail the analysis.
+    for, not what this run just wrote, and so the continuity check below sees
+    the *previous* question rather than the one about to be written. A probe
+    failure reports "fresh" rather than raising — an unknown resume status
+    must not fail the analysis.
     """
     try:
         snapshot = await workflow.get_state(thread_id)
     except Exception as exc:
         logger.info("thread state probe failed for %s: %s", thread_id, exc)
-        return False
-    return bool(getattr(snapshot, "values", None))
+        return {}
+    values = getattr(snapshot, "values", None)
+    return dict(values) if isinstance(values, dict) else {}
+
+
+def _check_thread_continuity(
+    thread_id: str,
+    values: dict[str, Any],
+    *,
+    question: str,
+    jurisdiction: str | None,
+) -> None:
+    """Raise :class:`ThreadDivergence` when a resume changes the ask.
+
+    Only the two channels that define *what was asked* are pinned. Everything
+    a run legitimately recomputes (retrieved passages, citations, the answer)
+    is free to change — that is the point of resuming.
+    """
+    prior_question = str(values.get("question") or "")
+    if prior_question and prior_question != question:
+        raise ThreadDivergence(thread_id, "question", prior_question, question)
+    prior_jurisdiction = values.get("jurisdiction") or None
+    if prior_jurisdiction != (jurisdiction or None):
+        raise ThreadDivergence(
+            thread_id,
+            "jurisdiction",
+            str(prior_jurisdiction),
+            str(jurisdiction),
+        )
 
 
 class LegalAnalyst:
@@ -700,7 +781,17 @@ class LegalAnalyst:
                     checkpointer=saver, on_delta=self._delta_sink(input_data)
                 )
                 if thread_id and saver is not None:
-                    resumed = await _thread_has_state(workflow, str(thread_id))
+                    prior = await _thread_state_values(workflow, str(thread_id))
+                    resumed = bool(prior)
+                    if resumed:
+                        # BL-20260905-81: refuse to silently rewrite the
+                        # channels of a thread that was asked something else.
+                        _check_thread_continuity(
+                            str(thread_id),
+                            prior,
+                            question=str(question),
+                            jurisdiction=input_data.get("jurisdiction"),
+                        )
                 result = await workflow.invoke(
                     question,
                     jurisdiction=input_data.get("jurisdiction"),
@@ -712,6 +803,11 @@ class LegalAnalyst:
                     # already proved ownership; this just carries the id.
                     matter_id=_coerce_matter_id(input_data.get("matter_id")),
                 )
+        except ThreadDivergence:
+            # Not an engine failure: the caller contradicted the thread they
+            # named. Degrading here would hide a client bug behind an honest
+            # -looking refusal, so it travels up to the view as a 409.
+            raise
         except Exception as exc:
             # Deliberately broad: this is the resilience boundary for the
             # DEFAULT analysis engine, so it must never surface a 500. The

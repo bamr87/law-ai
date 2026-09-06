@@ -211,6 +211,21 @@ class TestOllamaRetryIsTenacity:
         assert providers._ollama_retryable(ValueError("nope")) is False
 
 
+class TestRetiredSettings:
+    def test_default_model_is_gone(self) -> None:
+        """BL-20260906-43: ``DEFAULT_MODEL`` was dead and read like the knob.
+
+        Nothing ever consulted it — the Ollama provider selects on
+        ``OLLAMA_DEFAULT_MODEL`` — while its ``llama3.1:70b-q4_K_M`` default
+        looked like the model this stack runs. Its removal is the assertion:
+        an operator who edits it must get no effect *and* no such setting.
+        """
+        from django.conf import settings as django_settings
+
+        assert not hasattr(django_settings, "DEFAULT_MODEL")
+        assert django_settings.OLLAMA_DEFAULT_MODEL
+
+
 class TestOllamaModelFallback:
     """A 404 means 'not pulled': try the smaller model rather than give up."""
 

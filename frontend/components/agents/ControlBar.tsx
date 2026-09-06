@@ -43,7 +43,7 @@ export function ControlBar({
               ? 'Live — updates pushed as they happen'
               : `Auto-refresh every ${POLL_MS / 1000}s`}
           {lastUpdated && (
-            <span className="text-slate-500">
+            <span className="text-slate-400">
               · last updated {relativeTime(lastUpdated)}
             </span>
           )}
@@ -176,13 +176,13 @@ export function KPI({
       />
       <div className="relative flex items-start justify-between gap-2">
         <div>
-          <div className="text-xs uppercase tracking-wider text-slate-500">
+          <div className="text-xs uppercase tracking-wider text-slate-400">
             {label}
           </div>
           <div className="mt-1 text-3xl font-semibold tabular-nums text-slate-100">
             {value ?? '—'}
           </div>
-          {sub && <div className="mt-0.5 text-xs text-slate-500">{sub}</div>}
+          {sub && <div className="mt-0.5 text-xs text-slate-400">{sub}</div>}
         </div>
         {chart && <div className="shrink-0 self-end">{chart}</div>}
       </div>

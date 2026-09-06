@@ -13,9 +13,15 @@ Examples::
     # Why was this quarantined? (full payload + reason)
     python manage.py review_queue show <id>
 
-    # Decide, with attribution + rationale (constitution §4).
-    python manage.py review_queue approve <id> --reviewer alice --note "verified"
+    # Decide, with attribution + rationale (constitution §4). `--reviewer-user`
+    # binds the decision to a real Django account (BL-20260906-20).
+    python manage.py review_queue approve <id> --reviewer-user alice --note "ok"
     python manage.py review_queue reject  <id> --reviewer alice --note "duplicate"
+
+    # Approve a whole scoped batch — e.g. every PDF-derived CRS title-18
+    # section a bulk import penalised into the queue (BL-20260905-98).
+    python manage.py review_queue approve-all --id-prefix us-co/crs/18- \
+        --reviewer-user alice --note "spot-checked the import"
 
     # Re-run today's extractor over the stored raw document (no commit).
     python manage.py review_queue re-extract <id> --reviewer alice
@@ -39,12 +45,39 @@ class Command(BaseCommand):
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "action",
-            choices=["list", "show", "approve", "reject", "re-extract", "commit"],
+            choices=[
+                "list",
+                "show",
+                "approve",
+                "approve-all",
+                "reject",
+                "re-extract",
+                "commit",
+            ],
         )
         parser.add_argument("review_id", nargs="?", default=None)
         parser.add_argument("--reviewer", default="", help="Who is deciding.")
+        parser.add_argument(
+            "--reviewer-user",
+            default="",
+            help=(
+                "Username of the deciding account (BL-20260906-20). Recorded as "
+                "a real FK so the decision is joinable, unlike --reviewer."
+            ),
+        )
         parser.add_argument("--note", default="", help="Why (recorded in audit).")
         parser.add_argument("--limit", type=int, default=25)
+        parser.add_argument(
+            "--source", default="", help="Filter for `approve-all` (exact match)."
+        )
+        parser.add_argument(
+            "--kind", default="", help="Filter for `approve-all` (exact match)."
+        )
+        parser.add_argument(
+            "--id-prefix",
+            default="",
+            help="Filter for `approve-all`: id starts with this (e.g. a CRS title).",
+        )
         parser.add_argument(
             "--state",
             choices=["pending", "approved", "rejected", "awaiting-commit", "all"],
@@ -56,11 +89,20 @@ class Command(BaseCommand):
         from law_ai.ingestionapp.models import PendingReview
 
         action = opts["action"]
+        reviewer_user = self._resolve_user(opts["reviewer_user"])
         if action == "list":
             self._list(PendingReview, opts["state"], opts["limit"])
             return
         if action == "commit":
             self._commit_all(opts["limit"])
+            return
+        if action == "approve-all":
+            self._approve_all(
+                PendingReview,
+                opts,
+                reviewer=opts["reviewer"],
+                reviewer_user=reviewer_user,
+            )
             return
 
         review_id = opts["review_id"]
@@ -80,6 +122,7 @@ class Command(BaseCommand):
                 review,
                 approved=action == "approve",
                 reviewer=opts["reviewer"],
+                reviewer_user=reviewer_user,
                 note=opts["note"],
             )
 
@@ -134,20 +177,52 @@ class Command(BaseCommand):
         self.stdout.write("\npayload:")
         self.stdout.write(json.dumps(review.payload, indent=2, default=str)[:4000])
 
-    def _decide(self, review: Any, *, approved: bool, reviewer: str, note: str) -> None:
+    def _resolve_user(self, username: str) -> Any:
+        """Resolve ``--reviewer-user`` to a Django account (BL-20260906-20).
+
+        The CLI could only ever record a free-text ``--reviewer``, which is not
+        joinable to anything; the admin path already stores the FK. An unknown
+        username is an error rather than a silent downgrade to free text — a
+        typo must not quietly cost the attribution.
+        """
+        if not username:
+            return None
+        from django.contrib.auth import get_user_model
+
+        model = get_user_model()
+        try:
+            return model.objects.get(**{model.USERNAME_FIELD: username})
+        except model.DoesNotExist as exc:
+            raise CommandError(f"no user account named {username!r}") from exc
+
+    def _decide(
+        self,
+        review: Any,
+        *,
+        approved: bool,
+        reviewer: str,
+        note: str,
+        reviewer_user: Any = None,
+    ) -> None:
         from law_ai.ingestionapp.services.approval import (
             commit_approved_review,
             record_decision,
         )
 
-        if not reviewer:
+        if not reviewer and reviewer_user is None:
             self.stdout.write(
                 self.style.WARNING(
-                    "no --reviewer given; the decision will be recorded as "
-                    "unattributed (constitution §4 prefers a name)"
+                    "no --reviewer or --reviewer-user given; the decision will "
+                    "be recorded as unattributed (constitution §4 prefers a name)"
                 )
             )
-        record_decision(review, approved=approved, reviewer=reviewer, note=note)
+        record_decision(
+            review,
+            approved=approved,
+            reviewer=reviewer,
+            reviewer_user=reviewer_user,
+            note=note,
+        )
         if not approved:
             self.stdout.write(self.style.SUCCESS(f"rejected {review.pk}"))
             return
@@ -195,6 +270,72 @@ class Command(BaseCommand):
                 "now clears the confidence threshold — "
                 "`approve` it to commit (approval is still the HITL gate)"
             )
+
+    def _approve_all(
+        self, model: Any, opts: dict[str, Any], *, reviewer: str, reviewer_user: Any
+    ) -> None:
+        """Approve + commit a scoped batch of pending rows (BL-20260905-98).
+
+        A bulk import — notably the PDF fallback, whose sections are penalised
+        into the queue by design — can put hundreds of rows in front of a
+        reviewer who has already satisfied themselves about the whole title.
+        Approving them one id at a time is the only thing standing in the way,
+        so this applies one decision across a scope.
+
+        At least one of ``--source`` / ``--kind`` / ``--id-prefix`` is
+        required: "approve everything pending" is never what a reviewer means,
+        and constitution §5 keeps the human in the loop, not out of it.
+        """
+        from law_ai.ingestionapp.services.approval import (
+            commit_approved_review,
+            record_decision,
+        )
+
+        source, kind, prefix = opts["source"], opts["kind"], opts["id_prefix"]
+        if not (source or kind or prefix):
+            raise CommandError(
+                "approve-all needs a scope: pass --source, --kind or --id-prefix"
+            )
+        qs = model.objects.filter(approved__isnull=True, committed_at__isnull=True)
+        if source:
+            qs = qs.filter(source=source)
+        if kind:
+            qs = qs.filter(kind=kind)
+        if prefix:
+            qs = qs.filter(id__startswith=prefix)
+
+        rows = list(qs.order_by("created_at")[: opts["limit"]])
+        if not rows:
+            self.stdout.write("no pending rows match that scope")
+            return
+        if not reviewer and reviewer_user is None:
+            self.stdout.write(
+                self.style.WARNING(
+                    "no --reviewer or --reviewer-user given; every decision in "
+                    "this batch will be recorded as unattributed"
+                )
+            )
+
+        committed = 0
+        failures: list[tuple[str, str]] = []
+        for review in rows:
+            record_decision(
+                review,
+                approved=True,
+                reviewer=reviewer,
+                reviewer_user=reviewer_user,
+                note=opts["note"],
+            )
+            outcome = async_to_sync(commit_approved_review)(review)
+            if outcome.get("committed"):
+                committed += 1
+            else:
+                failures.append((str(review.pk), str(outcome.get("error") or outcome)))
+        self.stdout.write(
+            self.style.SUCCESS(f"approved {len(rows)} row(s), committed {committed}")
+        )
+        for pk, error in failures:
+            self.stdout.write(self.style.ERROR(f"  {pk}: {error}"))
 
     def _commit_all(self, limit: int) -> None:
         from law_ai.ingestionapp.services.approval import commit_approved_reviews

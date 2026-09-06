@@ -27,10 +27,10 @@ export function MetricsPanel({
   if (data.agents.length === 0) {
     return (
       <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3">
-        <div className="text-xs font-medium uppercase tracking-wider text-slate-500">
+        <div className="text-xs font-medium uppercase tracking-wider text-slate-400">
           Per-Agent Metrics
         </div>
-        <div className="mt-2 text-xs text-slate-500">
+        <div className="mt-2 text-xs text-slate-400">
           No agent calls in the last {data.window_size} events. Run an agent to
           populate.
         </div>
@@ -40,10 +40,10 @@ export function MetricsPanel({
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3">
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-xs font-medium uppercase tracking-wider text-slate-500">
+        <div className="text-xs font-medium uppercase tracking-wider text-slate-400">
           Per-Agent Metrics
         </div>
-        <div className="text-[10px] text-slate-500">
+        <div className="text-[10px] text-slate-400">
           Window: last {data.window_size} events
           {data.errors_total > 0 && (
             <span className="ml-2 text-red-400">
@@ -55,7 +55,7 @@ export function MetricsPanel({
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-slate-800 text-left text-[10px] uppercase tracking-wider text-slate-500">
+            <tr className="border-b border-slate-800 text-left text-[10px] uppercase tracking-wider text-slate-400">
               <th className="py-2 pr-3 font-medium">Agent</th>
               <th className="py-2 pr-3 font-medium">Calls</th>
               <th className="py-2 pr-3 font-medium">Success</th>
@@ -107,7 +107,7 @@ export function MetricsPanel({
                     ? `${(m.avg_confidence * 100).toFixed(0)}%`
                     : '—'}
                 </td>
-                <td className="py-2 pr-3 text-slate-500">
+                <td className="py-2 pr-3 text-slate-400">
                   {m.last_seen ? relativeTime(new Date(m.last_seen)) : '—'}
                 </td>
                 <td className="py-2 pr-3">

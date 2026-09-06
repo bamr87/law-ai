@@ -23,7 +23,10 @@ both — constitution §13 prefers a local answer to no answer — but a permane
 *credential* failure is remembered for ``LLM_PERMANENT_FAILURE_TTL_S`` so the
 next request skips that tier instead of re-earning the same 401, is warned
 about once per window, and shows up in :func:`chain_status` for the health
-endpoint. Deployments that would rather fail loudly than answer from a
+endpoint. That memory is in-process *and* shared through the Django cache
+(Redis in a multi-process deployment), so daphne and every Celery worker skip
+the rejected key for the same window rather than each paying for their own 401
+(BL-20260905-71); a cache failure degrades to the per-process behaviour. Deployments that would rather fail loudly than answer from a
 lower tier set ``LLM_FAIL_FAST_ON_PERMANENT=true`` and get
 :class:`LLMPermanentError` instead (BL-20260811-23).
 
@@ -133,10 +136,33 @@ _PERMANENT_STATUS = frozenset({400, 401, 403, 404, 422})
 _AUTH_STATUS = frozenset({401, 403})
 
 #: provider name -> (epoch seconds, reason) for the last credential failure.
-#: Per-process on purpose: it is a cheap way to stop hammering a rejected key,
-#: not a distributed circuit breaker, and it must not outlive a redeploy that
-#: fixes the credential.
+#: This is the in-process (L1) half; the verdict is also published to the
+#: Django cache (L2) so daphne and every Celery worker skip a rejected key for
+#: the same window instead of each re-earning the same 401 once per process
+#: (BL-20260905-71). Neither half outlives its TTL, so a redeploy that fixes
+#: the credential is never held back by more than one window.
 _permanent_failures: dict[str, tuple[float, str]] = {}
+
+#: Shared (L2) keys this process has written, so the test helper can clear
+#: them without knowing every provider that failed.
+_shared_permanent_keys: set[str] = set()
+_SHARED_PERMANENT_KEY = "llm_permanent_failure:{provider}"
+
+
+def _shared_cache() -> Any:
+    """The Django cache used as the cross-process (L2) failure store.
+
+    Resolved lazily and kept behind one function, exactly as the Ollama probe
+    does it (``agents_runtime.llm``), so importing the router never touches
+    Django and tests can substitute a broken or shared backend.
+    """
+    from django.core.cache import cache
+
+    return cache
+
+
+def _shared_key(provider: str) -> str:
+    return _SHARED_PERMANENT_KEY.format(provider=provider)
 
 
 def classify_failure(exc: BaseException) -> str:
@@ -195,8 +221,13 @@ def _remember_permanent(provider: str, exc: BaseException) -> None:
     )
 
 
+def _format_skip(at: float, reason: str) -> str:
+    stamp = datetime.fromtimestamp(at, tz=UTC).isoformat(timespec="seconds")
+    return f"auth failed at {stamp}: {reason}"
+
+
 def _permanent_skip_reason(provider: str) -> str | None:
-    """Why *provider* is being skipped after a recent credential failure."""
+    """Why *provider* is being skipped, per this process's own memory (L1)."""
     entry = _permanent_failures.get(provider)
     if entry is None:
         return None
@@ -204,21 +235,79 @@ def _permanent_skip_reason(provider: str) -> str | None:
     if (time.time() - at) >= _permanent_ttl():
         _permanent_failures.pop(provider, None)
         return None
-    stamp = datetime.fromtimestamp(at, tz=UTC).isoformat(timespec="seconds")
-    return f"auth failed at {stamp}: {reason}"
+    return _format_skip(at, reason)
+
+
+def _l2_adopt(provider: str, entry: Any) -> str | None:
+    """Repopulate L1 from a shared entry, honouring its original timestamp.
+
+    The shared value carries the epoch of the failure, not of the write, so a
+    verdict adopted late still expires when the original window does.
+    """
+    if not isinstance(entry, dict):
+        return None
+    try:
+        at = float(entry["at"])
+        reason = str(entry["reason"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if (time.time() - at) >= _permanent_ttl():
+        return None
+    _permanent_failures[provider] = (at, reason)
+    return _format_skip(at, reason)
+
+
+async def _apermanent_skip_reason(provider: str) -> str | None:
+    """L1, then the shared cache (L2). A cache failure is a miss, never an
+    error in the request path — the worst case is the pre-BL-20260905-71
+    behaviour of one rejected call per process per window."""
+    local = _permanent_skip_reason(provider)
+    if local is not None:
+        return local
+    try:
+        entry = await _shared_cache().aget(_shared_key(provider))
+    except Exception:  # cache backend down/misconfigured → L1-only behaviour
+        logger.debug("llm chain: shared failure cache unavailable", exc_info=True)
+        return None
+    return _l2_adopt(provider, entry)
+
+
+async def _share_permanent(provider: str) -> None:
+    """Publish this process's remembered failure so other workers skip too."""
+    entry = _permanent_failures.get(provider)
+    ttl = _permanent_ttl()
+    if entry is None or ttl <= 0:
+        return
+    at, reason = entry
+    try:
+        _shared_permanent_keys.add(_shared_key(provider))
+        await _shared_cache().aset(
+            _shared_key(provider), {"at": at, "reason": reason}, timeout=ttl
+        )
+    except Exception:
+        logger.debug("llm chain: could not share permanent failure", exc_info=True)
 
 
 def reset_permanent_failures() -> None:
-    """Forget every remembered credential failure (test helper, and the hook
-    an operator-facing 'retry now' would call after fixing a key)."""
+    """Forget every remembered credential failure — L1 and the shared keys
+    this process wrote (test helper, and the hook an operator-facing
+    'retry now' would call after fixing a key)."""
     _permanent_failures.clear()
+    keys = list(_shared_permanent_keys)
+    _shared_permanent_keys.clear()
+    if not keys:
+        return
+    try:
+        _shared_cache().delete_many(keys)
+    except Exception:
+        logger.debug("llm chain: could not clear shared failures", exc_info=True)
 
 
-def _skip_reason(provider: LLMProvider) -> str | None:
+async def _askip_reason(provider: LLMProvider) -> str | None:
     """Why this provider should not be called at all, if it should not be."""
     if not provider.configured():
         return provider.unconfigured_reason() or "not configured"
-    return _permanent_skip_reason(provider.name)
+    return await _apermanent_skip_reason(provider.name)
 
 
 def _record_failure(
@@ -378,7 +467,7 @@ async def aroute(request: LLMRequest, *, agent: str | None = None) -> LLMResult:
     attempts: list[LLMAttempt] = []
 
     for provider in providers:
-        reason = _skip_reason(provider)
+        reason = await _askip_reason(provider)
         if reason is not None:
             attempts.append(
                 LLMAttempt(provider=provider.name, ok=False, skipped_reason=reason)
@@ -391,6 +480,7 @@ async def aroute(request: LLMRequest, *, agent: str | None = None) -> LLMResult:
             reply = await provider.agenerate(request)
         except Exception as exc:
             kind = _record_failure(provider.name, exc, attempts)
+            await _share_permanent(provider.name)
             if kind == PERMANENT and _fail_fast():
                 _log_call(request=request, result=None, attempts=attempts, agent=agent)
                 raise LLMPermanentError(
@@ -478,7 +568,7 @@ def _stream_result(
     )
 
 
-def _stream_failed(
+async def _stream_failed(
     *,
     provider: LLMProvider,
     exc: Exception,
@@ -495,6 +585,7 @@ def _stream_failed(
     first, so :class:`LLMStreamInterrupted` carries the partial text instead.
     """
     kind = _record_failure(provider.name, exc, attempts)
+    await _share_permanent(provider.name)
     if acc.first_seen:
         _log_call(
             request=request,
@@ -543,7 +634,7 @@ async def aroute_stream(
     attempts: list[LLMAttempt] = []
 
     for provider in build_chain(request.providers):
-        reason = _skip_reason(provider)
+        reason = await _askip_reason(provider)
         if reason is not None:
             attempts.append(
                 LLMAttempt(provider=provider.name, ok=False, skipped_reason=reason)
@@ -565,7 +656,7 @@ async def aroute_stream(
                     first=first,
                 )
         except Exception as exc:
-            _stream_failed(
+            await _stream_failed(
                 provider=provider,
                 exc=exc,
                 acc=acc,
@@ -719,7 +810,7 @@ async def chain_status() -> list[dict[str, Any]]:
         # A configured-but-rejected credential is invisible to a reachability
         # probe, so surface the remembered failure: /api/health is where an
         # operator finds out the key is wrong (BL-20260811-23).
-        skipped = _permanent_skip_reason(provider.name)
+        skipped = await _apermanent_skip_reason(provider.name)
         if skipped is not None:
             entry["last_permanent_error"] = skipped
         if isinstance(probe, BaseException):  # pragma: no cover - defensive

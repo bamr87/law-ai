@@ -168,6 +168,21 @@ async def test_a_dead_channel_layer_never_fails_an_agent_call(
     assert trace_id
 
 
+def test_the_only_declared_change_kind_is_the_one_that_fires() -> None:
+    """BL-20260905-76: no unemitted change kinds on the ops channel.
+
+    ``METRICS_CHANGED`` sat in ``streaming.__all__`` with no writer, so a
+    dashboard could subscribe to an invalidation that would never arrive.
+    ``/api/agents/metrics`` aggregates the same ``agent_call`` events that
+    raise ``runs_changed``, so one kind is the honest surface.
+    """
+    from law_ai.agentsapi import streaming
+
+    assert streaming.RUNS_CHANGED == "runs_changed"
+    assert not hasattr(streaming, "METRICS_CHANGED")
+    assert "METRICS_CHANGED" not in streaming.__all__
+
+
 def test_the_ops_route_wins_over_the_run_pattern() -> None:
     """`[\\w\\-]+` would otherwise route "ops" into a run group called "ops"."""
     from law_ai.agentsapi.routing import websocket_urlpatterns

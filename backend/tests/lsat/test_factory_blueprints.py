@@ -30,6 +30,38 @@ def _target(**overrides: object) -> GenerationTarget:
     return GenerationTarget.model_validate(base)
 
 
+def _add_bank_item(**overrides: object) -> str:
+    """Append one item to the sandboxed LR bank; returns its id."""
+    import json
+
+    from law_ai.lsat.services import bank as bank_mod
+
+    path = bank_mod.DATA_DIR / "lr_bank.json"
+    blob = json.loads(path.read_text(encoding="utf-8"))
+    item = {
+        "id": "lr-stamped-001",
+        "section": "LR",
+        "type": "LR",
+        "difficulty": "med",
+        "stem": "A stamped item used only by this test, long enough to pass.",
+        "choices": [
+            {"label": label, "text": f"choice {label}"}
+            for label in ("A", "B", "C", "D", "E")
+        ],
+        "correct": "A",
+        "explanation": "A holds; the rest do not.",
+        "concepts": [],
+        "source": "test",
+    }
+    item.update(overrides)
+    blob["items"].append(item)
+    path.write_text(
+        json.dumps(blob, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    bank_mod.load_bank.cache_clear()
+    return str(item["id"])
+
+
 class TestExemplars:
     def test_same_archetype_and_cap(self, factory_env: FactoryConfig) -> None:
         exemplars = select_exemplars(_target(), k=2)
@@ -159,3 +191,27 @@ class TestExemplarCoverage:
         )[0]
         assert primary in first.concepts
         assert first.difficulty == wanted
+
+
+class TestStampedArchetype:
+    """BL-20260905-54 — an item that says which archetype it instantiates.
+
+    Exemplar selection used to infer the pattern back out of the concept tags,
+    which is a guess. A stamped item is an exact instance and outranks every
+    guess — and is selectable even when it carries no concept tags at all.
+    """
+
+    def test_a_stamped_item_outranks_the_concept_proxy(
+        self, factory_env: FactoryConfig
+    ) -> None:
+        stamped = _add_bank_item(archetype="lr-weaken", concepts=[])
+        first = select_exemplars(_target(), k=1)
+        assert [q.id for q in first] == [stamped]
+
+    def test_an_unstamped_bank_still_selects_by_concept(
+        self, factory_env: FactoryConfig
+    ) -> None:
+        exemplars = select_exemplars(_target(), k=2)
+        assert exemplars
+        wanted = set(get_archetype("lr-weaken").concepts)
+        assert all(set(q.concepts) & wanted for q in exemplars)

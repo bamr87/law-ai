@@ -56,6 +56,14 @@ export const LSAT_DRILL_SHORTCUTS: ShortcutGroup = {
  *
  * `Esc` is listed but is not bound through `lib/lsat/keyboard.ts`: the shell
  * owns Escape on every route, so the editor handles it on its own element.
+ *
+ * That is also where this row diverges from the static site's sheet, and the
+ * divergence is deliberate (BL-20260905-41). `lsat-static` has no shell, so it
+ * gives Escape two stages: the first press blurs the textarea, a second one
+ * returns to the prompt list. Here the second press belongs to the shell —
+ * chaining it to a page-registered handler would make one key mean two things
+ * on every route — so the way back to the list is the "← All prompts" button,
+ * and this row says so rather than promising a stage that does not exist.
  */
 export const LSAT_WRITING_SHORTCUTS: ShortcutGroup = {
   title: 'Argumentative Writing',
@@ -64,6 +72,9 @@ export const LSAT_WRITING_SHORTCUTS: ShortcutGroup = {
     { keys: 'T', label: 'Start or pause the writing clock' },
     { keys: 'Ctrl / ⌘ + Enter', label: 'Submit the draft and unlock feedback' },
     { keys: 'M', label: 'Show or hide the model response' },
-    { keys: 'Esc', label: 'Leave the editor — then O returns to it' },
+    {
+      keys: 'Esc',
+      label: 'Leave the editor — O returns to it, “← All prompts” leaves it',
+    },
   ],
 }

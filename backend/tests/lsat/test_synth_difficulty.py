@@ -21,6 +21,7 @@ from django.core.management import call_command
 from law_ai.lsat.services.bank import DIFFICULTY_ORDER
 from law_ai.lsat.synth.difficulty import (
     PROXY_BANDS,
+    ItemComplexity,
     SCORE_CUTS,
     band_for,
     blend,
@@ -140,6 +141,26 @@ class TestBandsAcrossTheRegistry:
         bands = {shipped for _s, shipped, _c in _sweep()}
         assert len(bands) >= 3
 
+    def test_the_shipped_cuts_are_the_registrys_own_percentiles(self) -> None:
+        """BL-20260905-64: the cuts must track the registry that exists now.
+
+        ``SCORE_CUTS`` is frozen so a band never depends on what else was
+        generated alongside an item — but the number it is frozen *at* has to
+        be the 40th/75th percentile of the current proved registry, not of a
+        registry six schemas ago. Adding a schema that moves the distribution
+        fails here until ``lsat_synth_calibrate --structural`` is re-run and
+        the constant updated deliberately.
+        """
+        scores = sorted(
+            float(complexity["score"])
+            for _schema_id, _shipped, complexity in _sweep()
+            if complexity is not None
+        )
+        percentiles = tuple(
+            round(scores[int(len(scores) * p)], 2) for p in (0.40, 0.75)
+        )
+        assert percentiles == SCORE_CUTS
+
     def test_blend_clamps_in_both_directions(self) -> None:
         item = generate("lr-conditional-chain-forward", "municipal-policy", seed=0)
         complexity = measure(
@@ -151,6 +172,22 @@ class TestBandsAcrossTheRegistry:
         assert complexity is not None
         assert blend("intro", complexity) in ("intro", "easy")
         assert blend("elite", complexity) in ("hard", "elite")
+
+    def test_a_floor_measurement_is_no_evidence_against_an_intro_schema(self) -> None:
+        """BL-20260905-50: the proxy's floor band means "as low as I can say".
+
+        Read as ``easy`` it would drag every item off an intro schema up one
+        band, which made the intro band unreachable by the generator no matter
+        how simple the item it emitted. A measurement inside the proxy's own
+        scale still moves the item its one step.
+        """
+        assert blend("intro", ItemComplexity(band=PROXY_BANDS[0])) == "intro"
+        assert blend("intro", ItemComplexity(band=PROXY_BANDS[1])) == "easy"
+        assert blend("elite", ItemComplexity(band=PROXY_BANDS[-1])) == "elite"
+        assert blend("elite", ItemComplexity(band=PROXY_BANDS[1])) == "hard"
+        # A declared band the proxy can express is untouched by the rule.
+        assert blend("easy", ItemComplexity(band=PROXY_BANDS[0])) == "easy"
+        assert blend("hard", ItemComplexity(band=PROXY_BANDS[0])) == "med"
 
 
 def _blueprint_of(schema_id: str, seed: int):  # type: ignore[no-untyped-def]

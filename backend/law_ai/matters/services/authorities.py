@@ -45,4 +45,32 @@ def boost_set_for_matter(matter_id: int | None) -> tuple[set[str], str]:
     return verified_authority_ids(matter), f"matter:{matter.slug}"
 
 
-__all__ = ["boost_set_for_matter", "verified_authority_ids"]
+def graph_labels_for(node_id: str) -> list[str] | None:
+    """Labels of a candidate authority in the graph (BL-20260906-16).
+
+    ``MatterAuthority.node_id`` was an unvalidated string, so an export bundle
+    could point at an authority that is not in the corpus at all — a typo, or
+    a node that was never ingested. This checks it against Neo4j.
+
+    Returns ``[]`` when the graph is reachable and holds no such node, and
+    ``None`` when the graph is *unreachable*: a Neo4j outage must degrade
+    recording rather than block a reviewer, so the caller records the
+    authority and says the check did not run.
+    """
+    from asgiref.sync import async_to_sync
+
+    from law_ai.core.neo4j.driver import get_neo4j_driver
+    from law_ai.core.neo4j.queries import authority_node_labels
+
+    async def _run() -> list[str]:
+        driver = get_neo4j_driver()
+        async with driver.session() as session:
+            return await authority_node_labels(session, node_id)
+
+    try:
+        return async_to_sync(_run)()
+    except Exception:
+        return None
+
+
+__all__ = ["boost_set_for_matter", "graph_labels_for", "verified_authority_ids"]

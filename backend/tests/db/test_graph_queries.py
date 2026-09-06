@@ -272,3 +272,33 @@ async def test_shortest_path_excludes_archived_endpoints() -> None:
     await graph_queries.shortest_path(session, "a", "z")
     assert "a.archived_at IS NULL" in session.calls[0][0]
     assert "b.archived_at IS NULL" in session.calls[0][0]
+
+
+@pytest.mark.asyncio
+async def test_list_courts_returns_distinct_courts_with_counts() -> None:
+    """BL-20260905-89: the picker needs the corpus-wide court vocabulary."""
+    session = FakeAsyncSession(
+        canned=[
+            [
+                {"court": "Supreme Court", "count": 12},
+                {"court": "10th Cir.", "count": 3},
+            ]
+        ]
+    )
+    out = await graph_queries.list_courts(session, limit=50)
+    assert out == [
+        {"court": "Supreme Court", "count": 12},
+        {"court": "10th Cir.", "count": 3},
+    ]
+    cypher, params = session.calls[0]
+    assert params == {"limit": 50}
+    # Archived and court-less cases never reach the dropdown.
+    assert "c.archived_at IS NULL" in cypher
+    assert "coalesce(c.court, '') <> ''" in cypher
+
+
+@pytest.mark.asyncio
+async def test_list_courts_handles_empty_graph() -> None:
+    session = FakeAsyncSession(canned=[[]])
+    assert await graph_queries.list_courts(session) == []
+    assert session.calls[0][1] == {"limit": 200}

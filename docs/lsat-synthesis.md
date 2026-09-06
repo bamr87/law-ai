@@ -65,7 +65,7 @@ Beyond the family rule, every item must clear:
 
 - `premises_satisfiable` — a contradiction would certify everything
 - `no_equivalent_choices` — two choices with the same truth mask are one choice
-written twice (skipped on acceptability items, where every distractor is impossible *by design*)
+written twice (skipped on acceptability items, where every distractor is impossible *by design*, and on rule-substitution items, where every choice holds in every premise model and the difference between them lives on the board the *other* rules leave)
 - `choices_distinct`, `choices_non_trivial`, `choice_length_band`
 - `credited_length_is_unremarkable` — the credited answer must not be the unique
 length outlier in *either* direction, or "pick the longest" (or shortest) solves the item without reading it
@@ -111,6 +111,9 @@ A schema used to hard-code one premise arrangement, so every item from it shared
 | `lr-quantifier-*` | one of four premise pairs — order, the weaker quantifier (`some` vs `most`), or a third `not every` premise |
 | `lg-sequencing-*` | two to four rules from a menu (before / immediately before / adjacent / at / not at), re-drawn until 2–30 arrangements survive (five or more for must-be-true, so four distinct truth patterns exist) |
 | `lg-grouping-acceptability` | two to four rules from a menu (same / different / placed in / not placed in), re-drawn until more than one split survives |
+| `lg-max-min` | two to four grouping rules, and which group and direction the tight bound lands on — the bound is read off the arrangements the draw permits, not chosen |
+| `lg-rule-substitution` | two or three rules, the last of which is the one offered for replacement, and whether the substitutes are single rules or disjunctions |
+| `lr-conditional-one-step`, `lg-sequencing-one-rule` | the `intro` pair (BL-20260905-50): the *narrowest* draw rather than a varying one — one conditional and its trigger, one ordering rule — so the band means the same thing every time it is emitted. Only the menu entry and the words vary. |
 
 Every draw goes through the same `select_distractors` proof, so a draw the checker cannot certify — one that pins every atom, contradicts itself, or entails nothing from the pool — is discarded and the next is tried. `MAX_ARRANGEMENT_DRAWS` caps the loop so a bad menu fails loudly instead of hanging a sweep. Five schemas keep a fixed skeleton on purpose — the assumption pair (`lr-sufficient-assumption`, `lr-necessary-assumption`) and the three structural ones (`lr-causal-weaken`, `lr-causal-strengthen`, `lr-percent-vs-number`) — because their credited answer is defined by the gap in the argument or by the causal/statistical fallacy on display, not by the shape of the premises; varying the shape would vary nothing a solver reasons about. That list is exhaustive and pinned by `test_fixed_schemas_report_an_empty_arrangement`, so a schema that quietly stops drawing fails the suite rather than joining an unstated exception.
 
@@ -135,6 +138,8 @@ A schema used to hand its band to every item it ever produced, which was wrong t
 
 So each proved item is scored on features that mean the same thing in every family (`backend/law_ai/lsat/synth/difficulty.py`): premises held at once, nesting depth of the deepest premise, slots in play, constraints the drawn arrangement imposed, the **closeness** of the best distractor (the share of premise-satisfying models in which it is true — the one number that compares a quantifier trap to an assumption trap directly), the log-size of the model space, and how many entailment relations the family's own verification rule demands. The score bands against `SCORE_CUTS`, the 40th and 75th percentiles of a full sweep, so the cuts are the engine's own distribution rather than a guess.
 
+The proxy's own scale is narrower than the bank's five bands: its cuts separate `easy`, `med` and `hard`, and nothing below or above. So a measurement at either end of it means "as low as I can say" rather than `easy` specifically, and `blend()` treats it that way — an `intro` or `elite` schema whose item measures at the proxy's floor or ceiling keeps its declared band, while a measurement *inside* the scale still moves the item its one step (BL-20260905-50). Without that rule the two `intro` schemas could never emit an `intro` item, however clean the draw.
+
 Two limits are deliberate. A **structural** item gets no proxy at all — no model space means every model-derived feature is zero, and `measure()` returns `None` rather than pretend, leaving the declared band in place. And the proxy never moves a band more than one step from the declared one: a prior worth keeping is still a prior, and `blend()` clamps. Provenance carries both, so a disagreement stays visible after the item ships.
 
 Real evidence outranks both. `backend/law_ai/lsat/synth/calibrate.py` joins `lsat_grade` audit events to the schema that produced each item — the join key is the `lsat_synth.promoted` event, which carries the question id next to its provenance — and bands a schema by what learners actually did once it clears `MIN_ATTEMPTS` (30). Accuracy at or above 80% is `easy`, 55–80% is `med`, below that is `hard`; the thresholds are module constants, because a cut tuned per schema until the answer looks right is not a measurement. The factory census counts a synthesized item in its measured band when the evidence exists (`factory/coverage.py`), and keeps the emitted band until then.
@@ -144,26 +149,31 @@ make lsat-synth-calibrate                      # graded: accuracy per schema, an
 make lsat-synth-calibrate ARGS='--structural'  # offline: the proxy, and the cuts this registry implies
 ```
 
-Both write `backend/var/lsat_synth/calibration.json`. Adding schemas moves the score distribution, so re-run `--structural` afterwards and update `SCORE_CUTS` deliberately if the suggestion has drifted — existing items re-band when you do.
+Both write `backend/var/lsat_synth/calibration.json`. Adding schemas moves the score distribution, so re-run `--structural` afterwards and update `SCORE_CUTS` deliberately if the suggestion has drifted — existing items re-band when you do. Quote the suggestion from a `--seeds 2` run: that is the depth `test_synth_difficulty.py` re-derives the cuts at, and the constant is pinned to it.
 
 ## What the registry proves, and what it does not
 
-The factory plans in *archetypes* — the taxonomy has 45 — and a schema declares which one it realizes. `SynthExecutor` refuses a target no schema covers rather than substituting something else, so the honest measure of this engine is how much of the taxonomy it can prove. **Seventeen archetypes today** (BL-20260903-13 took it from twelve), across nineteen schemas:
+The factory plans in *archetypes* — the taxonomy has 45 — and a schema declares which one it realizes. `SynthExecutor` refuses a target no schema covers rather than substituting something else, so the honest measure of this engine is how much of the taxonomy it can prove. **Nineteen archetypes today** (BL-20260903-13 took it from twelve, BL-20260905-62 added the last two games families), across twenty-three schemas:
 
 | Section | Archetypes proved |
 | ------- | ----------------- |
 | LR | conditional-inference, contrapositive-inference, must-be-true, most-strongly-supported, cannot-be-true, sufficient-assumption, necessary-assumption |
 | LR (structural) | weaken, strengthen, percent-vs-number |
-| LG | acceptability, must-be-true, could-be-true-except, local-conditional, in-out-selection, numeric-distribution, grouping |
+| LG | acceptability, must-be-true, could-be-true-except, local-conditional, in-out-selection, numeric-distribution, grouping, max-min, rule-substitution |
 
 The games families were the cheap half: could-be-true-except is the `cannot_be_true` rule over the ordering space, a local question is the global proof with the supposition added as a premise (rendered into the question sentence, where the exam puts it), in-out selection is conditional membership rules over the assignment space with their contrapositives already accounted for, and numeric distribution adds group-size rules and prefers a credited answer about the counts. `test_synth_generate.py::TestArchetypeCoverage` writes the covered set out in full, so gaining or losing one is a visible change to a test.
+
+**Max/min and rule substitution** (BL-20260905-62) were the two that needed new machinery, and each got exactly one piece of it.
+
+Max/min needed *bounded counts*. `GroupSize` says a group is exactly some size, which is a fact about one arrangement; "at most three can go here" is a claim about all of them, so `GroupAtMost` and `GroupAtLeast` joined `synth/logic.py`. The credited bound is read off the arrangements the rules permit — the largest size that actually occurs — so it is entailed *and* tight, and the explanation exhibits the arrangement that reaches it, which is the half of a maximum question a bound alone does not answer. The tell here is arithmetic rather than logical: every looser bound in the same direction on the same group is entailed too, so a choice set drawn from one group and one direction would be solved by picking the largest number. The distractor pool drops the credited answer's own group-and-direction family for that reason.
+
+Rule substitution needed its own **verification family**, because its criterion is a claim about the model *set* and not about any choice's status: every candidate substitute holds in every premise model, so the must-be-true rule would call all five correct. `verify.py` lifts the offered rule out, enumerates what the remaining rules still allow, and compares the arrangements each choice keeps against the arrangements the original rule kept — equality in both directions for the credited answer, a strict superset (permits something new) or subset (forbids something old) for each distractor. The schema reduces every candidate to a bitmask over that board first, so the search is set arithmetic, and it falls back to "either X or Y" when no single menu rule has the same effect. All five choices come from one menu kind so the credited answer is not the long one.
 
 What stays out, and why:
 
 - **The nine `rc-*` archetypes.** Their correctness depends on prose judgement no checker can certify. Asserting a key there would be the failure this engine exists to remove.
 - **The rhetorical LR families** — equivocation, appeal-to-ignorance, principle-application, evaluate-the-argument, method-of-reasoning, point-at-issue, role-of-claim. "Which one describes the flaw" is a claim about *reasoning*, not entailment.
 - **Parallel reasoning and parallel flaw**, which are decidable by shape-matching over `_shape()` but need whole arguments as answer choices; a structural guarantee like the causal families, not a proof, and not yet built.
-- **`lg-max-min` and `lg-rule-substitution`**, both provable in principle — max/min needs bounded-count statements the checker does not have, and rule substitution needs its own verification family (the substitute must leave the valid-arrangement set exactly unchanged, in both directions).
 
 The LLM executors exist for exactly these, which is the division of labour spec 049 argued for: prove what can be proved, and let a human review the rest.
 

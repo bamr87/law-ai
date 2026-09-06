@@ -17,6 +17,10 @@ interface Parity {
   corpus: { query: string; top?: string | null; ids?: string[] }[]
   typo_pairs: { a: string; b: string; typo: boolean }[]
   corpus_typos: { query: string; top: string | null }[]
+  scores: {
+    query: string
+    hits: { id: string; score: number; matched_in: string[] }[]
+  }[]
 }
 
 // Vitest runs with the project root at lsat-static/, so the fixture resolves
@@ -60,6 +64,21 @@ describe('search parity with library.py', () => {
       const ids = searchLibrary(c.query, 5).map((h) => h.id)
       if (c.top === null) expect(ids, c.query).toEqual([])
       else expect(ids[0], c.query).toBe(c.top)
+    }
+  })
+
+  it('scores the shipped corpus the way the backend does', () => {
+    // Order parity hides arithmetic divergence: a weight, an occurrence cap
+    // or the half-weight typo fallback can change on one side alone and leave
+    // the ranking intact. The number and the fields it came from cannot
+    // (BL-20260905-52).
+    for (const c of parity.scores) {
+      const got = searchLibrary(c.query, c.hits.length).map((h) => ({
+        id: h.id,
+        score: h.score,
+        matched_in: h.matched_in,
+      }))
+      expect(got, c.query).toEqual(c.hits)
     }
   })
 

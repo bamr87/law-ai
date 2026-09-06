@@ -32,8 +32,23 @@ from law_ai.core.provenance import provenance
 
 logger = logging.getLogger(__name__)
 
+#: Event types that are progress deltas, not run milestones (BL-20260906-77).
+#:
+#: The replay buffer is 200 payloads deep and exists so a reconnecting client
+#: can catch up on what it missed. A streamed IRAC answer emits one frame per
+#: token delta, which used to fill that window several times over and evict the
+#: run's ``agent_step`` frames — the reconnect would replay the tail of a token
+#: stream the client is going to discard anyway (it re-renders from the REST
+#: result) and none of the milestones it actually needed. Deltas are therefore
+#: live-only: they reach subscribers attached *now* and are never buffered.
+#:
+#: Unbuffered means unstamped: these frames carry no ``seq``, and the client's
+#: reconnect cursor advances only on frames that do — which is exactly the
+#: behaviour wanted, since resuming mid-token is meaningless.
+DELTA_EVENT_TYPES = frozenset({"analysis_token", "authoring_token", "tutor_token"})
+
 __all__ = [
-    "METRICS_CHANGED",
+    "DELTA_EVENT_TYPES",
     "RUNS_CHANGED",
     "emit_stream_event",
     "emit_stream_event_sync",
@@ -66,7 +81,11 @@ async def emit_stream_event(
         # Stamp and buffer first (BL-20260811-14): the `seq` a reconnecting
         # client cursors on has to be the same number live subscribers saw, so
         # the recorded payload — not the caller's — is what goes on the wire.
-        stamped = await replay.record(stream_key, payload)
+        # Progress deltas skip both (BL-20260906-77): see DELTA_EVENT_TYPES.
+        if str(payload.get("type")) in DELTA_EVENT_TYPES:
+            stamped = payload
+        else:
+            stamped = await replay.record(stream_key, payload)
         layer = get_channel_layer()
         if layer is None:
             return
@@ -119,12 +138,17 @@ def emit_stream_event_sync(
 # ---------------------------------------------------------------------------
 # Ops dashboard invalidation (BL-20260429-16)
 # ---------------------------------------------------------------------------
-#: Change kinds the dashboard understands. Deliberately coarse: the socket
+#: The change kind the dashboard understands. Deliberately coarse: the socket
 #: says *something changed*, the client re-fetches through the same REST
 #: endpoints. Pushing the data itself would duplicate every serializer over a
 #: second transport and make the socket a second source of truth.
+#:
+#: There is deliberately only one. A ``METRICS_CHANGED`` constant sat here
+#: unemitted until BL-20260905-76: ``/api/agents/metrics`` is an aggregate over
+#: the very ``agent_call`` events that raise :data:`RUNS_CHANGED`, so a second
+#: kind could only ever fire alongside the first — an invalidation the client
+#: cannot act on independently is a promise the transport cannot keep.
 RUNS_CHANGED = "runs_changed"
-METRICS_CHANGED = "metrics_changed"
 
 
 def _ops_push_enabled() -> bool:

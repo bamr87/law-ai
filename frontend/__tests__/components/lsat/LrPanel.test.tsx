@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import LrPanel from '@/components/lsat/LrPanel'
+import { __resetTimerStore, getTimerSnapshot } from '@/lib/lsat/timerStore'
 import { server } from '@/mocks/server'
 
 const question = {
@@ -25,6 +26,9 @@ let requested: string[] = []
 
 beforeEach(() => {
   requested = []
+  // The timer store is module-level, so a published count would leak between
+  // cases.
+  __resetTimerStore()
   server.use(
     http.get('http://localhost:8000/api/lsat/questions', ({ request }) => {
       requested.push(new URL(request.url).search)
@@ -51,6 +55,52 @@ describe('LrPanel', () => {
     })
     await waitFor(() => expect(requested).toHaveLength(2))
     expect(requested[1]).toContain('difficulty=hard')
+  })
+
+  // BL-20260905-32: the drill used to publish the whole bank as "remaining",
+  // so a 200-item bank quoted an 8-second-per-question pace off the
+  // 35-minute clock. The pace is against a real section instead.
+  describe('pace denominator', () => {
+    function withBank(questionCount: number) {
+      server.use(
+        http.get('http://localhost:8000/api/lsat/sections', () =>
+          HttpResponse.json({
+            count: 1,
+            sections: [
+              {
+                code: 'LR',
+                name: 'Logical Reasoning',
+                description: 'Short arguments.',
+                format: 'Prompt + 5 choices',
+                timing: '~35 min',
+                scoring: 'Each item 1 pt',
+                skills: [],
+                tips: [],
+                concepts: [],
+                references: [],
+                question_count: questionCount,
+              },
+            ],
+          }),
+        ),
+      )
+    }
+
+    it('paces against one 25-item section, not the whole bank', async () => {
+      withBank(200)
+      render(<LrPanel onAttempt={() => {}} />)
+      await screen.findByText(/All swans observed/)
+      await waitFor(() =>
+        expect(getTimerSnapshot().remainingQuestions).toBe(25),
+      )
+    })
+
+    it('never quotes a section the bank cannot fill', async () => {
+      withBank(6)
+      render(<LrPanel onAttempt={() => {}} />)
+      await screen.findByText(/All swans observed/)
+      await waitFor(() => expect(getTimerSnapshot().remainingQuestions).toBe(6))
+    })
   })
 
   it('surfaces a load failure with a retry', async () => {

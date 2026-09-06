@@ -48,6 +48,35 @@ function mockMatters(body: unknown = MATTERS, status = 200) {
   )
 }
 
+/**
+ * The identity probe the switcher runs before anything account-scoped
+ * (BL-20260906-68). The MSW default is "signed out", so every test that
+ * expects matters to be fetched has to say who it is first.
+ */
+function mockSignedIn(authenticated = true) {
+  server.use(
+    http.get('*/api/auth/me', () =>
+      HttpResponse.json({
+        authenticated,
+        username: authenticated ? 'ada' : null,
+        id: authenticated ? 7 : null,
+        is_staff: false,
+        scopes: [],
+      }),
+    ),
+  )
+}
+
+/** Records every `/api/matters*` request MSW sees, in order. */
+function watchMatterRequests(): string[] {
+  const seen: string[] = []
+  server.events.on('request:start', ({ request }) => {
+    const path = new URL(request.url).pathname
+    if (path.startsWith('/api/matters')) seen.push(path)
+  })
+  return seen
+}
+
 beforeEach(() => {
   searchParams = new URLSearchParams()
   resetActiveScope()
@@ -55,10 +84,14 @@ beforeEach(() => {
 
 afterEach(() => {
   resetActiveScope()
+  // watchMatterRequests() attaches a listener per test; MSW does not clear
+  // those with resetHandlers().
+  server.events.removeAllListeners()
 })
 
 describe('ScopeSwitcher', () => {
   it('falls back to the instance readout when the caller owns no matters', async () => {
+    mockSignedIn()
     mockMatters({ count: 0, matters: [] })
     render(<ScopeSwitcher />)
     await waitFor(() =>
@@ -75,7 +108,30 @@ describe('ScopeSwitcher', () => {
     )
   })
 
+  it('asks for nothing account-scoped while signed out', async () => {
+    // BL-20260906-68: the shell renders on every page, so a speculative
+    // `/api/matters` meant a 401 per anonymous page view.
+    searchParams = new URLSearchParams('matter=smith-lease')
+    const seen = watchMatterRequests()
+    mockMatters({ detail: 'sign in' }, 401)
+    render(<ScopeSwitcher />)
+    await waitFor(() =>
+      expect(screen.getByText(/Law AI \(local\)/)).toBeInTheDocument(),
+    )
+    expect(seen).toEqual([])
+  })
+
+  it('asks once it knows it is signed in', async () => {
+    const seen = watchMatterRequests()
+    mockSignedIn()
+    mockMatters()
+    render(<ScopeSwitcher />)
+    await screen.findByRole('combobox', { name: 'Active scope' })
+    expect(seen).toContain('/api/matters')
+  })
+
   it('lists the caller’s own matters', async () => {
+    mockSignedIn()
     mockMatters()
     render(<ScopeSwitcher />)
     const select = await screen.findByRole('combobox', { name: 'Active scope' })
@@ -85,6 +141,7 @@ describe('ScopeSwitcher', () => {
   })
 
   it('builds the scope id from the server row, not from the slug', async () => {
+    mockSignedIn()
     mockMatters()
     render(<ScopeSwitcher />)
     const select = await screen.findByRole('combobox', { name: 'Active scope' })
@@ -96,6 +153,7 @@ describe('ScopeSwitcher', () => {
 
   it('resolves a URL slug through the server and takes the id from the response', async () => {
     searchParams = new URLSearchParams('matter=smith-lease')
+    mockSignedIn()
     mockMatters()
     server.use(
       http.get('*/api/matters/smith-lease', () =>
@@ -109,6 +167,7 @@ describe('ScopeSwitcher', () => {
 
   it('an unowned or unknown slug leaves the shell on the instance scope', async () => {
     searchParams = new URLSearchParams('matter=someone-elses')
+    mockSignedIn()
     mockMatters()
     server.use(
       http.get('*/api/matters/someone-elses', () =>
@@ -123,6 +182,7 @@ describe('ScopeSwitcher', () => {
   })
 
   it('clearing the selection returns to the instance scope', async () => {
+    mockSignedIn()
     mockMatters()
     render(<ScopeSwitcher />)
     const select = await screen.findByRole('combobox', { name: 'Active scope' })

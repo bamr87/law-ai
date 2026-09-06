@@ -45,7 +45,7 @@ export function NextAutonomyTarget({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2
           id="next-autonomy-target-heading"
-          className="text-xs font-medium uppercase tracking-wider text-slate-500"
+          className="text-xs font-medium uppercase tracking-wider text-slate-400"
         >
           Next autonomy target
         </h2>
@@ -57,31 +57,31 @@ export function NextAutonomyTarget({
         </Link>
       </div>
       {!top ? (
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-slate-400">
           No measured gaps yet — the next cycle has nothing to target.
         </p>
       ) : (
         <>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-slate-400">
             Tonight&apos;s LSAT content cycle drafts for the top row.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
             <Pill tone="amber">{top.section}</Pill>
             <span className="font-medium text-slate-200">{top.concept}</span>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-slate-400">
               {top.attempts} attempt{top.attempts === 1 ? '' : 's'} ·{' '}
               {Math.round(top.accuracy * 100)}% accuracy
             </span>
           </div>
           {rest.length > 0 && (
             <details className="mt-2">
-              <summary className="cursor-pointer rounded text-[11px] text-slate-500 hover:text-slate-300 focus-ring">
+              <summary className="cursor-pointer rounded text-[11px] text-slate-400 hover:text-slate-300 focus-ring">
                 {rest.length} more measured gap{rest.length === 1 ? '' : 's'}
               </summary>
               <ul className="mt-1 space-y-1 text-xs text-slate-400">
                 {rest.map((g, i) => (
                   <li key={`${g.section}-${g.concept}-${i}`}>
-                    <span className="font-mono text-[10px] text-slate-500">
+                    <span className="font-mono text-[10px] text-slate-400">
                       {g.section}
                     </span>{' '}
                     {g.concept} — {g.attempts} attempt

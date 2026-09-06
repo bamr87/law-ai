@@ -35,6 +35,13 @@ from law_ai.lsat.services.bank import (
     load_concepts,
     load_passages,
 )
+from law_ai.lsat.services.shuffle import (
+    display_mapping,
+    order_from_token,
+    permute,
+    remap_labels,
+    to_display,
+)
 
 logger = logging.getLogger("law_ai.lsat.tutor")
 
@@ -137,6 +144,18 @@ class TutorRequest(BaseModel):
             "What the learner did on this attempt — eliminations, hints "
             "revealed, time spent, earlier picks (BL-20260429-18). Optional; "
             "without it the coaching addresses only the answer they chose."
+        ),
+    )
+    remap: str | None = Field(
+        default=None,
+        max_length=64,
+        description=(
+            "The shuffle token the question was served with (BL-20260606-01). "
+            "With it the tutor reasons about the board the learner is looking "
+            "at — choices in display order, the key at the position it was "
+            "shown — instead of the stored one, so it can never name a letter "
+            "that is not on screen (BL-20260905-61). Omit for an unshuffled "
+            "serve. A token minted for another question is rejected."
         ),
     )
     stream_tokens: bool = Field(
@@ -327,6 +346,34 @@ def _learner_block(q: Question, user_choice: ChoiceLabel | None) -> str:
         return _block("Learner has not yet chosen an answer.")
     verdict = "correct" if user_choice == q.correct else "incorrect"
     return _block(f"Learner picked: {user_choice} ({verdict}).")
+
+
+def displayed_board(question: Question, token: str | None) -> Question:
+    """The question as the learner is looking at it (BL-20260905-61).
+
+    The serve path may permute a question's choices, and until now the tutor
+    reasoned about the *stored* board: it could tell a learner "the key is C"
+    while C sat somewhere else on their screen. Remapping the tutor's output
+    would not fix it — the coaching reasons about the choices themselves — so
+    the board is remapped on the way *in*: choices in display order, the key
+    at the position it was shown, and the bank explanation's label references
+    rewritten to match.
+
+    Without a token this is the identity. A token minted for another question,
+    or tampered with, raises :class:`ShuffleError` rather than silently
+    falling back to the stored order.
+    """
+    if not token:
+        return question
+    order = order_from_token(question.id, token)
+    shown, _token, _order = permute(question.choices, question.id, order)
+    return question.model_copy(
+        update={
+            "choices": shown,
+            "correct": to_display(question.correct, order),
+            "explanation": remap_labels(question.explanation, display_mapping(order)),
+        }
+    )
 
 
 def _build_prompt(
@@ -547,6 +594,9 @@ def _cache_lookup(req: TutorRequest, q: Question) -> tuple[str, TutorResponse | 
             # a walkthrough. Coarse (see TutorTrace.signature) so the cache
             # still earns its keep.
             "trace": req.trace.signature() if req.trace else "",
+            # BL-20260905-61: the walkthrough is written about a particular
+            # board, so two orders of the same question are two documents.
+            "remap": (req.remap or "").partition(".")[0],
         },
     )
     if req.refresh:
@@ -779,6 +829,10 @@ async def _tutor(req: TutorRequest, q: Question) -> TutorResponse:
     import time
 
     started = time.perf_counter()
+
+    # Everything below — prompt, offline synthesis, the answer key on the
+    # response — speaks about the board the learner saw (BL-20260905-61).
+    q = displayed_board(q, req.remap)
 
     key, cached_response = _cache_lookup(req, q)
     if cached_response is not None:

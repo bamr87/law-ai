@@ -32,7 +32,7 @@ export default function MatterList() {
   }, [load])
 
   if (matters === null) {
-    return <p className="text-sm text-slate-500">Loading matters…</p>
+    return <p className="text-sm text-slate-400">Loading matters…</p>
   }
 
   if (signedOut) {
@@ -67,12 +67,12 @@ export default function MatterList() {
             >
               {matter.name}
             </Link>
-            <span className="text-[11px] uppercase tracking-wider text-slate-500">
+            <span className="text-[11px] uppercase tracking-wider text-slate-400">
               {matter.stage}
             </span>
           </div>
           {matter.issue_tags.length > 0 && (
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-slate-400">
               {matter.issue_tags.join(' · ')}
             </p>
           )}

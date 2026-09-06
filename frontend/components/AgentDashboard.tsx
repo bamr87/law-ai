@@ -89,6 +89,20 @@ async function load<T>(
   }
 }
 
+/**
+ * `?poll=off` starts the dashboard paused (BL-20260905-23).
+ *
+ * The 5s poll is what makes the a11y/tab-order e2e specs crawl on /agents:
+ * every Tab races a round trip, and `networkidle` never arrives. A test (or
+ * anyone reading a frozen screen) can ask for the page without its heartbeat;
+ * the Pause control still toggles from there, so this only picks the starting
+ * position.
+ */
+function pollDisabledByUrl(): boolean {
+  if (typeof window === 'undefined') return false
+  return new URLSearchParams(window.location.search).get('poll') === 'off'
+}
+
 export default function AgentDashboard() {
   const [state, setState] = useState<DashboardState>({
     agents: emptyState(),
@@ -99,7 +113,7 @@ export default function AgentDashboard() {
     metrics: emptyState(),
     gaps: emptyState(),
   })
-  const [paused, setPaused] = useState(false)
+  const [paused, setPaused] = useState(pollDisabledByUrl)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   // Run filters are URL state (BL-20260831-02): "the failed runs matching
   // ingest" is then a link, and Back undoes a filter instead of leaving the
@@ -396,7 +410,7 @@ export default function AgentDashboard() {
                     <div className="flex items-start gap-2">
                       <SeverityBadge severity={item.severity} />
                       <KindBadge kind={item.kind} />
-                      <span className="font-mono text-[10px] text-slate-500">
+                      <span className="font-mono text-[10px] text-slate-400">
                         {item.id}
                       </span>
                     </div>

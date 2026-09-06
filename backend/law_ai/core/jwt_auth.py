@@ -103,7 +103,7 @@ class TokenPair:
 
 
 def _require_dependencies() -> None:
-    if not DEPENDENCIES_AVAILABLE:  # pragma: no cover - guarded install path
+    if not DEPENDENCIES_AVAILABLE:
         raise OAuthError(
             "temporarily_unavailable",
             "the [future-auth] extra (python-jose, passlib) is not installed",

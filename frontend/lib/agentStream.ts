@@ -118,6 +118,22 @@ export type AgentStreamEvent =
   | AnalysisTokenEvent
   | AgentCompleteEvent
 
+/**
+ * Where the *connection* stands, as opposed to what the run is producing
+ * (BL-20260905-79).
+ *
+ * The reconnect loop below was entirely silent: a dropped socket looked
+ * exactly like a model that had stopped writing, so a learner watching a
+ * half-finished walkthrough had no way to tell "still coming" from "stuck".
+ *
+ * - `live` — handshaked; frames are arriving. Sent on every `ready`, so it is
+ *   also the signal that a reconnect succeeded.
+ * - `reconnecting` — the socket dropped mid-run and a retry is scheduled.
+ * - `lost` — the retries are spent; nothing more will arrive on this stream.
+ *   The REST response every caller awaits is still authoritative.
+ */
+export type AgentStreamStatus = 'live' | 'reconnecting' | 'lost'
+
 /** Browser-safe unique id — `crypto.randomUUID` is not in older jsdom. */
 export function newStreamId(): string {
   const uuid =
@@ -193,18 +209,33 @@ export async function fetchStreamTicket(
  * connection: calling `close()` on it ends the stream for good, reconnection
  * included, which is exactly what a caller's `finally { socket.close() }`
  * means.
+ *
+ * The `ready` handshake itself gets more than one go (BL-20260905-21). A cold
+ * Channels layer or a loaded dev server routinely takes longer than the first
+ * window, and every caller treats a rejection as "run it unstreamed", so
+ * losing that race used to cost the whole live trace silently. The window is
+ * now 5s and a timed-out handshake is retried once on a fresh socket before
+ * the caller gives up.
  */
 export async function openAgentStream(
   streamId: string,
   onEvent: (event: AgentStreamEvent) => void,
   {
-    timeoutMs = 3000,
+    timeoutMs = 5000,
     maxReconnects = 4,
     reconnectBaseMs = 500,
+    handshakeRetries = 1,
+    onStatus,
   }: {
     timeoutMs?: number
     maxReconnects?: number
     reconnectBaseMs?: number
+    handshakeRetries?: number
+    /**
+     * Connection state, for a caller that wants to say "reconnecting…" rather
+     * than leave a stalled trace looking finished (BL-20260905-79).
+     */
+    onStatus?: (status: AgentStreamStatus) => void
   } = {},
 ): Promise<WebSocket> {
   // One round trip to this app's own server before the socket opens: the
@@ -244,6 +275,9 @@ export async function openAgentStream(
       if (parsed.type === 'ready') {
         if (timer) clearTimeout(timer)
         attempts = 0 // a completed handshake resets the backoff
+        // Also how a caller learns a reconnect took: `ready` is the only
+        // frame the server sends on every successful handshake.
+        onStatus?.('live')
         onReady?.(socket)
       }
       if (handle(parsed)) onEvent(parsed)
@@ -255,7 +289,14 @@ export async function openAgentStream(
     }
 
     socket.onclose = () => {
-      if (stopped || finished || attempts >= maxReconnects) return
+      if (stopped || finished) return
+      if (attempts >= maxReconnects) {
+        // The retries are spent. Say so once — a caller that shows
+        // "reconnecting…" forever is lying about a stream that is over.
+        onStatus?.('lost')
+        return
+      }
+      onStatus?.('reconnecting')
       const delay = reconnectBaseMs * 2 ** attempts
       attempts += 1
       setTimeout(() => {
@@ -289,21 +330,49 @@ export async function openAgentStream(
     wire(socket, null, null)
   }
 
-  return new Promise((resolve, reject) => {
-    let socket: WebSocket
+  const handshake = (isLastTry: boolean): Promise<WebSocket> =>
+    new Promise((resolve, reject) => {
+      let socket: WebSocket
+      try {
+        socket = new WebSocket(agentStreamUrl(streamId, ticket))
+      } catch (err) {
+        reject(err)
+        return
+      }
+      // Captured before `stop` wraps it: abandoning a socket for a retry must
+      // close *that* connection without marking the whole stream stopped.
+      const rawClose = socket.close.bind(socket)
+
+      timer = setTimeout(() => {
+        if (isLastTry) {
+          socket.close() // wrapped: ends the stream, reconnection included
+        } else {
+          // Detach first, or this close would look like a dropped connection
+          // and schedule a reconnect alongside the retry socket.
+          socket.onmessage = null
+          socket.onerror = null
+          socket.onclose = null
+          rawClose()
+        }
+        reject(new Error('agent stream: timed out waiting for ready'))
+      }, timeoutMs)
+
+      stop(socket)
+      wire(socket, resolve, reject)
+    })
+
+  let lastError: unknown
+  for (let tryNo = 0; tryNo <= Math.max(0, handshakeRetries); tryNo += 1) {
     try {
-      socket = new WebSocket(agentStreamUrl(streamId, ticket))
+      return await handshake(tryNo >= Math.max(0, handshakeRetries))
     } catch (err) {
-      reject(err)
-      return
+      lastError = err
+      // Only the handshake race is worth a second socket; a refused or failed
+      // connection would fail again exactly the same way.
+      if (!(err instanceof Error && err.message.includes('timed out'))) throw err
+      attempts = 0
+      stopped = false
     }
-
-    timer = setTimeout(() => {
-      reject(new Error('agent stream: timed out waiting for ready'))
-      socket.close()
-    }, timeoutMs)
-
-    stop(socket)
-    wire(socket, resolve, reject)
-  })
+  }
+  throw lastError
 }
