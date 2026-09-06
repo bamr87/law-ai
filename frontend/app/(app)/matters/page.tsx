@@ -24,12 +24,9 @@ export default function MattersPage() {
       }
     >
       <div className="space-y-8">
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
-            Deadlines
-          </h2>
-          <TaskCalendar />
-        </section>
+        {/* TaskCalendar renders its own heading: signed out it has nothing to
+            show, and the heading has to disappear with it. */}
+        <TaskCalendar />
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
             Your matters

@@ -46,21 +46,30 @@ export default function TaskCalendar({ days = 30 }: { days?: number }) {
     [load],
   )
 
+  // The component owns its whole section, heading included: signed out it
+  // renders nothing at all, and a bare "Deadlines" heading with no content
+  // under it reads as a broken screen rather than an empty one.
   if (signedOut) return null
   if (!calendar) {
-    return <p className="text-sm text-slate-500">Loading deadlines…</p>
+    return (
+      <Section>
+        <p className="text-sm text-slate-500">Loading deadlines…</p>
+      </Section>
+    )
   }
 
   if (calendar.count === 0) {
     return (
-      <p className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 text-sm text-slate-400">
-        Nothing due in the next {calendar.window_days} days.
-      </p>
+      <Section>
+        <p className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 text-sm text-slate-400">
+          Nothing due in the next {calendar.window_days} days.
+        </p>
+      </Section>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <Section>
       <Bucket
         title="Overdue"
         tone="text-rose-300"
@@ -83,7 +92,19 @@ export default function TaskCalendar({ days = 30 }: { days?: number }) {
         Due dates are the ones you entered. Law AI does not compute filing
         deadlines from court rules.
       </p>
-    </div>
+    </Section>
+  )
+}
+
+/** The Deadlines section frame, so the heading never outlives its content. */
+function Section({ children }: { children: React.ReactNode }) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
+        Deadlines
+      </h2>
+      <div className="space-y-4">{children}</div>
+    </section>
   )
 }
 
