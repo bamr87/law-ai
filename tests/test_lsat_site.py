@@ -196,6 +196,18 @@ class TestKeyboardContract:
         )
         css = (APP / "app" / "globals.css").read_text(encoding="utf-8")
         assert ".site-header-pinned" in css
+        # The control is display:none by default and shown again only under the
+        # narrow-viewport media query. A media query adds no specificity, so
+        # with equal selectors source order decides: the rule that shows it has
+        # to come AFTER the one that hides it, or the toggle is invisible at
+        # every width (which is exactly how it first shipped). jsdom loads no
+        # stylesheet, so the component test cannot catch this — assert order.
+        hide = css.index(".header-pin {\n  display: none;")
+        show = css.index("  .header-pin {\n    display: inline-flex;")
+        assert hide < show, (
+            "the media query that reveals .header-pin must come after the "
+            "display:none default, or the control never renders"
+        )
         help_sheet = self._read("components/ShortcutHelp.tsx")
         assert "['.'," in help_sheet, "? sheet must document the pin shortcut"
 

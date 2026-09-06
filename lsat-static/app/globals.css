@@ -1604,10 +1604,6 @@ main#view {
   .site-header-pinned {
     transform: none;
   }
-
-  .header-pin {
-    display: inline-flex;
-  }
 }
 
 /* The pin control itself. Hidden by default: above 819px nothing hides, so a
@@ -1631,6 +1627,17 @@ main#view {
 .header-pin[aria-pressed='true'] {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* Shown only where the header actually hides on scroll — the same breakpoint
+   as that behaviour. This block MUST come after the `display: none` default
+   above: a media query adds no specificity, so with equal selectors it is
+   source order that decides, and the reverse order left the control hidden at
+   every width. */
+@media (max-width: 819px) {
+  .header-pin {
+    display: inline-flex;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
