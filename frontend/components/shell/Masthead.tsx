@@ -10,7 +10,7 @@ import ScopeSwitcher from './ScopeSwitcher'
  * `position: sticky` element inside a scrolling document — so it cannot be
  * scrolled away even momentarily on a rubber-band overscroll.
  *
- * Its own parts are preferences too (spec 050): the breadcrumb trail and the
+ * Its own parts are preferences too (spec 051): the breadcrumb trail and the
  * scope switcher can be hidden. The home link, the palette button, and the
  * layout controls cannot — they are how a user gets out of a layout they do
  * not like.

@@ -20,7 +20,7 @@ import {
 import type { PanelKey } from './panels'
 
 /**
- * Layout preferences (spec 050): what the shell shows and where.
+ * Layout preferences (spec 051): what the shell shows and where.
  *
  * The model is deliberately small. Every preference is an ordinary setting in
  * the instance-scoped store, so it persists like the timer dock does, shows

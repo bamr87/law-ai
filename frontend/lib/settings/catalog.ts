@@ -57,7 +57,7 @@ export const lsatTimerDock = defineSetting<Dock>({
 })
 
 /**
- * Layout preferences (spec 050). Every one of these is owned by the masthead's
+ * Layout preferences (spec 051). Every one of these is owned by the masthead's
  * Layout menu and by "Reset layout"; `/settings` renders them under one
  * heading. They describe what the shell *shows*, never what it *does* — the
  * UPL disclaimer footer has no setting on purpose.

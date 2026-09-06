@@ -40,7 +40,7 @@ beforeEach(() => {
   resetLayout()
 })
 
-describe('LayoutMenu (spec 050)', () => {
+describe('LayoutMenu (spec 051)', () => {
   it('is a named menu of checkbox and radio rows that reflect the shell', () => {
     renderMenu()
     const menu = openMenu()
