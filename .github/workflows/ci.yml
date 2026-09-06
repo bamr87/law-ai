@@ -226,7 +226,12 @@ jobs:
   backend-test:
     name: Backend Tests + Coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 15 was the budget when this suite was ~1,000 tests; the backlog-zero
+    # sweep took backend coverage from 82% to 90% and the run now needs about
+    # 15m20s on a runner, so it was being cancelled at the deadline and
+    # reported as a failed check. 30 leaves headroom without letting a genuine
+    # hang sit for an hour.
+    timeout-minutes: 30
     needs: [spec-gate, changes]
     if: needs.changes.outputs.backend == 'true'
     services:
