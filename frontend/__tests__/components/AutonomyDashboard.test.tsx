@@ -40,7 +40,9 @@ describe('AutonomyDashboard', () => {
     const panel = await screen.findByRole('region', {
       name: /Recent autonomy cycles/i,
     })
-    expect(within(panel).getByText('digest')).toBeInTheDocument()
+    // The region renders before its rows arrive, so the first read inside
+    // it is awaited; everything below lands in the same commit.
+    expect(await within(panel).findByText('digest')).toBeInTheDocument()
     expect(within(panel).getByText('ok')).toBeInTheDocument()
     expect(within(panel).getByText('12.0s')).toBeInTheDocument()
     // The failing cycle is the one an operator came for, and it says so.
@@ -118,7 +120,9 @@ describe('AutonomyDashboard', () => {
     const panel = await screen.findByRole('region', {
       name: /Lowest-coverage modules/i,
     })
-    expect(within(panel).getByText('law_ai/core/xai.py')).toBeInTheDocument()
+    expect(
+      await within(panel).findByText('law_ai/core/xai.py'),
+    ).toBeInTheDocument()
     expect(within(panel).getByText('41.2%')).toBeInTheDocument()
     expect(within(panel).getByText('high')).toBeInTheDocument()
     expect(within(panel).getByText('med')).toBeInTheDocument()
@@ -130,7 +134,7 @@ describe('AutonomyDashboard', () => {
     const panel = await screen.findByRole('region', {
       name: /Recently quarantined documents/i,
     })
-    expect(within(panel).getByText('cl-9001')).toBeInTheDocument()
+    expect(await within(panel).findByText('cl-9001')).toBeInTheDocument()
     expect(within(panel).getByText('case')).toBeInTheDocument()
     expect(within(panel).getByText('conf 0.42')).toBeInTheDocument()
     expect(
@@ -163,7 +167,9 @@ describe('AutonomyDashboard', () => {
     const history = await screen.findByRole('region', {
       name: /LegalBench accuracy over time/i,
     })
-    expect(within(history).getByText(/Not measured yet/i)).toBeInTheDocument()
+    expect(
+      await within(history).findByText(/Not measured yet/i),
+    ).toBeInTheDocument()
     expect(within(history).getByText(/history\.jsonl/i)).toBeInTheDocument()
     expect(within(history).queryByRole('img')).not.toBeInTheDocument()
 

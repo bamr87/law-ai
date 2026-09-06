@@ -585,7 +585,9 @@ describe('KnowledgeGraph citation traversal', () => {
     withCites()
     render(<KnowledgeGraph />)
     const panel = await screen.findByTestId('cites-traversal')
-    const cites = within(panel).getByRole('list', { name: 'This case cites' })
+    const cites = await within(panel).findByRole('list', {
+      name: 'This case cites',
+    })
     const citedBy = within(panel).getByRole('list', { name: 'Cited by' })
     expect(
       within(cites).getByRole('button', { name: /Brown v. Board/ }),

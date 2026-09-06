@@ -167,7 +167,7 @@ describe('shell keyboard contract (spec 041 FR-4)', () => {
     )
     fireEvent.keyDown(window, { key: '?' })
     const sheet = await screen.findByTestId('shortcuts-help')
-    expect(within(sheet).getByText('Practice drill')).toBeInTheDocument()
+    expect(await within(sheet).findByText('Practice drill')).toBeInTheDocument()
     expect(within(sheet).getByText('Next question')).toBeInTheDocument()
     // The shell's own keys are still first.
     expect(within(sheet).getByText('Anywhere')).toBeInTheDocument()
