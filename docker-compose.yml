@@ -205,8 +205,13 @@ services:
       test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:7474 || exit 1" ]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      # 30s + 5x10s was enough on a warm laptop but not on a cold CI runner
+      # sharing its memory with the rest of the e2e stack: the a11y job failed
+      # with "container law-ai-neo4j-1 is unhealthy" while Neo4j was still
+      # coming up. Waiting longer only ever costs time on a slow boot; it
+      # cannot mask a real failure, because an unhealthy container still fails.
+      retries: 10
+      start_period: 60s
     restart: unless-stopped
     mem_limit: 4g
 

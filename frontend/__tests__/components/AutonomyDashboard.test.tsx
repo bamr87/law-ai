@@ -90,7 +90,12 @@ describe('AutonomyDashboard', () => {
     const panel = await screen.findByRole('region', {
       name: /Recent autonomy cycles/i,
     })
-    expect(within(panel).getByText(/No cycle has run yet/i)).toBeInTheDocument()
+    // The region renders as soon as the panel mounts, before its rows
+    // resolve, so the text inside it has to be awaited too — a sync query
+    // here races the load and fails on a slower runner.
+    expect(
+      await within(panel).findByText(/No cycle has run yet/i),
+    ).toBeInTheDocument()
   })
 
   it('draws one labelled sparkline per LegalBench subset', async () => {
@@ -192,7 +197,7 @@ describe('AutonomyDashboard', () => {
       name: /Recently quarantined documents/i,
     })
     expect(
-      within(panel).getByText(/every extraction has been reviewed/i),
+      await within(panel).findByText(/every extraction has been reviewed/i),
     ).toBeInTheDocument()
   })
 

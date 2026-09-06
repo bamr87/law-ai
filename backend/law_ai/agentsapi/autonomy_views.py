@@ -272,9 +272,12 @@ class AutonomyRunsView(_Base):
             }
             for row in rows
         ]
+        # `runs` holds mixed value types, so mypy infers a union for every
+        # read; the status is always a model CharField, hence the narrowing.
         by_status: dict[str, int] = {}
         for run in runs:
-            by_status[run["status"]] = by_status.get(run["status"], 0) + 1
+            status = str(run["status"])
+            by_status[status] = by_status.get(status, 0) + 1
         return Response(
             {
                 "available": available,

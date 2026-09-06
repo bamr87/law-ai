@@ -83,6 +83,11 @@ jobs:
           LANGGRAPH_INTEGRATION: "1"
           LANGGRAPH_CHECKPOINTER: postgres
           POSTGRES_URL: postgresql+asyncpg://law_ai:law_ai-dev@localhost:5432/law_ai
+          # BL-20260511-09: same host-oriented rewrite as the three above.
+          # pytest runs on the runner, not inside the compose network, so the
+          # settings default (the compose hostname `redis`) does not resolve —
+          # the ports are published, so localhost does.
+          REDIS_URL: redis://localhost:6379/0
         # --no-cov: this job only runs ~3 tests, the 75% gate is enforced
         # by the main CI's Backend Tests + Coverage job (which runs everything
         # *except* integration). -o overrides addopts= in pyproject.toml.

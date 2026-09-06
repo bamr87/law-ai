@@ -146,7 +146,10 @@ def writing_stats(user: Any) -> dict[str, Any]:
     for row in rows:
         pid = str(row["prompt_id"])
         by_prompt[pid] = by_prompt.get(pid, 0) + 1
-    latest = rows[-1] if rows else {}
+    # `.values(...)` gives django-stubs a TypedDict with exactly these five
+    # keys, and `{}` is not that type — so the empty case is None rather than
+    # an empty dict, and the two reads below guard on it.
+    latest = rows[-1] if rows else None
     return {
         "attempts": len(rows),
         "by_prompt": by_prompt,
@@ -154,8 +157,8 @@ def writing_stats(user: Any) -> dict[str, Any]:
         "best_band": max(bands) if bands else None,
         "band_trend": [round(b, 4) for b in bands],
         "degraded": sum(1 for r in rows if r["degraded"] is True),
-        "model": latest.get("model") or None,
-        "prompt_version": latest.get("prompt_version") or None,
+        "model": (latest["model"] if latest else None) or None,
+        "prompt_version": (latest["prompt_version"] if latest else None) or None,
     }
 
 

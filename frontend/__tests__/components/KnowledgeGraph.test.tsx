@@ -603,8 +603,10 @@ describe('KnowledgeGraph citation traversal', () => {
     withCites()
     render(<KnowledgeGraph />)
     const panel = await screen.findByTestId('cites-traversal')
+    // The panel mounts before its neighbour rows arrive, so the button has to
+    // be awaited: a sync query here races the fetch on a slower runner.
     fireEvent.click(
-      within(panel).getByRole('button', { name: /Brown v. Board/ }),
+      await within(panel).findByRole('button', { name: /Brown v. Board/ }),
     )
     // Selection is URL state, so the trail is linkable and Back unwinds it.
     await waitFor(() =>

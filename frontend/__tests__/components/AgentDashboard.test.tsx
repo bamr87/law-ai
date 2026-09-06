@@ -154,7 +154,9 @@ describe('AgentDashboard', () => {
     await waitFor(() =>
       expect(screen.getByLabelText('Filter runs')).toHaveValue('nomatch'),
     )
-    expect(screen.getByText(/No runs match "nomatch"/)).toBeInTheDocument()
+    // The input reflects the URL before the filtered list re-renders, so
+    // the empty-state copy has to be awaited rather than read at once.
+    expect(await screen.findByText(/No runs match "nomatch"/)).toBeInTheDocument()
   })
 
   it('replaces rather than pushes while a filter is being typed', async () => {
