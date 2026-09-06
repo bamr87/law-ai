@@ -12,6 +12,15 @@ export type PanelKey = 'sidebar' | 'inspector'
 export const PANEL_KEYS: readonly PanelKey[] = ['sidebar', 'inspector']
 
 /**
+ * Query keys are a shared namespace. The shell owns `sidebar` and `inspector`;
+ * screens own the view keys in `lib/shell/viewState.ts` (`tab`, `type`, `q`,
+ * `case`) and reach them only through `useUrlState`/`useUrlText`, which start
+ * from the current params and touch one key — so a screen can never clobber
+ * the panel layout, and two screens cannot mean different things by `tab`
+ * (BL-20260831-02).
+ */
+
+/**
  * Resolve one panel. `?sidebar=1` / `?sidebar=0` win; anything else (absent,
  * or a value we don't recognise) falls back to the caller's preference so a
  * mangled URL degrades to the default instead of a blank shell.

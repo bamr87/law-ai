@@ -55,7 +55,7 @@
   1. `extract(payload)` runs Eyecite + Blackstone, returns `ExtractionResult`.
   2. `run_and_commit(payload)` branches on `confidence`: `>= 0.7` → `MERGE` `Case` + `Citation` + `CITES`/`HAS_CITATION` edges; `< 0.7` → insert into `pending_review` (Postgres) or append to `backend/var/pending_review/<date>.jsonl` if Postgres is unreachable.
   3. Every Cypher `MERGE` sets `source`, `source_url`, `ingest_timestamp`, `agent_version`, `confidence`.
-  4. Register agent in [registry.py](../../backend/app/agents/registry.py).
+  4. Register agent in `backend/app/agents/registry.py`.
 - **Verify**:
   - Unit: `pytest tests/ingestion/test_scout.py::test_extract_high_confidence -q` passes.
   - Unit: `pytest tests/ingestion/test_scout.py::test_low_confidence_routes_to_pending -q` (AC-5).

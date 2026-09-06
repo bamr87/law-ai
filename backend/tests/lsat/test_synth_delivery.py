@@ -383,3 +383,238 @@ class TestPolish:
         # Same schema and seed, so the proof is the same proof.
         assert polished.report.premise_models == item.report.premise_models
         assert polished.question.correct == item.question.correct
+
+
+def _clean_property(index: int) -> dict[str, str]:
+    """A proposal the lint accepts, distinct per index."""
+    return {
+        "id": f"proposed_{index}",
+        "vp_affirm": f"was logged in register {index} at the depot",
+        "vp_affirm_plural": f"were logged in register {index} at the depot",
+        "vp_negate": f"was not logged in register {index} at the depot",
+        "vp_negate_plural": f"were not logged in register {index} at the depot",
+        "modifier": f"logged in register {index} at the depot",
+    }
+
+
+class _StubResult:
+    """Mirrors ``law_ai.core.llm.base.LLMResult`` for the polish path."""
+
+    def __init__(self, payload: object, *, provider: str = "test") -> None:
+        self.text = payload if isinstance(payload, str) else json.dumps(payload)
+        self.provider = provider
+        self.model_label = f"{provider}/model"
+
+
+def _stub_chain(
+    monkeypatch: pytest.MonkeyPatch, payload: object, *, provider: str = "test"
+) -> None:
+    from law_ai.core import llm
+
+    async def _agenerate(prompt, *, system=None, agent=None):  # type: ignore[no-untyped-def]
+        return _StubResult(payload, provider=provider)
+
+    monkeypatch.setattr(llm, "agenerate", _agenerate)
+
+
+class TestPolishYield:
+    """BL-20260903-17: the prompt's yield is counted, not assumed."""
+
+    def test_every_reject_is_counted_by_reason(self) -> None:
+        from law_ai.lsat.synth.polish import parse_proposals_with_yield
+
+        clean = _clean_property(1)
+        forbidden = _clean_property(2) | {
+            "vp_affirm": "was logged only when the depot opened"
+        }
+        short = _clean_property(3) | {"modifier": "logged"}
+        missing = {k: v for k, v in _clean_property(4).items() if k != "modifier"}
+        bad_id = _clean_property(5) | {"id": "Bad Id"}
+        duplicate = _clean_property(1)
+        payload = json.dumps(
+            {
+                "properties": [
+                    clean,
+                    forbidden,
+                    short,
+                    missing,
+                    bad_id,
+                    duplicate,
+                    "not an object",
+                ]
+            }
+        )
+
+        properties, measured = parse_proposals_with_yield(payload, existing=set())
+
+        assert [p.id for p in properties] == ["proposed_1"]
+        assert measured.proposed == 7
+        assert measured.accepted == 1
+        assert measured.rate == pytest.approx(1 / 7)
+        assert measured.rejected == {
+            "forbidden-word": 1,
+            "length": 1,
+            "missing-field": 1,
+            "bad-id": 1,
+            "duplicate": 1,
+            "not-an-object": 1,
+        }
+        assert measured.error == ""
+
+    def test_an_unparseable_reply_is_measured_not_raised(self) -> None:
+        from law_ai.lsat.synth.polish import parse_proposals_with_yield
+
+        properties, measured = parse_proposals_with_yield("sorry!", existing=set())
+        assert properties == []
+        assert measured.error == "unparseable"
+        assert measured.rate == 0.0
+        assert measured.rejected == {"unparseable": 1}
+
+    def test_no_provider_is_an_unavailable_round(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from law_ai.core import llm
+        from law_ai.lsat.synth.lexicon import get_domain
+        from law_ai.lsat.synth.polish import propose_with_yield
+
+        async def _unavailable(prompt, *, system=None, agent=None):  # type: ignore[no-untyped-def]
+            raise llm.LLMUnavailableError("no provider")
+
+        monkeypatch.setattr(llm, "agenerate", _unavailable)
+        properties, measured = asyncio.run(
+            propose_with_yield(get_domain("municipal-policy"))
+        )
+        assert properties == []
+        assert measured.error == "unavailable"
+        assert measured.proposed == 0
+
+    def test_the_round_records_the_tier_that_answered(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from law_ai.lsat.synth.lexicon import get_domain
+        from law_ai.lsat.synth.polish import propose_with_yield
+
+        _stub_chain(
+            monkeypatch,
+            {"properties": [_clean_property(i) for i in range(3)]},
+            provider="ollama",
+        )
+        _properties, measured = asyncio.run(
+            propose_with_yield(get_domain("municipal-policy"), count=3)
+        )
+        assert measured.provider == "ollama"
+        assert measured.model_label == "ollama/model"
+        assert measured.accepted == 3
+
+    def test_the_yield_rides_on_the_polished_item_provenance(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from law_ai.lsat.synth.polish import polish_item
+
+        _stub_chain(monkeypatch, {"properties": [_clean_property(i) for i in range(4)]})
+        item = generate("lr-conditional-chain-forward", "municipal-policy", seed=1)
+        polished = polish_item(item)
+        assert polished.provenance.polish is not None
+        assert polished.provenance.polish["accepted"] == 4
+        assert polished.provenance.polish["model_label"] == "test/model"
+
+    def test_an_unpolished_item_records_the_failed_round(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from law_ai.lsat.synth.polish import polish_item
+
+        _stub_chain(monkeypatch, "not json at all")
+        item = generate("lr-conditional-chain-forward", "municipal-policy", seed=1)
+        polished = polish_item(item)
+        assert polished.question.model_dump() == item.question.model_dump()
+        assert polished.provenance.polish["error"] == "unparseable"
+
+
+class TestPolishYieldCommand:
+    """The ``polish-yield`` verb aggregates rounds into a report."""
+
+    def test_it_reports_and_writes_the_json(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _stub_chain(
+            monkeypatch,
+            {"properties": [_clean_property(i) for i in range(4)]},
+            provider="claude",
+        )
+        out = tmp_path / "polish_yield.json"
+        text = _run(
+            "polish-yield",
+            "--domain",
+            "municipal-policy",
+            "--rounds",
+            "2",
+            "--count",
+            "4",
+            "--out",
+            str(out),
+        )
+        assert "Polish yield" in text
+        assert "municipal-policy" in text
+        assert "tier claude/model" in text
+
+        report = json.loads(out.read_text(encoding="utf-8"))
+        assert report["overall"] == {
+            "proposed": 8,
+            "accepted": 8,
+            "rate": 1.0,
+            "rejected": {},
+        }
+        assert report["by_provider"]["claude/model"]["accepted"] == 8
+        assert report["rounds_per_domain"] == 2
+        row = report["by_domain"][0]
+        assert row["domain_id"] == "municipal-policy"
+        # The accepted vocabulary must still render a verifiable item.
+        assert row["accepted_reverifies"] is True
+
+    def test_a_yield_below_the_floor_fails_under_strict(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from law_ai.lsat.synth.polish import POLISH_YIELD_FLOOR
+
+        bad = [
+            _clean_property(i) | {"vp_affirm": "was logged only when the depot opened"}
+            for i in range(3)
+        ]
+        _stub_chain(monkeypatch, {"properties": [_clean_property(9), *bad]})
+        out = tmp_path / "polish_yield.json"
+        with pytest.raises(CommandError, match="below the"):
+            _run(
+                "polish-yield",
+                "--domain",
+                "municipal-policy",
+                "--count",
+                "4",
+                "--strict",
+                "--out",
+                str(out),
+            )
+        report = json.loads(out.read_text(encoding="utf-8"))
+        assert report["overall"]["rate"] < POLISH_YIELD_FLOOR
+        assert report["floor"] == POLISH_YIELD_FLOOR
+
+    def test_no_provider_is_reported_not_a_floor_breach(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from law_ai.core import llm
+
+        async def _unavailable(prompt, *, system=None, agent=None):  # type: ignore[no-untyped-def]
+            raise llm.LLMUnavailableError("no provider")
+
+        monkeypatch.setattr(llm, "agenerate", _unavailable)
+        out = tmp_path / "polish_yield.json"
+        text = _run(
+            "polish-yield",
+            "--domain",
+            "municipal-policy",
+            "--out",
+            str(out),
+        )
+        assert "no provider answered" in text
+        report = json.loads(out.read_text(encoding="utf-8"))
+        assert report["errors"] == {"unavailable": 1}
+        assert report["overall"]["proposed"] == 0

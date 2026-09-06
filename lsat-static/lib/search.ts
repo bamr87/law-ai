@@ -10,9 +10,10 @@
 // It is a token + field-weight ranker, not an index. Each query token is
 // stemmed and expanded through SYNONYMS, so "assumptions" meets "assumption"
 // and "LG" meets "logic games"; a field word also matches by prefix so
-// search-as-you-type keeps working. Every token must match somewhere for an
-// article to be a hit. True fuzzy (edit-distance) matching is deliberately
-// absent (BL-20260903-06). The parity fixture in
+// search-as-you-type keeps working. A token that matches nothing exactly is
+// retried within one edit (isTypo, stems of ≥ 5 characters) at half weight,
+// so "assumtion" still finds the assumption family. Every token must match
+// somewhere for an article to be a hit. The parity fixture in
 // backend/tests/lsat/fixtures/search_parity.json pins this copy to the
 // backend's rule for rule.
 
@@ -108,6 +109,9 @@ const STOPWORDS = new Set(
 
 const TOKEN_RE = /[a-z0-9]+/g
 const MIN_STEM = 4
+// Shortest stem a typo is forgiven on; below five characters one edit turns a
+// real word into another. Mirrors _MIN_FUZZY in library.py.
+const MIN_FUZZY = 5
 
 function stripDoubleConsonant(s: string): string {
   if (
@@ -166,6 +170,85 @@ function countMatches(field: string[], token: string): number {
   return count
 }
 
+function sameLengthTypo(a: string, b: string): boolean {
+  const diffs: number[] = []
+  for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) diffs.push(i)
+  if (diffs.length === 1) return true
+  if (diffs.length === 2 && diffs[1] === diffs[0] + 1) {
+    const [i, j] = diffs
+    return a[i] === b[j] && a[j] === b[i]
+  }
+  return false
+}
+
+function offByOneTypo(short: string, long: string): boolean {
+  let i = 0
+  let j = 0
+  let skipped = false
+  while (i < short.length && j < long.length) {
+    if (short[i] === long[j]) {
+      i += 1
+      j += 1
+    } else if (skipped) {
+      return false
+    } else {
+      skipped = true
+      j += 1
+    }
+  }
+  return true
+}
+
+/** Mirrors `is_typo()` in library.py: Damerau-Levenshtein distance ≤ 1. */
+export function isTypo(a: string, b: string): boolean {
+  if (a === b) return true
+  if (Math.abs(a.length - b.length) > 1) return false
+  if (a.length === b.length) return sameLengthTypo(a, b)
+  return a.length < b.length ? offByOneTypo(a, b) : offByOneTypo(b, a)
+}
+
+/** Mirrors `_fuzzy_matches()`: one edit, on stems of ≥ MIN_FUZZY characters. */
+function fuzzyMatches(field: string[], token: string): boolean {
+  const target = stem(token)
+  if (target.length < MIN_FUZZY) return false
+  return field.some(
+    (s) =>
+      s.length >= MIN_FUZZY &&
+      Math.abs(s.length - target.length) <= 1 &&
+      isTypo(s, target),
+  )
+}
+
+/** A typo hit is worth half a real one, and never nothing. */
+function fuzzyWeight(weight: number): number {
+  return Math.max(1, Math.floor(weight / 2))
+}
+
+function scoreField(
+  field: string[],
+  token: string,
+  weight: number,
+  cap: number,
+): number {
+  const occurrences = countMatches(field, token)
+  if (occurrences > 0) return weight * Math.min(occurrences, cap)
+  if (fuzzyMatches(field, token)) return fuzzyWeight(weight)
+  return 0
+}
+
+function scoreHeadings(
+  headings: readonly (readonly [string, string[]])[],
+  token: string,
+): [number, string | null] {
+  const exact = headings.filter(([, stems]) => countMatches(stems, token) > 0)
+  if (exact.length > 0) return [WEIGHTS.heading * exact.length, exact[0][0]]
+  const fuzzy = headings.filter(([, stems]) => fuzzyMatches(stems, token))
+  if (fuzzy.length > 0) {
+    return [fuzzyWeight(WEIGHTS.heading) * fuzzy.length, fuzzy[0][0]]
+  }
+  return [0, null]
+}
+
 function firstMatchOffset(
   text: string,
   tokens: string[],
@@ -173,14 +256,18 @@ function firstMatchOffset(
   const targets = new Set(tokens.map(stem))
   const re = new RegExp(TOKEN_RE.source, 'g')
   const lower = text.toLowerCase()
+  let fuzzy: [number, number] | null = null
   let m: RegExpExecArray | null
   while ((m = re.exec(lower)) !== null) {
-    const word = m[0]
-    if (targets.has(stem(word)) || tokens.some((t) => word.startsWith(t))) {
-      return [m.index, m.index + word.length]
+    const raw = m[0]
+    const word = stem(raw)
+    const span: [number, number] = [m.index, m.index + raw.length]
+    if (targets.has(word) || tokens.some((t) => raw.startsWith(t))) return span
+    if (fuzzy === null && tokens.some((t) => fuzzyMatches([word], t))) {
+      fuzzy = span
     }
   }
-  return null
+  return fuzzy
 }
 
 function snippet(text: string, tokens: string[]): string | null {
@@ -229,28 +316,27 @@ function scoreArticle(
   const where: string[] = []
   let anchor: string | null = null
   for (const token of tokens) {
-    let matched = false
+    let gained = 0
     for (const name of ['title', 'summary', 'tag'] as const) {
-      if (countMatches(fields[name], token) > 0) {
-        score += WEIGHTS[name]
-        matched = true
+      const fieldScore = scoreField(fields[name], token, WEIGHTS[name], 1)
+      if (fieldScore > 0) {
+        gained += fieldScore
         if (!where.includes(name)) where.push(name)
       }
     }
-    const hit = headings.filter(([, stems]) => countMatches(stems, token) > 0)
-    if (hit.length > 0) {
-      score += WEIGHTS.heading * hit.length
-      matched = true
+    const [headingScore, headingAnchor] = scoreHeadings(headings, token)
+    if (headingScore > 0) {
+      gained += headingScore
       if (!where.includes('heading')) where.push('heading')
-      anchor = anchor ?? hit[0][0]
+      anchor = anchor ?? headingAnchor
     }
-    const occurrences = countMatches(fields.body, token)
-    if (occurrences > 0) {
-      score += WEIGHTS.body * Math.min(occurrences, 5)
-      matched = true
+    const bodyScore = scoreField(fields.body, token, WEIGHTS.body, 5)
+    if (bodyScore > 0) {
+      gained += bodyScore
       if (!where.includes('body')) where.push('body')
     }
-    if (!matched) return { score: 0, where: [], anchor: null }
+    if (gained === 0) return { score: 0, where: [], anchor: null }
+    score += gained
   }
   return { score, where, anchor }
 }

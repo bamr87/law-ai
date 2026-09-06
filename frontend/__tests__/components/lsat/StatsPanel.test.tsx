@@ -41,10 +41,187 @@ describe('StatsPanel', () => {
     expect(screen.getAllByText('50%')).toHaveLength(2)
   })
 
+  // BL-20260503-05: a signed-in learner's own history and review schedule.
+  it('names the card for the learner when the stats are theirs', () => {
+    render(
+      <StatsPanel
+        session={{ attempts: 0, correct: 0, assisted: 0 }}
+        stats={{ attempts: 8, correct: 4, accuracy: 0.5, scope: 'user' }}
+      />,
+    )
+    expect(screen.getByText('Your history')).toBeInTheDocument()
+    expect(screen.queryByText('All-time (audit log)')).not.toBeInTheDocument()
+  })
+
+  it('lists due questions with a drill link into the right section', () => {
+    render(
+      <StatsPanel
+        session={{ attempts: 0, correct: 0, assisted: 0 }}
+        stats={{
+          attempts: 3,
+          correct: 1,
+          accuracy: 0.33,
+          scope: 'user',
+          review_queue: [
+            {
+              question_id: 'lr-007',
+              section: 'LR',
+              concepts: ['assumption'],
+              streak: 0,
+              box: 0,
+              attempts: 2,
+              last_attempt_at: '2026-09-01T00:00:00+00:00',
+              due_at: '2026-09-01T00:00:00+00:00',
+              overdue_days: 4,
+              reason: 'missed',
+            },
+            {
+              question_id: 'rc-002',
+              section: 'RC',
+              concepts: [],
+              streak: 2,
+              box: 2,
+              attempts: 3,
+              last_attempt_at: '2026-09-02T00:00:00+00:00',
+              due_at: '2026-09-04T00:00:00+00:00',
+              overdue_days: 1,
+              reason: 'spaced-review',
+            },
+          ],
+        }}
+      />,
+    )
+    expect(screen.getByText('Due for review')).toBeInTheDocument()
+    expect(screen.getByText('lr-007')).toBeInTheDocument()
+    expect(screen.getByText('missed last time')).toBeInTheDocument()
+    expect(screen.getByText('box 2')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Drill LR' })).toHaveAttribute(
+      'href',
+      '/lsat?tab=LR&concept=assumption',
+    )
+    expect(screen.getByRole('link', { name: 'Drill RC' })).toHaveAttribute(
+      'href',
+      '/lsat?tab=RC',
+    )
+  })
+
+  it('hides the review section entirely when nothing is due', () => {
+    render(
+      <StatsPanel
+        session={{ attempts: 0, correct: 0, assisted: 0 }}
+        stats={{ attempts: 1, correct: 1, accuracy: 1, review_queue: [] }}
+      />,
+    )
+    expect(screen.queryByText('Due for review')).not.toBeInTheDocument()
+  })
+
   it('renders zeros rather than crashing before stats arrive', () => {
     render(
       <StatsPanel session={{ attempts: 0, correct: 0, assisted: 0 }} stats={null} />,
     )
     expect(screen.getAllByText('0% accuracy')).toHaveLength(2)
+  })
+
+  // BL-20260903-05: reading was per-browser localStorage, so the library half
+  // of the loop had nowhere to show up next to drill accuracy.
+  it('shows library reading beside accuracy, per section too', () => {
+    render(
+      <StatsPanel
+        session={{ attempts: 0, correct: 0, assisted: 0 }}
+        stats={{
+          attempts: 4,
+          correct: 3,
+          accuracy: 0.75,
+          articles_read: 5,
+          articles_total: 12,
+          by_section: {
+            LR: { attempts: 4, correct: 3, accuracy: 0.75, articles_read: 2 },
+          },
+        }}
+      />,
+    )
+    expect(screen.getByText('Library')).toBeInTheDocument()
+    expect(screen.getByText('5')).toBeInTheDocument()
+    expect(screen.getByText('/ 12')).toBeInTheDocument()
+    expect(screen.getByText(/articles read/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('columnheader', { name: 'Read' }),
+    ).toBeInTheDocument()
+  })
+
+  it('leaves the reading card out when the API does not report it', () => {
+    render(
+      <StatsPanel
+        session={{ attempts: 0, correct: 0, assisted: 0 }}
+        stats={{ attempts: 1, correct: 1, accuracy: 1 }}
+      />,
+    )
+    expect(screen.queryByText('Library')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('columnheader', { name: 'Read' }),
+    ).not.toBeInTheDocument()
+  })
+
+  // BL-20260831-27: evaluations were persisted from the day the evaluator
+  // shipped and read back by nothing, so writing progress across attempts was
+  // invisible next to drill accuracy.
+  it('shows writing progress as a trend, labelled machine-derived', () => {
+    render(
+      <StatsPanel
+        session={{ attempts: 0, correct: 0, assisted: 0 }}
+        stats={{
+          attempts: 0,
+          correct: 0,
+          accuracy: 0,
+          writing: {
+            attempts: 3,
+            by_prompt: { 'ws-001': 2, 'ws-002': 1 },
+            latest_band: 3.0,
+            best_band: 3.5,
+            band_trend: [2, 3.5, 3],
+            degraded: 1,
+            model: 'claude_code/claude-opus-5',
+            prompt_version: 'lsat_writing_evaluator.v1',
+          },
+        }}
+      />,
+    )
+    expect(screen.getByText('Argumentative Writing')).toBeInTheDocument()
+    expect(screen.getByText('3.00')).toBeInTheDocument()
+    expect(screen.getByText('3.50')).toBeInTheDocument()
+    expect(
+      screen.getByText(/bands are machine-derived \(claude_code\/claude-opus-5/),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/1 from the degraded fallback/)).toBeInTheDocument()
+    // The direction is the point, so every attempt is on the trend.
+    const trend = screen.getByRole('list', {
+      name: /Weighted band by attempt/,
+    })
+    expect(trend.children).toHaveLength(3)
+    expect(screen.getByText(/ws-001 ×2 · ws-002 ×1/)).toBeInTheDocument()
+  })
+
+  it('renders nothing for writing until there is an evaluation', () => {
+    render(
+      <StatsPanel
+        session={{ attempts: 0, correct: 0, assisted: 0 }}
+        stats={{
+          attempts: 0,
+          correct: 0,
+          accuracy: 0,
+          writing: {
+            attempts: 0,
+            by_prompt: {},
+            latest_band: null,
+            best_band: null,
+            band_trend: [],
+            degraded: 0,
+            model: null,
+            prompt_version: null,
+          },
+        }}
+      />,
+    )
+    expect(screen.queryByText('Argumentative Writing')).not.toBeInTheDocument()
   })
 })

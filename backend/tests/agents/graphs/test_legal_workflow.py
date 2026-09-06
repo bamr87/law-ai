@@ -82,11 +82,17 @@ def test_parse_json_rejects_non_dict_payloads() -> None:
 
 @pytest.fixture()
 def fake_retrieved_passages() -> list[dict]:
+    # court + decided_at are on every real GraphRAG passage and are what
+    # cite_check backfills each citation's §13 attribution from
+    # (BL-20260803-04); a fixture without them would exercise the
+    # under-attributed path, which test_attribution_rule.py covers on purpose.
     return [
         {
             "title": "Marbury v. Madison",
             "snippet": "Established judicial review.",
             "source_url": "https://example.test/marbury",
+            "court": "us-supreme",
+            "decided_at": "1803-02-24",
         }
     ]
 
@@ -278,3 +284,147 @@ async def test_workflow_resumes_thread(
     )
     result = await wf.invoke("q", thread_id="my-resume-id")
     assert result.langgraph_thread_id == "my-resume-id"
+
+
+# ---------------------------------------------------------------------------
+# BL-20260803-02: the coverage envelope reaches the model and the caller
+# ---------------------------------------------------------------------------
+
+
+class _CoverageRetriever:
+    """Retriever that publishes a real RetrievalCoverage, like GraphRAG does."""
+
+    def __init__(self, passages, coverage):  # type: ignore[no-untyped-def]
+        self._passages = passages
+        self.last_coverage = coverage
+
+    async def __call__(self, state):  # type: ignore[no-untyped-def]
+        return list(self._passages)
+
+
+def _coverage(**kwargs):  # type: ignore[no-untyped-def]
+    from law_ai.agents_runtime.tools.graph_rag import RetrievalCoverage
+
+    return RetrievalCoverage(**kwargs)
+
+
+@pytest.mark.asyncio
+async def test_analyze_prompt_relays_the_coverage_note_verbatim() -> None:
+    """The note must reach the model, not just the UI sidecar."""
+    coverage = _coverage(
+        queries=["judicial review"],
+        result_count=1,
+        lexical_count=1,
+        jurisdictions_present=["us-supreme"],
+        jurisdiction_requested="us-ca",
+        jurisdiction_absent=True,
+        date_earliest="1803-02-24",
+        date_latest="1803-02-24",
+    )
+    passages = [
+        {
+            "title": "Marbury v. Madison",
+            "snippet": "Established judicial review.",
+            "source_url": "https://example.test/marbury",
+            "court": "us-supreme",
+            "decided_at": "1803-02-24",
+        }
+    ]
+    fake_llm = FakeOllama(
+        [
+            '{"queries": ["judicial review"], "rationale": "ok"}',
+            '{"answer": "…", "citations": [], "confidence": 0.5}',
+        ]
+    )
+
+    async def resolver(citations):  # type: ignore[no-untyped-def]
+        return {}
+
+    wf = LegalWorkflow(
+        llm_factory=lambda: fake_llm,
+        cite_resolver=resolver,
+        retriever=_CoverageRetriever(passages, coverage),
+    )
+    result = await wf.invoke(
+        "Did Marbury establish judicial review?", jurisdiction="us-ca"
+    )
+
+    analyze_prompt = fake_llm.calls[1]
+    assert "CORPUS COVERAGE (restate this verbatim" in analyze_prompt
+    assert coverage.note() in analyze_prompt
+    # …and the same note travels to the caller unchanged.
+    assert result.retrieval_stats.coverage_note == coverage.note()
+    assert result.retrieval_stats.date_earliest == "1803-02-24"
+    assert result.retrieval_stats.date_latest == "1803-02-24"
+    assert result.retrieval_stats.jurisdictions_present == ["us-supreme"]
+    assert result.retrieval_stats.jurisdiction_absent is True
+
+
+@pytest.mark.asyncio
+async def test_no_coverage_note_means_no_preamble() -> None:
+    """A retriever without coverage must not inject an empty coverage block."""
+    fake_llm = FakeOllama(
+        [
+            '{"queries": ["q"], "rationale": "ok"}',
+            '{"answer": "…", "citations": [], "confidence": 0.5}',
+        ]
+    )
+
+    async def resolver(citations):  # type: ignore[no-untyped-def]
+        return {}
+
+    async def retriever(state):  # type: ignore[no-untyped-def]
+        return [{"title": "T", "snippet": "s", "source_url": "u"}]
+
+    wf = LegalWorkflow(
+        llm_factory=lambda: fake_llm, cite_resolver=resolver, retriever=retriever
+    )
+    await wf.invoke("q?")
+    assert "CORPUS COVERAGE" not in fake_llm.calls[1]
+
+
+@pytest.mark.asyncio
+async def test_model_label_records_the_serving_provider() -> None:
+    """BL-20260615-02: provenance names the tier that answered, not Ollama."""
+
+    class _LabelledMessage:
+        def __init__(self, text: str) -> None:
+            self.content = text
+            self.response_metadata = {
+                "provider": "claude_code",
+                "model": "claude-opus-5",
+                "model_label": "claude_code/claude-opus-5",
+            }
+
+    class _LabelledLLM:
+        def __init__(self, responses):  # type: ignore[no-untyped-def]
+            self._responses = list(responses)
+
+        async def ainvoke(self, prompt: str):  # type: ignore[no-untyped-def]
+            return _LabelledMessage(self._responses.pop(0))
+
+    from law_ai.agents_runtime.graphs.legal_workflow import _coerce_model_label
+
+    assert _coerce_model_label("bare string") == "(provider chain)"
+    assert _coerce_model_label(_LabelledMessage("{}")) == "claude_code/claude-opus-5"
+
+    async def resolver(citations):  # type: ignore[no-untyped-def]
+        return {}
+
+    async def retriever(state):  # type: ignore[no-untyped-def]
+        return [{"title": "T", "snippet": "s", "source_url": "u"}]
+
+    labelled = _LabelledLLM(
+        [
+            '{"queries": ["q"], "rationale": "ok"}',
+            '{"answer": "a", "citations": [], "confidence": 0.5}',
+        ]
+    )
+    wf = LegalWorkflow(
+        llm_factory=lambda: labelled,
+        cite_resolver=resolver,
+        retriever=retriever,
+    )
+    # Smoke: the run completes with the labelled message shape.
+    out = await wf.invoke("q?")
+    assert out.answer == "a"

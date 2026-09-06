@@ -90,7 +90,12 @@ describe('AnalysisStudio', () => {
     expect(screen.getByText(/Agent Execution Trace/i)).toBeInTheDocument()
     expect(screen.getByText(/LegalAnalyst/)).toBeInTheDocument()
     expect(screen.getByText(/PrecedentHunter/)).toBeInTheDocument()
-    expect(screen.getByText(/an-abc123/)).toBeInTheDocument()
+    // The id now appears twice: in the trace and in the permalink
+    // (BL-20260429-25).
+    expect(screen.getAllByText(/an-abc123/).length).toBeGreaterThan(0)
+    expect(
+      screen.getByRole('link', { name: '/analysis?id=an-abc123' }),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -125,6 +130,38 @@ describe('AnalysisStudio', () => {
 
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent(/Analysis failed \(500\)/)
+  })
+
+  // BL-20260831-10: the cap used to eat the tail of a long paste silently.
+  describe('input truncation', () => {
+    const MAX_LEN = 20_000
+
+    it('says how much of an over-long paste was dropped', () => {
+      render(<AnalysisStudio />)
+      const box = screen.getByLabelText(/Fact pattern/i)
+      fireEvent.change(box, { target: { value: 'x'.repeat(MAX_LEN + 50) } })
+
+      expect((box as HTMLTextAreaElement).value).toHaveLength(MAX_LEN)
+      const warning = screen.getByTestId('truncation-warning')
+      expect(warning).toHaveAttribute('role', 'status')
+      expect(warning).toHaveTextContent(/Trimmed to 20,000 characters/)
+      expect(warning).toHaveTextContent(/50 characters were not kept/)
+    })
+
+    it('shows nothing while the text fits, and clears once it does again', () => {
+      render(<AnalysisStudio />)
+      const box = screen.getByLabelText(/Fact pattern/i)
+      fireEvent.change(box, { target: { value: 'short enough' } })
+      expect(screen.queryByTestId('truncation-warning')).toBeNull()
+
+      fireEvent.change(box, { target: { value: 'y'.repeat(MAX_LEN + 1) } })
+      expect(screen.getByTestId('truncation-warning')).toHaveTextContent(
+        /1 character was not kept/,
+      )
+
+      fireEvent.change(box, { target: { value: 'back under the cap' } })
+      expect(screen.queryByTestId('truncation-warning')).toBeNull()
+    })
   })
 })
 
@@ -175,6 +212,77 @@ describe('AnalysisStudio safety surfaces', () => {
     expect(alert).not.toHaveTextContent(/below the 70% threshold/i)
   })
 
+  // BL-20260810-16: a degraded refusal must not be dressed up as a result.
+  describe('engine state', () => {
+    const runDegraded = async (irac: Record<string, unknown>) => {
+      const body = fullResponse({ requires_human_review: true, confidence: 0.0 })
+      Object.assign(body.irac as Record<string, unknown>, {
+        degraded: true,
+        confidence: 0,
+        ...irac,
+      })
+      server.use(
+        http.post('http://localhost:8000/api/analysis', async () =>
+          HttpResponse.json(body),
+        ),
+      )
+      render(<AnalysisStudio />)
+      fireEvent.click(screen.getByRole('button', { name: /Load sample/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
+      return screen.findByTestId('engine-state')
+    }
+
+    it('tells an operator to start Ollama when the engine could not run', async () => {
+      const panel = await runDegraded({
+        degraded_reason: 'engine_unavailable',
+        rule: '[ENGINE UNAVAILABLE] The LangGraph analysis engine could not run: probe failed',
+      })
+      expect(panel).toHaveTextContent(/Local LLM engine offline/i)
+      expect(panel).toHaveTextContent('make local-ai-up')
+      // No brief, no confidence pill, no precedent list to mistake for law.
+      expect(screen.queryByRole('heading', { name: /IRAC Brief/i })).toBeNull()
+      expect(screen.queryByText(/% confidence/)).toBeNull()
+      expect(
+        screen.queryByRole('heading', { name: /Relevant Precedents/i }),
+      ).toBeNull()
+      expect(screen.getByText(/No analysis produced/i)).toBeInTheDocument()
+    })
+
+    it('points at the provider chain when every tier failed', async () => {
+      const panel = await runDegraded({
+        degraded_reason: 'offline_fallback',
+        rule: '[OFFLINE FALLBACK] No LLM provider was reachable — no analysis generated.',
+      })
+      expect(panel).toHaveTextContent(/No LLM provider reachable/i)
+      expect(panel).toHaveTextContent('LLM_PROVIDER_CHAIN')
+      expect(panel).not.toHaveTextContent('make local-ai-up')
+    })
+
+    it('reads the marker prefix when the payload predates degraded_reason', async () => {
+      const panel = await runDegraded({
+        rule: '[OFFLINE FALLBACK] No LLM provider was reachable — no analysis generated.',
+      })
+      expect(panel).toHaveTextContent(/No LLM provider reachable/i)
+    })
+
+    it('leaves a healthy result rendering as a brief', async () => {
+      server.use(
+        http.post('http://localhost:8000/api/analysis', async () =>
+          HttpResponse.json(fullResponse()),
+        ),
+      )
+      render(<AnalysisStudio />)
+      fireEvent.click(screen.getByRole('button', { name: /Load sample/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /IRAC Brief/i }),
+        ).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('engine-state')).toBeNull()
+    })
+  })
+
   it('falls back to the confidence threshold reason when no flag is set', async () => {
     server.use(
       http.post('http://localhost:8000/api/analysis', async () =>
@@ -217,6 +325,98 @@ describe('AnalysisStudio safety surfaces', () => {
     const coverage = screen.getByRole('region', { name: /Corpus coverage/i })
     expect(coverage).toHaveTextContent(/does NOT mean no such law exists/i)
     expect(coverage).toHaveTextContent(/premises liability wet floor/i)
+  })
+
+  it('renders jurisdictions and the decision-date span as labelled rows', async () => {
+    const body = fullResponse()
+    ;(body.irac as Record<string, unknown>).retrieval = {
+      queries: ['judicial review'],
+      result_count: 2,
+      jurisdictions_present: ['us-supreme'],
+      jurisdiction_requested: 'us-ca',
+      jurisdiction_absent: true,
+      date_earliest: '1803-02-24',
+      date_latest: '1821-03-03',
+      coverage_note: '2 passage(s) retrieved.',
+    }
+    server.use(
+      http.post('http://localhost:8000/api/analysis', async () =>
+        HttpResponse.json(body),
+      ),
+    )
+    render(<AnalysisStudio />)
+    fireEvent.click(screen.getByRole('button', { name: /Load sample/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /Corpus coverage/i })).toBeInTheDocument(),
+    )
+    const coverage = screen.getByRole('region', { name: /Corpus coverage/i })
+    expect(coverage).toHaveTextContent(/Jurisdictions present/i)
+    expect(coverage).toHaveTextContent(/us-supreme/i)
+    expect(coverage).toHaveTextContent(/Jurisdiction absent/i)
+    expect(coverage).toHaveTextContent(/1803-02-24/)
+    expect(coverage).toHaveTextContent(/1821-03-03/)
+  })
+
+  // BL-20260811-18: the flag has to survive a skim, so it gets a live-region
+  // callout of its own rather than a clause inside the prose note.
+  it('calls out an absent jurisdiction distinctly', async () => {
+    const body = fullResponse()
+    ;(body.irac as Record<string, unknown>).retrieval = {
+      queries: ['landlord duty to repair'],
+      result_count: 3,
+      jurisdictions_present: ['US-NY'],
+      jurisdiction_requested: 'US-CA',
+      jurisdiction_absent: true,
+      coverage_note: '3 passage(s) retrieved.',
+    }
+    server.use(
+      http.post('http://localhost:8000/api/analysis', async () =>
+        HttpResponse.json(body),
+      ),
+    )
+    render(<AnalysisStudio />)
+    fireEvent.click(screen.getByRole('button', { name: /Load sample/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
+
+    const callout = await screen.findByTestId('jurisdiction-absent')
+    expect(callout).toHaveAttribute('role', 'status')
+    expect(callout).toHaveTextContent(/No results from the requested jurisdiction/i)
+    expect(callout).toHaveTextContent('US-CA')
+    expect(callout).toHaveTextContent('US-NY')
+    expect(callout).toHaveTextContent(/persuasive at best/i)
+    // It lives inside the coverage panel, not floating elsewhere on the page.
+    expect(
+      screen.getByRole('region', { name: /Corpus coverage/i }),
+    ).toContainElement(callout)
+  })
+
+  it('shows no jurisdiction callout when the corpus does cover the request', async () => {
+    const body = fullResponse()
+    ;(body.irac as Record<string, unknown>).retrieval = {
+      queries: ['landlord duty to repair'],
+      result_count: 3,
+      jurisdictions_present: ['US-CA'],
+      jurisdiction_requested: 'US-CA',
+      jurisdiction_absent: false,
+      coverage_note: '3 passage(s) retrieved.',
+    }
+    server.use(
+      http.post('http://localhost:8000/api/analysis', async () =>
+        HttpResponse.json(body),
+      ),
+    )
+    render(<AnalysisStudio />)
+    fireEvent.click(screen.getByRole('button', { name: /Load sample/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: /Corpus coverage/i }),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.queryByTestId('jurisdiction-absent')).toBeNull()
   })
 })
 
@@ -282,5 +482,68 @@ describe('AnalysisStudio citation verification', () => {
     expect(
       screen.queryByRole('heading', { name: /Agents reporting/i }),
     ).not.toBeInTheDocument()
+  })
+})
+
+// --- BL-20260810-13: durable LangGraph thread resume ---
+
+describe('AnalysisStudio thread resume', () => {
+  it('sends the typed thread_id and pre-fills it from the response', async () => {
+    let seen: Record<string, unknown> | null = null
+    const body = fullResponse()
+    ;(body as Record<string, unknown>).langgraph_thread_id = 'lwf-server-1'
+    server.use(
+      http.post('http://localhost:8000/api/analysis', async ({ request }) => {
+        seen = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json(body)
+      }),
+    )
+    render(<AnalysisStudio />)
+    fireEvent.click(screen.getByRole('button', { name: /Load sample/i }))
+    fireEvent.change(screen.getByLabelText(/Resume thread/i), {
+      target: { value: 'lwf-abc123' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
+
+    await waitFor(() => expect(seen).not.toBeNull())
+    expect(seen!.thread_id).toBe('lwf-abc123')
+    // The response's thread id replaces it, so the next run continues it.
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Resume thread/i)).toHaveValue('lwf-server-1'),
+    )
+  })
+
+  it('omits thread_id entirely when the field is blank', async () => {
+    let seen: Record<string, unknown> | null = null
+    server.use(
+      http.post('http://localhost:8000/api/analysis', async ({ request }) => {
+        seen = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json(fullResponse())
+      }),
+    )
+    render(<AnalysisStudio />)
+    fireEvent.click(screen.getByRole('button', { name: /Load sample/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
+
+    await waitFor(() => expect(seen).not.toBeNull())
+    expect('thread_id' in seen!).toBe(false)
+  })
+
+  it('badges a run that resumed an existing thread', async () => {
+    const body = fullResponse()
+    ;(body as Record<string, unknown>).langgraph_thread_id = 'lwf-abc123'
+    ;(body as Record<string, unknown>).resumed = true
+    server.use(
+      http.post('http://localhost:8000/api/analysis', async () =>
+        HttpResponse.json(body),
+      ),
+    )
+    render(<AnalysisStudio />)
+    fireEvent.click(screen.getByRole('button', { name: /Load sample/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Run analysis/i }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/^resumed$/i)).toBeInTheDocument(),
+    )
   })
 })

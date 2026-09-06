@@ -1,5 +1,7 @@
 # Tasks: Refactor Backend from FastAPI to Django
 
+> **Historical note (2026-09-05, BL-20260602-04).** `backend/app/` was the pre-Django FastAPI package. It was deleted by this spec's own T-016; the Django project package lives at `backend/law_ai/`. Every `backend/app/...` path below is therefore rendered as inline code, not as a link — the files it names no longer exist, and the ~110 dead hrefs 404'd on every platform. The text is otherwise unedited: it records the migration as it was specified.
+
 > Each task references one or more `FR-*` / `NFR-*` / `AC-*` IDs from [spec.md](spec.md). [scripts/spec_validator.py](../../scripts/spec_validator.py) enforces full coverage.
 >
 > Sequence: T-001 must merge first (constitutional gate). T-002 → T-016 land on a long-lived `feat/011-django-backend` branch with green CI per commit; T-016 (legacy delete) is the cutover commit.
@@ -83,18 +85,18 @@
 - **Owner**: @copilot (HUMAN-PAIRED — large `git mv` set)
 - **Status**: `[x]`
 - **Files** (every file under each src moves to corresponding dst):
-  - [backend/app/agents/](../../backend/app/agents/) → `backend/law_ai/agents_runtime/`
-  - [backend/app/db/neo4j.py](../../backend/app/db/neo4j.py) → `backend/law_ai/core/neo4j/driver.py`
-  - [backend/app/db/graph_queries.py](../../backend/app/db/graph_queries.py) → `backend/law_ai/core/neo4j/graph_queries.py`
-  - [backend/app/db/queries.py](../../backend/app/db/queries.py) → `backend/law_ai/core/neo4j/queries.py`
-  - [backend/app/db/citation_resolver.py](../../backend/app/db/citation_resolver.py) → `backend/law_ai/core/neo4j/citation_resolver.py`
-  - [backend/app/db/checkpointer.py](../../backend/app/db/checkpointer.py) → `backend/law_ai/agents_runtime/checkpointer.py`
-  - [backend/app/lsat/](../../backend/app/lsat/) → `backend/law_ai/lsat/services/`
-  - [backend/app/ingestion/](../../backend/app/ingestion/) → `backend/law_ai/ingestionapp/services/`
-  - [backend/app/models/extraction.py](../../backend/app/models/extraction.py) → `backend/law_ai/core/schemas/extraction.py`
-  - [backend/app/eval/](../../backend/app/eval/) → `backend/law_ai/eval/`
-  - [backend/app/core/telemetry.py](../../backend/app/core/telemetry.py) → `backend/law_ai/core/telemetry.py`
-  - [backend/app/db/neo4j_migrations/](../../backend/app/db/neo4j_migrations/) → `backend/law_ai/core/neo4j/migrations/`
+  - `backend/app/agents/` → `backend/law_ai/agents_runtime/`
+  - `backend/app/db/neo4j.py` → `backend/law_ai/core/neo4j/driver.py`
+  - `backend/app/db/graph_queries.py` → `backend/law_ai/core/neo4j/graph_queries.py`
+  - `backend/app/db/queries.py` → `backend/law_ai/core/neo4j/queries.py`
+  - `backend/app/db/citation_resolver.py` → `backend/law_ai/core/neo4j/citation_resolver.py`
+  - `backend/app/db/checkpointer.py` → `backend/law_ai/agents_runtime/checkpointer.py`
+  - `backend/app/lsat/` → `backend/law_ai/lsat/services/`
+  - `backend/app/ingestion/` → `backend/law_ai/ingestionapp/services/`
+  - `backend/app/models/extraction.py` → `backend/law_ai/core/schemas/extraction.py`
+  - `backend/app/eval/` → `backend/law_ai/eval/`
+  - `backend/app/core/telemetry.py` → `backend/law_ai/core/telemetry.py`
+  - `backend/app/db/neo4j_migrations/` → `backend/law_ai/core/neo4j/migrations/`
 - **Steps**:
   1. `git mv` each path; preserve git history (use `--follow` in reviews).
   2. `grep -RIln "from app\." backend/law_ai` and rewrite each import to `from law_ai.<dst>.` per the move table.
@@ -119,7 +121,7 @@
   - `backend/tests/integration/test_migrate_parity.py` (new)
 - **Steps**:
   1. Define `AuditEvent`, `PendingReview`, `ApiToken` per FR-6.
-  2. `python manage.py makemigrations audit ingestionapp core` then hand-edit `ingestionapp/0001_initial.py` to embed verbatim DDL from [001_pending_review.sql](../../backend/app/db/postgres_migrations/001_pending_review.sql) and [002_pg_trgm.sql](../../backend/app/db/postgres_migrations/002_pg_trgm.sql) inside a `RunSQL` operation, with `state_operations` describing the resulting model so legacy tables can be adopted.
+  2. `python manage.py makemigrations audit ingestionapp core` then hand-edit `ingestionapp/0001_initial.py` to embed verbatim DDL from `backend/app/db/postgres_migrations/001_pending_review.sql` and `backend/app/db/postgres_migrations/002_pg_trgm.sql` inside a `RunSQL` operation, with `state_operations` describing the resulting model so legacy tables can be adopted.
   3. Register all three models in admin with reviewer-friendly defaults.
   4. Write integration test: spin two Postgres containers, run `migrate` on one and the legacy SQL on the other, `pg_dump --schema-only` both, normalize table name, diff.
 - **Verify**:
@@ -134,8 +136,8 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `backend/law_ai/core/provenance.py` (new — supersedes [backend/app/core/provenance.py](../../backend/app/core/provenance.py))
-  - `backend/law_ai/core/audit_jsonl.py` (new — JSONL Celery sink fallback, lifted from [backend/app/core/audit_store.py](../../backend/app/core/audit_store.py))
+  - `backend/law_ai/core/provenance.py` (new — supersedes `backend/app/core/provenance.py`)
+  - `backend/law_ai/core/audit_jsonl.py` (new — JSONL Celery sink fallback, lifted from `backend/app/core/audit_store.py`)
   - `backend/law_ai/core/middleware.py` (new — ASGI ProvenanceMiddleware)
   - `backend/tests/core/test_provenance.py` (port + extend)
 - **Steps**:
@@ -158,7 +160,7 @@
   - `backend/tests/core/test_auth.py` (new — covers constant-time compare, scope allow/deny, "all envs unset → open" parity)
 - **Steps**:
   1. Implement `ApiKeyAuthentication(BaseAuthentication)`: read `X-API-Key`, hash, look up `ApiToken.key_hash` via `aget`, attach a synthetic user (or `AnonymousUser`) plus `request.auth = token`.
-  2. Implement `HasScope` permission factory; behavior: if no `ApiToken` row exists for the required scope and the matching env var is also empty, allow (parity with [backend/app/core/security.py](../../backend/app/core/security.py)).
+  2. Implement `HasScope` permission factory; behavior: if no `ApiToken` row exists for the required scope and the matching env var is also empty, allow (parity with `backend/app/core/security.py`).
   3. `seed_api_keys` command reads each `*_API_KEY` env var, hashes via the same algorithm as auth, upserts `ApiToken(scope=..., name="env", key_hash=...)`. Idempotent.
 - **Verify**:
   - `pytest backend/tests/core/test_auth.py -q` passes.
@@ -171,17 +173,17 @@
 - **Owner**: @copilot (one PR per router on the feature branch; this task tracks all five)
 - **Status**: `[x]`
 - **Files**:
-  - `backend/law_ai/core/views.py` + `urls.py` — `HealthView` (port of [backend/app/api/health.py](../../backend/app/api/health.py))
-  - `backend/law_ai/agentsapi/views.py` + `urls.py` — port of [backend/app/api/agents.py](../../backend/app/api/agents.py)
-  - `backend/law_ai/analysis/views.py` + `urls.py` + `serializers.py` — port of [backend/app/api/analysis.py](../../backend/app/api/analysis.py); preserves `await asyncio.gather(LegalAnalyst.run, PrecedentHunter.run)`
-  - `backend/law_ai/graph/views.py` + `urls.py` — port of [backend/app/api/graph.py](../../backend/app/api/graph.py)
-  - `backend/law_ai/lsat/views.py` + `urls.py` + `serializers.py` — port of [backend/app/api/lsat.py](../../backend/app/api/lsat.py); tutor stays async httpx → Ollama
+  - `backend/law_ai/core/views.py` + `urls.py` — `HealthView` (port of `backend/app/api/health.py`)
+  - `backend/law_ai/agentsapi/views.py` + `urls.py` — port of `backend/app/api/agents.py`
+  - `backend/law_ai/analysis/views.py` + `urls.py` + `serializers.py` — port of `backend/app/api/analysis.py`; preserves `await asyncio.gather(LegalAnalyst.run, PrecedentHunter.run)`
+  - `backend/law_ai/graph/views.py` + `urls.py` — port of `backend/app/api/graph.py`
+  - `backend/law_ai/lsat/views.py` + `urls.py` + `serializers.py` — port of `backend/app/api/lsat.py`; tutor stays async httpx → Ollama
   - `backend/law_ai/urls.py` — root URLconf wiring `/health`, `/api/agents/`, `/api/analysis/`, `/api/graph/`, `/api/lsat/`, `/admin/`
   - Use `drf-pydantic` to wrap existing Pydantic models from `law_ai.core.schemas` (relocated `AnalysisRequest/Response`, `AgentTraceEntry`, `GradeRequest/Response`, `TutorRequest/Response`, etc.)
 - **Steps**:
   1. For each router, create a DRF `APIView` (or `async`-capable view) class with `authentication_classes = [ApiKeyAuthentication]`, `permission_classes = [HasScope("<scope>")]`.
   2. Reuse Pydantic models via `drf-pydantic.DrfPydanticSerializer` so request/response validation matches `main`.
-  3. Preserve `degraded` JSON shapes from [backend/app/api/graph.py](../../backend/app/api/graph.py) when Neo4j is down.
+  3. Preserve `degraded` JSON shapes from `backend/app/api/graph.py` when Neo4j is down.
   4. Async views (`/api/analysis`, `/api/lsat/tutor`) declare `async def` handlers; daphne handles them natively.
 - **Verify**:
   - For each ported endpoint, the corresponding test from [backend/tests/api/](../../backend/tests/api/) (rewritten in T-013) passes with byte-for-byte JSON equality.
@@ -317,7 +319,7 @@
 - **Owner**: @copilot (HUMAN-PAIRED; final review gate)
 - **Status**: `[x]`
 - **Files**:
-  - Delete entire [backend/app/](../../backend/app/) directory.
+  - Delete entire `backend/app/` directory.
   - Remove `backend/app/law_ai.egg-info/` (artifact).
   - `backend/pyproject.toml` `[tool.setuptools]` `packages = ["law_ai"]` (was `["app"]`).
   - Final sweep: `grep -RIn "from app\." backend/ tests/` returns empty; `grep -RIln "uvicorn\|FastAPI" backend/` only returns ADR/changelog.

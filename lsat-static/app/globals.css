@@ -6,9 +6,15 @@
    * the same three-rung idea as the platform shell, keyed off tokens so a
    * header height change moves everything with it instead of desynchronising
    * a hand-written `top: 5rem`. */
-  /* Measured, not guessed: the site header is 61px and the drill head 78px in
-   * the two-column layout. `--site-header-h` is deliberately a hair under the
-   * real height so the rung below tucks by a pixel rather than leaving a gap
+  /* First-paint fallback, not the source of truth (BL-20260831-20). These are
+   * the measured heights of the site header (61px) and the drill head (78px)
+   * in the two-column layout, and the static export has no JavaScript until
+   * hydration, so the first frame is drawn against them. From hydration on,
+   * `useMeasuredCssVar` observes the real elements and overwrites both — so a
+   * change to the header's content moves the whole sticky stack with it
+   * instead of silently desynchronising a number nobody remembers to
+   * re-measure. `--site-header-h` stays a hair under the real height (the
+   * hook subtracts a pixel) so the rung below tucks rather than leaving a gap
    * for content to scroll through. */
   --site-header-h: 3.75rem;
   --drill-head-h: 4.875rem;
@@ -252,6 +258,25 @@ main#view {
   color: var(--text-muted);
   max-width: 60ch;
 }
+/* The honest note about what the published site lacks (BL-20260831-25).
+   Collapsed by default and quiet: it has to be findable before someone goes
+   looking for a missing feature, without competing with the section cards. */
+.intro-limits {
+  margin-top: 0.75rem;
+  max-width: 60ch;
+}
+.intro-limits > summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.intro-limits > summary:hover {
+  color: var(--text);
+}
+.intro-limits p {
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+}
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -382,6 +407,25 @@ main#view {
   padding: 0.3rem 0.7rem;
   font-size: 0.75rem;
 }
+/* Drill-length presets (BL-20260829-02): 5 / 10 for homework, 35 for the real
+   thing. A radiogroup, not a select, so a thumb reaches all three at once. */
+.section-timer-presets {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.section-timer-presets .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.72rem;
+}
+.section-timer-presets .btn[aria-checked='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.section-timer-presets .btn[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 .qcard-elapsed {
   margin-left: 0.4rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -442,6 +486,23 @@ main#view {
      * it exactly as tall as its row and leaves sticky nowhere to travel. The
      * platform's graph case picker had the same latent bug. */
     align-self: start;
+  }
+  /* The passage column gets its own scroll region, the way `.lib-rail` already
+   * does. Without a height cap, a passage taller than the viewport gets no
+   * benefit from top stickiness at all — a browser only pins such an element
+   * once its *bottom* has scrolled into view, so the longest RC passages, the
+   * ones that most need to stay beside their questions, were exactly the ones
+   * that scrolled away. Keyed off the same tokens as `top` above, so the
+   * offset and the height can never disagree (and ux_audit R9 keeps seeing a
+   * token-derived sticky offset). Scoped to the drill grid: the Writing
+   * prompt is also a `.passage`, but it sits above the editor rather than
+   * beside it, and boxing it would be a change to a different screen.
+   * `overscroll-behavior: contain` keeps a wheel that reaches the end of the
+   * passage from carrying on down the page behind it. */
+  .drill-grid > .passage {
+    max-height: calc(100vh - var(--site-header-h) - var(--drill-head-h) - 1.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 .passage-title {
@@ -697,6 +758,27 @@ main#view {
 .concept .lib-meta {
   margin-bottom: 0.35rem;
 }
+/* A URL for one concept (BL-20260905-04). Quiet until the card is hovered or
+   something inside it has focus, the way a heading anchor usually is — but
+   never `display: none`, because a keyboard user has to be able to reach it. */
+.concept-permalink {
+  margin-left: auto;
+  color: var(--text-muted);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.concept:hover .concept-permalink,
+.concept:focus-within .concept-permalink,
+.concept-permalink:focus-visible {
+  opacity: 1;
+}
+/* The deep-link landing target: focused programmatically, so it needs a ring
+   of its own — the card is not otherwise in the tab order. */
+.concept:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 /* ---- Stats ---- */
 .stat-hero {
@@ -722,6 +804,33 @@ main#view {
   border-collapse: collapse;
   margin-bottom: 1.25rem;
   font-size: 0.9rem;
+}
+/* Export / import (BL-20260702-10). Below the stats and set off by a rule:
+   it is about the data rather than the numbers, and it is shown even with no
+   attempts — a reader with an empty device is exactly the one with a file to
+   restore. */
+.stat-transfer {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+.stat-transfer h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+.stat-transfer p {
+  max-width: 60ch;
+}
+.stat-transfer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.5rem;
+}
+.stat-transfer-problem {
+  color: var(--no);
+  font-size: 0.85rem;
+  margin: 0;
 }
 .stat-table th,
 .stat-table td {
@@ -1485,6 +1594,43 @@ main#view {
   .site-header-hidden {
     transform: translateY(-101%);
   }
+
+  /* Pinned: the reader has said they would rather keep the nav (BL-20260901-05).
+     The scroll handler already stops producing `hidden`; this is the belt to
+     that pair of braces, so a stale class from before the toggle cannot leave
+     the bar off screen. The brand row still condenses — pinning is about
+     keeping the destinations reachable, not about spending 136px of a phone
+     on chrome. */
+  .site-header-pinned {
+    transform: none;
+  }
+
+  .header-pin {
+    display: inline-flex;
+  }
+}
+
+/* The pin control itself. Hidden by default: above 819px nothing hides, so a
+   control offering to stop it would promise something it cannot deliver. */
+.header-pin {
+  display: none;
+  align-items: center;
+  flex: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.header-pin:hover {
+  background: var(--bg-elev);
+}
+.header-pin[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 @media (prefers-reduced-motion: reduce) {

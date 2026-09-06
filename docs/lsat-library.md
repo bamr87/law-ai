@@ -40,6 +40,8 @@ An article and a concept are different data but the same kind of thing to a read
 
 The two cross-reference directions use the same card component, so an article's concepts and a concept's articles look alike and open alike. Read state is one `localStorage` set for both kinds of entry — articles under their bare id (what every existing entry already holds), concepts under `concept:<id>` — and each rail reports its own "N of M read". The rails share one row shape too: read-state dot, title, and a second line that says what you get (reading time for an article, "taught in N articles" for a concept).
 
+**Reading progress syncs on the platform, and only there (BL-20260903-05).** `localStorage` is still the copy that answers instantly and the one that works offline, but the platform also records each article's read state through `POST /api/lsat/library/read` — the same append-only audit store `lsat_grade` writes to — and merges the server's set with the browser's on load. The merge is a union, never a replacement: reading done offline is real progress and a device that has read less must not erase it, so unmarking is an explicit `read: false` event rather than an absence. `GET /api/lsat/stats` folds the result in as `articles_read` / `articles_total`, plus a per-section `articles_read`, so the library half of the loop is visible next to drill accuracy instead of invisible beside it. Identity is the signed-in account when there is one and the deployment otherwise — the audit tail every other stat reads has never been per-user, so "cross-device" means "cross-device for this deployment" until LSAT surfaces get real per-user scoping. `lsat-static` keeps `localStorage` as its only store and always will: a serverless bundle has nothing to sync with, and stats parity there is already a declared non-goal.
+
 The static site renders the same template with its own layout: the article reader section for section, and the concept catalog as cards that carry the same header facts and the same cross-reference blocks in the same order.
 
 ## Markdown in, typed blocks out
@@ -122,6 +124,24 @@ Every id resolves at load: concepts against `concepts.json`, articles against th
 
 A renamed concept therefore breaks CI, not a reader's page.
 
+## Search, on both products
+
+Search is a **token + field-weight ranker**, not an index: `search_library()` in `library.py` and `searchLibrary()` in `lsat-static/lib/search.ts` are hand-mirrored implementations of one set of rules, which is what lets the offline site search with zero network calls (NFR-OFFLINE-1) and no build step.
+
+| Rule | What it does |
+| ---- | ------------ |
+| Field weights | title 8 · summary 4 · tag 3 · heading 3 · body 1; a body field is capped at five occurrences so a long article cannot win on repetition alone |
+| Stemming | plurals, `-ing`, `-ed`, `-ly`, `-ness` and a trailing `e`, on words of ≥ 4 characters — "assumptions" meets "assumption", "sequencing" meets "sequence" |
+| Prefix | a field word beginning with the raw token matches, so search-as-you-type answers before the word is finished |
+| Synonyms | query-side only: section abbreviations (`LG` → "logic games", "analytical reasoning") and the pairs the corpus uses interchangeably (flaw/fallacy, timing/pacing, diagram/notation). A multi-word alternate counts when every one of its words is in the field |
+| Stopwords | dropped from the query only, so "the assumption family" does not hand +8 to every article titled "The …" |
+| Typo tolerance | a token that matches **nothing** exactly is retried within one edit — substitute, insert, drop or swap two letters — on stems of ≥ 5 characters, scored at half weight. "assumtion" lands on the assumption family; "parralel" (two edits) and "gapes" (short stem) still return nothing |
+| Conjunction | every query token must match somewhere in an article for it to be a hit |
+
+True fuzzy ranking — edit distance as a *score*, or an inverted index — is still out: at 35 articles the ranker is instant on both products, and an index is a build step the offline site does not have.
+
+`backend/tests/lsat/fixtures/search_parity.json` is the contract between the two copies: the stemmer's output, query tokenisation, the typo predicate, and the top hit for a set of real queries. Both `backend/tests/lsat/test_search_parity.py` and `lsat-static/__tests__/search.test.ts` load it, so a rule changed on one side and not the other fails a suite.
+
 ## Working on it
 
 ```bash
@@ -142,6 +162,29 @@ make lsat-export
 
 **After editing any article or the tracks file, run `make lsat-export`.** `tests/test_lsat_site.py` fails CI when the committed `lsat-static/content.json` lags the source.
 
+## The neighbouring loop: solve guides
+
+Guides are not library articles — a guide walks one bank question, an article explains a pattern — but they are maintained the same way, through the same proposal queue, and the operator's runbook belongs beside the library's (BL-20260831-23).
+
+Coverage is the problem: 40 of 208 bank questions carry a guide, so most of the published site still shows "No step-by-step guide for this question yet." (LR is short 80, RC 55, LG 33). `lsat_guide_backfill` closes it in reviewed batches, and now has a target of its own:
+
+```bash
+# What would be drafted, and how many are left. No provider needed.
+make lsat-guide-backfill ARGS='--dry-run'
+
+# Draft a batch. Needs a provider: `make claude-login`, ANTHROPIC_API_KEY, or
+# LLM_PROVIDER_CHAIN=ollama for a local-only run.
+make lsat-guide-backfill SECTION=LR LIMIT=20
+
+# Then review every draft on the Authoring tab and approve or reject it,
+# and refresh the offline site once the batch is in.
+make lsat-export
+```
+
+Each draft lands as a **pending `guide` proposal** carrying the judge tier's verdict in its meta; approval is what writes it to `guides.json` (`promote_guide_to_bank`), and the guide serves immediately after. A question already carrying a guide, or already sitting in the queue, is never offered twice, so batches can be run back to back without duplicating work. Degraded offline-fallback drafts are skipped by default — they carry no walkthrough and would only cost a reviewer time.
+
+The run is deliberately **operator-triggered**: 168 drafts is real model spend and, more to the point, real review time, and guide quality is only lint-checked. `backend/tests/lsat/test_guide_backfill.py` exercises the whole loop — draft, approve, serve, and skip on the next run — against a stubbed provider, so the machinery is verified without spending anything.
+
 ## The maintenance loop
 
 `LSATLibrarian` (`human_approval_required = True`) does one of three jobs per run — `review`, `correct`, `expand` — through the provider chain in `law_ai.core.llm`, never a direct transport, with a deterministic offline fallback at confidence 0.0 and one `provenance.log_agent_call` per run.
@@ -150,7 +193,19 @@ Its confidence ceiling is 0.6, below the solve-guide author's 0.7: prose about e
 
 Everything it produces lands in the existing proposal store under `library_finding` (a review report — read and closed by a human, never promoted) or `library_article` (a draft). `promote_library_article` re-parses the draft **and** reloads the whole library before keeping the write, rolling back if the new text dangles a cross-reference or introduces a cycle.
 
-A Celery beat entry (`autonomy-lsat-library`, Mondays 05:00 UTC) runs `review` only, gated by `AUTONOMY_ENABLED`. Weekly rather than daily: prose about exam structure does not change on a daily cadence, and each review is a full-article model call.
+A Celery beat entry (`autonomy-lsat-library`, Mondays 05:00 UTC) runs it gated by `AUTONOMY_ENABLED`. Weekly rather than daily: prose about exam structure does not change on a daily cadence, and each review is a full-article model call.
+
+**It picks its own targets.** `pick_librarian_targets(report, limit=N)` in `library.py` ranks the audit — no model call, no human target list, same report in, same targets out:
+
+| Rank | Signal | Action |
+| ---- | ------ | ------ |
+| 1 | `freshness.stale_articles` — never reviewed, or older than `STALE_AFTER_DAYS` (audit order: oldest first) | `review` |
+| 2 | `words.thin_articles` — under the `THIN_ARTICLE_WORDS` floor | `review` |
+| 3 | `graph.orphan_articles`, then `graph.articles_in_no_track` — nothing links to it, no track reaches it | `review` |
+| 4 | `coverage.concepts_untaught` and `coverage.archetypes_uncovered`, hosted in that section's hub article, capped at `MAX_EXPANSIONS_PER_RUN` | `expand` |
+| 5 | everything else, in id order | `review` |
+
+Each article appears once, under the first signal that named it, and `--limit` (or the run's budget) caps how many targets come back. Expansions rank last and are capped tightly because a draft costs a reviewer far more than a report does: an `expand` result is merged into the article's current source (`merge_expansion`) and filed as a whole `library_article` draft, so what a reviewer approves is exactly the file that lands. A gap in a section with no article at all is dropped rather than targeted — starting a new article means writing frontmatter, which is a human's job.
 
 ## Guardrails
 

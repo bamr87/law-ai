@@ -34,8 +34,11 @@ jobs:
           cache: pip
 
       - name: Install backend dependencies
+        # BL-20260815-02: must stay a superset of backend/Dockerfile's extras
+        # (`dev,local-ai`) so an extras-only import cannot pass in the
+        # container and fail here. `test` is this job's own addition.
         working-directory: backend
-        run: pip install -e ".[dev,test]"
+        run: pip install -e ".[dev,test,local-ai]"
 
       - name: Start Docker services
         run: docker compose up -d neo4j postgres redis --wait
@@ -54,6 +57,16 @@ jobs:
           NEO4J_USER: neo4j
           NEO4J_PASSWORD: law_ai-dev
           DATABASE_URL: postgresql://law_ai:law_ai-dev@localhost:5432/law_ai
+          # BL-20260502-08: opt in to the spec-010 T-007 Postgres checkpointer
+          # test (backend/tests/agents/graphs/test_legal_workflow_postgres.py),
+          # which skips itself at module level unless LANGGRAPH_INTEGRATION is
+          # set. It injects a fake LLM, so no Ollama service is needed; it only
+          # needs a reachable Postgres, which this job already starts.
+          # POSTGRES_URL is the host-oriented form (settings.base defaults to
+          # the compose hostname `postgres`).
+          LANGGRAPH_INTEGRATION: "1"
+          LANGGRAPH_CHECKPOINTER: postgres
+          POSTGRES_URL: postgresql+asyncpg://law_ai:law_ai-dev@localhost:5432/law_ai
         # --no-cov: this job only runs ~3 tests, the 75% gate is enforced
         # by the main CI's Backend Tests + Coverage job (which runs everything
         # *except* integration). -o overrides addopts= in pyproject.toml.

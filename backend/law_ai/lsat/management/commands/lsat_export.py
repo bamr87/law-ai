@@ -2,8 +2,10 @@
 
 Spec 025 FR-1/FR-2. Writes ``content.json`` — the complete, HITL-approved
 LSAT content module (sections, concepts, passages, questions **including
-answer keys and explanations**) — for the serverless practice app under
-``frontend/public/lsat-practice/``.
+answer keys and explanations**) — for the serverless practice app. That app was
+a buildless page under ``frontend/public/lsat-practice/`` when spec 025 shipped;
+it is now the Next.js static export under ``lsat-static/`` (BL-20260716-11, see
+docs/lsat-static.md), which imports ``content.json`` at build time.
 
 Spec 046 adds ``guides``: the spec 045 solve guides are hand-authored static
 data, so the static export can render the same hint carousel and diagrams the

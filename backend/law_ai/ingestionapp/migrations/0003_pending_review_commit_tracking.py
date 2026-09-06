@@ -16,7 +16,9 @@ All four columns are nullable / defaulted, so pre-existing rows back-fill to
 
 from __future__ import annotations
 
+from django.apps.registry import Apps
 from django.db import migrations, models
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 
 PG_FORWARD = """
 ALTER TABLE pending_review
@@ -62,7 +64,7 @@ def _split(sql: str) -> list[str]:
     return [stmt.strip() for stmt in sql.split(";") if stmt.strip()]
 
 
-def _forward(apps, schema_editor):
+def _forward(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
     sql = (
         PG_FORWARD
         if schema_editor.connection.vendor == "postgresql"
@@ -72,7 +74,7 @@ def _forward(apps, schema_editor):
         schema_editor.execute(stmt)
 
 
-def _reverse(apps, schema_editor):
+def _reverse(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
     sql = (
         PG_REVERSE
         if schema_editor.connection.vendor == "postgresql"

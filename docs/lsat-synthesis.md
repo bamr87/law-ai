@@ -31,7 +31,7 @@ Everything above is offline. The only path that calls a model is `--polish`.
 
 ## The checker
 
-Four bounded model spaces, each enumerated exhaustively:
+Four bounded model spaces, each enumerated exhaustively (plus one that is solved instead — see [Two ways to settle an entailment](#two-ways-to-settle-an-entailment)):
 
 | Space | A model is | Bound | Decides |
 | ----- | ---------- | ----- | ------- |
@@ -118,6 +118,54 @@ Two consequences worth knowing:
 - **The skeleton is keyed on `(engine, schema, seed)` alone**; only the words are keyed on the domain as well. So the same seed yields the same proof in every domain, which makes the spec's "a domain swap changes words and nothing else" claim literal rather than approximate.
 - **Provenance records the draw** (`arrangement`: chain length, trigger index, rule count, menu ids), and `ENGINE_VERSION` is bumped whenever the draw changes. The promotion gate refuses an item whose `engine_version` is not the current one: re-verifying an old seed against a new draw would prove a different item.
 
+## Two ways to settle an entailment
+
+Three predicates is where enumeration stops. A region space is a count vector over the 2^K Venn regions, so K=3 at three counts per region is 6,561 models — cheap — and K=4 is 43,046,721, two orders of magnitude past the engine's `MAX_MODELS` bound. Dropping the per-region cap to 1 would fit, but it also removes the 2-vs-1 margin `most` needs inside a single region, and an entailment decided over a truncated space is not the entailment the item claims.
+
+So a four-term space is **decided rather than enumerated**. Every monadic statement is a linear constraint over the region counts — `All` and `No` are "this sum is zero", `Some` and `NotAll` are "this sum is at least one", `Most` is "this sum exceeds that one" — and entailment becomes two satisfiability questions: `premises ∧ ¬candidate` has no model (entailed), `premises ∧ candidate` has none (contradicted). `SymbolicRegionSpace` in `synth/logic.py` answers them with a depth-first search that first zeroes every region a universal premise empties, then collapses regions that appear in every constraint with the same coefficient into a single variable, then prunes on interval bounds. Typical items are decided in tens of milliseconds, and a search that will not close raises rather than hanging (`MAX_SEARCH_NODES`).
+
+The soundness claim is not a promise, it is a test: `test_synth_logic.py::TestSymbolicRegionSpace` cross-checks the solver against full enumeration over the whole three-term pool, statement by statement, where both answers exist. Two things stay approximate on purpose. The *witness models* the solver builds along the way are a sample, not a census, so `supporting_models` on a symbolically-decided item reports witnesses (the report says `decided symbolically` so the number is never mistaken for a model count); and choice sameness is decided by mutual entailment — exactly — using those witnesses only to skip the pairs that obviously differ. The assumption families, whose criteria are set inclusions between truth masks, refuse a symbolic space outright rather than weaken the criterion.
+
+What this buys is `lr-quantifier-chain-four-term`: three quantified premises across four terms, where the trap is that the chain's weakest link caps the conclusion — a majority through two universals is still a majority, two majorities meet only as "at least one".
+
+## Difficulty is measured, not declared
+
+A schema used to hand its band to every item it ever produced, which was wrong twice over. It was not comparable — `hard` on a quantifier schema and `hard` on an assumption schema were two authors' opinions wearing the same word — and it was not per item, because arrangements are drawn: a two-link chain with one side conditional and a four-link chain with two are not the same question.
+
+So each proved item is scored on features that mean the same thing in every family (`backend/law_ai/lsat/synth/difficulty.py`): premises held at once, nesting depth of the deepest premise, slots in play, constraints the drawn arrangement imposed, the **closeness** of the best distractor (the share of premise-satisfying models in which it is true — the one number that compares a quantifier trap to an assumption trap directly), the log-size of the model space, and how many entailment relations the family's own verification rule demands. The score bands against `SCORE_CUTS`, the 40th and 75th percentiles of a full sweep, so the cuts are the engine's own distribution rather than a guess.
+
+Two limits are deliberate. A **structural** item gets no proxy at all — no model space means every model-derived feature is zero, and `measure()` returns `None` rather than pretend, leaving the declared band in place. And the proxy never moves a band more than one step from the declared one: a prior worth keeping is still a prior, and `blend()` clamps. Provenance carries both, so a disagreement stays visible after the item ships.
+
+Real evidence outranks both. `backend/law_ai/lsat/synth/calibrate.py` joins `lsat_grade` audit events to the schema that produced each item — the join key is the `lsat_synth.promoted` event, which carries the question id next to its provenance — and bands a schema by what learners actually did once it clears `MIN_ATTEMPTS` (30). Accuracy at or above 80% is `easy`, 55–80% is `med`, below that is `hard`; the thresholds are module constants, because a cut tuned per schema until the answer looks right is not a measurement. The factory census counts a synthesized item in its measured band when the evidence exists (`factory/coverage.py`), and keeps the emitted band until then.
+
+```bash
+make lsat-synth-calibrate                      # graded: accuracy per schema, and the disagreements
+make lsat-synth-calibrate ARGS='--structural'  # offline: the proxy, and the cuts this registry implies
+```
+
+Both write `backend/var/lsat_synth/calibration.json`. Adding schemas moves the score distribution, so re-run `--structural` afterwards and update `SCORE_CUTS` deliberately if the suggestion has drifted — existing items re-band when you do.
+
+## What the registry proves, and what it does not
+
+The factory plans in *archetypes* — the taxonomy has 45 — and a schema declares which one it realizes. `SynthExecutor` refuses a target no schema covers rather than substituting something else, so the honest measure of this engine is how much of the taxonomy it can prove. **Seventeen archetypes today** (BL-20260903-13 took it from twelve), across nineteen schemas:
+
+| Section | Archetypes proved |
+| ------- | ----------------- |
+| LR | conditional-inference, contrapositive-inference, must-be-true, most-strongly-supported, cannot-be-true, sufficient-assumption, necessary-assumption |
+| LR (structural) | weaken, strengthen, percent-vs-number |
+| LG | acceptability, must-be-true, could-be-true-except, local-conditional, in-out-selection, numeric-distribution, grouping |
+
+The games families were the cheap half: could-be-true-except is the `cannot_be_true` rule over the ordering space, a local question is the global proof with the supposition added as a premise (rendered into the question sentence, where the exam puts it), in-out selection is conditional membership rules over the assignment space with their contrapositives already accounted for, and numeric distribution adds group-size rules and prefers a credited answer about the counts. `test_synth_generate.py::TestArchetypeCoverage` writes the covered set out in full, so gaining or losing one is a visible change to a test.
+
+What stays out, and why:
+
+- **The nine `rc-*` archetypes.** Their correctness depends on prose judgement no checker can certify. Asserting a key there would be the failure this engine exists to remove.
+- **The rhetorical LR families** — equivocation, appeal-to-ignorance, principle-application, evaluate-the-argument, method-of-reasoning, point-at-issue, role-of-claim. "Which one describes the flaw" is a claim about *reasoning*, not entailment.
+- **Parallel reasoning and parallel flaw**, which are decidable by shape-matching over `_shape()` but need whole arguments as answer choices; a structural guarantee like the causal families, not a proof, and not yet built.
+- **`lg-max-min` and `lg-rule-substitution`**, both provable in principle — max/min needs bounded-count statements the checker does not have, and rule substitution needs its own verification family (the substitute must leave the valid-arrangement set exactly unchanged, in both directions).
+
+The LLM executors exist for exactly these, which is the division of labour spec 049 argued for: prove what can be proved, and let a human review the rest.
+
 ## Where items go
 
 **Default — the review queue.** `--emit proposals` records pending proposals; `lsat_factory execute --executor synth` fulfils manifest jobs with no network and sends drafts through the same dedup, lint and balance gates as LLM drafts.
@@ -137,6 +185,25 @@ Every promotion writes an `lsat_synth.promoted` audit event carrying the proof s
 `--polish` is the one path that calls a model, and it never touches the logic.
 
 The model proposes **lexicon entries, not sentences**. Asking it to reword a rendered stimulus would let it change the logical form — "if" to "only if" is one word and a different item — and no cheap check would catch that. Instead it proposes *properties*, the item is regenerated from the same schema and seed through the unchanged templates, and the logic is preserved by construction. Proposals are linted for logical vocabulary, length and duplication, and a failing proposal is discarded rather than repaired. No provider means the unpolished item, which was already correct.
+
+### Measuring the prompt's yield
+
+A prompt that is discarded more often than it is used is a broken prompt, so the polish path counts rather than assumes. Every proposal round produces a `PolishYield` — how many predicates the model proposed, how many survived the lint, and a count per reject reason (`bad-id`, `duplicate`, `missing-field`, `length`, `forbidden-word`, `not-an-object`, `unparseable`) — labelled with the provider tier that answered. It rides on the polished item's provenance under `polish`, so anything in the review queue records what the prompt produced, and it is aggregated by:
+
+```bash
+make lsat-synth-polish-yield ARGS='--rounds 2 --count 6'
+```
+
+That verb calls the provider chain by design — it is the measurement — and writes `backend/var/lsat_synth/polish_yield.json` alongside a stdout table: per domain, per provider tier, and overall. It also re-renders one item over each domain's accepted vocabulary, because a survivor that will not verify is not a survivor. `--strict` exits non-zero when the overall rate falls below `POLISH_YIELD_FLOOR` (0.5): below that the prompt is producing more rejects than vocabulary and needs re-authoring, not a bigger `--count`.
+
+The same floor is asserted by `backend/tests/lsat/test_synth_polish_live.py`, which is marked `integration` and skipped unless `LSAT_SYNTH_LIVE_POLISH=1` — the chain's first two tiers are paid and the test settings blank LLM credentials, so a live measurement is always a deliberate act:
+
+```bash
+LSAT_SYNTH_LIVE_POLISH=1 docker compose run --rm backend \
+    pytest tests/lsat/test_synth_polish_live.py -m integration -q --no-cov
+```
+
+Yield is only comparable within a tier: the same prompt yields differently on a frontier model and on a local one, which is why both the report and the failure message name the model that answered.
 
 ## Guardrails
 

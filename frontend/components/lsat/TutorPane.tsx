@@ -12,31 +12,66 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
+import { newStreamId, openAgentStream } from '@/lib/agentStream'
 import {
   askLsatTutor,
   type LsatChoiceLabel,
   type LsatTutorResponse,
+  type LsatTutorTrace,
 } from '@/lib/api'
 
 export default function TutorPane({
   questionId,
   userChoice,
   initialQuestion,
+  trace,
 }: {
   questionId: string
   userChoice: LsatChoiceLabel | null
   /** Spec 045 FR-8: canned opener, e.g. a no-spoiler walkthrough request. */
   initialQuestion?: string
+  /**
+   * What the learner did on this attempt (BL-20260429-18) — hints revealed,
+   * time spent. Read at ask time from the card's refs, so it reflects the
+   * attempt being asked about rather than the render that mounted this pane.
+   */
+  trace?: () => LsatTutorTrace
 }) {
   const [followUp, setFollowUp] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [response, setResponse] = useState<LsatTutorResponse | null>(null)
+  // BL-20260503-03: coaching rendered as the model writes it. Strictly an
+  // enhancement — the REST body below is still the authoritative walkthrough,
+  // and everything here is discarded once it lands.
+  const [liveText, setLiveText] = useState('')
 
   const ask = useCallback(
     async (overrideQuestion?: string, refresh = false) => {
       setLoading(true)
       setError(null)
+      setLiveText('')
+
+      // Subscribe BEFORE posting (spec 032): the group membership has to
+      // exist before the server starts emitting, or the deltas land nowhere.
+      // A socket failure is not an error — the request runs unstreamed and
+      // the learner waits, exactly as before.
+      const streamId = newStreamId()
+      let socket: WebSocket | null = null
+      try {
+        socket = await openAgentStream(streamId, (event) => {
+          if (event.type === 'tutor_token') {
+            setLiveText((prev) => prev + event.text)
+          } else if (event.type === 'tutor_step' && event.stage === 'interrupted') {
+            // A half-written answer must not read as the answer; the offline
+            // fallback in the REST body replaces it.
+            setLiveText('')
+          }
+        })
+      } catch {
+        socket = null
+      }
+
       try {
         const r = await askLsatTutor({
           question_id: questionId,
@@ -45,15 +80,19 @@ export default function TutorPane({
           // Spec 045 FR-13: identical requests serve the saved walkthrough;
           // refresh forces a fresh model call.
           refresh,
+          ...(trace ? { trace: trace() } : {}),
+          ...(socket ? { stream_id: streamId, stream_tokens: true } : {}),
         })
         setResponse(r)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Tutor failed')
       } finally {
+        socket?.close()
+        setLiveText('')
         setLoading(false)
       }
     },
-    [questionId, userChoice, followUp],
+    [questionId, userChoice, followUp, trace],
   )
 
   // Auto-fire the first call when the pane opens with no follow-up so the
@@ -81,6 +120,24 @@ export default function TutorPane({
               {Math.round(response.confidence * 100)}% conf
               {!response.cached && <> · {Math.round(response.latency_ms)}ms</>}
             </span>
+            {/* BL-20260503-06: the same deep link the analysis path has had
+              * since BL-20260502-05. Rendered only when a collector is
+              * configured — the local-first default is no telemetry, and a
+              * link to a trace that was never exported is worse than none.
+              * There is no thread id beside it on purpose: the tutor calls the
+              * provider chain directly rather than running a LangGraph graph,
+              * so it has no checkpointed thread to name. */}
+            {response.phoenix_trace_url && (
+              <a
+                href={response.phoenix_trace_url}
+                target="_blank"
+                rel="noreferrer"
+                title={response.trace_id ?? undefined}
+                className="text-blue-300 underline-offset-2 hover:underline"
+              >
+                Phoenix trace
+              </a>
+            )}
             {response.cached && (
               <button
                 type="button"
@@ -95,7 +152,17 @@ export default function TutorPane({
         )}
       </div>
 
-      {loading && (
+      {loading && liveText && (
+        <p
+          className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-200"
+          aria-live="polite"
+        >
+          {liveText}
+          <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-amber-300/70 align-text-bottom motion-reduce:animate-none" />
+        </p>
+      )}
+
+      {loading && !liveText && (
         <div className="mt-3 animate-pulse space-y-2">
           <div className="h-3 w-3/4 rounded bg-slate-800" />
           <div className="h-3 w-2/3 rounded bg-slate-800" />

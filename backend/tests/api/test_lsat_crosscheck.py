@@ -252,10 +252,13 @@ async def test_validation_report_shape_and_counts(client: AsyncClient) -> None:
     assert (
         sum(sum(counts.values()) for counts in dist.values()) == body["question_count"]
     )
+    # `queued_reviews` counts disagreements the sweep has filed into the HITL
+    # queue, so it is 0 alongside an empty `disagreements` list.
     assert body["cross_checks"] == {
         "checked": 0,
         "agreements": 0,
         "disagreements": [],
+        "queued_reviews": 0,
     }
 
 

@@ -190,12 +190,25 @@ class TestScoring:
         ok, _ = score_response(response, expected, "core_reasoning")
         assert ok is False
 
-    def test_extraction_only_applies_to_closed_vocabulary(self) -> None:
-        # Free-text subsets keep strict matching — no label extraction.
+    def test_free_text_subsets_do_not_use_label_extraction(self) -> None:
+        """Closed-vocabulary extraction never fires on a case name.
+
+        Spec 031 asserted here that a prose-prefixed case name scored *wrong*.
+        BL-20260811-11 replaced that floor for `precedent_retrieval` with a
+        recall scorer — naming the right case in a sentence is a hit, naming
+        the wrong one is still a miss — so the assertion moved with it. What
+        has not changed is that `extract_label` stays out of free-text tasks.
+        """
         ok, _ = score_response(
             "The case is International Shoe Co. v. Washington",
             "International Shoe Co. v. Washington",
             "precedent_retrieval",
         )
-        assert ok is False  # strict: response has a prose prefix
+        assert ok is True
+        ok, _ = score_response(
+            "The case is Erie Railroad Co. v. Tompkins",
+            "International Shoe Co. v. Washington",
+            "precedent_retrieval",
+        )
+        assert ok is False
         assert extract_label("The case is International Shoe") is None

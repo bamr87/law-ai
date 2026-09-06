@@ -34,3 +34,9 @@ export function useMediaQuery(query: string): boolean {
 export const COMPACT_QUERY = '(max-width: 767px)'
 /** Below `lg` — not enough room for a third column. */
 export const NARROW_QUERY = '(max-width: 1023px)'
+/**
+ * `xl` and wider — room for a labelled navigation rail without taking the
+ * column the page needs (BL-20260831-06). Matches Tailwind's `xl` breakpoint,
+ * so the CSS and the JS agree about what "wide" means.
+ */
+export const WIDE_QUERY = '(min-width: 1280px)'

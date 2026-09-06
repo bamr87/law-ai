@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import LayoutMenu from '@/components/shell/LayoutMenu'
 import { INSTANCE_SCOPE } from '@/lib/scope/instance'
 import { listSettingValues } from '@/lib/scope/store'
-import { railVisible, sidebarSide } from '@/lib/settings/catalog'
+import { railExpanded, railVisible, sidebarSide } from '@/lib/settings/catalog'
 import { resetLayout } from '@/lib/shell/layout'
 
 function stored(key: string) {
@@ -76,6 +76,20 @@ describe('LayoutMenu (spec 050)', () => {
     expect(
       screen.getByRole('menuitemcheckbox', { name: 'Navigation rail' }),
     ).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('remembers the labelled-rail choice (BL-20260831-06)', () => {
+    renderMenu()
+    const menu = openMenu()
+    const row = within(menu).getByRole('menuitemcheckbox', {
+      name: 'Labelled rail (wide screens)',
+    })
+    expect(row).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(row)
+    expect(stored(railExpanded.key)?.value).toBe(true)
+    expect(
+      screen.getByRole('menuitemcheckbox', { name: 'Labelled rail (wide screens)' }),
+    ).toHaveAttribute('aria-checked', 'true')
   })
 
   it('moves a panel with a radio row', () => {

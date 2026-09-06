@@ -8,11 +8,14 @@ import {
   type AgentStepEvent,
 } from '@/lib/agentStream'
 import {
+  createShareLink,
+  fetchAnalysis,
   runAnalysis,
   type AnalysisRequest,
   type AnalysisResponse,
+  type ShareLink,
 } from '@/lib/api'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 const HITL_THRESHOLD = 0.7
 
@@ -111,10 +114,39 @@ export default function AnalysisStudio() {
   const [jurisdiction, setJurisdiction] = useState('')
   // Spec 027: the LangGraph + Ollama workflow is the default engine.
   const [useLanggraph, setUseLanggraph] = useState(true)
+  // BL-20260810-13: resume a durable LangGraph thread. Pre-filled from the
+  // last response so "run again on the same thread" is one click.
+  const [threadId, setThreadId] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  // Characters the last edit dropped for exceeding MAX_LEN (BL-20260831-10).
+  // Reset by the next edit that fits, so the warning never outlives its cause.
+  const [dropped, setDropped] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AnalysisResponse | null>(null)
   const [liveSteps, setLiveSteps] = useState<AgentStepEvent[]>([])
+
+  // BL-20260429-25: `?id=an-…` reloads a persisted run, so the permalink
+  // below survives a refresh, a new tab, or a colleague's inbox. A run that
+  // was never persisted (or was archived) resolves to null and leaves an
+  // empty studio rather than an error.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id')
+    if (!id) return
+    let cancelled = false
+    void fetchAnalysis(id)
+      .then((run) => {
+        if (cancelled || !run) return
+        setResult(run)
+        setText(run.request?.text ?? '')
+        setJurisdiction(run.request?.jurisdiction ?? '')
+      })
+      .catch(() => {
+        /* a stale permalink is not an error worth shouting about */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const submit = useCallback(async () => {
     if (!text.trim() || submitting) return
@@ -146,20 +178,23 @@ export default function AnalysisStudio() {
         // Explicit boolean: the server defaults to true, so an omitted flag
         // would silently re-enable the engine when the user opted out.
         use_langgraph: useLanggraph,
+        ...(threadId.trim() ? { thread_id: threadId.trim() } : {}),
         ...(socket ? { stream_id: streamId } : {}),
       })
       setResult(body)
+      if (body.langgraph_thread_id) setThreadId(body.langgraph_thread_id)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Analysis failed')
     } finally {
       socket?.close()
       setSubmitting(false)
     }
-  }, [text, jurisdiction, useLanggraph, submitting])
+  }, [text, jurisdiction, useLanggraph, threadId, submitting])
 
   const loadSample = () => {
     setText(SAMPLE.text)
     setJurisdiction(SAMPLE.jurisdiction ?? '')
+    setDropped(0)
   }
 
   const remaining = MAX_LEN - text.length
@@ -186,7 +221,14 @@ export default function AnalysisStudio() {
         <textarea
           id="analysis-text"
           value={text}
-          onChange={(e) => setText(e.target.value.slice(0, MAX_LEN))}
+          onChange={(e) => {
+            // BL-20260831-10: a paste longer than the cap used to lose its
+            // tail in silence — the counter simply read "0 chars remaining".
+            // Trim, then say exactly how much did not make it.
+            const over = e.target.value.length - MAX_LEN
+            setDropped(over > 0 ? over : 0)
+            setText(e.target.value.slice(0, MAX_LEN))
+          }}
           onKeyDown={(e) => {
             // Cmd/Ctrl + Enter submits
             if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -220,6 +262,17 @@ export default function AnalysisStudio() {
             <span className="text-[11px] text-slate-500">
               {remaining.toLocaleString()} chars remaining
             </span>
+            {dropped > 0 && (
+              <span
+                role="status"
+                data-testid="truncation-warning"
+                className="text-[11px] text-amber-300"
+              >
+                Trimmed to {MAX_LEN.toLocaleString()} characters;{' '}
+                {dropped.toLocaleString()} character
+                {dropped === 1 ? ' was' : 's were'} not kept.
+              </span>
+            )}
             <label
               htmlFor="use-langgraph"
               className="ml-2 flex cursor-pointer items-center gap-2 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200"
@@ -234,6 +287,20 @@ export default function AnalysisStudio() {
               />
               Use local LLM (LangGraph + Ollama)
             </label>
+            <label
+              htmlFor="analysis-thread"
+              className="ml-2 text-xs uppercase tracking-wider text-slate-500"
+            >
+              Resume thread
+            </label>
+            <input
+              id="analysis-thread"
+              value={threadId}
+              onChange={(e) => setThreadId(e.target.value)}
+              placeholder="lwf-…"
+              title="Continue a previous run's LangGraph thread (leave blank to start a new one)"
+              className="w-40 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 font-mono text-xs text-slate-200 placeholder-slate-600 focus:border-indigo-500 focus-ring"
+            />
           </div>
           <button
             type="button"
@@ -273,9 +340,212 @@ export default function AnalysisStudio() {
   )
 }
 
+/**
+ * The permalink for a persisted run (BL-20260429-25) and the "save & share"
+ * control beside it (BL-20260429-26). Both are rendered as plain text/links
+ * rather than copy buttons: the URL is the thing worth having, and selecting
+ * it works everywhere, including where the clipboard API is blocked.
+ *
+ * Sharing needs a signed-in account, so the failure path is the common one
+ * here — it surfaces the backend's own wording instead of a guess.
+ */
+function Permalink({ id }: { id: string }) {
+  const href = `/analysis?id=${encodeURIComponent(id)}`
+  const [slugInput, setSlugInput] = useState('')
+  const [link, setLink] = useState<ShareLink | null>(null)
+  const [sharing, setSharing] = useState(false)
+  const [shareError, setShareError] = useState<string | null>(null)
+
+  const share = async () => {
+    setSharing(true)
+    setShareError(null)
+    try {
+      setLink(
+        await createShareLink(id, {
+          ...(slugInput.trim() ? { slug: slugInput.trim().toLowerCase() } : {}),
+        }),
+      )
+    } catch (e) {
+      setShareError(e instanceof Error ? e.message : 'Share failed')
+    } finally {
+      setSharing(false)
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-900/40 px-4 py-3 text-xs text-slate-400">
+      <div>
+        <span className="text-slate-500">Permalink:</span>{' '}
+        <a href={href} className="text-blue-300 underline-offset-2 hover:underline">
+          {href}
+        </a>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor="share-slug" className="text-slate-500">
+          Share as
+        </label>
+        <input
+          id="share-slug"
+          value={slugInput}
+          onChange={(e) => setSlugInput(e.target.value)}
+          placeholder="optional-slug"
+          className="rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-slate-200"
+        />
+        <button
+          type="button"
+          onClick={() => void share()}
+          disabled={sharing}
+          className="rounded border border-indigo-500/50 px-2 py-1 text-indigo-300 hover:bg-indigo-500/10 disabled:opacity-50"
+        >
+          {sharing ? 'Creating…' : 'Create share link'}
+        </button>
+      </div>
+      {link && (
+        <div>
+          <span className="text-slate-500">Shareable URL:</span>{' '}
+          <a
+            href={link.url}
+            className="text-emerald-300 underline-offset-2 hover:underline"
+          >
+            {link.url}
+          </a>
+        </div>
+      )}
+      {shareError && (
+        <p role="status" className="text-amber-300">
+          {shareError}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Which degraded path produced this row, for payloads old and new.
+ *
+ * The backend now says so in `degraded_reason` (BL-20260810-16); before that
+ * field existed the only signal was the marker the fallback puts at the head
+ * of `rule`, and a persisted run from then still has to render correctly.
+ */
+function degradedKind(
+  irac: AnalysisResponse['irac'],
+): 'engine_unavailable' | 'offline_fallback' {
+  if (irac.degraded_reason) return irac.degraded_reason
+  if (irac.rule?.includes('[OFFLINE FALLBACK]')) return 'offline_fallback'
+  return 'engine_unavailable'
+}
+
+/**
+ * What to do about a run that produced no analysis (BL-20260810-16).
+ *
+ * A degraded refusal used to render exactly like a real answer — IRAC card,
+ * green "0% confidence" pill, precedent list — which is the one presentation
+ * a legal tool must never give a non-answer. This replaces all of that with
+ * the engine's state and the command that fixes it, and the guidance differs
+ * by kind: `make local-ai-up` is the right advice only when the local engine
+ * is the one that could not start.
+ */
+function EngineStatePanel({ result }: { result: AnalysisResponse }) {
+  const kind = degradedKind(result.irac)
+  return (
+    <section
+      role="status"
+      data-testid="engine-state"
+      aria-labelledby="engine-state-heading"
+      className="rounded-2xl border border-red-500/40 bg-red-500/10 p-6"
+    >
+      <h2
+        id="engine-state-heading"
+        className="text-lg font-semibold text-red-200"
+      >
+        {kind === 'engine_unavailable'
+          ? 'Local LLM engine offline — no analysis was produced'
+          : 'No LLM provider reachable — no analysis was produced'}
+      </h2>
+      <p className="mt-2 text-sm text-red-100/90">
+        {kind === 'engine_unavailable' ? (
+          <>
+            The analysis engine could not start, so nothing below is legal
+            analysis. Start Ollama with{' '}
+            <code className="rounded bg-slate-950/60 px-1 py-0.5 font-mono">
+              make local-ai-up
+            </code>{' '}
+            (or configure a hosted tier in{' '}
+            <code className="rounded bg-slate-950/60 px-1 py-0.5 font-mono">
+              LLM_PROVIDER_CHAIN
+            </code>
+            ) and run this again.
+          </>
+        ) : (
+          <>
+            Every tier in{' '}
+            <code className="rounded bg-slate-950/60 px-1 py-0.5 font-mono">
+              LLM_PROVIDER_CHAIN
+            </code>{' '}
+            failed. Check the Claude credentials (or{' '}
+            <code className="rounded bg-slate-950/60 px-1 py-0.5 font-mono">
+              make xai-login
+            </code>
+            ) and the chain configuration, then run this again. Starting Ollama
+            only helps if it is one of the configured tiers.
+          </>
+        )}
+      </p>
+      {/* The refusal text the backend wrote, verbatim: it names the reason
+          (probe failure, missing credential) that this panel generalises. */}
+      <p className="mt-3 text-xs text-red-200/70">{result.irac.rule}</p>
+    </section>
+  )
+}
+
 function ResultPanel({ result }: { result: AnalysisResponse }) {
+  // A run with no engine behind it gets the engine's state, not a brief —
+  // no confidence pill, no coverage envelope, no precedent list to mistake
+  // for retrieved authority (BL-20260810-16).
+  if (result.irac.degraded) {
+    return (
+      <div className="space-y-6">
+        <Permalink id={result.id} />
+        {result.requires_human_review && (
+          <div
+            role="alert"
+            className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+          >
+            <strong className="font-semibold">Human review required.</strong>{' '}
+            {reviewReason(result)}
+          </div>
+        )}
+        <LegalDisclaimerBanner />
+        <EngineStatePanel result={result} />
+        <section
+          aria-labelledby="no-analysis-heading"
+          className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 text-sm text-slate-500"
+        >
+          <h2
+            id="no-analysis-heading"
+            className="text-xs uppercase tracking-wider text-slate-500"
+          >
+            No analysis produced
+          </h2>
+          <p className="mt-2">
+            No IRAC brief, no retrieval and no precedents were produced for this
+            request. The run is kept for auditability only.
+          </p>
+        </section>
+        <AgentTrace
+          steps={result.agent_trace.map(
+            (e) =>
+              `${e.agent} · ${Math.round(e.confidence * 100)}% conf · ${Math.round(e.latency_ms)}ms`,
+          )}
+          confidence={result.confidence}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
+      <Permalink id={result.id} />
       {(result.phoenix_trace_url || result.langgraph_thread_id) && (
         <div className="rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-200">
           <div className="font-semibold">Local LLM run (LangGraph + Ollama)</div>
@@ -286,6 +556,11 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
                 <code className="rounded bg-slate-950/60 px-1 py-0.5">
                   {result.langgraph_thread_id}
                 </code>
+                {result.resumed && (
+                  <span className="ml-2 rounded bg-indigo-900/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-indigo-200">
+                    resumed
+                  </span>
+                )}
               </div>
             )}
             {result.phoenix_trace_url && (
@@ -338,11 +613,66 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
             {result.irac.retrieval.coverage_note ||
               `${result.irac.retrieval.result_count} passage(s) retrieved.`}
           </p>
+          {/* BL-20260811-18: the backend computes `jurisdiction_absent`, but
+              folded into the prose note above it is easy to skim past. A
+              jurisdictionally-lopsided result set changes what the answer is
+              worth, so it gets its own live-region callout — not just a row
+              in the envelope below. */}
+          {result.irac.retrieval.jurisdiction_absent &&
+            result.irac.retrieval.jurisdiction_requested && (
+              <p
+                role="status"
+                data-testid="jurisdiction-absent"
+                className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-amber-200"
+              >
+                No results from the requested jurisdiction{' '}
+                <span className="font-mono">
+                  {result.irac.retrieval.jurisdiction_requested}
+                </span>
+                . The passages below come from{' '}
+                {result.irac.retrieval.jurisdictions_present?.length
+                  ? result.irac.retrieval.jurisdictions_present.join(', ')
+                  : 'other jurisdictions'}{' '}
+                and are persuasive at best.
+              </p>
+            )}
           {result.irac.retrieval.queries.length > 0 && (
             <p className="mt-1 text-slate-500">
               Searched: {result.irac.retrieval.queries.join(' · ')}
             </p>
           )}
+          {/* Structured envelope rows (BL-20260803-02): the prose note above
+              is the model-facing text; these are the fields a reviewer scans. */}
+          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-slate-500">
+            {(result.irac.retrieval.jurisdictions_present?.length ?? 0) > 0 && (
+              <>
+                <dt>Jurisdictions present</dt>
+                <dd className="text-slate-300">
+                  {result.irac.retrieval.jurisdictions_present?.join(', ')}
+                </dd>
+              </>
+            )}
+            {result.irac.retrieval.jurisdiction_absent &&
+              result.irac.retrieval.jurisdiction_requested && (
+                <>
+                  <dt>Jurisdiction absent</dt>
+                  <dd className="text-amber-300">
+                    {result.irac.retrieval.jurisdiction_requested} — nothing
+                    retrieved from the requested jurisdiction
+                  </dd>
+                </>
+              )}
+            {(result.irac.retrieval.date_earliest ||
+              result.irac.retrieval.date_latest) && (
+              <>
+                <dt>Decision dates</dt>
+                <dd className="text-slate-300">
+                  {result.irac.retrieval.date_earliest ?? '?'} –{' '}
+                  {result.irac.retrieval.date_latest ?? '?'}
+                </dd>
+              </>
+            )}
+          </dl>
         </section>
       )}
 
@@ -494,15 +824,55 @@ function ResultPanel({ result }: { result: AnalysisResponse }) {
           · {result.latency_ms}ms · {new Date(result.timestamp).toLocaleString()}
         </span>
         {result.agent_trace[0]?.trace_id && (
-          <span>
-            trace_id{' '}
-            <code className="rounded bg-slate-800 px-1.5 py-0.5 text-slate-300">
-              {result.agent_trace[0].trace_id.slice(0, 8)}…
-            </code>
-          </span>
+          <CopyTraceId traceId={result.agent_trace[0].trace_id} />
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * The trace id is what a reviewer pastes into the audit store or Phoenix, so
+ * it has to leave the page whole — the chip only ever showed the first eight
+ * characters, and hand-transcribing the rest from a screenshot is exactly the
+ * step people got wrong (BL-20260429-27).
+ */
+function CopyTraceId({ traceId }: { traceId: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const copy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(traceId)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard access can be denied (insecure origin, permission policy).
+      // Say so instead of pretending the copy worked.
+      setCopied(false)
+    }
+  }, [traceId])
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      trace_id{' '}
+      <code
+        data-testid="trace-id"
+        className="rounded bg-slate-800 px-1.5 py-0.5 text-slate-300"
+      >
+        {traceId.slice(0, 8)}…
+      </code>
+      <button
+        type="button"
+        onClick={() => void copy()}
+        aria-label={`Copy trace id ${traceId}`}
+        className="rounded px-1.5 py-0.5 text-[11px] text-indigo-300 underline-offset-2 hover:underline focus-ring"
+      >
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+      <span role="status" aria-live="polite" className="sr-only">
+        {copied ? 'Trace id copied to clipboard' : ''}
+      </span>
+    </span>
   )
 }
 
@@ -524,10 +894,10 @@ function SkeletonResult() {
       aria-label="Loading analysis"
       className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur"
     >
-      <div className="h-4 w-1/3 animate-pulse rounded bg-slate-800" />
-      <div className="h-3 w-full animate-pulse rounded bg-slate-800" />
-      <div className="h-3 w-5/6 animate-pulse rounded bg-slate-800" />
-      <div className="h-3 w-4/6 animate-pulse rounded bg-slate-800" />
+      <div className="h-4 w-1/3 animate-pulse rounded bg-slate-800 motion-reduce:animate-none" />
+      <div className="h-3 w-full animate-pulse rounded bg-slate-800 motion-reduce:animate-none" />
+      <div className="h-3 w-5/6 animate-pulse rounded bg-slate-800 motion-reduce:animate-none" />
+      <div className="h-3 w-4/6 animate-pulse rounded bg-slate-800 motion-reduce:animate-none" />
     </div>
   )
 }

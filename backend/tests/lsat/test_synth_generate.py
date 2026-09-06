@@ -472,3 +472,195 @@ class TestSweep:
         assert result.combinations >= len(all_schemas())
         assert result.generated > 0
         assert result.ok, [f.model_dump() for f in result.failures[:5]]
+
+
+class TestFourTermQuantifierChain:
+    """BL-20260903-16: the schema enumeration could not afford."""
+
+    def test_it_is_proved_symbolically(self) -> None:
+        item = generate("lr-quantifier-chain-four-term", "municipal-policy", seed=0)
+        assert item.report.ok
+        assert item.report.proof_kind == "logical"
+        assert item.report.decision == "symbolic"
+        # Four predicates: the space is reported, never walked.
+        assert item.report.space_models == 3 ** (2**4)
+        assert "symbolically" in item.report.summary()
+
+    def test_it_uses_four_distinct_properties(self) -> None:
+        item = generate("lr-quantifier-chain-four-term", "field-biology", seed=2)
+        schema = get_schema("lr-quantifier-chain-four-term")
+        assert len(schema.meta.concepts) >= 2
+        # Three premises plus the question sentence.
+        assert item.question.stem.count(".") >= 3
+        assert len(item.question.choices) == 5
+
+    def test_the_chain_shape_is_recorded(self) -> None:
+        shapes = {
+            generate(
+                "lr-quantifier-chain-four-term", "municipal-policy", seed=s
+            ).provenance.arrangement["chain"]
+            for s in range(8)
+        }
+        assert len(shapes) > 1
+
+    def test_every_domain_that_supports_region_content_works(self) -> None:
+        from law_ai.lsat.synth.lexicon import load_domains
+
+        for domain in load_domains().values():
+            if not domain.supports("region"):
+                continue
+            item = generate("lr-quantifier-chain-four-term", domain.id, seed=1)
+            assert item.report.ok, (domain.id, item.report.failures)
+
+    def test_an_assumption_family_cannot_be_proved_symbolically(self) -> None:
+        """The one thing the solver is not allowed to certify, refused loudly."""
+        from law_ai.lsat.synth.logic import (
+            All,
+            Most,
+            No,
+            Some,
+            SymbolicRegionSpace,
+            SynthLogicError,
+        )
+        from law_ai.lsat.synth.schemas import BindingSpec, Blueprint, FormalChoice
+        from law_ai.lsat.synth.verify import LabelledChoice, verify
+
+        slots = ("P", "Q", "R", "S")
+        space = SymbolicRegionSpace(predicates=slots)
+        blueprint = Blueprint(
+            family="sufficient_assumption",
+            proof_kind="logical",
+            binding_spec=BindingSpec(property_slots=slots),
+            premises=(All("P", "Q"), Most("Q", "R")),
+            conclusion=Some("P", "S"),
+            choices=(FormalChoice(role="credited", statement=All("Q", "S")),),
+            space=space,
+        )
+        choices = [
+            LabelledChoice(
+                label=label,
+                role="credited" if i == 0 else "distractor",
+                text=f"choice {label} text here",
+                statement=statement,
+            )
+            for i, (label, statement) in enumerate(
+                zip(
+                    ("A", "B", "C", "D", "E"),
+                    (
+                        All("Q", "S"),
+                        All("R", "S"),
+                        Some("Q", "S"),
+                        Most("Q", "S"),
+                        No("Q", "S"),
+                    ),
+                    strict=True,
+                )
+            )
+        ]
+        with pytest.raises(SynthLogicError, match="enumerated space"):
+            verify(blueprint, choices, schema_id="test-symbolic-assumption")
+
+
+#: Every archetype the engine can *prove* today. BL-20260903-13 grew this from
+#: twelve; it is written out rather than derived so that adding or losing a
+#: schema is a visible change to a test, not a silent change to coverage.
+PROVABLE_ARCHETYPES = {
+    "lg-acceptability",
+    "lg-could-be-true-except",
+    "lg-grouping",
+    "lg-in-out-selection",
+    "lg-local-conditional",
+    "lg-must-be-true",
+    "lg-numeric-distribution",
+    "lr-cannot-be-true",
+    "lr-conditional-inference",
+    "lr-contrapositive-inference",
+    "lr-most-strongly-supported",
+    "lr-must-be-true",
+    "lr-necessary-assumption",
+    "lr-percent-vs-number",
+    "lr-strengthen",
+    "lr-sufficient-assumption",
+    "lr-weaken",
+}
+
+
+class TestArchetypeCoverage:
+    """BL-20260903-13: which of the taxonomy's 45 archetypes are provable."""
+
+    def test_the_covered_set_is_exactly_the_documented_one(self) -> None:
+        covered = {s.meta.archetype_id for s in all_schemas()}
+        assert covered == PROVABLE_ARCHETYPES
+
+    def test_coverage_is_a_third_of_the_taxonomy(self) -> None:
+        from law_ai.lsat.factory import taxonomy
+
+        total = len(list(taxonomy.all_archetypes()))
+        assert total == 45
+        assert len(PROVABLE_ARCHETYPES) >= 17
+
+    def test_an_uncovered_archetype_is_still_refused(self) -> None:
+        """The engine must not substitute something else for a miss."""
+        covered = {s.meta.archetype_id for s in all_schemas()}
+        assert "rc-main-point" not in covered
+        assert "lr-parallel-reasoning" not in covered
+
+
+class TestGamesFamilies:
+    """The LG schemas added in BL-20260903-13, each proved by enumeration."""
+
+    def test_cannot_be_true_has_exactly_one_impossible_choice(self) -> None:
+        item = generate("lg-sequencing-cannot-be-true", "municipal-policy", seed=1)
+        statuses = [c.status for c in item.report.choices]
+        assert statuses.count("contradicted") == 1
+        credited = next(
+            c for c in item.report.choices if c.label == item.question.correct
+        )
+        assert credited.status == "contradicted"
+        # Every other choice is realizable in some surviving arrangement.
+        assert all(
+            c.status == "contingent"
+            for c in item.report.choices
+            if c.label != item.question.correct
+        )
+
+    def test_a_local_supposition_lives_in_the_question(self) -> None:
+        item = generate("lg-sequencing-local-conditional", "municipal-policy", seed=3)
+        stimulus, question = item.question.stem.split("\n\n")
+        assert question.startswith("If ")
+        assert "must be true" in question
+        # The supposition is a premise for the proof but not a rule on the board.
+        rules = [s for s in stimulus.split(". ") if s]
+        assert len(rules) >= 2
+        assert question.rstrip("?").split(", which")[0][3:] not in stimulus
+
+    def test_the_selection_item_needs_more_than_one_rule(self) -> None:
+        from law_ai.lsat.synth.logic import entails
+
+        schema = get_schema("lg-conditional-selection")
+        blueprint = schema.build(
+            random.Random("selection"), load_domains()["field-biology"]
+        )
+        credited = next(c for c in blueprint.choices if c.role.startswith("credited"))
+        assert credited.statement is not None
+        assert blueprint.space is not None
+        for rule in blueprint.premises:
+            assert not entails(blueprint.space, [rule], credited.statement)
+
+    def test_the_numeric_item_always_draws_a_counting_rule(self) -> None:
+        from law_ai.lsat.synth.logic import GroupSize
+
+        schema = get_schema("lg-numeric-distribution")
+        for seed in range(4):
+            blueprint = schema.build(
+                random.Random(f"numeric-{seed}"), load_domains()["municipal-policy"]
+            )
+            assert any(isinstance(p, GroupSize) for p in blueprint.premises)
+
+    def test_the_supported_inference_answer_is_actually_entailed(self) -> None:
+        item = generate("lr-supported-inference", "academic-publishing", seed=2)
+        credited = next(
+            c for c in item.report.choices if c.label == item.question.correct
+        )
+        assert credited.status == "entailed"
+        assert "most strongly support" in item.question.stem

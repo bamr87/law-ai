@@ -9,12 +9,14 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { queryTokens, searchLibrary, stem } from '@/lib/search'
+import { isTypo, queryTokens, searchLibrary, stem } from '@/lib/search'
 
 interface Parity {
   stems: Record<string, string>
   query_tokens: Record<string, string[]>
   corpus: { query: string; top?: string | null; ids?: string[] }[]
+  typo_pairs: { a: string; b: string; typo: boolean }[]
+  corpus_typos: { query: string; top: string | null }[]
 }
 
 // Vitest runs with the project root at lsat-static/, so the fixture resolves
@@ -44,6 +46,21 @@ describe('search parity with library.py', () => {
       Object.keys(parity.query_tokens).map((q) => [q, queryTokens(q)]),
     )
     expect(got).toEqual(parity.query_tokens)
+  })
+
+  it('judges typos the way the backend does', () => {
+    for (const { a, b, typo } of parity.typo_pairs) {
+      expect(isTypo(a, b), `${a}/${b}`).toBe(typo)
+      expect(isTypo(b, a), `${b}/${a}`).toBe(typo)
+    }
+  })
+
+  it('lands mistyped queries on the same article as the backend', () => {
+    for (const c of parity.corpus_typos) {
+      const ids = searchLibrary(c.query, 5).map((h) => h.id)
+      if (c.top === null) expect(ids, c.query).toEqual([])
+      else expect(ids[0], c.query).toBe(c.top)
+    }
   })
 
   it('ranks the shipped corpus the way the backend does', () => {

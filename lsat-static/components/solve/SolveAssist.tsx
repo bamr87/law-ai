@@ -37,6 +37,17 @@ const KIND_LABEL: Record<StepKind, string> = {
 // Session-scoped memory of how far each question's guide was revealed.
 const revealedByQuestion = new Map<string, number>()
 
+/**
+ * Test hook: clear the session's revealed-depth memory.
+ *
+ * Named for the platform's identical export, so the shared carousel contract
+ * (`__tests__/contracts/solveAssist.contract.ts`) can reset either product
+ * through the same harness field (BL-20260831-22).
+ */
+export function resetSolveAssistSession(): void {
+  revealedByQuestion.clear()
+}
+
 function StepSlide({
   step,
   locked,
@@ -118,8 +129,16 @@ export default function SolveAssist({
   })
 
   if (!guide) {
+    // The platform offers the AI tutor here instead. Saying so is the point:
+    // this is exactly where the absence is felt, and a reader who has just
+    // been told "no guide" should learn that the walkthrough exists elsewhere
+    // rather than assume nothing was ever written (BL-20260831-25).
     return (
-      <p className="solve-none">No step-by-step guide for this question yet.</p>
+      <p className="solve-none">
+        No step-by-step guide for this question yet. This site has no AI tutor
+        to ask instead — that needs a server; see the explanation after you
+        answer.
+      </p>
     )
   }
 

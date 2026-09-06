@@ -9,8 +9,9 @@ import { defineConfig, devices } from '@playwright/test'
  * this suite inside the official Playwright image on the compose network.
  *
  * The browser sees the stack the way a developer's does — `localhost:3000`
- * and `localhost:8000` — because `e2e/proxy.mjs` (our `webServer`) forwards
- * those loopback ports to `frontend:3000` / `backend-e2e:8000`. With the
+ * for the app and `localhost:8000` for the API and the agent socket — because
+ * `e2e/proxy.mjs` (our `webServer`) forwards those loopback ports to
+ * `frontend:3000` / `backend-e2e:8000`. With the
  * E2E_*_UPSTREAM variables unset (a host developer, or CI with the ports
  * published) the forwarder is skipped and whatever answers on those ports is
  * used as-is.

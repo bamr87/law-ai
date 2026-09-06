@@ -7,9 +7,7 @@ the autonomy orchestrator can call ``fetch()`` from a plain thread.
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from collections.abc import Iterable
 
 from law_ai.ingestionapp.sources.base import RawDoc, SourceAdapter
 
@@ -25,22 +23,19 @@ class CourtListenerAdapter(SourceAdapter):
     requires_human_approval = False
     rate_limit_rps = 2.0
 
-    def fetch(self, query: str, *, limit: int = 10) -> Iterable[RawDoc]:
-        """Yield up to *limit* opinions matching *query* (sync wrapper).
+    async def afetch(self, query: str, *, limit: int = 10) -> list[RawDoc]:
+        """Return up to *limit* opinions matching *query*.
 
-        Uses ``asyncio.run`` so it works from any synchronous context.
         Network unavailability raises; callers should catch and quarantine.
+        Synchronous callers use the inherited :meth:`SourceAdapter.fetch`.
 
         Example
         -------
         >>> adapter = CourtListenerAdapter()
-        >>> docs = list(adapter.fetch("Brown v Board", limit=3))
+        >>> docs = list(adapter.fetch("Brown v Board", limit=3))  # doctest: +SKIP
         >>> all(d.source_name == "courtlistener" for d in docs)
         True
         """
-        return list(asyncio.run(self._afetch(query, limit=limit)))
-
-    async def _afetch(self, query: str, *, limit: int) -> list[RawDoc]:
         from law_ai.ingestionapp.services.courtlistener import CourtListenerClient
 
         docs: list[RawDoc] = []
@@ -71,6 +66,16 @@ class CourtListenerAdapter(SourceAdapter):
                             metadata={
                                 "opinion_id": opinion.get("id"),
                                 "court": (opinion.get("cluster") or {}).get("court"),
+                                # BL-20260803-01: carry the cluster's own
+                                # outcome text through so `IngestionScout`
+                                # can map a disposition. Absent keys stay
+                                # absent — never defaulted to a guess.
+                                "disposition": (opinion.get("cluster") or {}).get(
+                                    "disposition"
+                                ),
+                                "posture": (opinion.get("cluster") or {}).get(
+                                    "posture"
+                                ),
                             },
                         )
                     )

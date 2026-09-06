@@ -2,10 +2,15 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import SectionTimerWidget from '@/components/lsat/SectionTimerWidget'
 import { resolveDock } from '@/lib/shell/docks'
-import { deleteSettingValue, upsertSettingValue } from '@/lib/scope/store'
+import {
+  deleteSettingValue,
+  listSettingValues,
+  upsertSettingValue,
+} from '@/lib/scope/store'
 import { INSTANCE_SCOPE } from '@/lib/scope/instance'
 import {
   lsatTimerDock,
+  lsatTimerDuration,
   lsatTimerVisible,
   type Dock,
 } from '@/lib/settings/catalog'
@@ -15,7 +20,9 @@ import {
   isSectionInProgress,
   pauseTimer,
   recordAnswer,
+  resetSection,
   resetTimer,
+  setRemainingQuestions,
   startTimer,
 } from '@/lib/lsat/timerStore'
 
@@ -26,6 +33,7 @@ beforeEach(() => {
   window.localStorage.clear()
   deleteSettingValue(INSTANCE_SCOPE.id, lsatTimerDock.key)
   deleteSettingValue(INSTANCE_SCOPE.id, lsatTimerVisible.key)
+  deleteSettingValue(INSTANCE_SCOPE.id, lsatTimerDuration.key)
 })
 afterEach(() => {
   __resetTimerStore()
@@ -127,6 +135,24 @@ describe('timer store', () => {
     expect(getTimerSnapshot().answered).toBe(2)
     expect(getTimerSnapshot().answeredSeconds).toBe(60)
   })
+
+  it('holds the remaining-question count the pace readout divides by', () => {
+    expect(getTimerSnapshot().remainingQuestions).toBeNull()
+    setRemainingQuestions(27)
+    expect(getTimerSnapshot().remainingQuestions).toBe(27)
+    setRemainingQuestions(null)
+    expect(getTimerSnapshot().remainingQuestions).toBeNull()
+  })
+
+  it('keeps the remaining count through a clock reset but not a new section', () => {
+    // Resetting the clock does not change how many questions are in front of
+    // you; switching section does, and the panel that knew is gone by then.
+    setRemainingQuestions(12)
+    resetTimer()
+    expect(getTimerSnapshot().remainingQuestions).toBe(12)
+    resetSection()
+    expect(getTimerSnapshot().remainingQuestions).toBeNull()
+  })
 })
 
 function zones(onOwnRoute = true) {
@@ -161,6 +187,103 @@ function renderDocks(onOwnRoute = true) {
   return render(zones(onOwnRoute))
 }
 
+describe('SectionTimerWidget pace readout', () => {
+  it('shows seconds-per-question only once a drill publishes a count', () => {
+    renderDocks()
+    expect(
+      screen.queryByLabelText(/time remaining per question/i),
+    ).not.toBeInTheDocument()
+
+    act(() => {
+      setRemainingQuestions(25)
+    })
+    expect(
+      screen.getByLabelText(/time remaining per question/i),
+    ).toHaveTextContent('1:24 left / q')
+
+    act(() => {
+      setRemainingQuestions(null)
+    })
+    expect(
+      screen.queryByLabelText(/time remaining per question/i),
+    ).not.toBeInTheDocument()
+  })
+
+  it('blanks the readout when the stack is finished', () => {
+    renderDocks()
+    act(() => {
+      setRemainingQuestions(0)
+    })
+    expect(
+      screen.queryByLabelText(/time remaining per question/i),
+    ).not.toBeInTheDocument()
+  })
+})
+
+describe('SectionTimerWidget drill presets', () => {
+  function openMenu() {
+    fireEvent.click(
+      screen.getByRole('button', { name: /section timer options/i }),
+    )
+  }
+
+  it('offers 5 / 10 / 35 minute drills, with 35 the default', () => {
+    renderDocks()
+    openMenu()
+    const presets = screen
+      .getAllByRole('menuitemradio')
+      .filter((b) => /\d+ min/.test(b.textContent ?? ''))
+    expect(presets.map((b) => b.textContent?.replace('✓', ''))).toEqual([
+      '5 min',
+      '10 min',
+      '35 min',
+    ])
+    expect(
+      screen.getByRole('menuitemradio', { name: '35 min' }),
+    ).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('resets the clock to the chosen length and remembers the choice', () => {
+    renderDocks()
+    openMenu()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: '10 min' }))
+
+    expect(screen.getByRole('timer')).toHaveTextContent('10:00')
+    expect(getTimerSnapshot().durationSeconds).toBe(600)
+    // Persisted like the dock is, so a homework length survives a reload.
+    expect(
+      listSettingValues().find((r) => r.key === lsatTimerDuration.key)?.value,
+    ).toBe('10')
+  })
+
+  it('paces against the shorter clock, not the full section', () => {
+    renderDocks()
+    openMenu()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: '10 min' }))
+    act(() => {
+      setRemainingQuestions(5)
+    })
+    expect(
+      screen.getByLabelText(/time remaining per question/i),
+    ).toHaveTextContent('2:00 left / q')
+  })
+
+  it('refuses to change length while a section is in progress', () => {
+    vi.useFakeTimers()
+    renderDocks()
+    act(() => {
+      startTimer()
+      vi.advanceTimersByTime(2000)
+      pauseTimer()
+    })
+    openMenu()
+    // A started-then-paused section still counts as in progress: the clock
+    // holds time the student has spent, and 5 minutes must not eat it.
+    expect(screen.getByRole('menuitemradio', { name: '5 min' })).toBeDisabled()
+    expect(screen.getByRole('menuitemradio', { name: '35 min' })).toBeDisabled()
+  })
+})
+
 describe('SectionTimerWidget docking', () => {
   it('docks in the sidebar by default and nowhere else', () => {
     renderDocks()
@@ -171,7 +294,7 @@ describe('SectionTimerWidget docking', () => {
 
   it('moves to the dock chosen from its own menu', () => {
     renderDocks()
-    fireEvent.click(screen.getByRole('button', { name: /move the section timer/i }))
+    fireEvent.click(screen.getByRole('button', { name: /section timer options/i }))
     fireEvent.click(screen.getByRole('menuitemradio', { name: /In page/ }))
 
     const timers = screen.getAllByTestId('lsat-timer')
@@ -192,7 +315,7 @@ describe('SectionTimerWidget docking', () => {
     })
     const before = screen.getByRole('timer').textContent
 
-    fireEvent.click(screen.getByRole('button', { name: /move the section timer/i }))
+    fireEvent.click(screen.getByRole('button', { name: /section timer options/i }))
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Inspector/ }))
 
     expect(screen.getByTestId('lsat-timer')).toHaveAttribute(
@@ -222,7 +345,7 @@ describe('SectionTimerWidget docking', () => {
 
   it('marks the current dock in the move menu', () => {
     renderDocks()
-    fireEvent.click(screen.getByRole('button', { name: /move the section timer/i }))
+    fireEvent.click(screen.getByRole('button', { name: /section timer options/i }))
     expect(screen.getByRole('menuitemradio', { name: /Sidebar/ })).toHaveAttribute(
       'aria-checked',
       'true',
@@ -254,7 +377,7 @@ describe('SectionTimerWidget visibility (spec 050)', () => {
 
   it('offers the same choice from its own menu', () => {
     renderDocks()
-    fireEvent.click(screen.getByRole('button', { name: /move the section timer/i }))
+    fireEvent.click(screen.getByRole('button', { name: /section timer options/i }))
     const row = screen.getByRole('menuitemcheckbox', { name: /Show when idle/ })
     expect(row).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(row)

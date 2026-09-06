@@ -1,25 +1,29 @@
 """``lsat_synth`` — drive the deterministic item generator.
 
-Spec 049 FR-13/FR-16. Five verbs:
+Spec 049 FR-13/FR-16. Six verbs:
 
-``list``      what schemas and domains exist, and which prove versus construct
-``preview``   render one item with its full verification report
-``verify``    prove every schema against every domain without emitting anything
-``generate``  produce a batch, to a file, to the review queue, or to the bank
-``sweep``     the engine's own regression test, exit non-zero on any failure
+``list``          what schemas and domains exist, and which prove versus construct
+``preview``       render one item with its full verification report
+``verify``        prove every schema against every domain without emitting anything
+``generate``      produce a batch, to a file, to the review queue, or to the bank
+``sweep``         the engine's own regression test, exit non-zero on any failure
+``polish-yield``  measure the polish prompt: proposed vs accepted, by reject reason
 
-Nothing here touches the network unless ``--polish`` is passed.
+Nothing here touches the network unless ``--polish`` is passed, or the
+``polish-yield`` verb is run — that verb *is* a live measurement of the prompt
+(BL-20260903-17) and calls the provider chain by design.
 
     make lsat-synth-sweep
     make lsat-synth-preview ARGS='--schema lr-quantifier-most-overlap --domain field-biology'
     make lsat-synth-generate ARGS='--schema lr-necessary-assumption --count 20 --emit proposals'
+    make lsat-synth-polish-yield ARGS='--rounds 2 --count 6'
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.core.management.base import BaseCommand, CommandError
 
@@ -30,7 +34,7 @@ from law_ai.lsat.synth.generate import (
     generate_batch,
     sweep,
 )
-from law_ai.lsat.synth.lexicon import load_domains
+from law_ai.lsat.synth.lexicon import DomainPack, Property, get_domain, load_domains
 from law_ai.lsat.synth.promote import (
     PromotionRefused,
     promote_to_bank,
@@ -38,7 +42,14 @@ from law_ai.lsat.synth.promote import (
 )
 from law_ai.lsat.synth.schemas import all_schemas, get_schema
 
-_ACTIONS = ("list", "preview", "verify", "generate", "sweep")
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from law_ai.lsat.synth.polish import PolishYield
+
+_ACTIONS = ("list", "preview", "verify", "generate", "sweep", "polish-yield")
+
+#: Where ``polish-yield`` writes its report, relative to the process cwd
+#: (``/app`` in Docker = ``./backend`` on the host), like ``--emit jsonl``.
+_YIELD_REPORT = "var/lsat_synth/polish_yield.json"
 
 
 class Command(BaseCommand):
@@ -72,6 +83,18 @@ class Command(BaseCommand):
             action="store_true",
             help="Opt in to the one model call: vocabulary proposals only, "
             "re-rendered through the unchanged template and re-verified.",
+        )
+        parser.add_argument(
+            "--rounds",
+            type=int,
+            default=1,
+            help="polish-yield: proposal rounds per domain. Default 1.",
+        )
+        parser.add_argument(
+            "--strict",
+            action="store_true",
+            help="polish-yield: exit non-zero when the measured yield falls "
+            "below the floor.",
         )
 
     # -- list ---------------------------------------------------------------
@@ -268,6 +291,165 @@ class Command(BaseCommand):
             raise CommandError(f"{len(result.failures)} generation(s) failed")
         self.stdout.write(self.style.SUCCESS("every generated item verified"))
 
+    # -- polish-yield -------------------------------------------------------
+
+    def _rounds_for(
+        self, domain: DomainPack, *, rounds: int, count: int
+    ) -> tuple[list[PolishYield], list[Property]]:
+        """Run the proposal prompt N times against one domain.
+
+        Returns the per-round yields and every property that survived the lint,
+        so the caller can check that the accepted vocabulary still renders a
+        verifiable item.
+        """
+        from asgiref.sync import async_to_sync
+
+        from law_ai.lsat.synth.polish import propose_with_yield
+
+        measured: list[PolishYield] = []
+        accepted: list[Property] = []
+        for _ in range(rounds):
+            properties, result = async_to_sync(propose_with_yield)(domain, count=count)
+            measured.append(result)
+            accepted.extend(properties)
+        return measured, accepted
+
+    def _reverifies(
+        self, domain: DomainPack, properties: list[Property]
+    ) -> bool | None:
+        """Does the accepted vocabulary still render a verified item?
+
+        None when there is nothing to try — no accepted properties, or no
+        schema whose capability this domain supplies.
+        """
+        if not properties:
+            return None
+        extended = domain.model_copy(
+            update={"properties": [*properties, *domain.properties]}
+        )
+        for schema in all_schemas():
+            if not domain.supports(schema.meta.capability):
+                continue
+            try:
+                item = generate(
+                    schema.meta.id, domain.id, seed=0, domain_override=extended
+                )
+            except Exception:
+                return False
+            return bool(item.report.ok)
+        return None
+
+    def _yield_report(self, opts: dict[str, Any]) -> dict[str, Any]:
+        """Measure the polish prompt across the requested domains."""
+        from law_ai.lsat.synth import ENGINE_VERSION
+        from law_ai.lsat.synth.polish import POLISH_YIELD_FLOOR, PolishYield
+
+        domains = (
+            [get_domain(opts["domain"])]
+            if opts["domain"]
+            else list(load_domains().values())
+        )
+        rounds = max(1, int(opts["rounds"]))
+        count = max(1, int(opts["count"]))
+        overall = PolishYield()
+        by_provider: dict[str, PolishYield] = {}
+        by_domain: list[dict[str, Any]] = []
+        errors: dict[str, int] = {}
+        for domain in domains:
+            measured, accepted = self._rounds_for(domain, rounds=rounds, count=count)
+            per_domain = PolishYield()
+            for result in measured:
+                overall.merge(result)
+                per_domain.merge(result)
+                if result.error:
+                    errors[result.error] = errors.get(result.error, 0) + 1
+                    continue
+                tier = result.model_label or result.provider or "unknown"
+                by_provider.setdefault(tier, PolishYield()).merge(result)
+            by_domain.append(
+                {
+                    "domain_id": domain.id,
+                    "rounds": rounds,
+                    **self._yield_dump(per_domain),
+                    "accepted_reverifies": self._reverifies(domain, accepted),
+                }
+            )
+        return {
+            "engine_version": ENGINE_VERSION,
+            "floor": POLISH_YIELD_FLOOR,
+            "rounds_per_domain": rounds,
+            "proposals_per_round": count,
+            "errors": errors,
+            "overall": self._yield_dump(overall),
+            "by_provider": {
+                tier: self._yield_dump(agg) for tier, agg in sorted(by_provider.items())
+            },
+            "by_domain": by_domain,
+        }
+
+    @staticmethod
+    def _yield_dump(measured: PolishYield) -> dict[str, Any]:
+        return {
+            "proposed": measured.proposed,
+            "accepted": measured.accepted,
+            "rate": round(measured.rate, 4),
+            "rejected": dict(sorted(measured.rejected.items())),
+        }
+
+    def _polish_yield(self, opts: dict[str, Any]) -> None:
+        from law_ai.lsat.synth.polish import POLISH_YIELD_FLOOR, REJECT_REASONS
+
+        report = self._yield_report(opts)
+        self.stdout.write(self.style.MIGRATE_HEADING("\nPolish yield"))
+        self.stdout.write(
+            f"  {'domain':24s} {'proposed':>8s} {'accepted':>8s} {'rate':>7s}  rejects"
+        )
+        for row in report["by_domain"]:
+            rejects = ", ".join(
+                f"{reason}={row['rejected'][reason]}"
+                for reason in REJECT_REASONS
+                if row["rejected"].get(reason)
+            )
+            self.stdout.write(
+                f"  {row['domain_id']:24s} {row['proposed']:8d} "
+                f"{row['accepted']:8d} {row['rate']:7.2f}  {rejects}"
+            )
+        for tier, agg in report["by_provider"].items():
+            self.stdout.write(
+                f"  tier {tier}: {agg['accepted']}/{agg['proposed']} "
+                f"({agg['rate']:.2f})"
+            )
+        if report["errors"]:
+            detail = ", ".join(f"{k}={v}" for k, v in sorted(report["errors"].items()))
+            self.stdout.write(
+                self.style.WARNING(f"  rounds that never linted: {detail}")
+            )
+
+        out = Path(opts["out"] or _YIELD_REPORT)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        overall = report["overall"]
+        self.stdout.write(
+            f"\n  overall {overall['accepted']}/{overall['proposed']} "
+            f"= {overall['rate']:.2f} (floor {POLISH_YIELD_FLOOR:.2f}) → {out}"
+        )
+        if not overall["proposed"]:
+            message = "no proposal round reached the lint — no provider answered"
+            if opts["strict"]:
+                raise CommandError(message)
+            self.stdout.write(self.style.WARNING(f"  {message}"))
+            return
+        if overall["rate"] < POLISH_YIELD_FLOOR:
+            message = (
+                f"polish yield {overall['rate']:.2f} is below the "
+                f"{POLISH_YIELD_FLOOR:.2f} floor — the prompt needs re-authoring"
+            )
+            if opts["strict"]:
+                raise CommandError(message)
+            self.stdout.write(self.style.WARNING(f"  {message}"))
+        else:
+            self.stdout.write(self.style.SUCCESS("  yield is at or above the floor"))
+
     def handle(self, *args: Any, **opts: Any) -> None:
         {
             "list": self._list,
@@ -275,4 +457,5 @@ class Command(BaseCommand):
             "verify": self._verify,
             "generate": self._generate,
             "sweep": self._sweep,
+            "polish-yield": self._polish_yield,
         }[opts["action"]](opts)

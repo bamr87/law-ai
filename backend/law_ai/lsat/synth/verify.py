@@ -36,8 +36,10 @@ from pydantic import BaseModel, Field
 from law_ai.lsat.services.bank import ChoiceLabel
 from law_ai.lsat.synth.logic import (
     Evaluation,
+    EvaluationResult,
     InconsistentPremises,
     Statement,
+    SynthLogicError,
     evaluate,
 )
 from law_ai.lsat.synth.schemas import Blueprint, ProofKind
@@ -79,6 +81,11 @@ class VerificationReport(BaseModel):
     space: str = "n/a"
     space_models: int = 0
     premise_models: int = 0
+    #: How the entailments were settled — ``enumerated`` (every model of the
+    #: space was visited) or ``symbolic`` (a constraint solver decided them,
+    #: because the space is too wide to enumerate). Both are proofs; only the
+    #: model counts mean different things, and the summary says which.
+    decision: str = "enumerated"
     credited_label: str
     choices: list[ChoiceStatus] = Field(default_factory=list)
     checks: list[Check] = Field(default_factory=list)
@@ -95,6 +102,13 @@ class VerificationReport(BaseModel):
         verdict = "verified" if self.ok else "FAILED"
         if self.proof_kind == "structural":
             return f"{verdict} ({self.proof_kind}; {len(self.checks)} checks)"
+        if self.decision == "symbolic":
+            return (
+                f"{verdict} ({self.proof_kind}, decided symbolically over "
+                f"{self.space_models} possible count vectors; "
+                f"{self.premise_models} witness model(s); "
+                f"{len(self.checks)} checks)"
+            )
         return (
             f"{verdict} ({self.proof_kind}; {self.premise_models} of "
             f"{self.space_models} models satisfy the premises; "
@@ -185,7 +199,7 @@ def _surface_checks(choices: list[LabelledChoice]) -> list[Check]:
 def _family_checks(
     blueprint: Blueprint,
     choices: list[LabelledChoice],
-    result: Evaluation,
+    result: EvaluationResult,
     credited_index: int,
 ) -> list[Check]:
     """The rule that defines what "correct" means for this item's family."""
@@ -313,6 +327,7 @@ def verify(
         return report
 
     report.premise_models = result.premise_models
+    report.decision = result.decision
     report.choices = [
         ChoiceStatus(
             label=c.label,
@@ -344,11 +359,11 @@ def verify(
         seen: dict[int, str] = {}
         equivalents: list[str] = []
         for i, choice in enumerate(choices):
-            mask = result.masks[i]
-            if mask in seen:
-                equivalents.append(f"{seen[mask]}={choice.label}")
+            key = result.key(i)
+            if key in seen:
+                equivalents.append(f"{seen[key]}={choice.label}")
             else:
-                seen[mask] = choice.label
+                seen[key] = choice.label
         checks.append(
             Check(
                 name="no_equivalent_choices",
@@ -365,7 +380,7 @@ def verify(
 def _assumption_checks(
     blueprint: Blueprint,
     choices: list[LabelledChoice],
-    result: Evaluation,
+    result: EvaluationResult,
     credited_index: int,
 ) -> list[Check]:
     """The exact model-theoretic criteria, read off the shared truth masks.
@@ -388,6 +403,16 @@ def _assumption_checks(
                 detail="an assumption item needs a conclusion to test against",
             )
         ]
+    if not isinstance(result, Evaluation):
+        # The assumption criteria are set inclusions between truth masks, and a
+        # symbolically-decided space has only witness samples. Rather than
+        # weaken the criterion, refuse the combination: no assumption schema
+        # uses a symbolic space today, and one that wants to must teach the
+        # solver these relations first.
+        raise SynthLogicError(
+            "assumption families are decided over an enumerated space; "
+            f"{blueprint.family!r} cannot be proved symbolically yet"
+        )
     # The conclusion was appended after the choices in `evaluate`.
     conclusion_mask = result.masks[len(choices)]
     full = (1 << result.premise_models) - 1

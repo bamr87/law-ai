@@ -1,0 +1,20 @@
+{
+  "/": {
+    "color-contrast": 8
+  },
+  "/agents": {
+    "color-contrast": 7
+  },
+  "/analysis": {
+    "color-contrast": 9
+  },
+  "/graph": {
+    "color-contrast": 13
+  },
+  "/lsat": {
+    "color-contrast": 8
+  },
+  "/settings": {
+    "color-contrast": 10
+  }
+}

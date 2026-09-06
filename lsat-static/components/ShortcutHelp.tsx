@@ -21,6 +21,7 @@ const GROUPS: Group[] = [
     rows: [
       ['?', 'Show or hide this reference'],
       ['[  /  ]', 'Previous / next section'],
+      ['.', 'Keep the header visible, or let it hide on scroll'],
       ['Esc', 'Close this reference'],
     ],
   },

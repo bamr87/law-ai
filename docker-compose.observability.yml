@@ -1,0 +1,106 @@
+# Metrics overlay for the server / multi-GPU tier (BL-20260502-03).
+#
+#   make observability-up      # prometheus + grafana + redis exporter (any host)
+#   make local-ai-up-server    # the above + the GPU overlay + vLLM + dcgm
+#
+# Metrics only. Phoenix stays the trace backend (spec 010 FR-6) and
+# `core.provenance` stays the audit trail — Prometheus answers "is the box
+# keeping up", not "what did the model say".
+#
+# Everything here sits behind a profile, so `make dev` and `docker compose up`
+# are untouched. Pair it with docker-compose.gpu.yml for GPU panels; alone it
+# still gives queue depth, which is useful on a laptop.
+
+services:
+  prometheus:
+    profiles: [ "observability" ]
+    # Pinned like every other image in this repo.
+    image: prom/prometheus:v3.1.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # Dev box, not a metrics archive.
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -q --spider http://localhost:9090/-/healthy || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  grafana:
+    profiles: [ "observability" ]
+    image: grafana/grafana:11.5.1
+    # 3000 belongs to the Next dev server, and 3001 is where a self-hosted
+    # Langfuse lands (LANGFUSE_HOST, BL-20260502-07) — so Grafana takes 3002.
+    ports:
+      - "3002:3000"
+    environment:
+      # Local dev credentials, deliberately boring. This overlay binds to the
+      # host, so do not run it on a shared machine without changing them.
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+    volumes:
+      # Datasource + dashboard are provisioned from the repo, so the dashboard
+      # is code: edit infra/grafana/dashboards/local-ai.json, not the UI.
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_started
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  redis-exporter:
+    profiles: [ "observability" ]
+    image: oliver006/redis_exporter:v1.67.0
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      # Queue depth: a Celery queue is a Redis list, and these are the two the
+      # worker consumes (`-Q autonomy,celery`). The exporter publishes their
+      # length as redis_key_size{key="…"}.
+      - REDIS_EXPORTER_CHECK_KEYS=celery,autonomy
+    ports:
+      - "9121:9121"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  dcgm-exporter:
+    # Separate profile from `observability`: this one needs NVIDIA hardware,
+    # and the rest of the overlay must stay runnable on a laptop.
+    profiles: [ "gpu-metrics" ]
+    image: nvidia/dcgm-exporter:3.3.9-3.6.1-ubuntu22.04
+    ports:
+      - "9400:9400"
+    cap_add:
+      - SYS_ADMIN
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu, utility ]
+    restart: unless-stopped
+
+volumes:
+  promdata:
+  grafanadata:

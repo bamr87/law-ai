@@ -49,7 +49,7 @@ No new top-level frameworks (e.g. Vue, LlamaIndex as primary) without an ADR in 
 A spec **must** declare and a PR **must** pass:
 
 - `ruff check` + `black --check` clean (line length 88).
-- `mypy law_ai --strict` clean for any touched module.
+- `mypy law_ai --strict` clean for any touched module, and never worse anywhere. `make typecheck` runs the strict check through the ratchet in [scripts/mypy_ratchet.py](../scripts/mypy_ratchet.py), which compares per-file strict-error counts against `backend/mypy-baseline.txt` and fails when a count grows or a file the baseline calls clean stops being clean. A file with no baseline entry — every new module — must be strict-clean. Burning a file down is a diff to that baseline (`make mypy-baseline`); the baseline may only shrink, and when it reaches zero it is deleted so plain `mypy law_ai --strict` becomes the gate (BL-20260429-04).
 - Frontend: `npm run lint` + `npx tsc --noEmit` clean.
 - Pytest + Vitest green; combined coverage **≥ 75%** on changed files.
 - LegalBench regression run (`Run LegalBench Eval` task) when reasoning logic changes — score must not regress more than 1 pp on listed tasks.

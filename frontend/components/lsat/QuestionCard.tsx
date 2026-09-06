@@ -13,24 +13,43 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { usePageShortcuts } from '@/components/shell/PageShortcuts'
 import { useRovingTabIndex } from '@/components/shell/useRovingTabIndex'
+import { LSAT_DRILL_SHORTCUTS } from '@/components/lsat/drillShortcuts'
+import { useShortcuts, type ShortcutMap } from '@/lib/lsat/keyboard'
 import {
   gradeLsat,
   type LsatChoiceLabel,
   type LsatGradeResponse,
   type LsatQuestion,
+  type LsatTutorTrace,
 } from '@/lib/api'
-import { QuestionElapsed } from '@/components/LsatTimer'
 import ConceptRefs from '@/components/lsat/ConceptRefs'
 import CrossCheckPanel from '@/components/lsat/CrossCheckPanel'
 import { DiffBadge } from '@/components/lsat/LabPrimitives'
+import { QuestionElapsed } from '@/components/lsat/QuestionElapsed'
 import SolveAssist from '@/components/lsat/SolveAssist'
 import TutorPane from '@/components/lsat/TutorPane'
+
+/**
+ * What a panel has to hold on a learner's behalf when it swaps this card out
+ * for another one. The card is keyed on the question, so everything it owns is
+ * destroyed on the way past — mirroring `lsat-static`'s `Drill.Answer`, which
+ * exists for the same reason (BL-20260901-08).
+ */
+export interface SavedAnswer {
+  choice: LsatChoiceLabel
+  result: LsatGradeResponse
+  elapsedSeconds: number
+}
 
 export default function QuestionCard({
   question,
   onResolved,
   onNext,
+  onPrev,
+  browsable = false,
+  saved,
   compact,
   elapsedEnabled = true,
   onActivate,
@@ -41,22 +60,55 @@ export default function QuestionCard({
     r: LsatGradeResponse,
     elapsedSeconds: number,
     hintsUsed?: number,
+    /**
+     * The label the learner picked. The grade response names only the *correct*
+     * choice, so a panel that has to restore this card later (RC/LG) cannot
+     * recover the pick from it.
+     */
+    choice?: LsatChoiceLabel,
   ) => void
   onNext?: () => void
+  /** Step back one question — only a fixed stack (RC/LG) has one. */
+  onPrev?: () => void
+  /**
+   * This question sits in a *fixed* stack the learner can move around in
+   * (RC/LG), rather than a stream dealt one at a time (LR). In a stack `N` may
+   * skip forward before grading, because the question skipped is still there
+   * to come back to; in a stream it must not be, because it is not.
+   */
+  browsable?: boolean
+  /** A graded answer this panel is holding for the question (BL-20260901-08). */
+  saved?: SavedAnswer | null
   compact?: boolean
   elapsedEnabled?: boolean
   onActivate?: () => void
   /** Focus target the panel moves to when it swaps in a new question. */
   cardRef?: React.Ref<HTMLDivElement>
 }) {
-  const [selected, setSelected] = useState<LsatChoiceLabel | null>(null)
-  const [result, setResult] = useState<LsatGradeResponse | null>(null)
+  const [selected, setSelected] = useState<LsatChoiceLabel | null>(
+    saved?.choice ?? null,
+  )
+  const [result, setResult] = useState<LsatGradeResponse | null>(
+    saved?.result ?? null,
+  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showTutor, setShowTutor] = useState(false)
   const [walkthrough, setWalkthrough] = useState(false)
-  const elapsedRef = useRef(0)
+  const elapsedRef = useRef(saved?.elapsedSeconds ?? 0)
   const hintsUsedRef = useRef(0)
+  // Read through a ref inside the reset effect below: a panel rebuilds the
+  // saved-answer object on every render, and depending on it directly would
+  // reset the card mid-question.
+  const savedRef = useRef(saved)
+  useEffect(() => {
+    savedRef.current = saved
+  })
+
+  // Publish this card's keys to the shell's `?` sheet while it is on screen
+  // (BL-20260901-10): the drill's letters and Enter were discoverable only
+  // from the card's own hint line.
+  usePageShortcuts(LSAT_DRILL_SHORTCUTS)
 
   // One tab stop for the whole choice list, arrows move and select within it —
   // the same pattern `lsat-static/components/QuestionCard.tsx` has always had.
@@ -73,16 +125,33 @@ export default function QuestionCard({
     },
   })
 
-  // Reset when the question changes.
+  // Reset when the question changes — back to whatever the panel has saved for
+  // the new question, so stepping back through a passage stack shows the
+  // answers you already gave rather than a blank card.
   useEffect(() => {
-    setSelected(null)
-    setResult(null)
+    const s = savedRef.current
+    setSelected(s?.choice ?? null)
+    setResult(s?.result ?? null)
     setShowTutor(false)
     setWalkthrough(false)
     setError(null)
-    elapsedRef.current = 0
+    elapsedRef.current = s?.elapsedSeconds ?? 0
     hintsUsedRef.current = 0
   }, [question.id])
+
+  /**
+   * The attempt trace the tutor coaches against (BL-20260429-18).
+   *
+   * A callback, not a value, and deliberately unmemoized: it reads refs that
+   * move as the learner works, so the tutor is told what they had done *when
+   * they asked* rather than what the card knew when the pane mounted. Nothing
+   * downstream keys off its identity.
+   */
+  const attemptTrace = (): LsatTutorTrace => ({
+    hints_used: hintsUsedRef.current,
+    seconds_on_question: Math.round(elapsedRef.current),
+    ...(saved?.choice ? { prior_choices: [saved.choice] } : {}),
+  })
 
   const onHintsUsedChange = useCallback((n: number) => {
     hintsUsedRef.current = n
@@ -96,9 +165,12 @@ export default function QuestionCard({
     setSubmitting(true)
     setError(null)
     try {
-      const r = await gradeLsat(question.id, selected, hintsUsed)
+      // `question.remap` is the signed order this serve used, when the
+      // choices were shuffled (BL-20260606-01); the grader needs it to read
+      // the picked label back into the stored one.
+      const r = await gradeLsat(question.id, selected, hintsUsed, question.remap)
       setResult(r)
-      onResolved(r, elapsed, hintsUsed)
+      onResolved(r, elapsed, hintsUsed, selected)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Grade failed')
     } finally {
@@ -106,34 +178,75 @@ export default function QuestionCard({
     }
   }
 
-  // Keyboard drilling: A–E pick a choice, Enter submits, then N (or Enter
-  // again) draws the next question. Scoped to the card (events bubble from the
-  // focused choice buttons) so stacked RC/LG cards never react to one
-  // another's keypresses, and we ignore keys typed into the tutor's text
-  // input.
+  // Pick a choice by its letter, moving focus with it — exactly as the static
+  // drill's `focusLabel` does. Selecting without moving focus left the two out
+  // of step, and then Enter — read below off the *focused* choice — meant a
+  // different answer from the one showing as checked (BL-20260702-13).
+  const pickLabel = (label: string) => {
+    if (result || submitting) return
+    const i = question.choices.findIndex((c) => c.label === label)
+    if (i < 0) return
+    setSelected(label as LsatChoiceLabel)
+    choiceRoving.focusItem(i)
+  }
+
+  // The drill's keys, bound at the window (BL-20260901-06) through the same
+  // module the static site uses. They were scoped to this card's DOM subtree,
+  // which meant none of them did anything until you had tabbed or clicked into
+  // it — the platform asked for a hand on the mouse to start a drill the
+  // static site started from the keyboard. Stacked cards were the reason for
+  // the old scoping and there are none any more: every panel renders exactly
+  // one question (BL-20260901-08).
+  //
+  // `Enter` deliberately stays on the card handler below. A window binding
+  // has to `preventDefault()` before it can run, and Enter is the key every
+  // button on the page already answers — swallowing it would break "Ask AI
+  // Tutor", "Show final step" and the jump strip for keyboard users.
+  const keymap: ShortcutMap = {}
+  for (const c of question.choices) {
+    keymap[c.label.toLowerCase()] = () => pickLabel(c.label)
+  }
+  // `N` moves forward once the question is graded, and — in a fixed stack —
+  // before that too, so a hard question can be skipped and come back to. A
+  // dealt stream (LR) must not: the question it would deal is not the one that
+  // was skipped, so there is no coming back.
+  if (onNext && (result !== null || browsable)) keymap.n = () => onNext()
+  // `P` steps back whenever there is anything to step back to, graded or not.
+  if (onPrev) keymap.p = () => onPrev()
+  useShortcuts(keymap, { enabled: !submitting })
+
+  // Enter, scoped to this card: on a radio that is not the selected one it
+  // selects that choice rather than grading another; anywhere else on the card
+  // it submits the selection, and once graded it draws the next question.
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (submitting) return
-    // Let modified shortcuts (Ctrl/⌘/Alt+key, e.g. Select All) reach the browser.
+    if (submitting || e.key !== 'Enter') return
+    // Let modified shortcuts (Ctrl/⌘/Alt+key) reach the browser.
     if (e.ctrlKey || e.metaKey || e.altKey) return
     const tag = (e.target as HTMLElement).tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA') return
-    const key = e.key.toUpperCase()
+    // Every other button on the card answers Enter itself — "Ask AI Tutor",
+    // "Show final step", the jump strip. Taking Enter from them would make
+    // them mouse-only. The choices are buttons too, and they are the one kind
+    // this card does own.
+    const button = (e.target as HTMLElement).closest?.('button')
+    const onOtherControl = Boolean(button && button.getAttribute('role') !== 'radio')
     if (result) {
       // Graded: the only move left is forward, and it was two Tab stops away
       // past the hint carousel — far enough that a timed drill reached for the
       // mouse instead.
-      if (onNext && (key === 'N' || e.key === 'Enter')) {
+      if (onNext && !onOtherControl) {
         e.preventDefault()
         onNext()
       }
       return
     }
-    if (['A', 'B', 'C', 'D', 'E'].includes(key)) {
-      if (question.choices.some((c) => c.label === key)) {
-        setSelected(key as LsatChoiceLabel)
-        e.preventDefault()
-      }
-    } else if (e.key === 'Enter' && selected) {
+    if (onOtherControl) return
+    const focused = (e.target as HTMLElement).closest?.('[role="radio"]')
+    const label = focused?.getAttribute('data-choice') ?? null
+    if (label !== null && label !== selected) {
+      e.preventDefault()
+      setSelected(label as LsatChoiceLabel)
+    } else if (selected) {
       e.preventDefault()
       void submit()
     }
@@ -224,6 +337,10 @@ export default function QuestionCard({
                 type="button"
                 {...choiceRoving.itemProps(i)}
                 role="radio"
+                // The card-level Enter handler reads the focused choice back
+                // off this, so it can never grade a choice other than the one
+                // the cursor is on (BL-20260702-13).
+                data-choice={c.label}
                 aria-checked={isSelected}
                 // `aria-disabled`, not `disabled`: a disabled button leaves the
                 // focus order, so grading while a choice had focus dropped
@@ -267,6 +384,15 @@ export default function QuestionCard({
             Enter
           </kbd>{' '}
           for the next question
+          {onPrev && (
+            <>
+              {' · '}
+              <kbd className="rounded border border-slate-700 bg-slate-800/60 px-1 font-mono text-slate-300">
+                P
+              </kbd>{' '}
+              for the previous one
+            </>
+          )}
         </p>
       )}
 
@@ -285,6 +411,19 @@ export default function QuestionCard({
             Enter
           </kbd>{' '}
           to submit
+          {browsable && (
+            <>
+              {' · '}
+              <kbd className="rounded border border-slate-700 bg-slate-800/60 px-1 font-mono text-slate-300">
+                N
+              </kbd>
+              /
+              <kbd className="rounded border border-slate-700 bg-slate-800/60 px-1 font-mono text-slate-300">
+                P
+              </kbd>{' '}
+              to move between questions
+            </>
+          )}
         </p>
       )}
 
@@ -295,6 +434,7 @@ export default function QuestionCard({
         graded={result !== null}
         onHintsUsedChange={onHintsUsedChange}
         onAskTutor={openWalkthrough}
+        remap={question.remap}
       />
 
       {walkthrough && !result && (
@@ -302,6 +442,7 @@ export default function QuestionCard({
           questionId={question.id}
           userChoice={selected}
           initialQuestion="Walk me through the setup step by step without revealing the answer."
+          trace={attemptTrace}
         />
       )}
 
@@ -372,6 +513,7 @@ export default function QuestionCard({
         <TutorPane
           questionId={question.id}
           userChoice={selected}
+          trace={attemptTrace}
         />
       )}
     </div>

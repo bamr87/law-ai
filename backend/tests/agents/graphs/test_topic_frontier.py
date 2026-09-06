@@ -567,3 +567,233 @@ class TestStateGraphCompilation:
             out = await tf.run(trace_id="t-graph")
         assert out.trace_id == "t-graph"
         assert out.targets == []
+
+
+# ---------------------------------------------------------------------------
+# BL-20260511-21: state-machine transition assertions
+# BL-20260511-31: checkpointing, retries, conditional branching
+# ---------------------------------------------------------------------------
+
+
+def _stub_scan(state: dict[str, Any], **_: Any) -> dict[str, Any]:
+    return {
+        **state,
+        "orphan_citations": ["410 U.S. 113"],
+        "under_cited_jurisdictions": ["us-ca"],
+    }
+
+
+class _RecordingScout:
+    """IngestionScout stand-in that commits everything it is handed."""
+
+    def __init__(self) -> None:
+        self.calls: list[Any] = []
+
+    async def run_and_commit(self, doc: Any) -> Any:
+        self.calls.append(doc)
+        return MagicMock(committed=True, confidence=0.9, human_approval_required=False)
+
+
+class TestGraphTransitions:
+    """The compiled graph's *edges*, not just its nodes (BL-20260511-21)."""
+
+    def _edges(self, tf: Any) -> set[tuple[str, str]]:
+        graph = tf._build_graph().get_graph()
+        return {(e.source, e.target) for e in graph.edges}
+
+    def test_edge_set_matches_the_declared_state_machine(self) -> None:
+        pytest.importorskip("langgraph")
+        edges = self._edges(tf_module.TopicFrontier())
+        assert edges == {
+            ("__start__", "scan_graph"),
+            ("scan_graph", "prioritize"),
+            ("prioritize", "dispatch"),
+            ("prioritize", "summarize"),
+            ("dispatch", "summarize"),
+            ("summarize", "__end__"),
+        }
+
+    def test_prioritize_branch_is_conditional(self) -> None:
+        """The two prioritize edges are a branch, not two unconditional edges."""
+        pytest.importorskip("langgraph")
+        graph = tf_module.TopicFrontier()._build_graph().get_graph()
+        out_of_prioritize = [e for e in graph.edges if e.source == "prioritize"]
+        assert len(out_of_prioritize) == 2
+        assert all(e.conditional for e in out_of_prioritize)
+        # dispatch -> summarize stays a plain edge
+        assert not [
+            e
+            for e in graph.edges
+            if e.source == "dispatch" and e.target == "summarize" and e.conditional
+        ]
+
+    def test_route_after_prioritize(self) -> None:
+        assert tf_module._route_after_prioritize({"targets": [{"query": "x"}]}) == (
+            "dispatch"
+        )
+        assert tf_module._route_after_prioritize({"targets": []}) == "summarize"
+        assert tf_module._route_after_prioritize({}) == "summarize"
+
+    def test_retry_policy_on_the_network_bound_nodes(self) -> None:
+        """prioritize/dispatch retry; scan_graph/summarize do not."""
+        pytest.importorskip("langgraph")
+        compiled = tf_module.TopicFrontier()._build_graph()
+        nodes = compiled.nodes
+        assert nodes["prioritize"].retry_policy
+        assert nodes["dispatch"].retry_policy
+        assert not nodes["scan_graph"].retry_policy
+        assert not nodes["summarize"].retry_policy
+
+    @pytest.mark.asyncio
+    async def test_nodes_execute_in_declared_order(self) -> None:
+        """astream(updates) proves the traversal, not just the final output."""
+        pytest.importorskip("langgraph")
+        scout = _RecordingScout()
+        adapter = MagicMock()
+        adapter.requires_human_approval = False
+        adapter.fetch = MagicMock(
+            return_value=[MagicMock(source_url="https://x/1", source_name="cl")]
+        )
+
+        with (
+            patch.object(
+                tf_module, "_node_scan_graph", new=AsyncMock(side_effect=_stub_scan)
+            ),
+            patch.object(
+                tf_module,
+                "_node_dispatch",
+                new=AsyncMock(
+                    side_effect=lambda state, **_: {**state, "dispatched": []}
+                ),
+            ),
+            patch.object(tf_module.audit_jsonl, "record", lambda *_: None),
+            patch.object(tf_module.provenance, "log_agent_call", lambda *a, **k: "t"),
+        ):
+            tf = tf_module.TopicFrontier(
+                llm_caller=lambda *_, **__: _FAKE_TARGETS,
+                registry={"courtlistener": adapter},
+                scout_factory=lambda: scout,
+            )
+            graph = tf._build_graph()
+            seen: list[str] = []
+            async for chunk in graph.astream(
+                {
+                    "trace_id": "t-order",
+                    "orphan_citations": [],
+                    "under_cited_jurisdictions": [],
+                    "targets": [],
+                    "dispatched": [],
+                    "human_approval_required": False,
+                    "latency_ms": 0.0,
+                },
+                stream_mode="updates",
+            ):
+                seen.extend(chunk.keys())
+
+        assert seen == ["scan_graph", "prioritize", "dispatch", "summarize"]
+
+    @pytest.mark.asyncio
+    async def test_empty_ranking_skips_dispatch(self) -> None:
+        """The conditional edge means dispatch never runs on an empty ranking."""
+        pytest.importorskip("langgraph")
+
+        with (
+            patch.object(
+                tf_module, "_node_scan_graph", new=AsyncMock(side_effect=_stub_scan)
+            ),
+            patch.object(tf_module.audit_jsonl, "record", lambda *_: None),
+            patch.object(tf_module.provenance, "log_agent_call", lambda *a, **k: "t"),
+        ):
+            tf = tf_module.TopicFrontier(
+                llm_caller=lambda *_, **__: "[]",
+                registry={},
+                scout_factory=MagicMock,
+            )
+            graph = tf._build_graph()
+            seen: list[str] = []
+            async for chunk in graph.astream(
+                {
+                    "trace_id": "t-empty",
+                    "orphan_citations": [],
+                    "under_cited_jurisdictions": [],
+                    "targets": [],
+                    "dispatched": [],
+                    "human_approval_required": False,
+                    "latency_ms": 0.0,
+                },
+                stream_mode="updates",
+            ):
+                seen.extend(chunk.keys())
+
+        assert seen == ["scan_graph", "prioritize", "summarize"]
+        assert "dispatch" not in seen
+
+    @pytest.mark.asyncio
+    async def test_sequential_fallback_honours_the_same_branch(self) -> None:
+        """_run_sequential must not drift from the compiled graph."""
+        dispatch = AsyncMock(side_effect=lambda state, **_: {**state, "dispatched": []})
+        with (
+            patch.object(
+                tf_module, "_node_scan_graph", new=AsyncMock(side_effect=_stub_scan)
+            ),
+            patch.object(tf_module, "_node_dispatch", new=dispatch),
+            patch.object(tf_module.audit_jsonl, "record", lambda *_: None),
+            patch.object(tf_module.provenance, "log_agent_call", lambda *a, **k: "t"),
+        ):
+            tf = tf_module.TopicFrontier(
+                llm_caller=lambda *_, **__: "[]", registry={}, scout_factory=MagicMock
+            )
+            await tf._run_sequential(
+                {
+                    "trace_id": "t-seq",
+                    "orphan_citations": [],
+                    "under_cited_jurisdictions": [],
+                    "targets": [],
+                    "dispatched": [],
+                    "human_approval_required": False,
+                    "latency_ms": 0.0,
+                }
+            )
+        dispatch.assert_not_awaited()
+
+
+class TestCheckpointing:
+    """BL-20260511-31: the compiled graph persists node state when asked."""
+
+    @pytest.mark.asyncio
+    async def test_run_writes_checkpoints_for_the_thread(self) -> None:
+        pytest.importorskip("langgraph")
+        from langgraph.checkpoint.memory import MemorySaver
+
+        saver = MemorySaver()
+        with (
+            patch.object(
+                tf_module, "_node_scan_graph", new=AsyncMock(side_effect=_stub_scan)
+            ),
+            patch.object(tf_module.audit_jsonl, "record", lambda *_: None),
+            patch.object(tf_module.provenance, "log_agent_call", lambda *a, **k: "t"),
+        ):
+            tf = tf_module.TopicFrontier(
+                llm_caller=lambda *_, **__: "[]",
+                registry={},
+                scout_factory=MagicMock,
+                checkpointer=saver,
+            )
+            out = await tf.run(trace_id="t-ckpt", thread_id="thread-1")
+
+        assert out.trace_id == "t-ckpt"
+        config = {"configurable": {"thread_id": "thread-1"}}
+        tuples = [c async for c in saver.alist(config)]
+        assert tuples, "expected checkpoints recorded under thread-1"
+        latest = await saver.aget(config)
+        assert latest is not None
+        assert latest["channel_values"]["orphan_citations"] == ["410 U.S. 113"]
+
+    @pytest.mark.asyncio
+    async def test_no_checkpointer_means_no_config(self) -> None:
+        """Default construction still compiles without persistence."""
+        pytest.importorskip("langgraph")
+        tf = tf_module.TopicFrontier()
+        assert tf._checkpointer is None
+        compiled = tf._build_graph()
+        assert compiled.checkpointer is None

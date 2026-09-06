@@ -26,6 +26,10 @@
    */
   --shell-masthead-h: 3.5rem;
   --shell-rail-w: 3.5rem;
+  /* The labelled rail (BL-20260831-06), opt-in and `xl`-only: 11rem holds the
+   * longest catalog label ("Analysis Studio") beside its glyph without
+   * wrapping, and leaves the sidebar + inspector + a readable page at 1280px. */
+  --shell-rail-w-expanded: 11rem;
   --shell-sidebar-w: 14rem;
   --shell-inspector-w: 19rem;
   --shell-tabbar-h: 3.5rem;

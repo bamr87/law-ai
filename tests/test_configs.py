@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -91,6 +92,26 @@ def test_init_db_sh_no_stale_paths(repo_root: Path) -> None:
         )
 
 
+def test_init_db_sh_delegates_neo4j_to_the_migration_runner(repo_root: Path) -> None:
+    """BL-20260509-02: Cypher must go through `migrate_neo4j`, not `cypher-shell`.
+
+    The bash loop had no bookkeeping, so a migration that is not idempotent by
+    construction would re-run on every boot. `migrate_neo4j` records each file
+    as a `(:_Migration)` node.
+    """
+    script = (repo_root / "backend" / "scripts" / "init-db.sh").read_text()
+    assert "manage.py migrate_neo4j" in script, (
+        "init-db.sh must call 'manage.py migrate_neo4j' to apply Cypher migrations"
+    )
+    executable = [
+        line for line in script.splitlines() if not line.lstrip().startswith("#")
+    ]
+    assert not [line for line in executable if "cypher-shell" in line], (
+        "init-db.sh must not shell out to cypher-shell "
+        "(no applied-migration bookkeeping)"
+    )
+
+
 def test_init_db_sh_delegates_postgres_to_django(repo_root: Path) -> None:
     """AC-2: Postgres DDL must be driven by manage.py migrate, not raw psql."""
     script = (repo_root / "backend" / "scripts" / "init-db.sh").read_text()
@@ -100,3 +121,467 @@ def test_init_db_sh_delegates_postgres_to_django(repo_root: Path) -> None:
     assert "psql" not in script, (
         "init-db.sh must not call psql directly (Postgres DDL now lives in Django migrations)"
     )
+
+
+# ---------------------------------------------------------------------------
+# Dev Containers (BL-20260810-09 backend, BL-20260811-17 frontend). Two
+# configurations, one per compose service, so editor tooling never reaches for
+# a host interpreter or a host node_modules.
+# ---------------------------------------------------------------------------
+
+
+def _strip_jsonc(raw: str) -> str:
+    """devcontainer.json is JSONC; drop whole-line // comments before parsing.
+
+    Deliberately not a general JSONC parser — it only handles the comment
+    style these two files actually use, and a `//` inside a string would
+    break it, so keep URLs out of the configs.
+    """
+    return "\n".join(
+        "" if line.lstrip().startswith("//") else line for line in raw.splitlines()
+    )
+
+
+def _devcontainer_files(repo_root: Path) -> list[Path]:
+    return sorted((repo_root / ".devcontainer").rglob("devcontainer.json"))
+
+
+def test_devcontainer_configs_parse_and_target_real_services(
+    repo_root: Path,
+) -> None:
+    import yaml
+
+    compose = yaml.safe_load((repo_root / "docker-compose.yml").read_text())
+    services = set(compose["services"])
+
+    files = _devcontainer_files(repo_root)
+    assert files, "expected at least one .devcontainer/**/devcontainer.json"
+
+    seen: dict[str, Path] = {}
+    for path in files:
+        data = json.loads(_strip_jsonc(path.read_text()))
+        rel = path.relative_to(repo_root)
+        service = data.get("service")
+        assert service in services, (
+            f"{rel}: service {service!r} is not a docker-compose.yml service"
+        )
+        # The compose file path is relative to the config's own directory.
+        for compose_ref in data["dockerComposeFile"]:
+            assert (path.parent / compose_ref).resolve().is_file(), (
+                f"{rel}: dockerComposeFile {compose_ref!r} does not resolve"
+            )
+        assert data.get("overrideCommand") is True, (
+            f"{rel}: overrideCommand must be true or the service's own command "
+            "(daphne / next dev) owns the dev-container lifecycle"
+        )
+        name = data["name"]
+        assert name not in seen, f"{rel}: duplicate dev container name {name!r}"
+        seen[name] = path
+
+    assert {"backend", "frontend"} <= {
+        json.loads(_strip_jsonc(p.read_text()))["service"] for p in files
+    }, "both a backend and a frontend dev container configuration must exist"
+
+
+def test_frontend_devcontainer_uses_container_node_modules(repo_root: Path) -> None:
+    """BL-20260811-17: the whole point is not borrowing a host node_modules."""
+    path = repo_root / ".devcontainer" / "frontend" / "devcontainer.json"
+    data = json.loads(_strip_jsonc(path.read_text()))
+    settings = data["customizations"]["vscode"]["settings"]
+    tsdk = settings["typescript.tsdk"]
+    assert not tsdk.startswith("frontend/"), (
+        "tsdk must be relative to the container workspace (/app), not the host "
+        f"repo layout; got {tsdk!r}"
+    )
+    assert tsdk == "node_modules/typescript/lib", tsdk
+    assert settings["eslint.workingDirectories"] == ["."], (
+        "/app is already the frontend package root inside the container"
+    )
+    extensions = data["customizations"]["vscode"]["extensions"]
+    assert "dbaeumer.vscode-eslint" in extensions
+
+
+# ---------------------------------------------------------------------------
+# Branch-protection ruleset (BL-20260815-01). `markdown-oneline` went red on
+# main when #73 merged and stayed red across four stacked PRs because nothing
+# blocks a merge on a failing check. The ruleset is checked in so the required
+# contexts are reviewable and cannot silently drift away from the job names
+# that produce them.
+# ---------------------------------------------------------------------------
+
+RULESET = ".github/rulesets/main-required-checks.json"
+
+
+def _workflow_check_contexts(repo_root: Path) -> set[str]:
+    """Every check-run name GitHub could report from this repo's workflows.
+
+    A check context is the job's `name:` when it has one, and its job id
+    otherwise — which is why `oneline` (no `name:` key) is the context for
+    markdown-oneline.yml.
+    """
+    import yaml
+
+    contexts: set[str] = set()
+    for path in (repo_root / ".github" / "workflows").glob("*.yml"):
+        data = yaml.safe_load(path.read_text()) or {}
+        for job_id, job in (data.get("jobs") or {}).items():
+            contexts.add(str((job or {}).get("name") or job_id))
+    return contexts
+
+
+def test_required_status_checks_match_real_jobs(repo_root: Path) -> None:
+    """A renamed job must not silently orphan the branch protection.
+
+    Renaming a job changes its check context; the ruleset would then require a
+    context nothing ever reports, and every PR would wait forever on a check
+    that cannot arrive. This test fails on the rename instead.
+    """
+    ruleset = json.loads((repo_root / RULESET).read_text())
+    checks = [
+        rule
+        for rule in ruleset["rules"]
+        if rule["type"] == "required_status_checks"
+    ]
+    assert len(checks) == 1, "expected exactly one required_status_checks rule"
+    required = {
+        c["context"]
+        for c in checks[0]["parameters"]["required_status_checks"]
+    }
+    assert required, "the ruleset must require at least one check"
+
+    available = _workflow_check_contexts(repo_root)
+    missing = sorted(required - available)
+    assert not missing, (
+        f"{RULESET} requires check context(s) no workflow job produces: "
+        f"{missing}. Either the job was renamed (update the ruleset and "
+        f"re-apply it with `gh api -X PUT repos/{{owner}}/{{repo}}/rulesets/"
+        f"<id> --input {RULESET}`) or the context is a typo. "
+        f"Known contexts: {sorted(available)}"
+    )
+
+
+def test_ruleset_targets_the_default_branch_and_is_active(repo_root: Path) -> None:
+    ruleset = json.loads((repo_root / RULESET).read_text())
+    assert ruleset["target"] == "branch"
+    assert ruleset["enforcement"] == "active", (
+        "an 'evaluate'/'disabled' ruleset reports but does not block a merge"
+    )
+    assert "~DEFAULT_BRANCH" in ruleset["conditions"]["ref_name"]["include"]
+    rule_types = {r["type"] for r in ruleset["rules"]}
+    assert {"required_status_checks", "pull_request"} <= rule_types, (
+        "required checks only gate a merge when a PR is also required"
+    )
+
+
+def test_ruleset_covers_the_four_gates_the_backlog_item_names(
+    repo_root: Path,
+) -> None:
+    """BL-20260815-01 names these four explicitly."""
+    ruleset = json.loads((repo_root / RULESET).read_text())
+    (checks,) = [
+        r for r in ruleset["rules"] if r["type"] == "required_status_checks"
+    ]
+    required = {
+        c["context"] for c in checks["parameters"]["required_status_checks"]
+    }
+    assert {
+        "Spec Drift Gate",
+        "Backend Lint + Type-check",
+        "Backend Tests + Coverage",
+        "oneline",
+    } <= required
+
+
+# ---------------------------------------------------------------------------
+# LangGraph Studio host — BL-20260502-01
+# ---------------------------------------------------------------------------
+
+
+def test_studio_services_are_profile_gated(repo_root: Path) -> None:
+    """`make dev` must never build the heavy Studio image."""
+    text = (repo_root / "docker-compose.yml").read_text()
+    for service in ("langgraph-api:", "langgraph-db-init:"):
+        assert service in text, f"docker-compose missing service: {service}"
+        block = text.split(service, 1)[1].split("\n\n", 1)[0]
+        assert 'profiles: [ "studio" ]' in block, (
+            f"{service} must sit behind the studio profile"
+        )
+
+
+def test_studio_targets_and_env_are_documented(repo_root: Path) -> None:
+    makefile = (repo_root / "Makefile").read_text()
+    assert "\nstudio-up:" in makefile and "\nstudio-down:" in makefile
+    assert "LANGSMITH_API_KEY" in makefile, (
+        "studio-up should fail loudly when the license key is missing"
+    )
+    env_example = (repo_root / ".env.example").read_text()
+    assert "# LANGSMITH_API_KEY=" in env_example, (
+        "LANGSMITH_API_KEY stays commented out: the Studio tier is inert by default"
+    )
+    docs = (repo_root / "docs" / "local-ai.md").read_text()
+    assert "LangGraph Studio" in docs
+    assert "beacon.langchain.com" in docs, (
+        "the license phone-home has to be stated where an operator will see it"
+    )
+
+
+# ---------------------------------------------------------------------------
+# CI / Dockerfile extras drift (BL-20260815-02). The container installs
+# `.[dev,local-ai]` while CI installed `.[dev]`, so anything importing an
+# extras-only package passed locally and died in CI — which is exactly how
+# spec 037's telemetry tests failed with ModuleNotFoundError. A fix landed in
+# #76 and was lost when specs 037-038 were reworked in #83, so the divergence
+# came back unnoticed. This test is the thing that notices.
+# ---------------------------------------------------------------------------
+
+_PIP_INSTALL_RE = re.compile(r'pip install -e\s+"\.\[([^\]]+)\]"')
+
+
+def _extras_sets(text: str) -> list[set[str]]:
+    """Every `pip install -e ".[a,b]"` in `text`, as sets of extras.
+
+    A bare `pip install -e .` does not match on purpose: ci.yml's
+    clean-install smoke installs with no extras deliberately, and that job's
+    whole point is to prove the package imports without them.
+    """
+    return [
+        {part.strip() for part in m.group(1).split(",") if part.strip()}
+        for m in _PIP_INSTALL_RE.finditer(text)
+    ]
+
+
+def test_ci_extras_match_dockerfile(repo_root: Path) -> None:
+    dockerfile = (repo_root / "backend" / "Dockerfile").read_text()
+    docker_extras = _extras_sets(dockerfile)
+    assert len(docker_extras) == 1, (
+        "expected exactly one extras-bearing pip install in backend/Dockerfile; "
+        f"found {len(docker_extras)}"
+    )
+    required = docker_extras[0]
+
+    targets = [
+        Path(".github/workflows/ci.yml"),
+        Path(".github/workflows/integration-tests.yml"),
+        Path("Makefile"),
+    ]
+    problems: list[str] = []
+    for rel in targets:
+        text = (repo_root / rel).read_text()
+        for extras in _extras_sets(text):
+            if not required <= extras:
+                problems.append(
+                    f"{rel}: installs {sorted(extras)} but backend/Dockerfile "
+                    f"installs {sorted(required)}; missing "
+                    f"{sorted(required - extras)}"
+                )
+    assert not problems, (
+        "install extras have drifted from backend/Dockerfile — an extras-only "
+        "import would pass in the container and fail here:\n  "
+        + "\n  ".join(problems)
+    )
+
+
+def test_local_ai_extra_is_the_telemetry_one(repo_root: Path) -> None:
+    """Guard the premise: `local-ai` is what core.telemetry lazily imports.
+
+    If the Phoenix/OTel packages ever move to another extra (or to core deps),
+    the superset check above is guarding the wrong name and should be updated
+    rather than left quietly pointing at an empty set.
+    """
+    data = tomllib.loads((repo_root / "backend" / "pyproject.toml").read_text())
+    local_ai = " ".join(data["project"]["optional-dependencies"]["local-ai"])
+    assert "opentelemetry" in local_ai or "phoenix" in local_ai, (
+        "the local-ai extra no longer carries the telemetry packages; "
+        f"got: {local_ai}"
+    )
+
+
+def test_evolve_workflow_has_an_opt_out_kill_switch(repo_root: Path) -> None:
+    """BL-20260818-02: idling the weekly autopilot must not need a file edit.
+
+    Opt-*out* on purpose — an unset `vars.EVOLVE_ENABLED` is the empty string,
+    which is `!= 'false'`, so the default stays "runs". A default-OFF gate
+    (gitorio's convention) would silently idle live automation, which
+    specs/038-framework-hardening declined as NG1.
+    """
+    import yaml
+
+    path = repo_root / ".github" / "workflows" / "evolve.yml"
+    guard = yaml.safe_load(path.read_text())["jobs"]["audit"]["if"]
+    assert "vars.EVOLVE_ENABLED" in guard, (
+        f"evolve.yml's audit job needs an EVOLVE_ENABLED guard; got {guard!r}"
+    )
+    assert "!=" in guard and "'false'" in guard, (
+        "the guard must be opt-out (`!= 'false'`), not opt-in — an opt-in "
+        f"guard silently idles the live weekly run. Got {guard!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Linux + NVIDIA workstation tier — BL-20260502-02
+# ---------------------------------------------------------------------------
+
+GPU_OVERLAY = "docker-compose.gpu.yml"
+
+
+def test_gpu_overlay_reserves_nvidia_devices(repo_root: Path) -> None:
+    text = (repo_root / GPU_OVERLAY).read_text()
+    assert "driver: nvidia" in text and "capabilities: [ gpu ]" in text
+    assert "llama3.1:70b-q4_K_M" in text, "the workstation tier's default model"
+    assert "vllm:" in text and 'profiles: [ "vllm" ]' in text, (
+        "vLLM stays optional — behind its own profile"
+    )
+
+
+def test_gpu_overlay_does_not_leak_into_the_laptop_default(repo_root: Path) -> None:
+    """`make dev` must stay on the 7B set with no GPU reservation."""
+    base = (repo_root / "docker-compose.yml").read_text()
+    assert "nvidia" not in base
+    assert "llama3.1:70b" not in base
+
+
+def test_gpu_overlay_uses_prefixed_variables(repo_root: Path) -> None:
+    """`.env.example` ships the laptop OLLAMA_DEFAULT_MODEL.
+
+    Compose interpolates from that file, so an unprefixed
+    ``${OLLAMA_DEFAULT_MODEL:-70b}`` in the overlay would silently serve the
+    laptop model on a workstation.
+    """
+    lines = [
+        line
+        for line in (repo_root / GPU_OVERLAY).read_text().splitlines()
+        if not line.lstrip().startswith("#")
+    ]
+    text = "\n".join(lines)
+    assert "${OLLAMA_DEFAULT_MODEL" not in text
+    assert "${GPU_OLLAMA_DEFAULT_MODEL:-llama3.1:70b-q4_K_M}" in text
+
+
+def test_gpu_targets_and_docs_exist(repo_root: Path) -> None:
+    makefile = (repo_root / "Makefile").read_text()
+    for target in ("local-ai-up-gpu", "dev-gpu", "vllm-up"):
+        assert f"\n{target}:" in makefile, f"Makefile missing target: {target}"
+    docs = (repo_root / "docs" / "local-ai.md").read_text()
+    assert "docker-compose.gpu.yml" in docs
+    assert "❌ — tracked as [BL-20260502-02]" not in docs, (
+        "hardware-tier table still says the workstation tier is unbuilt"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Air-gapped bundle + offline install — BL-20260502-06
+# ---------------------------------------------------------------------------
+
+OFFLINE_SCRIPTS = ("scripts/ollama-bundle.sh", "scripts/offline-install.sh")
+
+
+@pytest.mark.parametrize("script", OFFLINE_SCRIPTS)
+def test_offline_scripts_are_executable_and_parse(repo_root: Path, script: str) -> None:
+    import subprocess
+
+    path = repo_root / script
+    assert path.is_file(), f"missing {script}"
+    assert path.stat().st_mode & 0o111, f"{script} is not executable"
+    result = subprocess.run(["bash", "-n", str(path)], capture_output=True)
+    assert result.returncode == 0, (
+        f"{script} has syntax errors:\n{result.stderr.decode()}"
+    )
+
+
+def test_bundle_and_install_agree_on_the_artifact_names(repo_root: Path) -> None:
+    """A rename on one side silently produces an empty install on the other."""
+    bundle = (repo_root / OFFLINE_SCRIPTS[0]).read_text()
+    install = (repo_root / OFFLINE_SCRIPTS[1]).read_text()
+    for artifact in ("ollama-models.tar", "images.tar", "bundle.env", "SHA256SUMS"):
+        assert artifact in bundle, f"bundle script never writes {artifact}"
+        assert artifact in install, f"install script never reads {artifact}"
+
+
+def test_bootstrap_skips_pulls_when_offline(repo_root: Path) -> None:
+    """AC: `ollama pull` must not run on an air-gapped host."""
+    script = (repo_root / "backend" / "scripts" / "ollama-bootstrap.sh").read_text()
+    assert 'if [ "${OLLAMA_OFFLINE:-0}" = "1" ]; then' in script
+    offline_block = script.split('OLLAMA_OFFLINE:-0}" = "1" ]; then', 1)[1].split(
+        "\nfi\n", 1
+    )[0]
+    assert "ollama pull" not in offline_block, (
+        "the offline branch must not pull — the registry is unreachable"
+    )
+    assert "MISSING" in offline_block, (
+        "an absent model has to be reported, not silently tolerated"
+    )
+    compose = (repo_root / "docker-compose.yml").read_text()
+    assert "OLLAMA_OFFLINE=${OLLAMA_OFFLINE:-0}" in compose, (
+        "the flag never reaches the container without a compose passthrough"
+    )
+
+
+def test_offline_flow_is_documented(repo_root: Path) -> None:
+    docs = (repo_root / "docs" / "local-ai.md").read_text()
+    assert "Air-gapped deployment" in docs
+    assert "OLLAMA_OFFLINE=1" in docs
+    assert "SHA256SUMS" in docs, "checksum verification is part of the flow"
+    makefile = (repo_root / "Makefile").read_text()
+    assert "\nlocal-ai-bundle:" in makefile
+    assert "\nlocal-ai-offline-install:" in makefile
+
+
+# ---------------------------------------------------------------------------
+# Server / multi-GPU tier: Prometheus + Grafana — BL-20260502-03
+# ---------------------------------------------------------------------------
+
+OBS_OVERLAY = "docker-compose.observability.yml"
+
+
+def test_observability_overlay_is_profile_gated(repo_root: Path) -> None:
+    text = (repo_root / OBS_OVERLAY).read_text()
+    for service in ("prometheus:", "grafana:", "redis-exporter:", "dcgm-exporter:"):
+        assert service in text, f"{OBS_OVERLAY} missing service: {service}"
+    # The GPU exporter needs NVIDIA hardware, so it must NOT share the profile
+    # that has to keep working on a laptop.
+    assert 'profiles: [ "gpu-metrics" ]' in text
+    assert text.count('profiles: [ "observability" ]') == 3
+    base = (repo_root / "docker-compose.yml").read_text()
+    assert "prometheus" not in base and "grafana" not in base, (
+        "the metrics stack must stay in its overlay, out of `make dev`"
+    )
+
+
+def test_prometheus_scrapes_the_three_metrics_the_item_names(repo_root: Path) -> None:
+    """token/sec (vLLM), GPU utilization (DCGM), queue depth (redis)."""
+    scrape = (repo_root / "infra" / "prometheus" / "prometheus.yml").read_text()
+    for target in ("vllm:8000", "dcgm-exporter:9400", "redis-exporter:9121"):
+        assert target in scrape, f"prometheus.yml never scrapes {target}"
+    overlay = (repo_root / OBS_OVERLAY).read_text()
+    assert "REDIS_EXPORTER_CHECK_KEYS=celery,autonomy" in overlay, (
+        "queue depth comes from the length of the Celery queues' Redis lists"
+    )
+
+
+def test_grafana_dashboard_is_provisioned_and_covers_the_panels(
+    repo_root: Path,
+) -> None:
+    grafana = repo_root / "infra" / "grafana"
+    datasource = (grafana / "provisioning" / "datasources" / "prometheus.yml").read_text()
+    assert "http://prometheus:9090" in datasource
+    provider = (grafana / "provisioning" / "dashboards" / "dashboards.yml").read_text()
+    assert "/var/lib/grafana/dashboards" in provider
+    dashboard = json.loads((grafana / "dashboards" / "local-ai.json").read_text())
+    exprs = " ".join(
+        t["expr"] for panel in dashboard["panels"] for t in panel.get("targets", [])
+    )
+    assert "vllm:generation_tokens_total" in exprs, "tokens/sec panel"
+    assert "DCGM_FI_DEV_GPU_UTIL" in exprs, "GPU utilization panel"
+    assert "redis_key_size" in exprs, "queue depth panel"
+
+
+def test_server_tier_targets_and_docs(repo_root: Path) -> None:
+    makefile = (repo_root / "Makefile").read_text()
+    for target in ("observability-up", "observability-down", "local-ai-up-server"):
+        assert f"\n{target}:" in makefile, f"Makefile missing target: {target}"
+    assert "docker-compose.observability.yml" in makefile
+    docs = (repo_root / "docs" / "local-ai.md").read_text()
+    assert "❌ — tracked as [BL-20260502-03]" not in docs, (
+        "hardware-tier table still says the server tier is unbuilt"
+    )
+    assert "localhost:3002" in docs, "Grafana's port has to be findable"

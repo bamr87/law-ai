@@ -34,6 +34,7 @@ class Command(BaseCommand):
 
     def handle(self, *args: Any, **opts: Any) -> None:
         self._print_chain()
+        self._print_models()
 
         probe = async_to_sync(xai.probe)()
         self._print_probe(probe)
@@ -70,6 +71,38 @@ class Command(BaseCommand):
             )
         self.stdout.write(f"  credentials     : {xai_oauth.credentials_path()}")
         self.stdout.write(f"  configured      : {xai_oauth.is_configured()}")
+
+    def _print_models(self) -> None:
+        """List the ids this subscription serves and flag a mismatch.
+
+        ``XAI_MODEL`` has a hard-coded default, so a plan that does not expose
+        that id 404s on every request. Discovery turns that into one warning
+        naming a model that would work (BL-20260904-05). Purely informational:
+        ``/v1/models`` is itself allowlisted for some accounts, and a failure
+        here must not stop the probe that follows.
+        """
+        self.stdout.write(self.style.MIGRATE_HEADING("\nAvailable models"))
+        configured = xai.model()
+        try:
+            models = async_to_sync(xai.list_models)()
+        except Exception as exc:
+            self.stdout.write(
+                f"  listing         : unavailable ({type(exc).__name__}: "
+                f"{str(exc)[:120]})"
+            )
+            return
+
+        self.stdout.write(f"  configured      : {configured}")
+        self.stdout.write(f"  available       : {', '.join(models) or '(none listed)'}")
+        if models and configured not in models:
+            suggestion = next((m for m in models if m.startswith("grok")), models[0])
+            self.stdout.write(
+                self.style.WARNING(
+                    f"  warning         : XAI_MODEL={configured} is not in the "
+                    f"list above; every request will 404. Set "
+                    f"XAI_MODEL={suggestion}"
+                )
+            )
 
     def _print_probe(self, probe: dict[str, Any]) -> None:
         self.stdout.write(self.style.MIGRATE_HEADING("\nReachability probe"))

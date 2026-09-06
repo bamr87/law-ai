@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 from asgiref.sync import async_to_sync
-from django.core.management.base import (  # type: ignore[import-untyped]
+from django.core.management.base import (
     BaseCommand,
     CommandError,
 )
@@ -32,7 +32,7 @@ from law_ai.lsat.services.guides import load_guides
 _SECTIONS = ("LR", "RC", "LG")
 
 
-class Command(BaseCommand):  # type: ignore[misc]
+class Command(BaseCommand):
     help = (
         "Draft solve guides for guide-less questions via LSATSolveGuideAuthor; "
         "drafts land in the HITL proposal queue, never in guides.json directly."
@@ -100,6 +100,7 @@ class Command(BaseCommand):  # type: ignore[misc]
                 self.stdout.write(f"  (+{remaining} more beyond the limit)")
             return
 
+        from law_ai.agents_runtime.crews.lsat_guide_reviewer import review_guide
         from law_ai.agents_runtime.crews.lsat_solve_guide_author import (
             LSATSolveGuideAuthor,
         )
@@ -119,18 +120,23 @@ class Command(BaseCommand):  # type: ignore[misc]
                     self.style.WARNING(f"  {qid}: degraded (no provider) — skipped")
                 )
                 continue
+            # BL-20260830-15: judge tier verdict rides with the pending row.
+            review = async_to_sync(review_guide)(output.guide)
             pid = proposals_store.record_proposal(
                 output.guide.model_dump(by_alias=True),
                 agent_trace_id=output.trace_id or "",
                 model=output.model,
                 confidence=output.confidence,
                 proposal_kind="guide",
+                meta={"review": review} if review is not None else None,
             )
             drafted += 1
+            verdict = (review or {}).get("verdict", "unreviewed")
             self.stdout.write(
                 self.style.SUCCESS(
                     f"  {qid}: drafted → {pid} "
-                    f"(model={output.model}, conf={output.confidence})"
+                    f"(model={output.model}, conf={output.confidence}, "
+                    f"review={verdict})"
                 )
             )
 

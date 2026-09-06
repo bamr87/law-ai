@@ -47,11 +47,18 @@ describe('OverviewPanel', () => {
     expect(onJump).toHaveBeenCalledWith('LR')
   })
 
-  it('offers no jump for a section the lab cannot drill', async () => {
-    render(<OverviewPanel onJump={() => {}} />)
+  // BL-20260901-09: WS was the one section whose card dead-ended in "No drill
+  // in the lab yet" and sent the learner to the published static site. It has a
+  // panel now, so it jumps like the others — and its census is prompts, not
+  // keyed items, so the card no longer reports a bank size of zero.
+  it('jumps into the writing surface and counts prompts, not items', async () => {
+    const onJump = vi.fn()
+    render(<OverviewPanel onJump={onJump} />)
     expect(await screen.findByText('Argumentative Writing')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Practice WS/ })).not.toBeInTheDocument()
-    expect(screen.getByText(/No drill in the lab yet/)).toBeInTheDocument()
+    expect(screen.queryByText(/No drill in the lab yet/)).not.toBeInTheDocument()
+    expect(screen.getByText('Prompts in bank')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Practice WS/ }))
+    expect(onJump).toHaveBeenCalledWith('WS')
   })
 
   it('links to the knowledge library', () => {

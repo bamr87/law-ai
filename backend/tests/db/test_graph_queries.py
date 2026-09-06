@@ -61,31 +61,61 @@ async def test_stats_handles_empty_db() -> None:
     }
 
 
+_CASE_ROW = {
+    "id": "case-a",
+    "title": "Roe v. Wade",
+    "court": "Supreme Court",
+    "decided_at": "1973-01-22",
+    "source": "courtlistener",
+    "source_url": "https://example.test/roe",
+    "confidence": 0.92,
+}
+
+
 @pytest.mark.asyncio
 async def test_list_cases_passes_q_and_limit() -> None:
-    session = FakeAsyncSession(
-        canned=[
-            [
-                {
-                    "id": "case-a",
-                    "title": "Roe v. Wade",
-                    "court": "Supreme Court",
-                    "decided_at": "1973-01-22",
-                }
-            ]
-        ]
-    )
+    session = FakeAsyncSession(canned=[[dict(_CASE_ROW)]])
     out = await graph_queries.list_cases(session, q="roe", limit=5)
-    assert out == [
-        {
-            "id": "case-a",
-            "title": "Roe v. Wade",
-            "court": "Supreme Court",
-            "decided_at": "1973-01-22",
-        }
-    ]
+    # The picker row now carries provenance so the sidebar inspector
+    # (BL-20260429-23) has something to show without a second round-trip.
+    assert out == [dict(_CASE_ROW)]
     _cypher, params = session.calls[0]
-    assert params == {"q": "roe", "limit": 5}
+    assert params == {
+        "q": "roe",
+        "limit": 5,
+        "court": "",
+        "decided_from": "",
+        "decided_to": "",
+    }
+
+
+@pytest.mark.asyncio
+async def test_list_cases_binds_the_court_and_date_filters() -> None:
+    # BL-20260429-23: every filter is parameter-bound (NFR-SEC-1) and
+    # empty-string-disabled.
+    session = FakeAsyncSession(canned=[[dict(_CASE_ROW)]])
+    await graph_queries.list_cases(
+        session,
+        q="",
+        limit=10,
+        court="Supreme",
+        decided_from="1970-01-01",
+        decided_to="1980-01-01",
+    )
+    cypher, params = session.calls[0]
+    assert params == {
+        "q": "",
+        "limit": 10,
+        "court": "Supreme",
+        "decided_from": "1970-01-01",
+        "decided_to": "1980-01-01",
+    }
+    assert "$court" in cypher and "$decided_from" in cypher and "$decided_to" in cypher
+    assert "Supreme" not in cypher
+    # Court matching is case-insensitive substring, not equality.
+    assert "toLower(coalesce(c.court, '')) CONTAINS toLower($court)" in cypher
+    # Archived cases never reach the picker (constitution §4).
+    assert "c.archived_at IS NULL" in cypher
 
 
 @pytest.mark.asyncio
@@ -148,3 +178,97 @@ async def test_neighborhood_missing_root_returns_empty() -> None:
         "nodes": [],
         "edges": [],
     }
+
+
+# ---------------------------------------------------------------------------
+# shortest_path (BL-20260429-22)
+# ---------------------------------------------------------------------------
+
+
+def _node(case_id: str, title: str, court: str = "us") -> dict[str, Any]:
+    return {"id": case_id, "title": title, "court": court}
+
+
+@pytest.mark.asyncio
+async def test_shortest_path_returns_chain_marked_on_path() -> None:
+    session = FakeAsyncSession(
+        canned=[
+            [
+                {
+                    "path_nodes": [
+                        _node("a", "A v. B"),
+                        _node("m", "M v. N"),
+                        _node("z", "Y v. Z"),
+                    ],
+                    "path_rels": [
+                        {"src": "a", "dst": "m"},
+                        {"src": "m", "dst": "z"},
+                    ],
+                }
+            ]
+        ]
+    )
+    out = await graph_queries.shortest_path(session, "a", "z")
+    assert out["found"] is True
+    assert out["hops"] == 2
+    assert [n["data"]["id"] for n in out["nodes"]] == ["a", "m", "z"]
+    assert all(n["data"]["on_path"] is True for n in out["nodes"])
+    assert [e["data"]["id"] for e in out["edges"]] == ["cites:a->m", "cites:m->z"]
+    assert all(e["data"]["type"] == "CITES" for e in out["edges"])
+    assert all(e["data"]["on_path"] is True for e in out["edges"])
+
+
+@pytest.mark.asyncio
+async def test_shortest_path_binds_ids_as_parameters() -> None:
+    """NFR-SEC-1: only the validated hop bound is interpolated."""
+    session = FakeAsyncSession(canned=[[]])
+    await graph_queries.shortest_path(session, "a'--", "z", max_hops=3)
+    cypher, params = session.calls[0]
+    assert params == {"from_id": "a'--", "to_id": "z"}
+    assert "$from_id" in cypher and "$to_id" in cypher
+    assert "[:CITES*..3]" in cypher
+    assert "a'--" not in cypher
+
+
+@pytest.mark.asyncio
+async def test_shortest_path_clamps_max_hops() -> None:
+    session = FakeAsyncSession(canned=[[], []])
+    await graph_queries.shortest_path(session, "a", "z", max_hops=999)
+    assert f"[:CITES*..{graph_queries.MAX_PATH_HOPS}]" in session.calls[0][0]
+    await graph_queries.shortest_path(session, "a", "z", max_hops=0)
+    assert "[:CITES*..1]" in session.calls[1][0]
+
+
+@pytest.mark.asyncio
+async def test_shortest_path_no_chain_returns_not_found() -> None:
+    session = FakeAsyncSession(canned=[[]])
+    out = await graph_queries.shortest_path(session, "a", "z")
+    assert out == {"nodes": [], "edges": [], "found": False, "hops": 0}
+
+
+@pytest.mark.asyncio
+async def test_shortest_path_same_case_is_a_zero_hop_chain() -> None:
+    session = FakeAsyncSession(canned=[[{"c": _node("a", "A v. B")}]])
+    out = await graph_queries.shortest_path(session, "a", "a")
+    assert out["found"] is True
+    assert out["hops"] == 0
+    assert out["edges"] == []
+    assert out["nodes"][0]["data"]["id"] == "a"
+    # No shortestPath traversal is issued for the trivial case.
+    assert "shortestPath" not in session.calls[0][0]
+
+
+@pytest.mark.asyncio
+async def test_shortest_path_same_case_missing_returns_not_found() -> None:
+    session = FakeAsyncSession(canned=[[]])
+    out = await graph_queries.shortest_path(session, "ghost", "ghost")
+    assert out == {"nodes": [], "edges": [], "found": False, "hops": 0}
+
+
+@pytest.mark.asyncio
+async def test_shortest_path_excludes_archived_endpoints() -> None:
+    """Constitution §4: soft-deleted cases must not appear in a chain."""
+    session = FakeAsyncSession(canned=[[]])
+    await graph_queries.shortest_path(session, "a", "z")
+    assert "a.archived_at IS NULL" in session.calls[0][0]
+    assert "b.archived_at IS NULL" in session.calls[0][0]

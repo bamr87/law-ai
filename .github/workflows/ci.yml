@@ -24,6 +24,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       lsat-static: ${{ steps.filter.outputs.lsat-static }}
+      visual: ${{ steps.filter.outputs.visual }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -33,12 +34,22 @@ jobs:
             backend:
               - 'backend/**'
               - '.github/workflows/ci.yml'
+              # BL-20260429-04: backend-lint runs this, so a change to it has
+              # to re-run the job even when no backend/ file moved.
+              - 'scripts/mypy_ratchet.py'
             frontend:
               - 'frontend/**'
               - '.github/workflows/ci.yml'
             lsat-static:
               - 'lsat-static/**'
               - '.github/workflows/ci.yml'
+            # BL-20260905-05: anything a reviewer would need to *see*.
+            # Deliberately does NOT include ci.yml — a workflow edit is not a
+            # visual change, and including it would demand a screenshot of
+            # every CI tweak.
+            visual:
+              - 'frontend/**'
+              - 'lsat-static/**'
 
   spec-gate:
     name: Spec Drift Gate
@@ -165,11 +176,21 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev]"
+      # BL-20260815-02: keep these extras a superset of
+      # backend/Dockerfile's, or an extras-only import (core.telemetry's
+      # lazy Phoenix/OTel imports) passes in the container and dies here.
+      # tests/test_configs.py::test_ci_extras_match_dockerfile enforces it.
+      - run: pip install -e ".[dev,local-ai]"
       - run: ruff check .
       - run: black --check .
-      - run: mypy law_ai --strict
-        continue-on-error: true # tighten once strict-clean
+      # BL-20260429-04: this used to be a bare `mypy law_ai --strict` with
+      # `continue-on-error: true`, i.e. no gate at all. It is now ratcheted
+      # against backend/mypy-baseline.txt: the run fails if any file's strict
+      # error count grows, or if a file the baseline calls clean stops being
+      # clean. New code has to be strict-clean; the legacy backlog is burned
+      # down file by file (`make mypy-baseline` re-banks it).
+      - name: mypy --strict (ratcheted against backend/mypy-baseline.txt)
+        run: python3 ../scripts/mypy_ratchet.py --run
 
   backend-test:
     name: Backend Tests + Coverage
@@ -208,7 +229,11 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev]"
+      # BL-20260815-02: keep these extras a superset of
+      # backend/Dockerfile's, or an extras-only import (core.telemetry's
+      # lazy Phoenix/OTel imports) passes in the container and dies here.
+      # tests/test_configs.py::test_ci_extras_match_dockerfile enforces it.
+      - run: pip install -e ".[dev,local-ai]"
       - name: Run pytest with coverage
         # Integration tests require Docker fixtures that aren't available here;
         # they run in the dedicated 'Docker-backed Integration Tests' workflow.
@@ -286,7 +311,11 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev]"
+      # BL-20260815-02: keep these extras a superset of
+      # backend/Dockerfile's, or an extras-only import (core.telemetry's
+      # lazy Phoenix/OTel imports) passes in the container and dies here.
+      # tests/test_configs.py::test_ci_extras_match_dockerfile enforces it.
+      - run: pip install -e ".[dev,local-ai]"
       - name: Verify the eval harness (scoring, paths, regression gate)
         run: pytest tests/eval -q
       - name: Remind reviewers where the real measurement runs
@@ -294,3 +323,44 @@ jobs:
           echo "::notice::Harness verified. The scored LegalBench run with a" \
                "real model happens in the nightly workflow" \
                "(make test-legalbench), which gates on --check-regression."
+
+  # ---------------------------------------------------------------------------
+  # Visual-evidence gate (BL-20260905-05). The screenshot convention was prose
+  # in AGENTS.md plus a PR-template section, so a PR could rewrite every screen
+  # and attach nothing. Pull-request only: a push to main has no body to read.
+  #
+  # Opt out with the `no-visual-change` label for changes that genuinely have
+  # no visual effect. Fork contributors cannot label their own PR, so the
+  # gate's second branch — a new or changed file under docs/images/ — stays as
+  # the label-free escape hatch.
+  # ---------------------------------------------------------------------------
+  visual-evidence:
+    name: Visual Evidence Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: changes
+    if: >-
+      github.event_name == 'pull_request' &&
+      needs.changes.outputs.visual == 'true' &&
+      !contains(github.event.pull_request.labels.*.name, 'no-visual-change')
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The gate diffs against the PR base, so the merge-base must exist.
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Collect the changed files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --name-only "$BASE_SHA...$HEAD_SHA" | tee changed.txt
+      - name: Require a screenshot or a docs/images change
+        env:
+          # Body text is untrusted input; passing it through the environment
+          # rather than interpolating it into the shell keeps a PR title/body
+          # from becoming a script injection.
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: python3 scripts/visual_evidence_gate.py --changed-files changed.txt

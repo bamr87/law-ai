@@ -583,6 +583,9 @@ class _CallbackHandler(BaseHTTPRequestHandler):
     code: str | None = None
     state: str | None = None
     error: str | None = None
+    #: True once a request actually reached the redirect path, so a stray hit
+    #: on another path cannot be mistaken for the callback we are waiting on.
+    received: bool = False
 
     def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
@@ -590,6 +593,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
             return
+        _CallbackHandler.received = True
         query = urllib.parse.parse_qs(parsed.query)
 
         def first(key: str) -> str | None:
@@ -613,15 +617,33 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         return
 
 
-def _serve_one_callback(timeout_s: float) -> tuple[str | None, str | None, str | None]:
-    """Run the loopback server for exactly one request."""
+def _serve_one_callback(
+    timeout_s: float, *, port: int | None = None
+) -> tuple[str | None, str | None, str | None]:
+    """Serve the loopback port until the OAuth callback arrives, or time out.
+
+    Not literally one request: a stray hit on another path — a browser
+    prefetch, a favicon fetch, someone poking the port — answers 404 and must
+    *not* consume the slot the login is waiting on, so the loop keeps serving
+    until a request actually reaches the redirect path (BL-20260904-06).
+
+    ``port`` exists for tests, which cannot bind the fixed 56121 reliably; the
+    login flow always uses the module default.
+    """
     _CallbackHandler.code = None
     _CallbackHandler.state = None
     _CallbackHandler.error = None
-    server = HTTPServer((OAUTH_HOST, OAUTH_PORT), _CallbackHandler)
-    server.timeout = timeout_s
+    _CallbackHandler.received = False
+    address = (OAUTH_HOST, OAUTH_PORT if port is None else port)
+    server = HTTPServer(address, _CallbackHandler)
+    deadline = time.monotonic() + timeout_s
     try:
-        server.handle_request()
+        while not _CallbackHandler.received:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            server.timeout = remaining
+            server.handle_request()
     finally:
         server.server_close()
     return _CallbackHandler.code, _CallbackHandler.state, _CallbackHandler.error

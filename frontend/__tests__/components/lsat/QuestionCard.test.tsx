@@ -73,4 +73,93 @@ describe('QuestionCard', () => {
       expect(radio).not.toBeDisabled()
     }
   })
+
+  // BL-20260702-13: the static drill's contract, ported. Focus and selection
+  // never diverge, so Enter can only ever grade the answer on screen.
+  describe('keyboard contract', () => {
+    function radios() {
+      return screen.getAllByRole('radio')
+    }
+
+    it('moves focus with a letter key, not just the selection', () => {
+      render(<QuestionCard question={question} onResolved={() => {}} />)
+      const [alpha, bravo] = radios()
+      alpha.focus()
+
+      fireEvent.keyDown(alpha, { key: 'b' })
+      expect(bravo).toHaveAttribute('aria-checked', 'true')
+      expect(document.activeElement).toBe(bravo)
+    })
+
+    it('selects with Enter on a choice that is not the selected one', async () => {
+      const onResolved = vi.fn()
+      render(<QuestionCard question={question} onResolved={onResolved} />)
+      const [alpha, , charlie] = radios()
+
+      fireEvent.click(alpha)
+      expect(alpha).toHaveAttribute('aria-checked', 'true')
+
+      // Focus a different choice and press Enter: the static drill selects it
+      // rather than grading the one that happens to be checked.
+      charlie.focus()
+      fireEvent.keyDown(charlie, { key: 'Enter' })
+      expect(charlie).toHaveAttribute('aria-checked', 'true')
+      expect(alpha).toHaveAttribute('aria-checked', 'false')
+      expect(onResolved).not.toHaveBeenCalled()
+    })
+
+    it('submits with Enter on the choice that is selected', async () => {
+      const onResolved = vi.fn()
+      render(<QuestionCard question={question} onResolved={onResolved} />)
+      const [, bravo] = radios()
+
+      fireEvent.click(bravo)
+      bravo.focus()
+      fireEvent.keyDown(bravo, { key: 'Enter' })
+
+      expect(
+        await screen.findByText(/Incorrect — answer was C/, {}, { timeout: 5000 }),
+      ).toBeInTheDocument()
+      expect(onResolved).toHaveBeenCalledTimes(1)
+    })
+
+    // BL-20260901-06: the letters were bound to this card's DOM subtree, so
+    // nothing at all happened until you had tabbed or clicked into it — while
+    // the published static site drilled from the keyboard on load.
+    it('answers a letter with no focus inside the card at all', () => {
+      render(<QuestionCard question={question} onResolved={() => {}} />)
+      expect(document.activeElement).toBe(document.body)
+      fireEvent.keyDown(document.body, { key: 'd' })
+      const [, , , delta] = radios()
+      expect(delta).toHaveAttribute('aria-checked', 'true')
+      // …and focus follows the letter, so Enter grades what is on screen.
+      expect(document.activeElement).toBe(delta)
+    })
+
+    it('leaves a letter typed into the tutor follow-up box alone', () => {
+      render(
+        <>
+          <input aria-label="follow-up" />
+          <QuestionCard question={question} onResolved={() => {}} />
+        </>,
+      )
+      fireEvent.keyDown(screen.getByLabelText('follow-up'), { key: 'a' })
+      expect(radios()[0]).toHaveAttribute('aria-checked', 'false')
+    })
+
+    it('still submits from Enter typed outside the choice list', async () => {
+      render(<QuestionCard question={question} onResolved={() => {}} />)
+      const [alpha] = radios()
+      fireEvent.click(alpha)
+
+      // Enter on the card itself, not on a radio — the drill has always meant
+      // "grade what I picked" there, and that has not changed.
+      fireEvent.keyDown(screen.getByText(/All swans observed/), {
+        key: 'Enter',
+      })
+      expect(
+        await screen.findByText(/Incorrect — answer was C/, {}, { timeout: 5000 }),
+      ).toBeInTheDocument()
+    })
+  })
 })

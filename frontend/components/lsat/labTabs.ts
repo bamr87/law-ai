@@ -9,25 +9,42 @@
 
 import type { LsatDifficulty } from '@/lib/api'
 
-export type Tab = 'overview' | 'LR' | 'RC' | 'LG' | 'stats' | 'authoring'
+export type Tab =
+  | 'overview'
+  | 'LR'
+  | 'RC'
+  | 'LG'
+  | 'WS'
+  | 'stats'
+  | 'authoring'
 
 export const TABS: { id: Tab; label: string; hint: string }[] = [
   { id: 'overview', label: 'Overview', hint: 'How the LSAT is built' },
   { id: 'LR', label: 'Logical Reasoning', hint: 'Drill short-argument questions' },
   { id: 'RC', label: 'Reading Comprehension', hint: 'Practice passage sets' },
   { id: 'LG', label: 'Logic Games', hint: 'Sequencing & grouping setups' },
+  {
+    id: 'WS',
+    label: 'Writing',
+    hint: 'Argumentative Writing — draft against the clock',
+  },
   { id: 'stats', label: 'Stats', hint: 'Your practice history' },
   { id: 'authoring', label: 'Authoring (HITL)', hint: 'Review AI-drafted questions' },
 ]
 
+/** Every tab id, for validating a `?tab=` param against the real set. */
+export const TAB_IDS: Tab[] = TABS.map((t) => t.id)
+
 /**
- * Sections the lab can actually drill. The API also describes WS
- * (Argumentative Writing), which has no panel here — it is an essay, not a
- * keyed item, and it lives on the published static site. Jumping to it opened
- * an empty tabpanel with no tab selected: a dead end a keyboard user could
- * land on and had no marked way out of.
+ * Sections the lab can actually drill.
+ *
+ * WS (Argumentative Writing) joined them in BL-20260901-09. It had been the
+ * one section the API described and the lab could not open — an essay rather
+ * than a keyed item, and until `WritingPanel` landed the Overview card for it
+ * said "No drill in the lab yet" and sent the learner to the published static
+ * site to practise the task law schools actually read.
  */
-export const PRACTICE_TABS = new Set<Tab>(['LR', 'RC', 'LG'])
+export const PRACTICE_TABS = new Set<Tab>(['LR', 'RC', 'LG', 'WS'])
 
 export const DIFFICULTIES: { label: string; value: LsatDifficulty | 'any' }[] = [
   { label: 'Any', value: 'any' },

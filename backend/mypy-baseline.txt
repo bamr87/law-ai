@@ -1,0 +1,26 @@
+# mypy --strict ratchet baseline — BL-20260429-04.
+#
+# One `<count>\t<path>` line per file that still has strict errors. The gate
+# (scripts/mypy_ratchet.py, run by `make typecheck` and CI's backend-lint job)
+# fails if any count grows or a file not listed here starts erroring.
+#
+# Burn a file down, then run `make mypy-baseline` to bank it. When this file
+# reaches zero entries, delete it and drop the ratchet call so plain
+# `mypy law_ai --strict` is the gate.
+#
+# total: 59
+1	law_ai/agents_runtime/graphs/__init__.py
+3	law_ai/agents_runtime/graphs/runtime.py
+1	law_ai/agents_runtime/registry.py
+1	law_ai/agentsapi/consumers.py
+8	law_ai/agentsapi/urls.py
+2	law_ai/celery.py
+3	law_ai/core/auth.py
+1	law_ai/core/management/commands/run_autonomy.py
+2	law_ai/core/tasks.py
+1	law_ai/ingestionapp/services/colorado_statutes.py
+3	law_ai/ingestionapp/services/courtlistener.py
+2	law_ai/ingestionapp/tasks.py
+5	law_ai/lsat/services/bank.py
+1	law_ai/lsat/services/ocr_intake.py
+25	law_ai/lsat/urls.py

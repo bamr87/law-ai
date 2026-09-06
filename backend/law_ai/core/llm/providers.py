@@ -17,15 +17,22 @@ the LSAT tutor has always used. Routing, fallback and provenance live in
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import random
+from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
 
 from law_ai.core import claude_code, xai, xai_oauth
-from law_ai.core.llm.base import LLMRequest, LLMUnavailableError
+from law_ai.core.llm.base import (
+    LLMPermanentError,
+    LLMRequest,
+    LLMUnavailableError,
+)
 from law_ai.core.settings_proxy import settings_proxy as settings
+from law_ai.core.usage import LLMUsage, ProviderReply
 
 logger = logging.getLogger("law_ai.core.llm.providers")
 
@@ -65,6 +72,17 @@ class _AnthropicProvider:
         Claude output is steered by the prompt and the ``effort`` level.
         """
         return await claude_code.generate(
+            request.prompt,
+            system=request.system,
+            model_id=self.model_for(request),
+            max_tokens=request.max_tokens,
+            response_schema=request.response_schema,
+            auth=self.auth,
+        )
+
+    def astream(self, request: LLMRequest) -> AsyncIterator[str]:
+        """Token deltas from the Messages API SSE feed (BL-20260811-20)."""
+        return claude_code.astream(
             request.prompt,
             system=request.system,
             model_id=self.model_for(request),
@@ -146,8 +164,31 @@ class XaiProvider:
         except xai_oauth.XaiAuthError as exc:
             # A dead or absent credential is this tier being unavailable, not
             # the request failing — surface it as such so the router records a
-            # reason and falls through to Ollama.
-            raise LLMUnavailableError(str(exc)) from exc
+            # reason and falls through to Ollama. Permanent, because no retry
+            # and no other tier can mint a credential: the router remembers it
+            # and stops re-asking for a TTL window (BL-20260811-23).
+            raise LLMPermanentError(str(exc)) from exc
+
+    async def astream(self, request: LLMRequest) -> AsyncIterator[str]:
+        """Token deltas from xAI's SSE feed (BL-20260811-20).
+
+        The auth translation :meth:`agenerate` performs applies here too: a
+        dead credential is this tier being unavailable, not the request
+        failing, so the router records a reason and moves on.
+        """
+        try:
+            async for delta in xai.astream(
+                request.prompt,
+                system=request.system,
+                model_id=self.model_for(request),
+                max_tokens=request.max_tokens,
+                temperature=request.temperature,
+                response_schema=request.response_schema,
+                json_mode=request.json_mode,
+            ):
+                yield delta
+        except xai_oauth.XaiAuthError as exc:
+            raise LLMPermanentError(str(exc)) from exc
 
     async def probe(self) -> dict[str, Any]:
         return await xai.probe()
@@ -194,18 +235,7 @@ class OllamaProvider:
             )
 
         url = str(settings.OLLAMA_BASE_URL).rstrip("/") + "/api/generate"
-        payload: dict[str, Any] = {
-            "model": self.model_for(request),
-            "prompt": _with_system(request),
-            "stream": False,
-            "options": {"temperature": request.temperature},
-        }
-        # Ollama structured outputs: a JSON Schema in `format` when we have
-        # one, else plain JSON mode. Anything else leaves `format` unset.
-        if request.response_schema is not None:
-            payload["format"] = request.response_schema
-        elif request.json_mode:
-            payload["format"] = "json"
+        payload = self._payload(request, stream=False)
 
         timeout = httpx.Timeout(float(settings.OLLAMA_REQUEST_TIMEOUT_S))
         attempts = max(1, int(getattr(settings, "OLLAMA_MAX_RETRIES", 2)))
@@ -215,7 +245,10 @@ class OllamaProvider:
                     resp = await client.post(url, json=payload)
                     resp.raise_for_status()
                     data = resp.json()
-                    return str(data.get("response") or "").strip()
+                    return ProviderReply(
+                        str(data.get("response") or "").strip(),
+                        _ollama_usage(data),
+                    )
                 except httpx.HTTPStatusError as exc:
                     status = exc.response.status_code
                     if (
@@ -247,6 +280,59 @@ class OllamaProvider:
         # Unreachable: the loop either returns or raises on the final attempt.
         raise LLMUnavailableError("Ollama: exhausted retries without a response")
 
+    async def astream(self, request: LLMRequest) -> AsyncIterator[str]:
+        """Stream ``/api/generate`` as NDJSON deltas (BL-20260811-20).
+
+        Ollama streams newline-delimited JSON rather than SSE: one object per
+        token carrying ``response``, and a final ``done`` object carrying the
+        eval counts. The reachability gate still applies — a down local server
+        must fail fast at the tail of the chain — but the retry loop
+        :meth:`agenerate` uses does not: a retry after the first delta would
+        replay tokens the caller already saw.
+        """
+        from law_ai.agents_runtime import llm as llm_runtime
+
+        if not await llm_runtime.ollama_available_async():
+            raise LLMUnavailableError(
+                f"Ollama unreachable at {settings.OLLAMA_BASE_URL}"
+            )
+
+        url = str(settings.OLLAMA_BASE_URL).rstrip("/") + "/api/generate"
+        payload = self._payload(request, stream=True)
+        timeout = httpx.Timeout(float(settings.OLLAMA_REQUEST_TIMEOUT_S))
+        usage: LLMUsage | None = None
+        async with (
+            httpx.AsyncClient(timeout=timeout) as client,
+            client.stream("POST", url, json=payload) as resp,
+        ):
+            resp.raise_for_status()
+            async for line in resp.aiter_lines():
+                chunk = _ollama_line(line)
+                if chunk is None:
+                    continue
+                text, done = chunk
+                if done is not None:
+                    usage = done
+                if text:
+                    yield text
+        yield ProviderReply("", usage)
+
+    def _payload(self, request: LLMRequest, *, stream: bool) -> dict[str, Any]:
+        """The ``/api/generate`` body shared by the buffered and streamed calls."""
+        payload: dict[str, Any] = {
+            "model": self.model_for(request),
+            "prompt": _with_system(request),
+            "stream": stream,
+            "options": {"temperature": request.temperature},
+        }
+        # Ollama structured outputs: a JSON Schema in `format` when we have
+        # one, else plain JSON mode. Anything else leaves `format` unset.
+        if request.response_schema is not None:
+            payload["format"] = request.response_schema
+        elif request.json_mode:
+            payload["format"] = "json"
+        return payload
+
     async def probe(self) -> dict[str, Any]:
         base: dict[str, Any] = {
             "provider": self.name,
@@ -274,6 +360,40 @@ _OLLAMA_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 # workers do not re-hit a busy server in lockstep.
 _OLLAMA_BACKOFF_BASE_S = 0.5
 _OLLAMA_BACKOFF_CAP_S = 8.0
+
+
+def _ollama_usage(data: dict[str, Any]) -> LLMUsage | None:
+    """Token counts from an ``/api/generate`` response.
+
+    Ollama reports them at the top level as ``prompt_eval_count`` (input) and
+    ``eval_count`` (output) rather than in a ``usage`` object. They cost
+    nothing to serve, but recording them keeps the audit event's shape uniform
+    across tiers (BL-20260811-21).
+    """
+    return LLMUsage.from_counts(data.get("prompt_eval_count"), data.get("eval_count"))
+
+
+def _ollama_line(line: str) -> tuple[str, LLMUsage | None] | None:
+    """Parse one NDJSON line into ``(text, usage-when-final)``.
+
+    ``None`` for a blank or undecodable line: a stream must not die on a frame
+    the client does not model. Split out of the provider so the grammar is
+    unit-testable without a socket.
+    """
+    raw = line.strip()
+    if not raw:
+        return None
+    try:
+        event = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(event, dict):
+        return None
+    if event.get("error"):
+        raise LLMUnavailableError(f"Ollama stream error: {str(event['error'])[:200]}")
+    text = str(event.get("response") or "")
+    usage = _ollama_usage(event) if event.get("done") else None
+    return text, usage
 
 
 def _ollama_backoff_seconds(attempt: int) -> float:

@@ -31,7 +31,7 @@ from law_ai.core.settings_proxy import settings_proxy as settings
 from law_ai.eval.loaders import is_synthetic, load_task
 from law_ai.eval.paths import BASELINE_PATH, CACHE_ROOT
 from law_ai.eval.report import write_report
-from law_ai.eval.scoring import score_response
+from law_ai.eval.scoring import score_response, scorer_name
 
 logger = logging.getLogger("law_ai.eval.legalbench")
 
@@ -154,7 +154,19 @@ def run_eval(config: LegalBenchConfig) -> dict[str, Any]:
 
     for subset in config.subsets:
         items = load_task(subset, limit=config.limit)
-        logger.info("subset=%s items=%d model=%s", subset, len(items), config.model)
+        # The candidate pool a ranking scorer needs (BL-20260811-11): for
+        # retrieval subsets "correct" means the model's answer ranks the true
+        # case first *out of this subset's answers*, not that its prose
+        # happens to start with the case name.
+        corpus = [str(item.get("answer", "")) for item in items]
+        scorer = scorer_name(subset)
+        logger.info(
+            "subset=%s items=%d model=%s scorer=%s",
+            subset,
+            len(items),
+            config.model,
+            scorer,
+        )
 
         correct = 0
         errored = 0
@@ -184,7 +196,9 @@ def run_eval(config: LegalBenchConfig) -> dict[str, Any]:
             is_correct = False
             norm_response = ""
             if error is None:
-                is_correct, norm_response = score_response(response, expected, subset)
+                is_correct, norm_response = score_response(
+                    response, expected, subset, corpus=corpus
+                )
                 if is_correct:
                     correct += 1
 
@@ -232,6 +246,9 @@ def run_eval(config: LegalBenchConfig) -> dict[str, Any]:
                 "errored": errored,
                 "correct": correct,
                 "accuracy": accuracy,
+                # Which rule produced this number (BL-20260811-11). A scorer
+                # change moves scores, so the report must say which one ran.
+                "scorer": scorer,
                 "synthetic": is_synthetic(subset),
                 "items": subset_results,
             }
@@ -288,6 +305,10 @@ def update_baseline(report: dict[str, Any]) -> Path:
         "timestamp": report.get("timestamp"),
         "run_id": report.get("run_id"),
         "accuracies": {r["subset"]: r["accuracy"] for r in rows},
+        # A baseline is only comparable against runs scored the same way
+        # (BL-20260811-11): changing a scorer is a baseline reset, and this
+        # records which rules the recorded numbers came from.
+        "scorers": {r["subset"]: r.get("scorer", "default_match") for r in rows},
     }
     BASELINE_PATH.parent.mkdir(parents=True, exist_ok=True)
     BASELINE_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")

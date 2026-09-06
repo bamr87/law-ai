@@ -1,13 +1,26 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { createNavStore } from '../support/urlNav'
 import LsatLab from '@/components/LsatLab'
 import {
   __resetTimerStore,
   getTimerSnapshot,
 } from '@/lib/lsat/timerStore'
 import { server } from '@/mocks/server'
+
+const nav = createNavStore('/lsat')
+
+vi.mock('next/navigation', async () => {
+  const { useSyncExternalStore } = await import('react')
+  return {
+    usePathname: () => nav.path,
+    useSearchParams: () =>
+      useSyncExternalStore(nav.subscribe, nav.read, nav.read),
+    useRouter: () => ({ push: nav.push, replace: nav.replace }),
+  }
+})
 
 const sampleSections = {
   count: 3,
@@ -73,7 +86,9 @@ const sampleQuestion = {
 }
 
 beforeEach(() => {
-  // The timer store is module-level, so pace would leak between cases.
+  // The timer store is module-level, so pace would leak between cases. So
+  // would the URL, now that the active tab lives in it (BL-20260831-02).
+  nav.reset()
   __resetTimerStore()
   server.use(
     http.get('http://localhost:8000/api/lsat/stats', () =>
@@ -184,6 +199,41 @@ beforeEach(() => {
   )
 })
 
+/**
+ * The grade round trip, awaited on purpose (BL-20260831-13, BL-20260905-02).
+ *
+ * Clicking Submit fires `POST /api/lsat/grade` through MSW and re-renders the
+ * card from the response. Under a parallel vitest run that window has been
+ * seen to exceed `waitFor`'s 1s default about once in ten runs, which is a
+ * slow tick, not a regression — so the wait is explicit and generous, and the
+ * suite's `testTimeout` (vitest.config.ts) leaves room for it. A genuinely
+ * broken grade path still fails, five seconds later.
+ *
+ * Unhandled requests are already hard failures (`onUnhandledRequest: 'error'`
+ * in vitest.setup.ts), so a grade URL that stops matching its handler surfaces
+ * as an error rather than as a mysterious timeout here.
+ */
+const GRADED = /Incorrect — answer was C/
+
+function awaitGraded() {
+  return screen.findByText(GRADED, {}, { timeout: 5000 })
+}
+
+/**
+ * Pick a choice and submit it, checking the two preconditions a stray timeout
+ * would otherwise hide: the radio really is selected, and Submit really is
+ * enabled. A click that lands before the radio state settles used to look
+ * exactly like a slow grade.
+ */
+function gradeChoice(name: RegExp) {
+  const radio = screen.getByRole('radio', { name })
+  fireEvent.click(radio)
+  expect(radio).toHaveAttribute('aria-checked', 'true')
+  const submit = screen.getByRole('button', { name: /^Submit$/ })
+  expect(submit).toBeEnabled()
+  fireEvent.click(submit)
+}
+
 describe('LsatLab', () => {
   it('renders the section overview by default', async () => {
     render(<LsatLab />)
@@ -199,6 +249,129 @@ describe('LsatLab', () => {
     expect(screen.queryByRole('timer')).not.toBeInTheDocument()
   })
 
+  it('sizes the section tabs as 44px tap targets', () => {
+    // The switcher a student reaches for most, at a 390px viewport
+    // (BL-20260831-11). Guarded mechanically by ux_audit R14.
+    render(<LsatLab />)
+    for (const tab of screen.getAllByRole('tab')) {
+      expect(tab).toHaveClass('tap-target')
+    }
+  })
+
+  it('opens the tab the URL names, and puts a tab change in history', async () => {
+    // Deep-linked view state (BL-20260831-02): ?tab=RC is a shareable link,
+    // and switching tabs is a history entry so Back returns to the last one.
+    nav.reset('tab=RC')
+    render(<LsatLab />)
+    await waitFor(() =>
+      expect(
+        screen.getByRole('tab', { name: /Reading Comprehension/i }),
+      ).toHaveAttribute('aria-selected', 'true'),
+    )
+
+    fireEvent.click(screen.getByRole('tab', { name: /Logic Games/i }))
+    expect(nav.push).toHaveBeenCalled()
+    expect(nav.hrefs[nav.hrefs.length - 1]).toBe('/lsat?tab=LG')
+    expect(screen.getByRole('tab', { name: /Logic Games/i })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+  })
+
+  it('falls back to the overview for a tab the URL invents', async () => {
+    nav.reset('tab=NOPE')
+    render(<LsatLab />)
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      ),
+    )
+  })
+
+  // BL-20260905-01: the library's concept catalog links "drill them in the
+  // lab", and the lab used to open on Overview with the section still to be
+  // found and the filter still to be applied by hand.
+  describe('concept deep link', () => {
+    it('opens LR filtered by the concept the URL names', async () => {
+      const seen: string[] = []
+      server.use(
+        http.get('http://localhost:8000/api/lsat/questions', ({ request }) => {
+          seen.push(request.url)
+          return HttpResponse.json({ count: 1, questions: [sampleQuestion] })
+        }),
+      )
+      nav.reset('concept=flaw-in-reasoning')
+      render(<LsatLab />)
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole('tab', { name: /Logical Reasoning/i }),
+        ).toHaveAttribute('aria-selected', 'true'),
+      )
+      await waitFor(() =>
+        expect(
+          seen.some((u) => u.includes('concept=flaw-in-reasoning')),
+        ).toBe(true),
+      )
+      expect(screen.getByText(/Drilling flaw-in-reasoning/)).toBeInTheDocument()
+    })
+
+    it('clears the filter from the chip, and stays on the drill', async () => {
+      nav.reset('concept=flaw-in-reasoning')
+      render(<LsatLab />)
+      await waitFor(() =>
+        expect(screen.getByText(/Drilling flaw-in-reasoning/)).toBeInTheDocument(),
+      )
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Stop drilling flaw-in-reasoning' }),
+      )
+      await waitFor(() =>
+        expect(screen.queryByText(/Drilling flaw-in-reasoning/)).not.toBeInTheDocument(),
+      )
+      // Dropping the filter is not navigation: it replaces rather than pushes,
+      // so Back still leaves the lab rather than re-applying a filter the
+      // learner just dismissed.
+      expect(nav.replace).toHaveBeenCalled()
+      expect(nav.hrefs[nav.hrefs.length - 1]).toBe('/lsat?tab=LR')
+    })
+
+    it('says so when the concept has no questions, instead of a stray one', async () => {
+      server.use(
+        http.get('http://localhost:8000/api/lsat/questions', () =>
+          HttpResponse.json({ count: 0, questions: [] }),
+        ),
+      )
+      nav.reset('concept=unused-concept')
+      render(<LsatLab />)
+      expect(
+        await screen.findByText(
+          /No Logical Reasoning questions are tagged unused-concept yet/,
+        ),
+      ).toBeInTheDocument()
+    })
+
+    it('lets an explicit ?tab= win over the concept default', async () => {
+      nav.reset('concept=flaw-in-reasoning&tab=stats')
+      render(<LsatLab />)
+      await waitFor(() =>
+        expect(screen.getByRole('tab', { name: 'Stats' })).toHaveAttribute(
+          'aria-selected',
+          'true',
+        ),
+      )
+    })
+  })
+
+  it('keeps the shell’s panel params when it writes its own', async () => {
+    nav.reset('sidebar=0&tab=RC')
+    render(<LsatLab />)
+    fireEvent.click(screen.getByRole('tab', { name: /Logic Games/i }))
+    const href = nav.hrefs[nav.hrefs.length - 1]
+    expect(href).toContain('sidebar=0')
+    expect(href).toContain('tab=LG')
+  })
+
   it('switches to LR practice and grades a question', async () => {
     render(<LsatLab />)
     fireEvent.click(screen.getByRole('tab', { name: /Logical Reasoning/i }))
@@ -210,14 +383,8 @@ describe('LsatLab', () => {
       '0:00',
     )
 
-    fireEvent.click(screen.getByRole('radio', { name: /A.*Alpha/ }))
-    fireEvent.click(screen.getByRole('button', { name: /Submit/ }))
-
-    await waitFor(() => {
-      expect(
-        screen.getByText(/Incorrect — answer was C/),
-      ).toBeInTheDocument()
-    })
+    gradeChoice(/A.*Alpha/)
+    await awaitGraded()
     // Spec 045 FR-12: the author-rationale block with external source links
     // is gone — post-grade references resolve only to the concept catalog.
     // This supersedes the earlier assertion that the rationale text renders.
@@ -226,11 +393,10 @@ describe('LsatLab', () => {
     expect(
       screen.queryByRole('link', { name: /LSAC LR overview/i }),
     ).not.toBeInTheDocument()
-    await waitFor(() => {
-      expect(screen.getByText(/Derived from/i)).toBeInTheDocument()
-    })
+    await screen.findByText(/Derived from/i, {}, { timeout: 5000 })
     expect(
-      (await screen.findAllByText('flaw-in-reasoning')).length,
+      (await screen.findAllByText('flaw-in-reasoning', {}, { timeout: 5000 }))
+        .length,
     ).toBeGreaterThan(1)
     // Pace now lives in the timer store, because the timer can be docked in a
     // side panel — a different React subtree from this page (spec 043).
@@ -244,20 +410,66 @@ describe('LsatLab', () => {
     await waitFor(() =>
       expect(screen.getByText(/All swans observed/)).toBeInTheDocument(),
     )
-    fireEvent.click(screen.getByRole('radio', { name: /A.*Alpha/ }))
-    fireEvent.click(screen.getByRole('button', { name: /^Submit$/ }))
+    gradeChoice(/A.*Alpha/)
+    await awaitGraded()
 
-    await waitFor(() =>
-      expect(
-        screen.getByText(/Incorrect — answer was C/),
-      ).toBeInTheDocument(),
-    )
     fireEvent.click(screen.getByRole('button', { name: /Ask AI Tutor/ }))
-
-    await waitFor(() =>
-      expect(screen.getByText(/Walkthrough — the inductive leap/)).toBeInTheDocument(),
+    await screen.findByText(
+      /Walkthrough — the inductive leap/,
+      {},
+      { timeout: 5000 },
     )
     expect(screen.getByText(/Review sampling bias/)).toBeInTheDocument()
+  })
+
+  it('labels an offline tutor answer as a fallback, not as a model', async () => {
+    // The provider chain can answer from the deterministic fallback when no
+    // tier is reachable (backend test_tutor_falls_back_when_no_provider_is
+    // _reachable). The lab must say so rather than passing coaching off as a
+    // model's, and must not print `fallback/offline` as if it were one
+    // (BL-20260503-07).
+    server.use(
+      http.post('http://localhost:8000/api/lsat/tutor', () =>
+        HttpResponse.json({
+          question_id: 'lr-001',
+          user_choice: 'A',
+          correct_choice: 'C',
+          is_correct: false,
+          explanation: 'Hasty generalisation.',
+          coaching: 'Offline coaching — compare the sample with the claim.',
+          next_steps: ['Review sampling bias'],
+          concepts: [],
+          references: [],
+          model: 'fallback/offline',
+          used_llm: false,
+          confidence: 0.55,
+          requires_human_review: false,
+          cached: false,
+          latency_ms: 1,
+        }),
+      ),
+    )
+
+    render(<LsatLab />)
+    fireEvent.click(screen.getByRole('tab', { name: /Logical Reasoning/i }))
+    await screen.findByText(/All swans observed/, {}, { timeout: 5000 })
+
+    gradeChoice(/A.*Alpha/)
+    await awaitGraded()
+
+    fireEvent.click(screen.getByRole('button', { name: /Ask AI Tutor/ }))
+    expect(
+      await screen.findByText(/offline fallback/, {}, { timeout: 5000 }),
+    ).toBeInTheDocument()
+    // The coaching still renders — a fallback answer is a real answer.
+    expect(
+      screen.getByText(/Offline coaching — compare the sample/),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/55% conf/)).toBeInTheDocument()
+    expect(screen.queryByText(/fallback\/offline/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/mistral:7b-instruct-q4_K_M/),
+    ).not.toBeInTheDocument()
   })
 
   // The concept catalog is no longer a tab here — it moved into the library,
@@ -289,6 +501,47 @@ describe('LsatLab', () => {
     expect(screen.getByLabelText(/time on this question/i)).toHaveTextContent(
       '0:00',
     )
+    // The pace denominator the docked clock divides by (BL-20260829-01): one
+    // ungraded question in the open stack.
+    await waitFor(() => expect(getTimerSnapshot().remainingQuestions).toBe(1), {
+      timeout: 5000,
+    })
+  })
+
+  it('paces LR against the bank the overview reports', async () => {
+    render(<LsatLab />)
+    fireEvent.click(screen.getByRole('tab', { name: /Logical Reasoning/i }))
+    await waitFor(() =>
+      expect(screen.getByText(/All swans observed/)).toBeInTheDocument(),
+    )
+    // 7 items in the LR bank per the sections fixture, none graded yet.
+    await waitFor(() => expect(getTimerSnapshot().remainingQuestions).toBe(7), {
+      timeout: 5000,
+    })
+
+    gradeChoice(/A.*Alpha/)
+    await awaitGraded()
+    await waitFor(() => expect(getTimerSnapshot().remainingQuestions).toBe(6), {
+      timeout: 5000,
+    })
+  })
+
+  it('stops quoting a pace once the student leaves the stack', async () => {
+    render(<LsatLab />)
+    fireEvent.click(
+      screen.getByRole('tab', { name: /Reading Comprehension/i }),
+    )
+    await waitFor(() => expect(getTimerSnapshot().remainingQuestions).toBe(1), {
+      timeout: 5000,
+    })
+
+    // Back to a tab with no drill in it: a stale count would have the clock
+    // quoting seconds-per-question for a stack that is no longer on screen.
+    fireEvent.click(screen.getByRole('tab', { name: /Overview/i }))
+    await waitFor(
+      () => expect(getTimerSnapshot().remainingQuestions).toBeNull(),
+      { timeout: 5000 },
+    )
   })
 
   it('drives a whole LR drill from the keyboard, without losing focus', async () => {
@@ -313,25 +566,25 @@ describe('LsatLab', () => {
     )
     expect(screen.getByText('lr-001')).toBeInTheDocument()
 
-    const choice = screen.getByRole('radio', { name: /A.*Alpha/ })
-    choice.focus()
-    fireEvent.keyDown(choice, { key: 'b' })
-    expect(screen.getByRole('radio', { name: /B.*Bravo/ })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    )
+    const alpha = screen.getByRole('radio', { name: /A.*Alpha/ })
+    alpha.focus()
+    fireEvent.keyDown(alpha, { key: 'b' })
+    const bravo = screen.getByRole('radio', { name: /B.*Bravo/ })
+    expect(bravo).toHaveAttribute('aria-checked', 'true')
+    // The letter moves focus with the selection (BL-20260702-13): if focus
+    // stayed on A, the Enter below would grade B while A is under the cursor,
+    // which is the divergence this card used to have.
+    expect(document.activeElement).toBe(bravo)
 
-    fireEvent.keyDown(choice, { key: 'Enter' })
-    await waitFor(() =>
-      expect(screen.getByText(/Incorrect — answer was C/)).toBeInTheDocument(),
-    )
+    fireEvent.keyDown(bravo, { key: 'Enter' })
+    await awaitGraded()
     // Graded choices stay in the focus order. `disabled` would have thrown
     // focus to <body>, outside the element every shortcut is bound to.
-    expect(choice).toHaveAttribute('aria-disabled', 'true')
-    expect(choice).not.toBeDisabled()
-    expect(document.activeElement).toBe(choice)
+    expect(bravo).toHaveAttribute('aria-disabled', 'true')
+    expect(bravo).not.toBeDisabled()
+    expect(document.activeElement).toBe(bravo)
 
-    fireEvent.keyDown(choice, { key: 'n' })
+    fireEvent.keyDown(bravo, { key: 'n' })
     await waitFor(() => expect(screen.getByText('lr-002')).toBeInTheDocument())
     // Focus followed the new question in, so the next keystroke has somewhere
     // to land.
@@ -339,7 +592,7 @@ describe('LsatLab', () => {
     expect(document.activeElement).toHaveTextContent('lr-002')
   })
 
-  it('offers no practice jump for a section the lab cannot drill', async () => {
+  it('opens the writing surface from the Overview card (BL-20260901-09)', async () => {
     server.use(
       http.get('http://localhost:8000/api/lsat/sections', () =>
         HttpResponse.json({
@@ -368,12 +621,15 @@ describe('LsatLab', () => {
     await waitFor(() =>
       expect(screen.getByText('Argumentative Writing')).toBeInTheDocument(),
     )
-    // WS has no tab, so a "Practice WS" button selected nothing and rendered
-    // an empty tabpanel — a dead end with no marked way back.
-    expect(
-      screen.queryByRole('button', { name: /Practice WS/i }),
-    ).not.toBeInTheDocument()
-    expect(screen.getByText(/No drill in the lab yet/i)).toBeInTheDocument()
+    // WS used to have no tab, so its card said "No drill in the lab yet" and
+    // the section was practisable only on the published static site.
+    expect(screen.queryByText(/No drill in the lab yet/i)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Practice LR/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Practice WS/i }))
+    // The jump selects the real tab and mounts the real panel.
+    expect(
+      await screen.findByRole('tab', { name: 'Writing', selected: true }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Municipal broadband')).toBeInTheDocument()
   })
 })

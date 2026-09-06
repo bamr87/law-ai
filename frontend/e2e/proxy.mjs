@@ -1,13 +1,15 @@
 // Loopback → compose-network forwarder for the e2e browser (spec 051).
 //
-// The frontend bakes `http://localhost:8000` into its API base and
-// `ws://localhost:8000` into the agent stream URL, and Next dev is happiest
-// when the page's origin is `localhost:3000`. Inside the e2e container
-// "localhost" is the container itself, so this script listens on those two
-// loopback ports and pipes each TCP connection to the real service on the
-// compose network (`frontend:3000`, `backend-e2e:8000`). Plain TCP, so
-// WebSockets ride through untouched — which is the whole point of the
-// harness: jsdom has no WebSocket, this browser does.
+// Next dev is happiest when the page's origin is `localhost:3000`, the app's
+// REST proxy route forwards to the backend from inside that container, and
+// `NEXT_PUBLIC_WS_URL` points the agent stream at `ws://localhost:8000` (a
+// route handler cannot upgrade a connection, so the socket talks to the API
+// directly). Inside the e2e container "localhost" is the container itself, so
+// this script listens on those two loopback ports and pipes each TCP
+// connection to the real service on the compose network (`frontend:3000`,
+// `backend-e2e:8000`). Plain TCP, so WebSockets ride through untouched —
+// which is the whole point of the harness: jsdom has no WebSocket, this
+// browser does.
 //
 // playwright.config.ts starts it as the `webServer`; it does nothing when the
 // E2E_*_UPSTREAM variables are unset (a developer's own browser needs no

@@ -19,6 +19,8 @@ from __future__ import annotations
 import json
 import logging
 import time
+from collections import Counter
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +28,7 @@ import httpx
 from pydantic import BaseModel, Field, model_validator
 
 from law_ai.core import claude_code, llm
+from law_ai.core.settings_proxy import settings_proxy as settings
 from law_ai.core.provenance import provenance
 from law_ai.lsat.services.bank import (
     ChoiceLabel,
@@ -48,11 +51,65 @@ PROMPT_PATH = (
 # A-E instead of always defaulting to "A" (see _fallback_draft).
 _CHOICE_LABELS: tuple[ChoiceLabel, ...] = ("A", "B", "C", "D", "E")
 
+# Answer-key balance (BL-20260606-02). A batch smaller than this carries no
+# signal: 2 drafts keyed the same are a coin flip, not a skew.
+_MIN_BALANCE_SAMPLE = 3
+_DEFAULT_BALANCE_TOLERANCE = 0.40
+
 _MAX_COUNT = 10
 _MAX_STEM_CHARS = 1500
 _MAX_CHOICE_CHARS = 400
 _MAX_EXPLANATION_CHARS = 2000
 _MAX_PASSAGE_CHARS = 4000
+
+
+# ---------------------------------------------------------------------------
+# Answer-key balance (BL-20260606-02)
+# ---------------------------------------------------------------------------
+
+
+def default_balance_tolerance() -> float:
+    """Share of one answer key above which a batch counts as skewed.
+
+    Read from ``LSAT_FACTORY_BALANCE_TOLERANCE`` so the direct
+    ``LSATContentAuthor`` paths (autonomy beat, ``POST
+    /api/lsat/proposals/generate``) and the content factory — which passes its
+    own :class:`~law_ai.lsat.factory.config.FactoryConfig` value — agree on
+    what "skewed" means.
+    """
+    try:
+        return float(
+            getattr(
+                settings, "LSAT_FACTORY_BALANCE_TOLERANCE", _DEFAULT_BALANCE_TOLERANCE
+            )
+        )
+    except (TypeError, ValueError):  # pragma: no cover - defensive
+        return _DEFAULT_BALANCE_TOLERANCE
+
+
+def answer_key_skew(
+    labels: Iterable[str], tolerance: float | None = None
+) -> str | None:
+    """Describe the answer-key skew of a batch, or ``None`` when it is spread.
+
+    BL-20260606-02: the prompt *asks* for an A-E spread, so every batch that
+    reaches the HITL queue is checked for one — the content factory's Gate 4
+    and the direct agent paths both call this. Flag, never reject (factory
+    AC-4): rewriting a key would desynchronise the explanation that names it.
+    """
+    keys = Counter(labels)
+    total = sum(keys.values())
+    if total < _MIN_BALANCE_SAMPLE:
+        return None
+    limit = default_balance_tolerance() if tolerance is None else tolerance
+    label, top = keys.most_common(1)[0]
+    share = top / total
+    if share <= limit:
+        return None
+    return (
+        f"answer-key skew: {top}/{total} drafts keyed {label!r} "
+        f"(share {share:.2f} > tolerance {limit:.2f})"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -106,6 +163,12 @@ class GenerateQuestionsOutput(BaseModel):
     degraded: bool = Field(
         False,
         description="True when Ollama was unreachable and a fallback draft was used.",
+    )
+    balance_flag: str | None = Field(
+        None,
+        description="Set when the batch's answer keys are skewed past the "
+        "tolerance (BL-20260606-02). Advisory: the drafts still reach the "
+        "HITL queue, carrying the flag in their proposal meta.",
     )
     trace_id: str | None = None
 
@@ -404,6 +467,11 @@ class LSATContentAuthor:
             drafts = [_fallback_draft(inp, i) for i in range(inp.count)]
 
         latency_ms = (time.perf_counter() - started) * 1000.0
+        # BL-20260606-02: check the finished batch (LLM *and* fallback drafts)
+        # for A-E spread instead of trusting the prompt to have produced one.
+        balance_flag = answer_key_skew(d.correct for d in drafts)
+        if balance_flag:
+            logger.info("LSATContentAuthor batch flagged: %s", balance_flag)
         # Aggregate confidence = mean draft confidence (0.0 on degraded path).
         confidence = (
             round(sum(d.confidence for d in drafts) / max(1, len(drafts)), 4)
@@ -430,6 +498,7 @@ class LSATContentAuthor:
                 "model": model_used,
                 "confidence": confidence,
                 "degraded": degraded,
+                "balance_flag": balance_flag,
             },
             model=model_used,
             latency_ms=latency_ms,
@@ -443,5 +512,6 @@ class LSATContentAuthor:
             confidence=confidence,
             latency_ms=round(latency_ms, 2),
             degraded=degraded,
+            balance_flag=balance_flag,
             trace_id=trace_id,
         )

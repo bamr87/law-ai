@@ -1250,6 +1250,11 @@ _STOPWORDS = frozenset(
 #: "ring" produces garbage, and short words are already matched by prefix.
 _MIN_STEM = 4
 
+#: Shortest stem a typo is forgiven on. Below five characters a single edit
+#: turns one real word into another ("gam" → "game", "ram", "gap"), so the
+#: tolerance is worth less than the false hits it buys.
+_MIN_FUZZY = 5
+
 
 def _strip_double_consonant(stem: str) -> str:
     """``diagramm`` → ``diagram``: undo the doubling ``-ing``/``-ed`` adds."""
@@ -1341,14 +1346,110 @@ def _count_matches(field_stems: list[str], token: str) -> int:
     return count
 
 
+def _same_length_typo(a: str, b: str) -> bool:
+    """One substitution, or one transposition of adjacent letters."""
+    diffs = [i for i in range(len(a)) if a[i] != b[i]]
+    if len(diffs) == 1:
+        return True
+    if len(diffs) == 2 and diffs[1] == diffs[0] + 1:
+        i, j = diffs
+        return a[i] == b[j] and a[j] == b[i]
+    return False
+
+
+def _off_by_one_typo(short: str, long: str) -> bool:
+    """One inserted or dropped letter: ``long`` with one character removed."""
+    i = j = 0
+    skipped = False
+    while i < len(short) and j < len(long):
+        if short[i] == long[j]:
+            i += 1
+            j += 1
+        elif skipped:
+            return False
+        else:
+            skipped = True
+            j += 1
+    return True
+
+
+def is_typo(a: str, b: str) -> bool:
+    """Whether two stems are within one edit — substitute, insert, drop, swap.
+
+    A hand-rolled Damerau-Levenshtein *bound* rather than a distance: the
+    answer is only ever "≤ 1 or not", which needs no matrix and stays trivial
+    to mirror in TypeScript.
+
+    >>> is_typo("assumption", "assumtion"), is_typo("premis", "premium")
+    (True, False)
+    """
+    if a == b:
+        return True
+    if abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        return _same_length_typo(a, b)
+    short, long = (a, b) if len(a) < len(b) else (b, a)
+    return _off_by_one_typo(short, long)
+
+
+def _fuzzy_matches(field_stems: list[str], token: str) -> bool:
+    """Whether a *mistyped* query token is present in a tokenised field.
+
+    The last resort, tried only when a token matches nothing exactly: it lets
+    "assumtion" and "seqencing" find their articles instead of returning the
+    empty state. Deliberately bounded — one edit, on stems of at least
+    :data:`_MIN_FUZZY` characters — so it forgives typing, not meaning.
+    """
+    target = stem(token)
+    if len(target) < _MIN_FUZZY:
+        return False
+    return any(
+        len(s) >= _MIN_FUZZY and is_typo(s, target)
+        for s in field_stems
+        if abs(len(s) - len(target)) <= 1
+    )
+
+
+def _fuzzy_weight(weight: int) -> int:
+    """A typo hit is worth half a real one, and never nothing."""
+    return max(1, weight // 2)
+
+
+def _score_field(field_stems: list[str], token: str, weight: int, cap: int) -> int:
+    """One field's contribution for one token: exact first, typo as a fallback."""
+    occurrences = _count_matches(field_stems, token)
+    if occurrences:
+        return weight * min(occurrences, cap)
+    if _fuzzy_matches(field_stems, token):
+        return _fuzzy_weight(weight)
+    return 0
+
+
+def _score_headings(
+    headings: list[tuple[str, list[str]]], token: str
+) -> tuple[int, str | None]:
+    """Heading contribution for one token, plus the anchor to jump to."""
+    exact = [a for a, stems in headings if _count_matches(stems, token)]
+    if exact:
+        return _WEIGHTS["heading"] * len(exact), exact[0]
+    fuzzy = [a for a, stems in headings if _fuzzy_matches(stems, token)]
+    if fuzzy:
+        return _fuzzy_weight(_WEIGHTS["heading"]) * len(fuzzy), fuzzy[0]
+    return 0, None
+
+
 def _first_match_offset(text: str, tokens: list[str]) -> tuple[int, int] | None:
     """Character span of the first body word any query token matches."""
     targets = {stem(t) for t in tokens}
+    fuzzy: tuple[int, int] | None = None
     for match in _TOKEN_RE.finditer(text.lower()):
-        word = match.group(0)
-        if stem(word) in targets or any(word.startswith(t) for t in tokens):
+        word = stem(match.group(0))
+        if word in targets or any(match.group(0).startswith(t) for t in tokens):
             return match.start(), match.end()
-    return None
+        if fuzzy is None and any(_fuzzy_matches([word], t) for t in tokens):
+            fuzzy = (match.start(), match.end())
+    return fuzzy
 
 
 def _snippet(text: str, tokens: list[str]) -> str | None:
@@ -1380,28 +1481,27 @@ def _score_article(
     where: list[str] = []
     anchor: str | None = None
     for token in tokens:
-        matched = False
+        gained = 0
         for name in ("title", "summary", "tag"):
-            if _count_matches(fields[name], token):
-                score += _WEIGHTS[name]
-                matched = True
+            field_score = _score_field(fields[name], token, _WEIGHTS[name], 1)
+            if field_score:
+                gained += field_score
                 if name not in where:
                     where.append(name)
-        hit_headings = [a for a, stems in headings if _count_matches(stems, token)]
-        if hit_headings:
-            score += _WEIGHTS["heading"] * len(hit_headings)
-            matched = True
+        heading_score, heading_anchor = _score_headings(headings, token)
+        if heading_score:
+            gained += heading_score
             if "heading" not in where:
                 where.append("heading")
-            anchor = anchor or hit_headings[0]
-        occurrences = _count_matches(fields["body"], token)
-        if occurrences:
-            score += _WEIGHTS["body"] * min(occurrences, 5)
-            matched = True
+            anchor = anchor or heading_anchor
+        body_score = _score_field(fields["body"], token, _WEIGHTS["body"], 5)
+        if body_score:
+            gained += body_score
             if "body" not in where:
                 where.append("body")
-        if not matched:
+        if not gained:
             return 0, [], None
+        score += gained
     return score, where, anchor
 
 
@@ -1413,10 +1513,11 @@ def search_library(query: str, *, limit: int = 20) -> list[dict[str, Any]]:
     offline site search with zero network calls (NFR-OFFLINE-1). Each query
     token is stemmed (:func:`stem`) and expanded through ``_SYNONYMS``, so
     "assumptions" meets "assumption" and "LG" meets "logic games"; a field
-    word also matches by prefix so search-as-you-type keeps working. Every
-    token must match somewhere in an article for it to be a hit. True fuzzy
-    (edit-distance) matching is deliberately absent — it is the part that
-    needs an index, and the corpus does not need it yet.
+    word also matches by prefix so search-as-you-type keeps working. A token
+    that matches nothing exactly is retried within one edit (:func:`is_typo`,
+    stems of ≥ 5 characters only), scored at half weight, so "assumtion"
+    still lands on the assumption family rather than the empty state. Every
+    token must match somewhere in an article for it to be a hit.
 
     ``lsat-static/lib/search.ts`` mirrors this function rule for rule.
     """
@@ -1546,3 +1647,219 @@ def library_audit(*, today: date | None = None) -> dict[str, Any]:
             "broken_cross_references": [],
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# Target picker (BL-20260903-08) — deterministic, no model call
+# ---------------------------------------------------------------------------
+
+#: How many gap-driven expansions the picker will ever emit in one run,
+#: however many gaps the audit reports. Expansions are the noisier half of the
+#: librarian's work — a review reports, an expansion drafts prose a human then
+#: has to read line by line — so a cycle stays mostly review even when the
+#: coverage report is long.
+MAX_EXPANSIONS_PER_RUN = 2
+
+
+class LibrarianRequest(BaseModel):
+    """One target the picker hands :class:`LSATLibrarian`.
+
+    ``reason`` is the audit signal that selected it, and is carried onto the
+    proposal so a reviewer sees *why* the cycle chose this article rather than
+    having to reconstruct it from the report.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    action: Literal["review", "expand"] = "review"
+    article_id: str
+    gap: str | None = None
+    reason: str
+
+    def to_input(self) -> dict[str, Any]:
+        """The ``run()`` payload for :class:`LSATLibrarian`."""
+        payload: dict[str, Any] = {"action": self.action, "article_id": self.article_id}
+        if self.gap:
+            payload["gap"] = self.gap
+        return payload
+
+
+def article_source(article_id: str) -> str:
+    """The article's on-disk Markdown — what an expansion is appended to."""
+    path = _library_dir() / f"{article_id}.md"
+    if not path.is_file():
+        raise KeyError(f"no source file for article {article_id!r}")
+    return path.read_text(encoding="utf-8")
+
+
+def merge_expansion(article_id: str, proposed_markdown: str) -> str:
+    """The whole revised article: its source with the drafted section appended.
+
+    ``expand`` returns a new ``##`` section, but a promoted draft is written
+    whole (:func:`law_ai.lsat.services.proposals.promote_library_article`), so
+    the merge happens here — before a reviewer ever sees the draft — and what
+    they approve is exactly the file that lands.
+    """
+    return (
+        article_source(article_id).rstrip() + "\n\n" + proposed_markdown.strip() + "\n"
+    )
+
+
+def _host_article(section: str, articles: dict[str, Article]) -> str | None:
+    """The article a gap in ``section`` should be expanded into.
+
+    The section's hub: among the articles serving it, the one already teaching
+    the most concepts, ties broken by id. A section with no article at all
+    returns ``None`` and the gap is dropped — starting a *new* article is a
+    human's job, because ``expand`` drafts a body and only a human writes the
+    frontmatter that gives an article its id, level and review status.
+    """
+    candidates = [a for a in articles.values() if section in a.sections]
+    if not candidates:
+        return None
+    return min(candidates, key=lambda a: (-len(a.concepts), a.id)).id
+
+
+def _concept_gaps(
+    report: dict[str, Any], articles: dict[str, Article]
+) -> list[LibrarianRequest]:
+    """One expansion per untaught concept, hosted in that concept's section."""
+    catalog = _bank.load_concepts()
+    out: list[LibrarianRequest] = []
+    for concept_id in report["coverage"]["concepts_untaught"]:
+        concept = catalog.get(concept_id)
+        if concept is None:
+            continue
+        for section in concept.sections:
+            host = _host_article(section, articles)
+            if host is None:
+                continue
+            out.append(
+                LibrarianRequest(
+                    action="expand",
+                    article_id=host,
+                    gap=(
+                        f"The concept catalog defines '{concept.name}' "
+                        f"({concept_id}) — {concept.summary} — but no library "
+                        f"article teaches it. Draft a section for this article "
+                        f"that does, tagged [[concept:{concept_id}]]."
+                    ),
+                    reason=f"untaught concept {concept_id}",
+                )
+            )
+            break
+    return out
+
+
+def _archetype_gaps(
+    report: dict[str, Any], articles: dict[str, Article]
+) -> list[LibrarianRequest]:
+    """One expansion per uncovered archetype, hosted in that archetype's section."""
+    try:
+        from law_ai.lsat.factory import taxonomy
+
+        catalog = taxonomy.by_id()
+    except Exception:  # pragma: no cover - taxonomy is optional to the library
+        return []
+    out: list[LibrarianRequest] = []
+    for archetype_id in report["coverage"]["archetypes_uncovered"]:
+        archetype = catalog.get(archetype_id)
+        if archetype is None:
+            continue
+        host = _host_article(archetype.section, articles)
+        if host is None:
+            continue
+        out.append(
+            LibrarianRequest(
+                action="expand",
+                article_id=host,
+                gap=(
+                    f"No library article covers the '{archetype.name}' question "
+                    f"archetype ({archetype_id}), which the item factory already "
+                    f"generates. Draft a section for this article that explains "
+                    f"how the pattern is recognised and solved."
+                ),
+                reason=f"uncovered archetype {archetype_id}",
+            )
+        )
+    return out
+
+
+def _review_targets(
+    report: dict[str, Any], articles: dict[str, Article]
+) -> list[LibrarianRequest]:
+    """Reviews, worst first: unreviewed, then thin, then unreachable."""
+    out: list[LibrarianRequest] = []
+    for row in report["freshness"]["stale_articles"]:
+        out.append(
+            LibrarianRequest(
+                article_id=str(row["id"]),
+                reason=(
+                    f"{row['status']}, {row['days_since_review']} days since review"
+                ),
+            )
+        )
+    floor = report["words"]["thin_threshold"]
+    for row in report["words"]["thin_articles"]:
+        out.append(
+            LibrarianRequest(
+                article_id=str(row["id"]),
+                reason=f"thin — {row['word_count']} words, under the {floor} floor",
+            )
+        )
+    graph = report["graph"]
+    for article_id in graph["orphan_articles"]:
+        out.append(
+            LibrarianRequest(
+                article_id=str(article_id),
+                reason="orphan — nothing links to it and no track reaches it",
+            )
+        )
+    for article_id in graph["articles_in_no_track"]:
+        out.append(
+            LibrarianRequest(article_id=str(article_id), reason="in no reading track")
+        )
+    return out
+
+
+def pick_librarian_targets(
+    report: dict[str, Any], *, limit: int = 3
+) -> list[LibrarianRequest]:
+    """Choose what the librarian works on next, from the audit alone.
+
+    The corpus-wide pass the scheduled cycle used to need a human target list
+    for (BL-20260903-08). Deterministic and provider-free: the same report
+    always yields the same targets, in one order —
+
+    1. **reviews** of articles the audit flags: never-reviewed or stale first
+       (the audit orders them by days-since-review), then thin ones, then
+       articles nothing links to and no track reaches;
+    2. **expansions** for coverage gaps — an untaught concept or an uncovered
+       archetype — hosted in that section's hub article and capped at
+       :data:`MAX_EXPANSIONS_PER_RUN`, because a draft costs a reviewer far
+       more than a report does;
+    3. a **review of everything else**, in id order, so a healthy corpus keeps
+       the cycle useful instead of idling.
+
+    Each article appears at most once, under the first signal that named it.
+    ``limit`` is the number of targets returned, not the number considered.
+    """
+    articles = load_library()
+    ranked = _review_targets(report, articles)
+    gaps = _concept_gaps(report, articles) + _archetype_gaps(report, articles)
+    ranked += gaps[:MAX_EXPANSIONS_PER_RUN]
+    ranked += [
+        LibrarianRequest(article_id=article_id, reason="routine sweep")
+        for article_id in sorted(articles)
+    ]
+
+    picked: list[LibrarianRequest] = []
+    seen: set[str] = set()
+    for request in ranked:
+        if request.article_id in seen or request.article_id not in articles:
+            continue
+        seen.add(request.article_id)
+        picked.append(request)
+        if len(picked) >= max(1, limit):
+            break
+    return picked

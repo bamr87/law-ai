@@ -126,3 +126,55 @@ async def test_resolve_citations_no_match_returns_none(
         mapping = await resolve_citations(session, ["999 U.S. 999"])
 
     assert mapping == {"999 U.S. 999": None}
+
+
+# ---------------------------------------------------------------------------
+# BL-20260429-12 / BL-20260526-01: overlapping aliases resolve deterministically
+# ---------------------------------------------------------------------------
+
+
+async def test_resolve_citations_overlapping_alias_is_deterministic(
+    neo4j_integration_driver, clean_neo4j_db
+) -> None:
+    """Two Cases sharing an alias always resolve to the smallest ``Case.id``.
+
+    Before BL-20260429-12 ``head(collect(c.id))`` returned whichever node the
+    planner scanned first. With ``ORDER BY n, c.id`` ahead of the aggregation
+    the winner is stable across repeated calls and across both seeding orders.
+    """
+    async with neo4j_integration_driver.session() as session:
+        await _seed_case(session, "zeta", aliases=["347 U.S. 483"], title="Zeta")
+        await _seed_case(session, "alpha", aliases=["347 U.S. 483"], title="Alpha")
+        await _seed_case(session, "mu", aliases=["347 U.S. 483"], title="Mu")
+
+    for _ in range(5):
+        async with neo4j_integration_driver.session() as session:
+            mapping = await resolve_citations(session, ["347 U.S. 483"])
+        assert mapping == {"347 U.S. 483": "alpha"}
+
+
+async def test_densify_extraction_overlapping_alias_is_deterministic(
+    neo4j_integration_driver, clean_neo4j_db
+) -> None:
+    """The determinism guarantee reaches ``target_case_id`` too, and unresolved
+    citations still map to ``None`` alongside an ambiguous one."""
+    async with neo4j_integration_driver.session() as session:
+        await _seed_case(session, "yankee", aliases=["410 U.S. 113"], title="Yankee")
+        await _seed_case(session, "bravo", aliases=["410 U.S. 113"], title="Bravo")
+
+    def _make_result() -> ExtractionResult:
+        return ExtractionResult(
+            case_id="opinion-002",
+            title="Appellant v. Appellee",
+            confidence=0.9,
+            citations=[
+                Citation(text="410 U.S. 113", normalized="410 U.S. 113"),
+                Citation(text="999 U.S. 999", normalized="999 U.S. 999"),
+            ],
+        )
+
+    for _ in range(3):
+        async with neo4j_integration_driver.session() as session:
+            out = await densify_extraction(session, _make_result())
+        assert out.citations[0].target_case_id == "bravo"
+        assert out.citations[1].target_case_id is None

@@ -25,3 +25,16 @@ export function parseEnum<T extends string>(allowed: readonly T[]) {
 }
 
 export const INSTANCE_ONLY: ScopeType[] = ['instance']
+
+/**
+ * Settable by an individual, with the instance value as the inherited default
+ * (BL-20260905-10).
+ *
+ * Layout is a personal preference — where the sidebar sits, whether the rail
+ * is labelled — and settings became server-persisted in BL-20260830-07, which
+ * is the moment "instance-scoped" stopped meaning "per browser" and started
+ * meaning "two people on one instance fight over one layout". Instance stays
+ * settable so an admin can seed a default; the resolver renders it as
+ * inherited until the user overrides it.
+ */
+export const USER_SETTABLE: ScopeType[] = ['instance', 'user']

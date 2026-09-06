@@ -40,6 +40,10 @@ def factory_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[obj
         "concepts.json",
         "passages.json",
         "sections.json",
+        # The factory plans for the writing library too (BL-20260831-28), so
+        # a sandboxed run needs its files as well.
+        "writing_prompts.json",
+        "writing_rubrics.json",
     ):
         src = real_data_dir / name
         if src.is_file():
@@ -49,6 +53,9 @@ def factory_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[obj
     monkeypatch.setattr(bank_mod, "DATA_DIR", sandbox)
 
     def _clear() -> None:
+        from law_ai.lsat.services.writing import reset_writing_caches
+
+        reset_writing_caches()
         bank_mod.load_bank.cache_clear()
         bank_mod.load_concepts.cache_clear()
         bank_mod.load_passages.cache_clear()

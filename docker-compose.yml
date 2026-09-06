@@ -27,6 +27,14 @@ services:
       - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006/v1/traces
       - PHOENIX_UI_URL=http://localhost:6006
       - PHOENIX_PROJECT_NAME=law_ai
+      # BL-20260502-07: phoenix | langfuse | none. Everything above is the
+      # phoenix backend's own input; LANGFUSE_* takes over when switched.
+      - OBSERVABILITY_BACKEND=${OBSERVABILITY_BACKEND:-phoenix}
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      - OTEL_EXPORTER_OTLP_HEADERS=${OTEL_EXPORTER_OTLP_HEADERS:-}
       - LANGGRAPH_CHECKPOINTER=postgres
       # Autonomy loop (spec 018) — default off; set AUTONOMY_ENABLED=True in .env to activate.
       - AUTONOMY_ENABLED=${AUTONOMY_ENABLED:-False}
@@ -121,6 +129,18 @@ services:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
+      # Browser → same-origin proxy → backend, so the API key never reaches
+      # the bundle (BL-20260430-07). AGENT_API_KEY is read by the Next server
+      # only; it is blank by default, matching the open localhost posture.
+      - NEXT_PUBLIC_API_BASE_URL=/api/backend
+      # `make test-e2e` overrides this to the backend-e2e sidecar (spec 051):
+      # now that REST goes through the proxy, the browser's API calls follow
+      # whatever the Next server points at, and the whole no-model-bill
+      # guarantee of the e2e stack depends on that being the pinned-degraded
+      # sidecar rather than the dev backend.
+      - BACKEND_INTERNAL_URL=${FRONTEND_BACKEND_URL:-http://backend:8000}
+      - NEXT_PUBLIC_WS_URL=${FRONTEND_WS_URL:-ws://localhost:8000}
+      - AGENT_API_KEY=${AGENT_API_KEY:-}
     depends_on:
       # started, not healthy: Next dev doesn't need the API to boot, and
       # blocking the UI on backend migrations makes the dev loop miserable.
@@ -140,6 +160,17 @@ services:
       start_period: 60s
 
   postgres:
+    # MAJOR VERSION IS PINNED ON PURPOSE (BL-20260503-25). The on-disk cluster
+    # in the `pgdata` volume was initialized by Postgres 16, and a Postgres
+    # server refuses to start against a data directory written by a different
+    # major version ("database files are incompatible with server"). Bumping
+    # this tag to 17/18 without doing something about the volume gives you a
+    # postgres container that crash-loops on boot, not an upgrade.
+    #
+    # To bump: `make reset-db` (wipes pgdata, dev data only), change the tag,
+    # `make dev && make migrate`. To keep the data, pg_upgrade or a
+    # dump/restore instead — see "Bumping the Postgres major version" in
+    # docs/local-ai.md.
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: law_ai
@@ -198,6 +229,10 @@ services:
       # this, and `make local-ai-pull` reads it back out of the container so
       # the list cannot drift between the two (BL-20260810-12).
       - OLLAMA_BOOTSTRAP_MODELS=${OLLAMA_BOOTSTRAP_MODELS:-mistral:7b-instruct-q4_K_M llama3.1:8b-instruct-q4_K_M nomic-embed-text}
+      # Air-gapped hosts (BL-20260502-06): 1 makes ollama-bootstrap.sh skip
+      # every `ollama pull`, because scripts/offline-install.sh already put
+      # the models in the volume and the registry is unreachable here.
+      - OLLAMA_OFFLINE=${OLLAMA_OFFLINE:-0}
     # Spec 010 FR-7: idempotent bootstrap pulls the default model set in
     # the background; the smallest model gates readiness so the rest of
     # the stack starts quickly.
@@ -343,6 +378,84 @@ services:
     # Chromium is happier with the host IPC namespace (Playwright docs).
     ipc: host
     command: npx playwright test
+
+  # ---------------------------------------------------------------------------
+  # LangGraph Studio host (BL-20260502-01). Behind the `studio` profile, so
+  # `make dev`, `make test` and `make down` never build or start it — the image
+  # is heavy and the tier is opt-in. `make studio-up` is the entry point.
+  #
+  # Two things an operator must know before enabling it (docs/local-ai.md):
+  #  1. The server validates LANGSMITH_API_KEY against beacon.langchain.com at
+  #     boot, so it phones home. A free LangSmith account is enough.
+  #  2. There is no open-source Studio UI: the visual stepper is hosted at
+  #     smith.langchain.com/studio and connects back to this local server.
+  # No prompt text leaves the machine for that (LANGSMITH_TRACING is off), but
+  # the license ping does — which is why nothing here is on the product
+  # runtime path (constitution §1 governs the runtime chain, not dev tools).
+  # ---------------------------------------------------------------------------
+  langgraph-db-init:
+    profiles: [ "studio" ]
+    image: postgres:16-alpine
+    environment:
+      - PGPASSWORD=law_ai-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # The Studio server runs its own migrations for threads/runs/assistants.
+    # Give it a database of its own so those tables never share a schema with
+    # Django's (and with the app's own LangGraph checkpoint tables).
+    entrypoint: [ "/bin/sh", "-c" ]
+    command: >
+      psql -h postgres -U law_ai -d law_ai -tAc "SELECT 1 FROM pg_database WHERE datname='langgraph'" | grep -q 1
+      || psql -h postgres -U law_ai -d law_ai -c "CREATE DATABASE langgraph"
+
+  langgraph-api:
+    profiles: [ "studio" ]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.studio
+    ports:
+      - "2024:8000"
+    env_file:
+      - path: ./.env
+        required: false
+    environment:
+      # Required by the self-hosted server; without it the container exits at
+      # boot. Free developer key from smith.langchain.com.
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY:-}
+      # Trace export is opt-in and off by default: a debugging tool should not
+      # ship this repo's prompts to a third party unless someone says so.
+      - LANGSMITH_TRACING=${LANGSMITH_TRACING:-false}
+      - DATABASE_URI=postgres://law_ai:law_ai-dev@postgres:5432/langgraph?sslmode=disable
+      # Separate Redis db from Celery's (0) so the two queues cannot collide.
+      - REDIS_URI=redis://redis:6379/1
+      # App wiring, same values the API uses.
+      - DJANGO_SETTINGS_MODULE=law_ai.settings.dev
+      - POSTGRES_URL=postgresql+asyncpg://law_ai:law_ai-dev@postgres:5432/law_ai
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=law_ai-dev
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - REDIS_URL=redis://redis:6379
+      - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006/v1/traces
+      # Stepping through a graph re-runs its LLM nodes. Default the visual
+      # tier to local Ollama so nobody bills a hosted provider by clicking
+      # "resume" twenty times; override in .env when that is what you want.
+      - LLM_PROVIDER_CHAIN=${STUDIO_LLM_PROVIDER_CHAIN:-ollama}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      langgraph-db-init:
+        condition: service_completed_successfully
+      neo4j:
+        condition: service_healthy
+    # No source bind-mount on purpose: the graph is baked into the image by
+    # `pip install -e /deps/law-ai`, so a code change means `make studio-up`
+    # again (it rebuilds). Live-reloading the server's own import path is not
+    # worth the class of "Studio ran different code than the API" bug.
+    restart: unless-stopped
 
 volumes:
   pgdata:

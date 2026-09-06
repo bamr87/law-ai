@@ -88,7 +88,14 @@ export default function OverviewPanel({ onJump }: { onJump: (t: Tab) => void }) 
                 <Detail label="Format" value={s.format} />
                 <Detail label="Timing" value={s.timing} />
                 <Detail label="Scoring" value={s.scoring} />
-                <Detail label="Items in bank" value={`${s.question_count}`} />
+                <Detail
+                  label={s.code === 'WS' ? 'Prompts in bank' : 'Items in bank'}
+                  value={`${
+                    s.code === 'WS'
+                      ? (s.writing_prompt_count ?? 0)
+                      : s.question_count
+                  }`}
+                />
               </dl>
               {s.tips.length > 0 && (
                 <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-slate-300">

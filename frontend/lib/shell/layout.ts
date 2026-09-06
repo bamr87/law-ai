@@ -1,5 +1,5 @@
-import { INSTANCE_SCOPE } from '@/lib/scope/instance'
-import { deleteSettingValue } from '@/lib/scope/store'
+import { INSTANCE_SCOPE, userScopeFor } from '@/lib/scope/instance'
+import { deleteSettingValue, serverSyncScope } from '@/lib/scope/store'
 import type { SettingDefinition } from '@/lib/scope/types'
 import {
   backToTopVisible,
@@ -11,6 +11,7 @@ import {
   lsatTimerDock,
   lsatTimerVisible,
   pageHeaderMode,
+  railExpanded,
   railVisible,
   scopeSwitcherVisible,
   sidebarDefaultOpen,
@@ -31,6 +32,7 @@ import type { PanelKey } from './panels'
 /** Every setting the Layout menu owns and "Reset layout" clears. */
 export const LAYOUT_SETTINGS: SettingDefinition<unknown>[] = [
   railVisible as SettingDefinition<unknown>,
+  railExpanded as SettingDefinition<unknown>,
   sidebarDefaultOpen as SettingDefinition<unknown>,
   sidebarSide as SettingDefinition<unknown>,
   inspectorDefaultOpen as SettingDefinition<unknown>,
@@ -51,8 +53,14 @@ export const LAYOUT_SETTINGS: SettingDefinition<unknown>[] = [
  * written default would look like a choice the user made.
  */
 export function resetLayout(): void {
+  // BL-20260905-10: reset means "back to what I inherit", so a signed-in user
+  // drops their own rows and lands on the instance default an admin seeded —
+  // deleting the instance rows from here would reset the *instance* for
+  // everyone, which is not what a personal Reset button may do. Signed out,
+  // the instance rows are the only ones there are and behaviour is unchanged.
+  const user = userScopeFor(serverSyncScope())
   for (const def of LAYOUT_SETTINGS) {
-    deleteSettingValue(INSTANCE_SCOPE.id, def.key)
+    deleteSettingValue(user ? user.id : INSTANCE_SCOPE.id, def.key)
   }
 }
 

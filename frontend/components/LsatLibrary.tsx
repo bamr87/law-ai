@@ -57,10 +57,12 @@ import {
   LEVEL_LABEL,
   SECTION_LABEL,
   loadLastArticleId,
+  hydrateReadIds,
   loadReadIds,
   prefersReducedMotion,
   readingLabel,
   saveLastArticleId,
+  publishReadState,
   saveReadIds,
 } from '@/lib/lsat/library'
 import Link from 'next/link'
@@ -196,6 +198,12 @@ export default function LsatLibrary() {
         if (live) setLoadError('Could not reach the library API.')
       })
     setReadIds(loadReadIds())
+    // …then reconcile with the server, so a second device starts where the
+    // first one stopped (BL-20260903-05). Local first and unconditionally: the
+    // rail must not wait on a round trip to show what this browser knows.
+    void hydrateReadIds().then((merged) => {
+      if (live) setReadIds(merged)
+    })
     return () => {
       live = false
     }
@@ -340,14 +348,25 @@ export default function LsatLibrary() {
     if (next === 'concepts') setSectionFilter((s) => (s === 'WS' ? 'all' : s))
   }, [])
 
+  // The read set, readable from an event handler. Toggling has three effects
+  // — state, `localStorage`, and the server — and a state updater has to stay
+  // pure, so the handler reads the current set here rather than inside one.
+  const readIdsRef = useRef(readIds)
+  useEffect(() => {
+    readIdsRef.current = readIds
+  })
+
   const toggleRead = useCallback((key: string) => {
-    setReadIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      saveReadIds(next)
-      return next
-    })
+    const read = !readIdsRef.current.has(key)
+    const next = new Set(readIdsRef.current)
+    if (read) next.add(key)
+    else next.delete(key)
+    readIdsRef.current = next
+    setReadIds(next)
+    saveReadIds(next)
+    // Fire-and-forget: the browser's copy is already updated, so a failed sync
+    // costs this article's cross-device state and nothing else.
+    publishReadState(key, read)
   }, [])
 
   // A track chip on either entry type: switch to the reader with that track
@@ -1129,14 +1148,28 @@ function EntryHeader({
 
 function EntryActions({
   drillCount,
-  drillCapped = false,
+  drillHref = '/lsat',
   onToggleRead,
   read,
 }: {
-  /** Bank questions this entry leads to; undefined while still loading. */
+  /**
+   * Bank questions this entry leads to; undefined while still loading.
+   *
+   * Always the true total. It used to be `used_in_questions.length` for a
+   * concept — a list the API caps at ten — so a popular concept could only say
+   * "10+ questions" while an article beside it named the exact number. The
+   * concept endpoint returns `used_in_count` now, and both entry types render
+   * the identical label (BL-20260905-06).
+   */
   drillCount?: number
-  /** The API caps `used_in_questions` at 10, so 10 means "at least 10". */
-  drillCapped?: boolean
+  /**
+   * Where "drill this" goes (BL-20260905-01). A concept names itself in the
+   * query string so the lab opens on the drill already filtered; the bare
+   * `/lsat` this used to be dropped the learner on Overview to re-find the
+   * section and re-filter by hand, which is the whole path the catalog's
+   * "drill them in the lab" was supposed to complete.
+   */
+  drillHref?: string
   onToggleRead: () => void
   read: boolean
 }) {
@@ -1156,11 +1189,10 @@ function EntryActions({
       </button>
       {drillCount !== undefined && drillCount > 0 && (
         <Link
-          href="/lsat"
+          href={drillHref}
           className="rounded-lg bg-amber-500/15 px-3 py-1.5 text-xs font-medium text-amber-200 ring-1 ring-inset ring-amber-500/30 hover:bg-amber-500/25"
         >
-          Drill this ({drillCapped ? `${drillCount}+` : drillCount}{' '}
-          question{drillCount === 1 && !drillCapped ? '' : 's'})
+          Drill this ({drillCount} question{drillCount === 1 ? '' : 's'})
         </Link>
       )}
     </div>
@@ -1563,8 +1595,8 @@ function ConceptReader({
       <EntryActions
         read={read}
         onToggleRead={onToggleRead}
-        drillCount={detail?.used_in_questions.length}
-        drillCapped={(detail?.used_in_questions.length ?? 0) >= 10}
+        drillCount={detail?.used_in_count}
+        drillHref={`/lsat?concept=${encodeURIComponent(concept.id)}`}
       />
 
       {concept.detail && (

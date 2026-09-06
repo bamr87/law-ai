@@ -17,6 +17,9 @@ Examples::
     python manage.py review_queue approve <id> --reviewer alice --note "verified"
     python manage.py review_queue reject  <id> --reviewer alice --note "duplicate"
 
+    # Re-run today's extractor over the stored raw document (no commit).
+    python manage.py review_queue re-extract <id> --reviewer alice
+
     # Commit everything a human already approved.
     python manage.py review_queue commit --limit 50
 """
@@ -36,7 +39,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "action",
-            choices=["list", "show", "approve", "reject", "commit"],
+            choices=["list", "show", "approve", "reject", "re-extract", "commit"],
         )
         parser.add_argument("review_id", nargs="?", default=None)
         parser.add_argument("--reviewer", default="", help="Who is deciding.")
@@ -70,6 +73,8 @@ class Command(BaseCommand):
 
         if action == "show":
             self._show(review)
+        elif action == "re-extract":
+            self._reextract(review, reviewer=opts["reviewer"])
         elif action in ("approve", "reject"):
             self._decide(
                 review,
@@ -160,6 +165,35 @@ class Command(BaseCommand):
                 self.style.ERROR(
                     f"approved but NOT committed: {outcome.get('error') or outcome}"
                 )
+            )
+
+    def _reextract(self, review: Any, *, reviewer: str) -> None:
+        """Re-run the extractor over the stored raw document (BL-20260503-10)."""
+        from law_ai.ingestionapp.services.approval import (
+            ApprovalError,
+            reextract_review,
+        )
+
+        try:
+            outcome = reextract_review(review, reviewer=reviewer)
+        except ApprovalError as exc:
+            raise CommandError(str(exc)) from exc
+        if not outcome.get("reextracted"):
+            detail = outcome.get("error") or outcome.get("skipped") or outcome
+            self.stdout.write(self.style.ERROR(f"not re-extracted: {detail}"))
+            return
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"re-extracted {review.pk}: "
+                f"{outcome['previous_confidence']:.3f} -> "
+                f"{outcome['confidence']:.3f} "
+                f"({outcome['n_citations']} citation(s))"
+            )
+        )
+        if outcome.get("clears_threshold"):
+            self.stdout.write(
+                "now clears the confidence threshold — "
+                "`approve` it to commit (approval is still the HITL gate)"
             )
 
     def _commit_all(self, limit: int) -> None:

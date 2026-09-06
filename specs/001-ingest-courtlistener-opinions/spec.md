@@ -38,7 +38,7 @@ Law AI's reasoning agents (`LegalAnalyst`, `PrecedentHunter`) need a populated N
 - **FR-3**: `IngestionScout.run_and_commit(payload)` writes a `Case` node to Neo4j and `CITES` edges to any already-present targets, returning `committed=True` only after the Cypher transaction succeeds.
 - **FR-4**: A CLI entry point `python scripts/ingest_sample.py --limit N --source courtlistener` orchestrates fetch → extract → commit for `N` opinions (default 500).
 - **FR-5**: A `Makefile` target `make ingest` invokes the CLI with defaults; the existing `Ingest Sample Data` VS Code task continues to work.
-- **FR-6**: `IngestionScout` registers itself in [backend/app/agents/registry.py](../../backend/app/agents/registry.py) under name `IngestionScout`.
+- **FR-6**: `IngestionScout` registers itself in `backend/app/agents/registry.py` under name `IngestionScout`.
 
 ## 6. Non-Functional Requirements
 

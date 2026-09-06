@@ -25,6 +25,8 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # BL-20260503-14: the stale-backlog triage step opens/labels an issue.
+  issues: write
 
 jobs:
   nightly:
@@ -82,12 +84,59 @@ jobs:
         run: docker compose up -d neo4j postgres redis ollama phoenix --wait
 
       # ------------------------------------------------------------------
+      # Pull the LegalBench gate model (BL-20260511-26). Starting the Ollama
+      # container is not enough: its model store is an empty named volume on
+      # a fresh runner, so `make test-legalbench-gate` exits 2 ("could not
+      # run — model not pulled") rather than producing a score. This is the
+      # step whose absence meant the scored eval had never actually run in
+      # CI.
+      #
+      # Only the gate model, deliberately: `make local-ai-pull` walks
+      # OLLAMA_BOOTSTRAP_MODELS (~10 GB across three models) and the extra
+      # two are not used by the eval. mistral:7b-instruct-q4_K_M is ~4.4 GB,
+      # which the disk-cleanup step above leaves ample room for.
+      # ------------------------------------------------------------------
+      - name: Pull the LegalBench gate model
+        if: ${{ !inputs.dry_run }}
+        env:
+          GATE_MODEL: mistral:7b-instruct-q4_K_M
+        run: |
+          docker compose exec -T ollama ollama pull "$GATE_MODEL"
+          docker compose exec -T ollama ollama list
+          df -h /
+
+      # ------------------------------------------------------------------
       # Coverage — emits backend/coverage.xml via bind mount (./backend:/app).
       # evolve_audit.py reads coverage.xml to detect shortfalls.
       # ------------------------------------------------------------------
       - name: Run test coverage
         if: ${{ !inputs.dry_run }}
         run: make test-coverage
+
+      # ------------------------------------------------------------------
+      # LegalBench dataset cache (BL-20260811-09). The task items are never
+      # vendored — the decision is "CI downloads at a pinned revision" — so
+      # the gate below would score synthetic stubs without this step. The
+      # cache key carries the revisions pinned in law_ai/eval/fetch.py, so a
+      # revision bump invalidates it instead of re-benchmarking stale data.
+      # ------------------------------------------------------------------
+      - name: Resolve LegalBench dataset revision
+        if: ${{ !inputs.dry_run }}
+        id: legalbench-revision
+        run: |
+          echo "key=$(sha256sum backend/law_ai/eval/fetch.py backend/var/legalbench/manifest.json | sha256sum | cut -c1-32)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cached LegalBench dataset
+        if: ${{ !inputs.dry_run }}
+        id: legalbench-cache
+        uses: actions/cache@v4
+        with:
+          path: backend/var/legalbench/*/items.jsonl
+          key: legalbench-items-${{ steps.legalbench-revision.outputs.key }}
+
+      - name: Fetch LegalBench dataset (pinned revision, licence-checked)
+        if: ${{ !inputs.dry_run && steps.legalbench-cache.outputs.cache-hit != 'true' }}
+        run: make legalbench-cache
 
       # ------------------------------------------------------------------
       # LegalBench regression eval.
@@ -110,6 +159,47 @@ jobs:
             backend/var/legalbench/history.jsonl
           retention-days: 90
 
+      # BL-20260811-12: the score history was only ever a downloadable
+      # artifact, which is where reviewers do not look. Render the last runs
+      # into the run summary page instead. Stdlib python3 on the runner —
+      # no container, and never fails the job.
+      - name: Summarise LegalBench score history
+        if: ${{ !inputs.dry_run && always() }}
+        continue-on-error: true
+        run: python3 scripts/legalbench_summary.py >> "$GITHUB_STEP_SUMMARY"
+
+      # ------------------------------------------------------------------
+      # Browser end-to-end (spec 051 / BL-20260811-16). Nightly, not per-PR:
+      # a full-stack boot plus a browser image is minutes, and the cheap half
+      # of the boundary (the API contract gate) already runs in `make test`.
+      # `backend-e2e` is pinned to an unreachable Ollama, so no model is
+      # called and nothing is billed. See docs/e2e-testing.md.
+      # ------------------------------------------------------------------
+      - name: Run browser end-to-end suite
+        if: ${{ !inputs.dry_run }}
+        run: make test-e2e
+
+      # ------------------------------------------------------------------
+      # Live-network drift smoke (BL-20260511-07). One real Justia fetch per
+      # run, re-parsed, so upstream HTML drift surfaces here instead of as a
+      # silently empty corpus. continue-on-error on purpose: an upstream
+      # outage is a warning, never a red nightly. Never add this to ci.yml.
+      # ------------------------------------------------------------------
+      - name: Run live-network drift smoke (Justia CRS)
+        if: ${{ !inputs.dry_run }}
+        continue-on-error: true
+        run: make test-live-network
+
+      - name: Upload Playwright report
+        if: ${{ !inputs.dry_run && failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 14
+
       # ------------------------------------------------------------------
       # Spec / BACKLOG validators (host stdlib only — no container needed).
       # ------------------------------------------------------------------
@@ -117,6 +207,44 @@ jobs:
         run: |
           python3 scripts/spec_validator.py
           python3 scripts/backlog_lint.py
+
+      # ------------------------------------------------------------------
+      # Stale-backlog triage issue (BL-20260503-14). The item asked for a
+      # Celery beat job; that home is not viable — the production backend
+      # image only COPYs backend/, so scripts/, specs/ and BACKLOG.md exist
+      # in the worker container solely through the dev-only ./:/repo bind
+      # mount, and the worker holds no GitHub credential. A workflow step
+      # here has both the repo and a token.
+      #
+      # --stale-report never exits non-zero, so this can only ever open an
+      # issue, never redden the run. The issue is idempotent: one open
+      # `backlog: stale open items` issue at a time, commented on rather
+      # than duplicated.
+      # ------------------------------------------------------------------
+      - name: Open a triage issue for stale backlog items
+        if: ${{ github.event_name == 'schedule' && !cancelled() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: "backlog: stale open items need triage"
+        run: |
+          python3 scripts/backlog_lint.py --stale-report --stale-days 60 \
+            | tee stale.md
+          if grep -q '^No ## Open items older than' stale.md; then
+            echo "Backlog is triaged; no issue needed."
+            exit 0
+          fi
+          existing=$(gh issue list --state open --label backlog-triage \
+            --search "$TITLE in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            echo "Updating existing issue #$existing"
+            gh issue comment "$existing" --body-file stale.md
+          else
+            gh label create backlog-triage \
+              --description "Stale BACKLOG.md items flagged by the nightly run" \
+              --color ededed 2>/dev/null || true
+            gh issue create --title "$TITLE" --label backlog-triage \
+              --body-file stale.md
+          fi
 
       # ------------------------------------------------------------------
       # Discovery audit — reads backend/coverage.xml + var/legalbench/.
@@ -172,6 +300,51 @@ jobs:
           echo "Proposed test files: $count"
 
       # ------------------------------------------------------------------
+      # Compose the autonomy digest for THIS run (BL-20260511-19).
+      #
+      # `--window-to-now` matters: the default window is
+      # [yesterday 00:00, today 00:00) UTC, so a digest composed inside a
+      # 06:00 UTC run would contain none of the events the same run just
+      # produced. Infra is still up here and AUTONOMY_ENABLED must be set
+      # explicitly (compose defaults it to False per constitution §12 I3).
+      # ------------------------------------------------------------------
+      - name: Compose autonomy digest
+        id: digest
+        if: ${{ !inputs.dry_run && always() }}
+        continue-on-error: true
+        env:
+          AUTONOMY_ENABLED: "True"
+        run: |
+          make autonomy-run KIND=digest ARGS=--window-to-now
+          echo "path=backend/var/autonomy/digest-$(date -u +%F).md" >> "$GITHUB_OUTPUT"
+
+      # The digest was only ever a file inside a container (and, at best, a
+      # downloadable artifact) — which is where nobody looks. Render it into
+      # the Actions run summary. `|| true` throughout: a missing digest must
+      # never redden the nightly.
+      - name: Post the autonomy digest to the run summary
+        if: ${{ !inputs.dry_run && always() }}
+        continue-on-error: true
+        run: |
+          {
+            echo "## Autonomy digest"
+            digest="${{ steps.digest.outputs.path }}"
+            if [ -n "$digest" ] && [ -f "$digest" ]; then
+              # Demote the digest's own H1 so it nests under the heading above.
+              sed 's/^# /### /' "$digest" || true
+            else
+              echo "_No digest was composed for this run._"
+            fi
+            echo ""
+            echo "## Discovery audit"
+            echo '```'
+            cat audit.out 2>/dev/null || echo "(no audit output)"
+            echo '```'
+            echo ""
+            echo "Proposed test files: ${{ steps.proposed.outputs.count }}"
+          } >> "$GITHUB_STEP_SUMMARY" || true
+
+      # ------------------------------------------------------------------
       # Tear down services.
       # ------------------------------------------------------------------
       - name: Teardown Docker services
@@ -199,13 +372,32 @@ jobs:
           path: audit.out
           retention-days: 14
 
+      # The summary is ephemeral once the run ages out; keep the digest file
+      # too so a later investigation still has it (BL-20260511-19).
+      - name: Upload autonomy digest
+        if: ${{ !inputs.dry_run && always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: autonomy-digest-${{ github.run_id }}
+          path: backend/var/autonomy/digest-*.md
+          retention-days: 30
+          if-no-files-found: ignore
+
       # ------------------------------------------------------------------
       # Open a draft PR when there are new proposed test files or BACKLOG
       # updates.  All proposed tests carry @pytest.mark.skip so nothing
       # breaks until a human reviews and promotes them.
+      #
+      # `!env.ACT` keeps `make nightly-dry-run` (nektos/act, which sets
+      # ACT=true) from pushing a branch to the real repo while an engineer is
+      # smoke-testing the workflow locally — BL-20260511-18.
       # ------------------------------------------------------------------
       - name: Open draft PR
-        if: steps.audit.outputs.changed == 'true' || steps.proposed.outputs.count != '0'
+        if: >-
+          !env.ACT &&
+          (steps.audit.outputs.changed == 'true' ||
+           steps.proposed.outputs.count != '0')
         uses: peter-evans/create-pull-request@v8
         with:
           branch: nightly/auto-${{ github.run_id }}

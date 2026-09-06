@@ -45,6 +45,44 @@ def _build_memory_saver() -> BaseCheckpointSaver:
     return MemorySaver()
 
 
+def checkpointer_conn_string(url: str | None = None, schema: str | None = None) -> str:
+    """Postgres URL for the checkpointer, pinned to the LangGraph schema.
+
+    ``ensure_checkpointer`` creates a ``langgraph`` schema, but until
+    BL-20260811-25 the saver's connection set no ``search_path``, so
+    ``setup()`` created every checkpoint table in ``public`` and the isolation
+    claim in spec 011 FR-13 was fiction. libpq honours an ``options``
+    connection parameter, so ``options=-csearch_path%3D<schema>`` — the ``=``
+    must be percent-encoded inside a URL query value — puts the saver in its
+    own schema for real.
+
+    Existing deployments already have checkpoint tables in ``public``; those
+    rows become invisible after this switch. Either
+    ``ALTER TABLE checkpoints SET SCHEMA langgraph`` (and the sibling tables)
+    once, or accept a fresh start — in-flight threads are resumable state, not
+    system of record.
+    """
+    from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+    # The asyncpg URL we ship is fine for SQLAlchemy but the checkpointer
+    # uses psycopg, so strip the driver suffix when present.
+    raw = (url if url is not None else settings.POSTGRES_URL).replace("+asyncpg", "")
+    target = schema or str(
+        getattr(settings, "LANGGRAPH_CHECKPOINTER_SCHEMA", "langgraph")
+    )
+    if not target:
+        return raw
+    parts = urlsplit(raw)
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)]
+    # Never clobber an operator-supplied `options`.
+    if any(k == "options" for k, _ in query):
+        return raw
+    query.append(("options", f"-csearch_path={target}"))
+    return urlunsplit(
+        (parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment)
+    )
+
+
 def _build_postgres_saver() -> AbstractAsyncContextManager[BaseCheckpointSaver]:
     try:
         from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -52,10 +90,7 @@ def _build_postgres_saver() -> AbstractAsyncContextManager[BaseCheckpointSaver]:
         raise CheckpointerUnavailableError(
             "langgraph-checkpoint-postgres not installed — add the local-ai extra"
         ) from exc
-    # The asyncpg URL we ship is fine for SQLAlchemy but the checkpointer
-    # uses psycopg, so strip the driver suffix when present.
-    url = settings.POSTGRES_URL.replace("+asyncpg", "")
-    return AsyncPostgresSaver.from_conn_string(url)
+    return AsyncPostgresSaver.from_conn_string(checkpointer_conn_string())
 
 
 def _build_redis_saver() -> AbstractAsyncContextManager[BaseCheckpointSaver]:

@@ -18,25 +18,31 @@ from law_ai.lsat.synth.logic import (
     All,
     And,
     AssignSpace,
+    AtLeast,
     AtSlot,
     Atom,
     Before,
     DiffGroup,
+    Exactly,
     Implies,
     InGroup,
     InconsistentPremises,
     Most,
     No,
     Not,
+    NotAll,
     NotAtSlot,
     OrderSpace,
     PropSpace,
     RegionSpace,
     SameGroup,
-    SpaceTooLarge,
     Some,
+    SpaceTooLarge,
+    SymbolicRegionSpace,
     classify,
+    classify_all,
     entails,
+    equivalent,
     evaluate,
     satisfiable,
 )
@@ -268,3 +274,102 @@ class TestDomainPacks:
         with pytest.raises(lex.LexiconError, match="does not match the file name"):
             lex.load_domains()
         lex.reset_lexicon_cache()
+
+
+class TestSymbolicRegionSpace:
+    """BL-20260903-16: four predicates, decided instead of enumerated.
+
+    The soundness claim is the whole point, so it is tested where both answers
+    exist — every K <= 3 case, where the enumerated space can be asked the same
+    question — and only then applied where enumeration cannot go.
+    """
+
+    @staticmethod
+    def _pool(slots: tuple[str, ...]) -> list[object]:
+        pool: list[object] = []
+        for a in slots:
+            for b in slots:
+                if a == b:
+                    continue
+                pool.extend([All(a, b), No(a, b), Some(a, b), NotAll(a, b), Most(a, b)])
+        for a in slots:
+            pool.extend([AtLeast(a, 1), AtLeast(a, 2), Exactly(a, 1)])
+        return pool
+
+    def test_it_agrees_with_enumeration_on_every_three_term_case(self) -> None:
+        """The cross-check: same premises, same pool, same status, every time."""
+        import itertools
+
+        slots = ("P", "Q", "R")
+        enumerated = RegionSpace(predicates=slots)
+        symbolic = SymbolicRegionSpace(predicates=slots)
+        pool = self._pool(slots)
+        premise_sets = [
+            [pool[i], pool[j]]
+            for i, j in itertools.islice(
+                itertools.combinations(range(len(pool)), 2), 0, 300, 8
+            )
+        ]
+        compared = 0
+        for premises in premise_sets:
+            try:
+                expected = classify_all(enumerated, premises, pool)
+            except InconsistentPremises:
+                assert not satisfiable(symbolic, premises)
+                continue
+            actual = classify_all(symbolic, premises, pool)
+            for candidate, one, other in zip(pool, expected, actual, strict=True):
+                compared += 1
+                assert one.status == other.status, (premises, candidate)
+        assert compared > 1000
+
+    def test_equivalence_agrees_with_enumeration(self) -> None:
+        slots = ("P", "Q", "R")
+        enumerated = RegionSpace(predicates=slots)
+        symbolic = SymbolicRegionSpace(predicates=slots)
+        premises = [All("P", "Q"), Some("P", "R")]
+        pairs = [
+            (Some("Q", "R"), Some("R", "Q")),
+            (All("P", "Q"), Most("P", "Q")),
+            (No("P", "Q"), All("P", "Q")),
+        ]
+        for one, other in pairs:
+            assert equivalent(symbolic, premises, one, other) == equivalent(
+                enumerated, premises, one, other
+            )
+
+    def test_a_four_term_chain_is_decided(self) -> None:
+        """What enumeration could not reach: 43 million count vectors."""
+        space = SymbolicRegionSpace(predicates=("P", "Q", "R", "S"))
+        premises = [All("P", "Q"), Most("Q", "R"), All("R", "S")]
+        # Most Q are R and every R is S, so most Q are S.
+        assert entails(space, premises, Most("Q", "S"))
+        assert entails(space, premises, Some("Q", "S"))
+        # But nothing forces a majority of P, whose only link is upward.
+        assert not entails(space, premises, Most("P", "S"))
+        assert not entails(space, premises, All("Q", "S"))
+
+    def test_two_majorities_meet_only_as_some(self) -> None:
+        space = SymbolicRegionSpace(predicates=("P", "Q", "R", "S"))
+        premises = [Most("P", "Q"), Most("P", "R"), All("R", "S")]
+        assert entails(space, premises, Some("Q", "S"))
+        assert not entails(space, premises, Most("Q", "S"))
+
+    def test_inconsistent_premises_still_raise(self) -> None:
+        space = SymbolicRegionSpace(predicates=("P", "Q", "R", "S"))
+        with pytest.raises(InconsistentPremises):
+            classify_all(space, [Some("P", "Q"), No("P", "Q")], [All("P", "Q")])
+
+    def test_it_never_enumerates(self) -> None:
+        space = SymbolicRegionSpace(predicates=("P", "Q", "R", "S"))
+        assert space.size() == 3 ** (2**4)
+        assert "symbolically" in space.describe()
+        with pytest.raises(SpaceTooLarge):
+            next(space.models())
+
+    def test_it_refuses_statements_it_cannot_compile(self) -> None:
+        from law_ai.lsat.synth.logic import UndecidableStatement
+
+        space = SymbolicRegionSpace(predicates=("P", "Q", "R", "S"))
+        with pytest.raises(UndecidableStatement):
+            satisfiable(space, [Atom("P")])

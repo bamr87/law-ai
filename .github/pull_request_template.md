@@ -14,7 +14,13 @@
      or width changes. See docs/ui-ux-review.md § "Visual evidence".
 
      A passing ux_audit.py is not evidence: it checks landmarks and contracts,
-     not whether the screen reads correctly. -->
+     not whether the screen reads correctly.
+
+     THIS IS ENFORCED. The `Visual Evidence Gate` job in ci.yml fails a PR
+     that touches frontend/ or lsat-static/ with no image in this body and no
+     new or changed file under docs/images/. If the change genuinely has no
+     visible surface, add the `no-visual-change` label instead of deleting the
+     requirement. -->
 
 | | |
 |---|---|

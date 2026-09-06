@@ -19,6 +19,7 @@ import pytest
 import respx
 
 from law_ai.core import claude_code
+from law_ai.core.usage import LLMUsage, usage_of
 
 _MESSAGES_URL = "https://api.anthropic.com/v1/messages"
 
@@ -402,3 +403,194 @@ class TestProbe:
         result = await claude_code.probe()
         assert result["reachable"] is False
         assert "401" in result["error"]
+
+
+# ---------------------------------------------------------------------------
+# Token usage (BL-20260811-21)
+# ---------------------------------------------------------------------------
+
+
+class TestUsageExtraction:
+    """The Messages API ``usage`` block must reach the router."""
+
+    @respx.mock
+    async def test_generate_returns_the_reported_token_counts(self, settings) -> None:
+        settings.CLAUDE_CODE_OAUTH_TOKEN = "tok"
+        respx.post(_MESSAGES_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "content": [{"type": "text", "text": "hi"}],
+                    "usage": {"input_tokens": 321, "output_tokens": 12},
+                },
+            )
+        )
+
+        reply = await claude_code.generate("q")
+
+        assert reply == "hi"  # still a plain string to every caller
+        assert usage_of(reply) == LLMUsage(input_tokens=321, output_tokens=12)
+
+    @respx.mock
+    async def test_a_response_without_usage_is_not_an_error(self, settings) -> None:
+        settings.CLAUDE_CODE_OAUTH_TOKEN = "tok"
+        respx.post(_MESSAGES_URL).mock(return_value=_ok_response("hi"))
+
+        reply = await claude_code.generate("q")
+
+        assert reply == "hi"
+        assert usage_of(reply) is None
+
+    @respx.mock
+    async def test_a_malformed_usage_block_is_ignored(self, settings) -> None:
+        settings.CLAUDE_CODE_OAUTH_TOKEN = "tok"
+        respx.post(_MESSAGES_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "content": [{"type": "text", "text": "hi"}],
+                    "usage": {"input_tokens": "lots", "output_tokens": None},
+                },
+            )
+        )
+
+        assert usage_of(await claude_code.generate("q")) is None
+
+
+# ---------------------------------------------------------------------------
+# Streaming (BL-20260811-20)
+# ---------------------------------------------------------------------------
+
+
+def _sse(*events: dict) -> httpx.Response:
+    """A Messages API SSE body, framed the way Anthropic frames it."""
+    lines: list[str] = []
+    for event in events:
+        lines.append(f"event: {event['type']}")
+        lines.append(f"data: {json.dumps(event)}")
+        lines.append("")
+    return httpx.Response(
+        200,
+        content="\n".join(lines).encode(),
+        headers={"content-type": "text/event-stream"},
+    )
+
+
+def _text_delta(text: str) -> dict:
+    return {
+        "type": "content_block_delta",
+        "index": 0,
+        "delta": {"type": "text_delta", "text": text},
+    }
+
+
+async def _drain(stream) -> list[str]:
+    return [chunk async for chunk in stream]
+
+
+class TestAstream:
+    @respx.mock
+    async def test_yields_text_deltas_and_final_usage(self, settings) -> None:
+        settings.CLAUDE_CODE_OAUTH_TOKEN = "tok"
+        route = respx.post(_MESSAGES_URL).mock(
+            return_value=_sse(
+                {"type": "message_start", "message": {"usage": {"input_tokens": 12}}},
+                {"type": "content_block_start", "index": 0},
+                _text_delta("Mar"),
+                _text_delta("bury"),
+                {
+                    "type": "message_delta",
+                    "delta": {"stop_reason": "end_turn"},
+                    "usage": {"output_tokens": 5},
+                },
+                {"type": "message_stop"},
+            )
+        )
+
+        chunks = await _drain(claude_code.astream("q"))
+
+        assert [str(c) for c in chunks] == ["Mar", "bury", ""]
+        assert json.loads(route.calls.last.request.content)["stream"] is True
+        # The trailing empty delta is how the transport hands the router the
+        # token counts without changing the `-> AsyncIterator[str]` contract.
+        assert usage_of(chunks[-1]) == LLMUsage(input_tokens=12, output_tokens=5)
+
+    @respx.mock
+    async def test_ignores_thinking_blocks_and_keepalives(self, settings) -> None:
+        settings.CLAUDE_CODE_OAUTH_TOKEN = "tok"
+        respx.post(_MESSAGES_URL).mock(
+            return_value=_sse(
+                {"type": "ping"},
+                {
+                    "type": "content_block_delta",
+                    "delta": {"type": "thinking_delta", "thinking": "hmm"},
+                },
+                _text_delta("answer"),
+            )
+        )
+
+        chunks = await _drain(claude_code.astream("q"))
+
+        assert [str(c) for c in chunks] == ["answer", ""]
+
+    @respx.mock
+    async def test_a_refusal_raises_rather_than_returning_the_partial(
+        self, settings
+    ) -> None:
+        settings.CLAUDE_CODE_OAUTH_TOKEN = "tok"
+        respx.post(_MESSAGES_URL).mock(
+            return_value=_sse(
+                _text_delta("I can"),
+                {
+                    "type": "message_delta",
+                    "delta": {
+                        "stop_reason": "refusal",
+                        "stop_details": {"category": "policy"},
+                    },
+                },
+            )
+        )
+
+        with pytest.raises(claude_code.ClaudeRefusalError):
+            await _drain(claude_code.astream("q"))
+
+    @respx.mock
+    async def test_truncation_raises_unless_allowed(self, settings) -> None:
+        settings.CLAUDE_CODE_OAUTH_TOKEN = "tok"
+        body = _sse(
+            _text_delta("half"),
+            {"type": "message_delta", "delta": {"stop_reason": "max_tokens"}},
+        )
+        respx.post(_MESSAGES_URL).mock(return_value=body)
+
+        with pytest.raises(claude_code.ClaudeCodeUnavailableError):
+            await _drain(claude_code.astream("q"))
+
+    @respx.mock
+    async def test_a_stream_error_frame_raises(self, settings) -> None:
+        settings.CLAUDE_CODE_OAUTH_TOKEN = "tok"
+        respx.post(_MESSAGES_URL).mock(
+            return_value=_sse(
+                _text_delta("x"),
+                {"type": "error", "error": {"message": "overloaded"}},
+            )
+        )
+
+        with pytest.raises(claude_code.ClaudeCodeUnavailableError, match="overloaded"):
+            await _drain(claude_code.astream("q"))
+
+    async def test_raises_without_a_credential(self, settings) -> None:
+        settings.CLAUDE_CODE_OAUTH_TOKEN = ""
+        with pytest.raises(claude_code.ClaudeCredentialError):
+            await _drain(claude_code.astream("q"))
+
+    @respx.mock
+    async def test_api_key_mode_sends_the_api_key_header(self, settings) -> None:
+        settings.CLAUDE_CODE_OAUTH_TOKEN = ""
+        settings.ANTHROPIC_API_KEY = "sk-ant-api03-x"
+        route = respx.post(_MESSAGES_URL).mock(return_value=_sse(_text_delta("hi")))
+
+        await _drain(claude_code.astream("q", auth="api_key"))
+
+        assert route.calls.last.request.headers["x-api-key"] == "sk-ant-api03-x"
+        assert "authorization" not in route.calls.last.request.headers

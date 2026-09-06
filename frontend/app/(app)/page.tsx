@@ -28,7 +28,7 @@ export default function Home() {
             rel="noreferrer"
             className="group mx-auto inline-flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-900/60 px-3 py-1 text-xs text-slate-300 backdrop-blur transition hover:border-blue-500/50 hover:text-white"
           >
-            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 motion-reduce:animate-none" />
             Open-source · Local-first · Audit-grade
             <span className="text-slate-500 transition group-hover:translate-x-0.5 group-hover:text-blue-300">
               →
@@ -253,7 +253,7 @@ function Card({
       />
       {recommended && (
         <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-emerald-300">
-          <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-emerald-400" />
+          <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-emerald-400 motion-reduce:animate-none" />
           Live
         </span>
       )}

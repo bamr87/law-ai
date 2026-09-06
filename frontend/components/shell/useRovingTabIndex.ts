@@ -59,6 +59,23 @@ export function useRovingTabIndex({
     [count, focusIndex, onActivate, orientation],
   )
 
+  /**
+   * Move DOM focus to one item.
+   *
+   * For a shortcut that selects out of band — the LSAT drill's A–E letter
+   * keys — where leaving focus behind on a different item would make the
+   * *next* keystroke mean something else. Selection and focus diverging is
+   * precisely the bug BL-20260702-13 names.
+   */
+  const focusItem = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= count) return
+      setFocusIndex(index)
+      items.current[index]?.focus()
+    },
+    [count],
+  )
+
   const itemProps = useCallback(
     (index: number) => ({
       ref: (el: HTMLElement | null) => {
@@ -70,5 +87,5 @@ export function useRovingTabIndex({
     [focusIndex, onKeyDown],
   )
 
-  return { itemProps, focusIndex }
+  return { itemProps, focusIndex, focusItem }
 }

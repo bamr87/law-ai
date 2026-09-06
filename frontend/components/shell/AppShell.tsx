@@ -22,24 +22,34 @@ import {
   withPanel,
   type PanelKey,
 } from '@/lib/shell/panels'
-import { isTypingTarget, matchShortcut } from '@/lib/shell/shortcuts'
+import {
+  isTypingTarget,
+  matchShortcut,
+  type ShortcutGroup,
+} from '@/lib/shell/shortcuts'
 import type { ShellCommand } from '@/lib/shell/commands'
+import type { SettingValue } from '@/lib/scope/types'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   Suspense,
   useCallback,
   useEffect,
+  useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
 import BackToTop from './BackToTop'
 import CommandPalette from './CommandPalette'
 import DockZone from './DockZone'
+import ModulesMenu from './ModulesMenu'
 import LayoutMenu from './LayoutMenu'
 import Masthead from './Masthead'
 import MobileTabBar from './MobileTabBar'
 import NavRail from './NavRail'
 import Drawer from './Overlay'
+import { PageShortcutsProvider, type ShortcutRegistry } from './PageShortcuts'
+import { SettingsSnapshotProvider } from './SettingsSnapshot'
 import { ShellScrollProvider, useMainScrollController } from './ShellScroll'
 import ShortcutsHelp from './ShortcutsHelp'
 import { COMPACT_QUERY, NARROW_QUERY, useMediaQuery } from './useMediaQuery'
@@ -90,6 +100,34 @@ function ShellInner({
 
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+
+  // Shortcut rows contributed by whatever page is on screen (BL-20260901-10).
+  // Refcounted by title: an RC passage stacks several question cards, and the
+  // first to unmount must not take the group away from the rest.
+  const [pageShortcuts, setPageShortcuts] = useState<ShortcutGroup[]>([])
+  const shortcutCounts = useRef<Map<string, number>>(new Map())
+  const shortcutRegistry = useMemo<ShortcutRegistry>(
+    () => ({
+      register: (group) => {
+        const n = (shortcutCounts.current.get(group.title) ?? 0) + 1
+        shortcutCounts.current.set(group.title, n)
+        if (n > 1) return
+        setPageShortcuts((prev) =>
+          prev.some((g) => g.title === group.title) ? prev : [...prev, group],
+        )
+      },
+      unregister: (title) => {
+        const n = (shortcutCounts.current.get(title) ?? 1) - 1
+        if (n > 0) {
+          shortcutCounts.current.set(title, n)
+          return
+        }
+        shortcutCounts.current.delete(title)
+        setPageShortcuts((prev) => prev.filter((g) => g.title !== title))
+      },
+    }),
+    [],
+  )
 
   // Layout preferences. `useSetting` reads through useSyncExternalStore, so
   // these are hydration-safe: the server render sees the defaults and the
@@ -203,7 +241,6 @@ function ShellInner({
     ...(sidebarOpen ? (['sidebar'] as const) : []),
     ...(inspectorOpen ? (['inspector'] as const) : []),
   ]
-  const onLsatRoute = pathname.startsWith('/lsat')
 
   const sidebarDocked = sidebarOpen && !compact
   const sidebarDrawer = sidebarOpen && compact
@@ -212,7 +249,7 @@ function ShellInner({
 
   const zone = (dock: DockName) => (
     <div className="border-b border-slate-800 p-3">
-      <DockZone dock={dock} onOwnRoute={onLsatRoute} openDocks={openDocks} />
+      <DockZone dock={dock} pathname={pathname} openDocks={openDocks} />
     </div>
   )
 
@@ -279,6 +316,9 @@ function ShellInner({
           onToggleSidebar={toggleSidebar}
           onToggleInspector={toggleInspector}
           onOpenPalette={() => setPaletteOpen(true)}
+          // With the rail hidden, a mouse user who does not know ⌘K would be
+          // left navigating by the (also hideable) breadcrumb trail alone.
+          modulesMenu={!railShown ? <ModulesMenu pathname={pathname} /> : undefined}
           layoutMenu={
             <LayoutMenu
               pathname={pathname}
@@ -305,7 +345,9 @@ function ShellInner({
               tabIndex={-1}
               className="shell-scroll min-h-0 flex-1 outline-none"
             >
-              {children}
+              <PageShortcutsProvider registry={shortcutRegistry}>
+                {children}
+              </PageShortcutsProvider>
               <LegalDisclaimerFooter />
             </main>
             {topShown && <BackToTop />}
@@ -340,7 +382,11 @@ function ShellInner({
           onClose={() => setPaletteOpen(false)}
           onAction={runCommand}
         />
-        <ShortcutsHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+        <ShortcutsHelp
+          open={helpOpen}
+          onClose={() => setHelpOpen(false)}
+          pageGroups={pageShortcuts}
+        />
       </div>
     </ShellScrollProvider>
   )
@@ -382,12 +428,23 @@ function DockedPanel({
   )
 }
 
-export default function AppShell(props: {
+export default function AppShell({
+  initialSettings,
+  ...props
+}: {
   children: ReactNode
   sidebar: ReactNode
   inspector: ReactNode
+  /**
+   * The setting rows the server rendered with, read from the mirrored cookie
+   * in `app/(app)/layout.tsx`. They are the hydration snapshot too, so a
+   * chosen layout is on the first paint instead of reflowing after mount
+   * (BL-20260905-09).
+   */
+  initialSettings?: SettingValue[]
 }) {
   return (
+    <SettingsSnapshotProvider rows={initialSettings}>
     <Suspense
       fallback={
         <div className="flex h-dvh flex-col overflow-hidden">
@@ -401,5 +458,6 @@ export default function AppShell(props: {
     >
       <ShellInner {...props} />
     </Suspense>
+    </SettingsSnapshotProvider>
   )
 }

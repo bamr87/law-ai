@@ -27,11 +27,15 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from typing import Any, Literal
 
 import httpx
 
+from law_ai.core import sse
 from law_ai.core.settings_proxy import settings_proxy as settings
+from law_ai.core.usage import LLMUsage, ProviderReply
 
 logger = logging.getLogger("law_ai.core.claude_code")
 
@@ -67,6 +71,16 @@ _DEV_ENVIRONMENTS = frozenset({"development", "dev", "local"})
 
 class ClaudeCodeUnavailableError(RuntimeError):
     """Raised when a Claude Code call is attempted without a usable config."""
+
+
+class ClaudeCredentialError(ClaudeCodeUnavailableError):
+    """No usable Claude credential — configuration, not an outage.
+
+    A subclass so every existing ``except ClaudeCodeUnavailableError`` keeps
+    working, while the router can tell a missing/rejected key (permanent: no
+    retry, no other tier will fix it) from a transient transport failure
+    (BL-20260811-23).
+    """
 
 
 class ClaudeRefusalError(RuntimeError):
@@ -186,6 +200,21 @@ def _extract_text(data: dict[str, Any], *, allow_truncation: bool = False) -> st
             f"({len(text)} chars) — raise CLAUDE_CODE_MAX_TOKENS"
         )
     return text
+
+
+def _extract_usage(data: dict[str, Any]) -> LLMUsage | None:
+    """Read the Messages API ``usage`` block into provider-neutral counts.
+
+    Anthropic reports ``input_tokens``/``output_tokens`` (plus cache counters
+    this product does not bill separately yet). Absent or malformed usage
+    yields ``None`` rather than raising — a billed call that succeeded must not
+    fail on its accounting (BL-20260811-21).
+    """
+    return LLMUsage.from_payload(
+        data.get("usage"),
+        input_key="input_tokens",
+        output_key="output_tokens",
+    )
 
 
 def strip_code_fence(text: str) -> str:
@@ -313,6 +342,10 @@ async def generate(
 ) -> str:
     """Call the Anthropic Messages API and return the text reply.
 
+    The return value is a :class:`~law_ai.core.usage.ProviderReply` — a ``str``
+    that also carries the response's token usage, so the router can bill the
+    call to an agent without any caller having to change.
+
     ``auth`` picks the credential: ``"oauth"`` (a Claude subscription token,
     the chain's first choice) or ``"api_key"`` (``ANTHROPIC_API_KEY``).
 
@@ -330,7 +363,7 @@ async def generate(
     """
     secret = credential(auth)
     if secret is None:
-        raise ClaudeCodeUnavailableError(
+        raise ClaudeCredentialError(
             "CLAUDE_CODE_OAUTH_TOKEN is not set; run `claude setup-token`"
             if auth == "oauth"
             else "ANTHROPIC_API_KEY is not set"
@@ -363,7 +396,11 @@ async def generate(
             try:
                 resp = await client.post(url, json=payload, headers=headers)
                 resp.raise_for_status()
-                return _extract_text(resp.json(), allow_truncation=allow_truncation)
+                data = resp.json()
+                return ProviderReply(
+                    _extract_text(data, allow_truncation=allow_truncation),
+                    _extract_usage(data),
+                )
             except httpx.HTTPStatusError as exc:
                 status = exc.response.status_code
                 if status not in _RETRYABLE_STATUS or attempt == attempts - 1:
@@ -389,6 +426,139 @@ async def generate(
                 await asyncio.sleep(float(2**attempt))
     # Unreachable: the loop either returns or raises on the final attempt.
     raise ClaudeCodeUnavailableError("exhausted retries without a response")
+
+
+@dataclass
+class _StreamState:
+    """Mutable accounting for one SSE feed (stop reason, usage, size)."""
+
+    stop_reason: str | None = None
+    refusal_category: str | None = None
+    input_tokens: Any = None
+    output_tokens: Any = None
+    chars: int = 0
+
+
+def _sse_deltas(line: str, state: _StreamState) -> list[str]:
+    """Text deltas carried by one SSE line, updating *state* in place.
+
+    Split out of :func:`astream` so the event grammar is unit-testable without
+    a socket, and so the generator stays under ruff's branch cap.
+    """
+    event = sse.data_payload(line)
+    if event is None:
+        return []
+
+    kind = event.get("type")
+    if kind == "content_block_delta":
+        return _text_delta(event, state)
+    if kind == "message_start":
+        usage = (event.get("message") or {}).get("usage") or {}
+        state.input_tokens = usage.get("input_tokens")
+    elif kind == "message_delta":
+        _absorb_message_delta(event, state)
+    elif kind == "error":
+        detail = str((event.get("error") or {}).get("message") or "stream error")
+        raise ClaudeCodeUnavailableError(f"Claude stream error: {detail[:200]}")
+    return []
+
+
+def _text_delta(event: dict[str, Any], state: _StreamState) -> list[str]:
+    """The text of one ``content_block_delta``, ignoring non-text blocks."""
+    delta = event.get("delta") or {}
+    if delta.get("type") != "text_delta":
+        return []  # thinking / tool-use blocks are not part of the answer text
+    text = str(delta.get("text") or "")
+    state.chars += len(text)
+    return [text] if text else []
+
+
+def _absorb_message_delta(event: dict[str, Any], state: _StreamState) -> None:
+    """Record the terminal stop reason and output token count."""
+    delta = event.get("delta") or {}
+    if delta.get("stop_reason"):
+        state.stop_reason = str(delta["stop_reason"])
+        details = delta.get("stop_details") or {}
+        state.refusal_category = details.get("category")
+    usage = event.get("usage") or {}
+    if usage.get("output_tokens") is not None:
+        state.output_tokens = usage.get("output_tokens")
+    if usage.get("input_tokens") is not None and state.input_tokens is None:
+        state.input_tokens = usage.get("input_tokens")
+
+
+async def astream(
+    prompt: str,
+    *,
+    system: str | None = None,
+    model_id: str | None = None,
+    max_tokens: int | None = None,
+    response_schema: dict[str, Any] | None = None,
+    auth: AuthMode = "oauth",
+    effort: str | None = None,
+    allow_truncation: bool = False,
+) -> AsyncIterator[str]:
+    """Stream the Messages API reply as text deltas (BL-20260811-20).
+
+    Same request body as :func:`generate` plus ``stream: true``; the response
+    is an SSE feed whose ``content_block_delta`` events carry the text. The
+    terminal ``message_delta`` carries ``stop_reason`` and the output token
+    count, so the refusal / truncation guards :func:`_extract_text` applies to
+    a buffered reply are applied here too — at the end, which is the earliest a
+    stream can know them.
+
+    Deliberately **not** retried. A retry after the first delta would replay
+    tokens the caller has already rendered; the chain's own fallback covers a
+    failure *before* the first delta, and after that
+    :class:`~law_ai.core.llm.base.LLMStreamInterrupted` is the honest outcome.
+
+    The final delta is an empty :class:`~law_ai.core.usage.ProviderReply`
+    carrying the call's token usage.
+    """
+    secret = credential(auth)
+    if secret is None:
+        raise ClaudeCredentialError(
+            "CLAUDE_CODE_OAUTH_TOKEN is not set; run `claude setup-token`"
+            if auth == "oauth"
+            else "ANTHROPIC_API_KEY is not set"
+        )
+
+    payload = _build_payload(
+        prompt,
+        system=system,
+        model_id=model_id,
+        max_tokens=max_tokens,
+        response_schema=response_schema,
+        auth=auth,
+        effort=effort,
+    )
+    payload["stream"] = True
+    headers = _build_headers(secret, auth)
+    headers["accept"] = "text/event-stream"
+    timeout = httpx.Timeout(
+        float(getattr(settings, "CLAUDE_CODE_REQUEST_TIMEOUT_S", 60.0))
+    )
+
+    state = _StreamState()
+    async with (
+        httpx.AsyncClient(timeout=timeout) as client,
+        client.stream("POST", _messages_url(), json=payload, headers=headers) as resp,
+    ):
+        resp.raise_for_status()
+        async for line in resp.aiter_lines():
+            for delta in _sse_deltas(line, state):
+                yield delta
+
+    if state.stop_reason == "refusal":
+        raise ClaudeRefusalError(state.refusal_category)
+    if state.stop_reason == "max_tokens" and not allow_truncation:
+        raise ClaudeCodeUnavailableError(
+            f"streamed response truncated at max_tokens ({state.chars} chars) "
+            "— raise CLAUDE_CODE_MAX_TOKENS"
+        )
+    yield ProviderReply(
+        "", LLMUsage.from_counts(state.input_tokens, state.output_tokens)
+    )
 
 
 async def probe(*, auth: AuthMode = "oauth") -> dict[str, Any]:

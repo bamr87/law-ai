@@ -24,12 +24,18 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import (
+    AbstractAsyncContextManager,
+    AsyncExitStack,
+    asynccontextmanager,
+)
+from typing import Any, Literal
 
 import httpx
 from pydantic import BaseModel, Field
 
-from law_ai.core import claude_code, llm
+from law_ai.core import claude_code, llm, xai
 from law_ai.core.provenance import provenance
 
 logger = logging.getLogger("law_ai.agents.legal_analyst")
@@ -48,6 +54,19 @@ class IRACOutput(BaseModel):
             "True when no real analysis ran (unimplemented/offline path). "
             "Degraded output must be excluded from confidence aggregation "
             "and always forces human review."
+        ),
+    )
+    degraded_reason: Literal["engine_unavailable", "offline_fallback"] | None = Field(
+        default=None,
+        description=(
+            "Which degraded path produced this row (BL-20260810-16). "
+            "`engine_unavailable`: the LangGraph engine could not start, so "
+            "the advice is to start a provider (Ollama when the chain is "
+            "pinned local). `offline_fallback`: every tier in "
+            "LLM_PROVIDER_CHAIN failed. The UI needs the difference: only one "
+            "of them is fixed by `make local-ai-up`. The `[ENGINE "
+            "UNAVAILABLE]` / `[OFFLINE FALLBACK]` prefixes in `rule` stay as "
+            "the signal for payloads written before this field existed."
         ),
     )
     requires_review: bool = Field(
@@ -76,6 +95,14 @@ class IRACOutput(BaseModel):
     langgraph_thread_id: str | None = Field(
         default=None,
         description="LangGraph checkpoint thread id; resume with the same id.",
+    )
+    resumed: bool = Field(
+        default=False,
+        description=(
+            "True when the requested `thread_id` already had persisted state "
+            "before this run — i.e. the run resumed a thread rather than "
+            "starting one (BL-20260810-13)."
+        ),
     )
 
 
@@ -153,8 +180,10 @@ def _irac_from_payload(data: Any, question: str) -> IRACOutput:
         # knowledge graph — a human must review before relying on them.
         requires_review=True,
         reasoning_trace=[
-            "Model-generated IRAC via Claude Code (dev-time).",
-            "Authorities are unverified — human review / GraphRAG grounding required.",
+            "Model-generated IRAC via the provider chain.",
+            # Overwritten by LegalAnalyst._ground_authorities once the graph
+            # has had its say (BL-20260615-03); this is the pre-grounding state.
+            "Authorities are unverified — GraphRAG grounding pending.",
         ],
     )
 
@@ -177,22 +206,59 @@ def _fallback_irac(question: str) -> IRACOutput:
         sources=[],
         confidence=0.0,
         degraded=True,
+        degraded_reason="offline_fallback",
         requires_review=True,
         reasoning_trace=["offline fallback — LLM unreachable"],
     )
 
 
+async def _engine_ready() -> tuple[bool, str]:
+    """Chain-aware readiness gate for the LangGraph engine (BL-20260615-02).
+
+    The old gate probed Ollama unconditionally, so a Claude-only deployment
+    (``LLM_PROVIDER_CHAIN=claude_code`` or simply Ollama not running) was
+    refused before ``LegalWorkflow`` was ever constructed — even though the
+    workflow is ``ChatProviderChain``-backed and would have been served by
+    Claude. Now the probe only runs when Ollama is the *only* configured tier,
+    which is the one case where a cheap local reachability check is both
+    meaningful and free.
+
+    Returns ``(ready, reason)``; ``reason`` is empty when ready.
+    """
+    from law_ai.core import llm as core_llm
+
+    try:
+        configured = [p for p in core_llm.build_chain() if p.configured()]
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("chain readiness check failed: %s", exc)
+        return True, ""  # let the workflow's own error path speak
+
+    if not configured:
+        return False, "no provider in LLM_PROVIDER_CHAIN is configured"
+
+    if all(p.name == "ollama" for p in configured):
+        from law_ai.agents_runtime import llm as llm_runtime
+
+        if not await llm_runtime.ollama_available_async():
+            return False, (
+                "Ollama is the only configured provider and is unreachable "
+                "(availability probe failed)"
+            )
+    return True, ""
+
+
 def _langgraph_fallback_irac(question: str, reason: str) -> IRACOutput:
-    """Honest degraded output when the LangGraph/Ollama engine is unavailable."""
+    """Honest degraded output when the LangGraph engine cannot run."""
     return IRACOutput(
         issue=question[:200] or "(no question provided)",
         rule=(
-            "[ENGINE UNAVAILABLE] The LangGraph/Ollama analysis engine could "
+            "[ENGINE UNAVAILABLE] The LangGraph analysis engine could "
             f"not run: {reason}"
         ),
         application=(
-            "No analysis was performed. Start the Ollama service "
-            "(`make local-ai-up`) and retry."
+            "No analysis was performed. Configure a provider in "
+            "`LLM_PROVIDER_CHAIN` (`claude setup-token`, `ANTHROPIC_API_KEY`, "
+            "`make xai-login`) or start Ollama (`make local-ai-up`), then retry."
         ),
         conclusion=(
             "Degraded: no legal analysis produced. This output exists for "
@@ -201,14 +267,189 @@ def _langgraph_fallback_irac(question: str, reason: str) -> IRACOutput:
         sources=[],
         confidence=0.0,
         degraded=True,
+        degraded_reason="engine_unavailable",
         requires_review=True,
         reasoning_trace=[f"langgraph engine unavailable — {reason}"],
     )
 
 
+# ---------------------------------------------------------------------------
+# Authority grounding (BL-20260615-03)
+# ---------------------------------------------------------------------------
+
+CiteResolver = Callable[[list[str]], Awaitable[dict[str, str | None]]]
+
+
+async def _default_cite_resolver(names: list[str]) -> dict[str, str | None]:
+    """Resolve model-named authorities against the citation graph."""
+    from law_ai.core.neo4j.citation_resolver import resolve_with_default_driver
+
+    return await resolve_with_default_driver(names)
+
+
+async def _name_lookup(names: list[str], retriever: Any) -> dict[str, str]:
+    """Fulltext fallback for authorities the alias resolver could not match.
+
+    ``resolve_citations`` matches ``Case.aliases`` — normalized reporter
+    citations — while the IRAC prompt asks for *case names*, so the alias leg
+    misses almost everything on its own. One lexical GraphRAG query per name
+    closes that gap: a passage whose title matches the model's name grounds it
+    in a real ``:Case`` node. Never invents a match; a miss stays a miss.
+    """
+    found: dict[str, str] = {}
+    for name in names:
+        try:
+            passages = await retriever({"question": name, "queries": [name]})
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("authority name lookup failed for %r: %s", name, exc)
+            return found
+        wanted = name.casefold().strip()
+        for passage in passages:
+            title = str(passage.get("title") or "").casefold()
+            case_id = str(passage.get("id") or "").strip()
+            if not case_id or not title:
+                continue
+            if wanted in title or title in wanted:
+                found[name] = case_id
+                break
+    return found
+
+
+@asynccontextmanager
+async def _analysis_checkpointer() -> AsyncIterator[Any]:
+    """Yield a saver for one analysis request, or ``None`` (BL-20260810-13).
+
+    Per-request rather than pooled: ``/api/analysis`` runs under
+    ``async_to_sync`` on daphne *and* inside Celery workers, and a saver bound
+    to the wrong event loop is worse than no saver at all. The cost is one
+    Postgres connection for the life of a request, which the existing ``llm``
+    throttle scope already bounds.
+
+    A checkpointer that will not open degrades to an unpersisted run — losing
+    resumability is not a reason to fail an analysis.
+    """
+    from law_ai.agents_runtime.graphs.runtime import build_checkpointer
+
+    try:
+        maybe = build_checkpointer()
+    except Exception as exc:
+        logger.warning("analysis checkpointer unavailable: %s", exc)
+        yield None
+        return
+
+    if not isinstance(maybe, AbstractAsyncContextManager):
+        yield maybe
+        return
+
+    # Only the *open* is guarded. Wrapping the yield in a try/except would
+    # swallow whatever the caller raised and then yield a second time, which
+    # is an error in an async generator ("generator didn't stop after
+    # athrow()") and would mask the real failure from the resilience boundary.
+    async with AsyncExitStack() as stack:
+        try:
+            saver: Any = await stack.enter_async_context(maybe)
+        except Exception as exc:
+            logger.warning("analysis checkpointer failed to open: %s", exc)
+            saver = None
+        yield saver
+
+
+async def _thread_has_state(workflow: Any, thread_id: str) -> bool:
+    """True when ``thread_id`` already carries checkpointed state.
+
+    Probed *before* the run so ``resumed`` describes what the caller asked
+    for, not what this run just wrote. A probe failure reports False rather
+    than raising — an unknown resume status must not fail the analysis.
+    """
+    try:
+        snapshot = await workflow.get_state(thread_id)
+    except Exception as exc:
+        logger.info("thread state probe failed for %s: %s", thread_id, exc)
+        return False
+    return bool(getattr(snapshot, "values", None))
+
+
 class LegalAnalyst:
     name = "LegalAnalyst"
     description = "Produces high-quality IRAC legal analysis with source grounding"
+
+    def __init__(
+        self,
+        *,
+        cite_resolver: CiteResolver | None = None,
+        name_retriever: Any = None,
+    ) -> None:
+        """:param cite_resolver: ``names -> {name: case_id | None}``. Defaults to
+        the shared Neo4j alias resolver.
+        :param name_retriever: GraphRAG retriever used as the case-name
+        fallback. ``None`` (the default) builds the shared one lazily; pass a
+        fake in tests so no Neo4j is required.
+        """
+        self._cite_resolver = cite_resolver or _default_cite_resolver
+        self._name_retriever = name_retriever
+
+    def _get_name_retriever(self) -> Any:
+        if self._name_retriever is None:
+            from law_ai.agents_runtime.tools.graph_rag import build_default_retriever
+
+            self._name_retriever = build_default_retriever()
+        return self._name_retriever
+
+    async def _ground_authorities(self, output: IRACOutput) -> None:
+        """Resolve model-named authorities against the graph, in place.
+
+        Constitution §1 source-grounding: the direct-LLM path must not present
+        model-generated case names as authorities. Each name is resolved to a
+        real ``:Case`` id (alias resolver first, then a lexical name lookup);
+        anything that does not resolve is marked ``verified: False`` and keeps
+        the output pinned for human review. A graph fault degrades to "resolver
+        unavailable" and never raises.
+        """
+        names = [str(src.get("title") or "").strip() for src in output.sources]
+        names = [n for n in names if n]
+        if not names:
+            output.requires_review = True
+            output.reasoning_trace[-1:] = [
+                "No authorities were named by the model — nothing to ground; "
+                "human review required (constitution §13)."
+            ]
+            return
+
+        try:
+            mapping = dict(await self._cite_resolver(names))
+        except Exception as exc:
+            logger.warning("authority grounding unavailable: %s", exc)
+            output.requires_review = True
+            output.reasoning_trace[-1:] = [
+                "Citation resolver unavailable — authorities could not be "
+                f"grounded against the knowledge graph ({type(exc).__name__}); "
+                "human review required."
+            ]
+            return
+
+        unresolved = [n for n in names if not mapping.get(n)]
+        if unresolved:
+            mapping.update(await _name_lookup(unresolved, self._get_name_retriever()))
+
+        output.sources = [
+            {
+                "title": name,
+                "verified": bool(mapping.get(name)),
+                "resolved_case_id": mapping.get(name),
+            }
+            for name in names
+        ]
+        still_unverified = sum(1 for name in names if not mapping.get(name))
+        output.requires_review = still_unverified > 0
+        output.reasoning_trace[-1:] = [
+            f"Grounded {len(names) - still_unverified}/{len(names)} authorities "
+            "against the knowledge graph (alias resolver + case-name lookup)."
+            + (
+                f" {still_unverified} unresolved — human review required."
+                if still_unverified
+                else ""
+            )
+        ]
 
     async def run(self, input_data: dict[str, Any]) -> IRACOutput:
         # Spec 027: LangGraph is the DEFAULT engine (AnalysisRequest defaults
@@ -239,8 +480,14 @@ class LegalAnalyst:
                 system=_IRAC_SYSTEM,
                 response_schema=_IRAC_SCHEMA,
                 agent=self.name,
+                # /api/analysis is a person waiting on a page; use the faster
+                # Grok id when one is configured (BL-20260905-11).
+                models=xai.interactive_overrides(),
             )
             output = _irac_from_payload(llm.loads_first_json(result.text), question)
+            # Constitution §1: model-named authorities are not sources until
+            # the graph confirms them (BL-20260615-03).
+            await self._ground_authorities(output)
             model_used = result.model_label
         except (
             TimeoutError,
@@ -275,17 +522,16 @@ class LegalAnalyst:
         issue/rule/conclusion split lands in BL-20260502-04 (LegalAnalyst
         backfill onto LegalWorkflow).
         """
-        from law_ai.agents_runtime import llm as llm_runtime
-
         question = input_data.get("text") or input_data.get("question") or ""
 
         # Resilience boundary (spec 027): as the DEFAULT engine this path must
-        # never 500 the API. Probe first (milliseconds, TTL-cached) so a down
-        # Ollama degrades honestly instead of burning the retry budget.
-        if not await llm_runtime.ollama_available_async():
-            output = _langgraph_fallback_irac(
-                str(question), "Ollama unreachable (availability probe failed)"
-            )
+        # never 500 the API. The readiness check is chain-aware
+        # (BL-20260615-02): it only probes Ollama when Ollama is the sole
+        # configured tier, so a Claude-only dev box runs the workflow instead
+        # of being refused by a local reachability check that does not apply.
+        ready, not_ready_reason = await _engine_ready()
+        if not ready:
+            output = _langgraph_fallback_irac(str(question), not_ready_reason)
             output.trace_id = provenance.log_agent_call(
                 agent_name=self.name,
                 input_data=input_data,
@@ -296,15 +542,21 @@ class LegalAnalyst:
             )
             return output
 
+        thread_id = input_data.get("thread_id") or None
+        resumed = False
         try:
             from law_ai.agents_runtime.graphs import LegalWorkflow
 
-            workflow = LegalWorkflow()
-            result = await workflow.invoke(
-                question,
-                jurisdiction=input_data.get("jurisdiction"),
-                case_id=input_data.get("case_id"),
-            )
+            async with _analysis_checkpointer() as saver:
+                workflow = LegalWorkflow(checkpointer=saver)
+                if thread_id and saver is not None:
+                    resumed = await _thread_has_state(workflow, str(thread_id))
+                result = await workflow.invoke(
+                    question,
+                    jurisdiction=input_data.get("jurisdiction"),
+                    case_id=input_data.get("case_id"),
+                    thread_id=str(thread_id) if thread_id else None,
+                )
         except Exception as exc:
             # Deliberately broad: this is the resilience boundary for the
             # DEFAULT analysis engine, so it must never surface a 500. The
@@ -376,8 +628,10 @@ class LegalAnalyst:
             confidence=result.confidence,
             requires_review=result.human_approval_required,
             retrieval=result.retrieval_stats.model_dump(),
+            resumed=resumed,
             reasoning_trace=[
-                f"LangGraph thread {result.langgraph_thread_id}",
+                f"LangGraph thread {result.langgraph_thread_id}"
+                + (" (resumed)" if resumed else ""),
                 f"latency {result.latency_ms} ms",
                 f"retrieval: {result.retrieval_stats.result_count} passage(s) "
                 f"for queries {result.retrieval_stats.queries!r}",

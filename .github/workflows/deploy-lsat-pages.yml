@@ -67,6 +67,27 @@ jobs:
           # actions/deploy-pages does not run Jekyll, but keep _next safe anyway.
           touch out/.nojekyll
 
+      # Viewport measurements against the export that is about to ship
+      # (spec 051 / BL-20260901-03): header heights, 44px touch targets, no
+      # horizontal overflow, sticky passage column. jsdom cannot measure any
+      # of it, so this drives a real browser. Browsers come from the image the
+      # action already has; the driver is pinned in package-lock.json.
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Measure the export in a real browser
+        env:
+          PAGES_BASE_PATH: /${{ github.event.repository.name }}
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lsat-static-playwright-${{ github.run_id }}
+          path: lsat-static/test-results/
+          retention-days: 14
+
       - name: Configure Pages
         uses: actions/configure-pages@v6
 

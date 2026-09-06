@@ -53,10 +53,14 @@ async def test_run_analysis_happy_path(client: AsyncClient) -> None:
     assert body["confidence"] == 0.0  # no non-degraded contributions
     assert body["irac"]["issue"]
     assert body["irac"]["degraded"] is True
-    # Honesty gate: the unimplemented path must not fabricate precedents.
+    # Honesty gate: an empty corpus must not fabricate precedents, and the
+    # summary must read as "not in this corpus", never "no such precedent"
+    # (BL-20260511-06 replaced the unimplemented stub with real GraphRAG
+    # retrieval; the empty test graph still yields zero rows).
     assert body["precedents"]["precedents"] == []
     assert body["precedents"]["degraded"] is True
-    assert "not yet implemented" in body["precedents"]["summary"]
+    assert body["precedents"]["confidence"] == 0.0
+    assert "does NOT mean no relevant precedent exists" in body["precedents"]["summary"]
     assert body["requires_human_review"] is True
     assert len(body["agent_trace"]) == 2
     agents = {entry["agent"] for entry in body["agent_trace"]}
@@ -318,11 +322,14 @@ async def test_agent_ws_events_emitted(
     """FR-6 / AC-1: three group_send calls emitted (LA step + PH step + complete)."""
     from unittest.mock import AsyncMock, MagicMock
 
-    import law_ai.analysis.urls as analysis_urls
+    # The emitter moved to law_ai.agentsapi.streaming so the LSAT tutor and the
+    # autonomy cycle can share it (BL-20260811-15); analysis/urls.py now calls
+    # through to it, so that is where the channel layer is looked up.
+    from law_ai.agentsapi import streaming
 
     mock_layer: MagicMock = MagicMock()
     mock_layer.group_send = AsyncMock()
-    monkeypatch.setattr(analysis_urls, "get_channel_layer", lambda: mock_layer)
+    monkeypatch.setattr(streaming, "get_channel_layer", lambda: mock_layer)
 
     res = await client.post(
         "/api/analysis", json={"text": "Tort claim.", "use_langgraph": False}
@@ -347,15 +354,184 @@ async def test_agent_ws_events_resilient_to_channel_layer_failure(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """FR-1 / AC-2: channel layer exception does not abort the analysis."""
-    import law_ai.analysis.urls as analysis_urls
+    from law_ai.agentsapi import streaming
 
     def boom() -> None:
         raise RuntimeError("Redis unavailable")
 
-    monkeypatch.setattr(analysis_urls, "get_channel_layer", boom)
+    monkeypatch.setattr(streaming, "get_channel_layer", boom)
 
     res = await client.post(
         "/api/analysis", json={"text": "Contract dispute.", "use_langgraph": False}
     )
     assert res.status_code == 200
     assert res.json()["id"].startswith("an-")
+
+
+# ---------------------------------------------------------------------------
+# BL-20260810-13: durable LangGraph threads on the default path
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_thread_id_is_validated_like_stream_id(client: AsyncClient) -> None:
+    res = await client.post(
+        "/api/analysis",
+        json={"text": "x", "thread_id": "bad id!", "use_langgraph": False},
+    )
+    assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_thread_id_reaches_the_workflow(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The API's thread_id is what LegalWorkflow.invoke is asked to resume."""
+    pytest.importorskip("langgraph")
+    from contextlib import asynccontextmanager
+
+    from law_ai.agents_runtime.crews import legal_analyst as mod
+    from law_ai.agents_runtime.graphs.legal_workflow import (
+        LegalWorkflow,
+        LegalWorkflowOutput,
+    )
+
+    seen: dict[str, object] = {}
+
+    async def fake_invoke(self, question, **kwargs):  # type: ignore[no-untyped-def]
+        seen.update(kwargs)
+        return LegalWorkflowOutput(
+            answer="a", citations=[], confidence=0.9, langgraph_thread_id="thread-x"
+        )
+
+    @asynccontextmanager
+    async def fake_saver():  # type: ignore[no-untyped-def]
+        yield object()
+
+    async def fake_ready():  # type: ignore[no-untyped-def]
+        return True, ""
+
+    async def fake_has_state(workflow, thread_id):  # type: ignore[no-untyped-def]
+        return thread_id == "thread-x"
+
+    monkeypatch.setattr(LegalWorkflow, "invoke", fake_invoke)
+    monkeypatch.setattr(mod, "_analysis_checkpointer", fake_saver)
+    monkeypatch.setattr(mod, "_engine_ready", fake_ready)
+    monkeypatch.setattr(mod, "_thread_has_state", fake_has_state)
+
+    res = await client.post(
+        "/api/analysis",
+        json={"text": "Is X liable?", "thread_id": "thread-x", "use_langgraph": True},
+    )
+    assert res.status_code == 200
+    assert seen.get("thread_id") == "thread-x"
+    body = res.json()
+    assert body["resumed"] is True
+    assert body["irac"]["langgraph_thread_id"] == "thread-x"
+
+
+@pytest.mark.asyncio
+async def test_fresh_thread_is_not_reported_as_resumed(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pytest.importorskip("langgraph")
+    from contextlib import asynccontextmanager
+
+    from law_ai.agents_runtime.crews import legal_analyst as mod
+    from law_ai.agents_runtime.graphs.legal_workflow import (
+        LegalWorkflow,
+        LegalWorkflowOutput,
+    )
+
+    async def fake_invoke(self, question, **kwargs):  # type: ignore[no-untyped-def]
+        return LegalWorkflowOutput(
+            answer="a", citations=[], confidence=0.9, langgraph_thread_id="lwf-new"
+        )
+
+    @asynccontextmanager
+    async def fake_saver():  # type: ignore[no-untyped-def]
+        yield object()
+
+    async def fake_ready():  # type: ignore[no-untyped-def]
+        return True, ""
+
+    async def no_state(workflow, thread_id):  # type: ignore[no-untyped-def]
+        return False
+
+    monkeypatch.setattr(LegalWorkflow, "invoke", fake_invoke)
+    monkeypatch.setattr(mod, "_analysis_checkpointer", fake_saver)
+    monkeypatch.setattr(mod, "_engine_ready", fake_ready)
+    monkeypatch.setattr(mod, "_thread_has_state", no_state)
+
+    res = await client.post("/api/analysis", json={"text": "q", "use_langgraph": True})
+    assert res.status_code == 200
+    assert res.json()["resumed"] is False
+
+
+@pytest.mark.asyncio
+async def test_unopenable_checkpointer_still_runs_the_analysis(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Losing resumability must not fail an analysis."""
+    from law_ai.agents_runtime.crews import legal_analyst as mod
+    from law_ai.agents_runtime.graphs import runtime as rt
+
+    def boom(*args, **kwargs):  # type: ignore[no-untyped-def]
+        raise RuntimeError("no postgres")
+
+    monkeypatch.setattr(rt, "build_checkpointer", boom)
+    async with mod._analysis_checkpointer() as saver:
+        assert saver is None
+
+
+@pytest.mark.asyncio
+async def test_thread_lookup_endpoint(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from contextlib import asynccontextmanager
+
+    from law_ai.analysis import urls as analysis_urls
+
+    @asynccontextmanager
+    async def fake_saver():  # type: ignore[no-untyped-def]
+        yield object()
+
+    class _Snapshot:
+        values = {
+            "question": "Is X liable?",
+            "jurisdiction": "us-ca",
+            "case_id": None,
+            "retrieved": [{}, {}],
+            "citations": [{}],
+        }
+
+    async def fake_get_state(self, thread_id):  # type: ignore[no-untyped-def]
+        return _Snapshot() if thread_id == "known" else type("E", (), {"values": {}})()
+
+    pytest.importorskip("langgraph")
+    from law_ai.agents_runtime.graphs.legal_workflow import LegalWorkflow
+
+    monkeypatch.setattr(analysis_urls, "_analysis_checkpointer", fake_saver)
+    monkeypatch.setattr(LegalWorkflow, "get_state", fake_get_state)
+
+    known = await client.get("/api/analysis/threads/known")
+    assert known.status_code == 200
+    assert known.json() == {
+        "thread_id": "known",
+        "exists": True,
+        "question": "Is X liable?",
+        "jurisdiction": "us-ca",
+        "case_id": None,
+        "retrieved_count": 2,
+        "citation_count": 1,
+    }
+
+    missing = await client.get("/api/analysis/threads/never-seen")
+    assert missing.status_code == 200
+    assert missing.json() == {"thread_id": "never-seen", "exists": False}
+
+
+@pytest.mark.asyncio
+async def test_thread_lookup_rejects_a_malformed_id(client: AsyncClient) -> None:
+    res = await client.get("/api/analysis/threads/bad%20id")
+    assert res.status_code == 400

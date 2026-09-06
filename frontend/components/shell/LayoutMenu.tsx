@@ -1,24 +1,22 @@
 'use client'
 
+import { layoutRowsForPath } from '@/lib/modules/catalog'
 import {
   backToTopVisible,
   breadcrumbsVisible,
   inspectorSide,
-  libraryContents,
-  libraryOutline,
-  lsatTimerVisible,
   PAGE_HEADER_MODES,
   pageHeaderMode,
   PANEL_SIDES,
+  railExpanded,
   railVisible,
   scopeSwitcherVisible,
   sidebarSide,
   type PageHeaderMode,
   type PanelSide,
 } from '@/lib/settings/catalog'
-import { nextRovingIndex } from '@/lib/shell/rovingFocus'
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { useSetting } from './useSetting'
+import { useMenuPopover } from './useMenuPopover'
+import { useSetting, useSettingList } from './useSetting'
 
 type ItemRole = 'menuitemcheckbox' | 'menuitemradio' | 'menuitem'
 
@@ -76,27 +74,19 @@ export default function LayoutMenu({
   onReset: () => void
 }) {
   const [rail, setRail] = useSetting(railVisible)
+  const [railLabels, setRailLabels] = useSetting(railExpanded)
   const [crumbs, setCrumbs] = useSetting(breadcrumbsVisible)
   const [scope, setScope] = useSetting(scopeSwitcherVisible)
   const [top, setTop] = useSetting(backToTopVisible)
-  const [timer, setTimer] = useSetting(lsatTimerVisible)
-  const [contents, setContents] = useSetting(libraryContents)
-  const [outline, setOutline] = useSetting(libraryOutline)
   const [sideOfSidebar, setSideOfSidebar] = useSetting(sidebarSide)
   const [sideOfInspector, setSideOfInspector] = useSetting(inspectorSide)
   const [header, setHeader] = useSetting(pageHeaderMode)
 
-  const [open, setOpen] = useState(false)
-  const [active, setActive] = useState(0)
-  const buttonRef = useRef<HTMLButtonElement | null>(null)
-  const menuRef = useRef<HTMLDivElement | null>(null)
-  const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const menuId = useId()
-
-  // Rows for a module's own parts appear only where those parts can be — a
-  // "Section timer" row on the graph page would be a promise about nothing.
-  const onLsat = pathname.startsWith('/lsat')
-  const onLibrary = pathname.startsWith('/lsat/library')
+  // Rows for a module's own parts appear only where those parts can be. Which
+  // rows those are is the module catalog's answer, not the menu's: the shell
+  // does not know what "/lsat/library" is (spec 040; BL-20260905-07).
+  const moduleRows = layoutRowsForPath(pathname)
+  const moduleValues = useSettingList(moduleRows.map((r) => r.setting))
 
   const check = (
     id: string,
@@ -118,28 +108,21 @@ export default function LayoutMenu({
       label: 'Show',
       items: [
         check('rail', 'Navigation rail', rail, () => setRail(!rail)),
+        // Only meaningful with the rail on, and only in effect at `xl`; the
+        // row stays visible either way so the choice is discoverable where it
+        // is made rather than only where it applies.
+        check('rail-labels', 'Labelled rail (wide screens)', railLabels, () =>
+          setRailLabels(!railLabels),
+        ),
         check('sidebar', 'Contextual sidebar', sidebarOpen, onToggleSidebar, '['),
         check('inspector', 'Inspector', inspectorOpen, onToggleInspector, ']'),
         check('breadcrumbs', 'Breadcrumb trail', crumbs, () => setCrumbs(!crumbs)),
         check('scope', 'Scope switcher', scope, () => setScope(!scope)),
         check('back-to-top', 'Back-to-top button', top, () => setTop(!top)),
-        ...(onLsat
-          ? [
-              check('timer', 'Section timer when idle', timer, () =>
-                setTimer(!timer),
-              ),
-            ]
-          : []),
-        ...(onLibrary
-          ? [
-              check('contents', 'Library contents rail', contents, () =>
-                setContents(!contents),
-              ),
-              check('outline', 'Library outline', outline, () =>
-                setOutline(!outline),
-              ),
-            ]
-          : []),
+        ...moduleRows.map((row, i) => {
+          const [on, set] = moduleValues[i]
+          return check(row.id, row.label, on, () => set(!on))
+        }),
       ],
     },
     {
@@ -182,57 +165,20 @@ export default function LayoutMenu({
   ]
   const flat = sections.flatMap((s) => s.items)
 
-  const close = useCallback((restoreFocus: boolean) => {
-    setOpen(false)
-    if (restoreFocus) buttonRef.current?.focus()
-  }, [])
-
-  const openMenu = () => {
-    setActive(0)
-    setOpen(true)
-  }
-
-  // Focus follows `active` while the menu is open — the roving-tabindex
-  // contract, so the group is one tab stop and arrows move inside it.
-  useEffect(() => {
-    if (open) itemRefs.current[active]?.focus()
-  }, [open, active])
-
-  // Outside click closes, like every other popover in the shell.
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: MouseEvent) => {
-      const target = e.target as Node
-      if (
-        !menuRef.current?.contains(target) &&
-        !buttonRef.current?.contains(target)
-      ) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [open])
-
-  const onMenuKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      e.stopPropagation()
-      close(true)
-      return
-    }
-    if (e.key === 'Tab') {
-      // Let focus move on naturally; a closed menu is what Tab means here.
-      setOpen(false)
-      return
-    }
-    const next = nextRovingIndex(e, active, flat.length, {
-      orientation: 'vertical',
-    })
-    if (next === null) return
-    e.preventDefault()
-    setActive(next)
-  }
+  // One tab stop, Escape, outside click, ArrowDown-to-open — the shell's menu
+  // contract, shared with the Modules menu rather than written twice.
+  const {
+    open,
+    setActive,
+    buttonRef,
+    menuRef,
+    menuId,
+    close,
+    openMenu,
+    onMenuKeyDown,
+    onTriggerKeyDown,
+    itemProps,
+  } = useMenuPopover(flat.length)
 
   return (
     <div className="relative">
@@ -244,12 +190,7 @@ export default function LayoutMenu({
         aria-controls={open ? menuId : undefined}
         title="Show, hide, or move parts of the screen"
         onClick={() => (open ? close(false) : openMenu())}
-        onKeyDown={(e) => {
-          if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-            e.preventDefault()
-            openMenu()
-          }
-        }}
+        onKeyDown={onTriggerKeyDown}
         className={
           'tap-target rounded-md border px-2.5 text-xs transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ' +
           (open
@@ -301,13 +242,10 @@ export default function LayoutMenu({
                 return (
                   <button
                     key={item.id}
-                    ref={(el) => {
-                      itemRefs.current[index] = el
-                    }}
+                    {...itemProps(index)}
                     type="button"
                     role={item.role}
                     aria-checked={item.role === 'menuitem' ? undefined : item.checked}
-                    tabIndex={index === active ? 0 : -1}
                     onClick={() => {
                       item.run()
                       if (item.closes) close(true)

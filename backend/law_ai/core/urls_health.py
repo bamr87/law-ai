@@ -7,10 +7,13 @@ on this module — keep them as top-level imports so the patches stick.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from asgiref.sync import async_to_sync
 from django.urls import path
+from rest_framework.authentication import BaseAuthentication
 from rest_framework.permissions import AllowAny
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -33,9 +36,9 @@ async def _last_ingest_iso() -> str | None:
 
 class HealthView(APIView):
     permission_classes = [AllowAny]
-    authentication_classes: list = []
+    authentication_classes: list[type[BaseAuthentication]] = []
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         last_ingest_at = async_to_sync(_last_ingest_iso)()
         return Response(
             {

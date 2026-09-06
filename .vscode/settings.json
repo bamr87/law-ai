@@ -29,8 +29,15 @@
   "[typescriptreact]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
+  // Host path, and it only resolves if someone has run `npm install` on the
+  // host — which the Docker-first rule forbids. Inside the frontend dev
+  // container (.devcontainer/frontend/devcontainer.json) the workspace root
+  // IS /app, so that config overrides this with "node_modules/typescript/lib"
+  // and the editor uses the container's toolchain. BL-20260811-17.
   "typescript.tsdk": "frontend/node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
+  // Same story: correct for a host-rooted workspace, overridden to ["."] in
+  // the frontend dev container where /app is already the package root.
   "eslint.workingDirectories": ["frontend"],
 
   // General

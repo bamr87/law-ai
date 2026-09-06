@@ -12,15 +12,19 @@ import {
   isSectionInProgress,
   pauseTimer,
   resetTimer,
+  setTimerDuration,
   startTimer,
   subscribeTimer,
 } from '@/lib/lsat/timerStore'
 import { resolveDock } from '@/lib/shell/docks'
 import {
   DOCKS,
+  TIMER_DURATIONS,
   lsatTimerDock,
+  lsatTimerDuration,
   lsatTimerVisible,
   type Dock,
+  type TimerDuration,
 } from '@/lib/settings/catalog'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
@@ -28,6 +32,12 @@ const DOCK_LABEL: Record<Dock, string> = {
   sidebar: 'Sidebar',
   inspector: 'Inspector',
   inline: 'In page',
+}
+
+const DURATION_LABEL: Record<TimerDuration, string> = {
+  '5': '5 min',
+  '10': '10 min',
+  '35': '35 min',
 }
 
 export function useLsatTimer() {
@@ -55,17 +65,16 @@ export default function SectionTimerWidget({
   dock,
   onOwnRoute,
   openDocks,
-  remainingQuestions,
 }: {
   dock: Dock
   /** True when rendering on an LSAT route. */
   onOwnRoute: boolean
   /** Zones currently on screen, so a collapsed panel does not hide the clock. */
   openDocks: Dock[]
-  remainingQuestions?: number
 }) {
   const [preferred, setPreferred] = useSetting(lsatTimerDock)
   const [shownWhenIdle, setShownWhenIdle] = useSetting(lsatTimerVisible)
+  const [duration, setDuration] = useSetting(lsatTimerDuration)
   const timer = useLsatTimer()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
@@ -86,6 +95,18 @@ export default function SectionTimerWidget({
     }
   }, [menuOpen])
 
+  // Adopt the saved drill length on mount, but never over a section already
+  // under way — the store rehydrates a running clock from sessionStorage, and
+  // resetting that to the preference would be the one thing a timer must not
+  // do (BL-20260829-02).
+  const wanted = Number(duration) * 60
+  useEffect(() => {
+    const s = getTimerSnapshot()
+    if (isSectionInProgress(s)) return
+    if (s.durationSeconds === wanted) return
+    setTimerDuration(wanted)
+  }, [wanted])
+
   // Off the LSAT routes the clock only follows you while a section is
   // actually in progress — otherwise every other module would carry a stopped
   // 35:00 for no reason. The same rule serves `lsat.timer.visible` (spec 050):
@@ -99,7 +120,13 @@ export default function SectionTimerWidget({
   const expired = remainingSeconds === 0
   const warn = remainingSeconds > 0 && remainingSeconds <= 5 * 60
   const urgent = remainingSeconds > 0 && remainingSeconds <= 60
-  const pace = secondsPerQuestion(remainingSeconds, remainingQuestions ?? 0)
+  // Straight from the store, never a prop: the clock docks into the sidebar
+  // and the inspector, which are parallel-route slots — different React trees
+  // from the panel that knows how many questions are left (BL-20260829-01).
+  const pace = secondsPerQuestion(
+    remainingSeconds,
+    timer.remainingQuestions ?? 0,
+  )
   const avg = averageSecondsPerQuestion(timer.answeredSeconds, timer.answered)
   const compact = dock !== 'inline'
 
@@ -131,7 +158,7 @@ export default function SectionTimerWidget({
           <div className="relative" ref={menuRef}>
             <button
               type="button"
-              aria-label="Move the section timer"
+              aria-label="Section timer options"
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((v) => !v)}
@@ -142,7 +169,7 @@ export default function SectionTimerWidget({
             {menuOpen && (
               <div
                 role="menu"
-                aria-label="Move the section timer"
+                aria-label="Section timer options"
                 style={{ zIndex: 'var(--z-popover)' }}
                 className="absolute right-0 top-full mt-1 w-36 overflow-hidden rounded-md border border-slate-700 bg-slate-900 shadow-xl"
               >
@@ -191,6 +218,40 @@ export default function SectionTimerWidget({
                   Show when idle
                   {shownWhenIdle && <span aria-hidden="true">✓</span>}
                 </button>
+                {/* Drill length. Locked once a section is under way: changing
+                    the clock mid-run would silently discard the time already
+                    spent, and a student who wanted that has Reset. */}
+                <p className="border-t border-slate-800 px-3 pb-1 pt-2 text-[10px] uppercase tracking-wider text-slate-500">
+                  Length
+                </p>
+                {TIMER_DURATIONS.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={d === duration}
+                    disabled={inProgress}
+                    title={
+                      inProgress
+                        ? 'Finish or reset the section before changing its length'
+                        : undefined
+                    }
+                    onClick={() => {
+                      setDuration(d)
+                      setTimerDuration(Number(d) * 60)
+                      setMenuOpen(false)
+                    }}
+                    className={
+                      'flex w-full items-center justify-between px-3 py-1.5 text-left text-xs transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-amber-400 disabled:cursor-not-allowed disabled:opacity-40 ' +
+                      (d === duration
+                        ? 'bg-amber-500/10 text-amber-200'
+                        : 'text-slate-300 hover:bg-slate-800')
+                    }
+                  >
+                    {DURATION_LABEL[d]}
+                    {d === duration && <span aria-hidden="true">✓</span>}
+                  </button>
+                ))}
               </div>
             )}
           </div>

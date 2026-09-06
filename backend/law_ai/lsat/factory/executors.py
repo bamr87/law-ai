@@ -8,10 +8,12 @@ Spec 024 FR-6, extended by spec 050. Five ways to turn a
   judge→Fable by default) and authenticates with the OAuth subscription token
   when present, falling back to ``ANTHROPIC_API_KEY``. Construction raises
   :class:`ExecutorUnavailable` when neither credential is configured.
-* :class:`XaiExecutor` — xAI Grok over its subscription OAuth token, routed
-  through ``law_ai.core.llm`` with the chain pinned to that one provider, so
-  the run stays as attributable as the Claude path while keeping the call
-  inside the constitution §4 choke point.
+* :class:`XaiExecutor` — xAI Grok over its subscription OAuth token.
+
+  Both hosted executors route through ``law_ai.core.llm`` with the chain
+  pinned to their single provider: reproducible tier→model routing (a pinned
+  chain cannot fall through) *and* an ``llm_call`` provenance event per batch
+  (constitution §4).
 * :class:`OllamaExecutor` — the local open-weights path; every tier maps to
   ``OLLAMA_DEFAULT_MODEL``.
 * :class:`SynthExecutor` — no network and no model: fulfills a job from the
@@ -93,10 +95,16 @@ def _parse_payload(raw: str, job_id: str) -> dict[str, Any]:
 class ClaudeCodeExecutor:
     """Tier-routed Claude generation (see module docstring).
 
-    The factory pins a provider explicitly rather than running the chain, so
-    that a manifest's tier→model routing is reproducible: a silent fallback to
-    a different tier — or to the local model — would make a generated bank
-    impossible to attribute. Use ``--executor ollama`` for the local path.
+    Reproducibility is preserved by pinning the chain to the one Claude tier
+    whose credential is configured — ``providers=("claude_code",)`` on the
+    subscription token, ``("anthropic_api",)`` on an API key — with the job's
+    tier model forced. A single-entry chain cannot silently fall through to
+    another provider, so a manifest is still attributable to the model that
+    wrote it; going through ``law_ai.core.llm`` rather than calling
+    :mod:`law_ai.core.claude_code` directly adds what the direct call was
+    missing: the ``llm_call`` provenance event every model call owes the audit
+    trail (constitution §4, BL-20260905-13). ``--executor ollama`` is the
+    local path.
     """
 
     name = "claude_code"
@@ -110,6 +118,11 @@ class ClaudeCodeExecutor:
                 "no Claude credential configured — set CLAUDE_CODE_OAUTH_TOKEN "
                 "(`claude setup-token`) or ANTHROPIC_API_KEY"
             )
+        # The credential decides the chain tier: the OAuth provider and the
+        # API-key provider are the same models behind different auth.
+        self._provider = (
+            llm.CLAUDE_OAUTH if self._auth == "oauth" else llm.ANTHROPIC_API
+        )
         self._config = config
 
     async def execute(self, job: GenerationJob) -> RawBatch:
@@ -119,19 +132,27 @@ class ClaudeCodeExecutor:
         # defensive JSON parse instead.
         schema = _DRAFTS_RESPONSE_SCHEMA if job.target.mode == "items" else None
         started = time.perf_counter()
-        raw = await claude_code.generate(
-            job.prompt,
-            system=_SYSTEM,
-            model_id=model_id,
-            max_tokens=int(getattr(settings, "LSAT_FACTORY_MAX_TOKENS", 8192)),
-            response_schema=schema,
-            auth=self._auth,
-        )
+        try:
+            result = await llm.aroute(
+                LLMRequest(
+                    prompt=job.prompt,
+                    system=_SYSTEM,
+                    response_schema=schema,
+                    max_tokens=int(getattr(settings, "LSAT_FACTORY_MAX_TOKENS", 8192)),
+                    models={self._provider: model_id},
+                    providers=(self._provider,),
+                ),
+                agent=FACTORY_AGENT,
+            )
+        except LLMUnavailableError as exc:
+            raise ExecutionError(
+                f"job {job.job_id}: Claude unavailable ({exc})"
+            ) from exc
         latency_ms = (time.perf_counter() - started) * 1000.0
         return RawBatch(
             job_id=job.job_id,
-            payload=_parse_payload(raw, job.job_id),
-            model_label=f"{claude_code.PROVIDER_NAME}/{model_id}",
+            payload=_parse_payload(result.text, job.job_id),
+            model_label=result.model_label,
             latency_ms=round(latency_ms, 2),
         )
 

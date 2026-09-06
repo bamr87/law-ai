@@ -107,7 +107,9 @@ function Stat({
           className={
             'inline-block h-1.5 w-1.5 rounded-full ' +
             dot[accent] +
-            (pulse ? ' animate-pulse' : '')
+            // BL-20260831-03: a "live" dot is decoration, so it stops for
+            // anyone who asked the OS for reduced motion.
+            (pulse ? ' animate-pulse motion-reduce:animate-none' : '')
           }
         />
         {label}

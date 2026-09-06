@@ -66,7 +66,7 @@
 - **Steps**:
   1. Renumber the orphaned `doc-gap` `BL-20260511-01` (the "missing `docs/AO-SDLC.md`" item) to `BL-20260511-32`.
   2. Move it to `## Done` with a `(resolved 2026-06-02)` note pointing at specs/020; leave the canonical spec-017 `BL-20260511-01` untouched.
-  3. Mirror this spec's follow-ups (`BL-20260602-01`, `BL-20260602-02`) into `## Open`.
+  3. Mirror this spec's follow-ups (`BL-20260602-03`, `BL-20260602-04`) into `## Open`.
 - **Verify**:
   - `python3 scripts/backlog_lint.py` exits 0 — unique ids, no removed entries (AC-1, NFR-SAFETY-1).
 
@@ -100,5 +100,5 @@
 
 > Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id.
 
-- BL-20260602-01 — *doc-gap, low* — Fix non-case broken relative links in current governing docs: `docs/constitution.md` links to `AGENTS.md` (3×) but it lives at the repo root, so the href should be `../AGENTS.md` (404s on every platform). _Surfaced in:_ specs/021-fix-ao-sdlc-doc-links.
-- BL-20260602-02 — *test-gap, med* — Update or historically-annotate the ~120 `backend/app/*` references in shipped specs 011 + `docs/adr/0001-adopt-django-backend.md` (pre-Django-rebrand layout), then promote `test_no_case_mismatched_doc_links` to a full relative-link existence check. _Surfaced in:_ specs/021-fix-ao-sdlc-doc-links.
+- BL-20260602-03 — *doc-gap, low* — Fix non-case broken relative links in current governing docs: `docs/constitution.md` links to `AGENTS.md` (3×) but it lives at the repo root, so the href should be `../AGENTS.md` (404s on every platform). _Surfaced in:_ specs/021-fix-ao-sdlc-doc-links.
+- BL-20260602-04 — *test-gap, med* — Update or historically-annotate the ~120 `backend/app/*` references in shipped specs 011 + `docs/adr/0001-adopt-django-backend.md` (pre-Django-rebrand layout), then promote `test_no_case_mismatched_doc_links` to a full relative-link existence check. _Surfaced in:_ specs/021-fix-ao-sdlc-doc-links.

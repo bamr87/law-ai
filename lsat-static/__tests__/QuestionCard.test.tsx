@@ -6,9 +6,10 @@
  * source strings from tests/test_lsat_site.py.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import QuestionCard from '@/components/QuestionCard'
+import { identityOrder, presetOrder, resetOrders } from '@/lib/shuffle'
 import type { Question } from '@/lib/types'
 
 const QUESTION: Question = {
@@ -41,6 +42,14 @@ function checked(): string[] {
 }
 
 describe('QuestionCard radiogroup', () => {
+  beforeEach(() => {
+    // Choices are shuffled per attempt (BL-20260606-01); this suite is about
+    // the keyboard contract, so it pins the board to the stored order.
+    // shuffle.test.tsx covers the permutation itself.
+    resetOrders()
+    presetOrder(QUESTION.id, identityOrder(QUESTION.choices.length))
+  })
+
   it('is a single tab stop before anything is selected', () => {
     render(<QuestionCard question={QUESTION} index={0} total={1} />)
     const stops = radios().filter((r) => r.tabIndex === 0)

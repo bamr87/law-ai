@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   articlesTeaching,
   conceptById,
@@ -31,9 +31,16 @@ const SECTION_FILTERS: { id: 'all' | SectionCode; label: string; full: string }[
 ]
 
 export default function Concepts({
+  focusId,
   onOpenArticle,
   onOpenTrack,
 }: {
+  /**
+   * The concept a `#catalog-<id>` link asked for (BL-20260905-04). The card
+   * is brought into view and focused, so a link to one concept lands on that
+   * concept rather than at the top of the catalog.
+   */
+  focusId?: string | null
   /** Hands the reader back to the Articles view on the chosen article. */
   onOpenArticle?: (id: string) => void
   /** Hands the reader back to the Articles view with a track as the rail. */
@@ -41,6 +48,18 @@ export default function Concepts({
 }) {
   const [q, setQ] = useState('')
   const [section, setSection] = useState<'all' | SectionCode>('all')
+
+  // After the list has committed, so the card exists whether the catalog just
+  // opened on a deep link or was already up when the fragment changed.
+  useEffect(() => {
+    if (!focusId) return
+    const card = document.getElementById(`catalog-${focusId}`)
+    if (!card) return
+    const reduced =
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    card.focus?.({ preventScroll: true })
+    card.scrollIntoView?.({ block: 'start', behavior: reduced ? 'auto' : 'smooth' })
+  }, [focusId])
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -108,7 +127,15 @@ export default function Concepts({
             }))
             const examples = c.examples ?? []
             return (
-              <li key={c.id} className="concept" id={`catalog-${c.id}`}>
+              <li
+                key={c.id}
+                className="concept"
+                id={`catalog-${c.id}`}
+                // Programmatic focus target only: a `#catalog-<id>` link has
+                // to land the reader *on* the concept, not merely scroll it
+                // past. Not in the tab order — the card's own controls are.
+                tabIndex={-1}
+              >
                 {/* header: the same facts an article's header carries */}
                 <div className="lib-meta">
                   <span className="pill pill-muted">Concept</span>
@@ -126,6 +153,19 @@ export default function Concepts({
                       {s}
                     </span>
                   ))}
+                  {/* The capability the platform had and this site did not: a
+                      URL for one concept (BL-20260905-04). A plain anchor, so
+                      it copies, opens in a new tab, and works with no script
+                      at all — and it sits beside the heading rather than
+                      inside it, so it does not end up in the heading's
+                      accessible name. */}
+                  <a
+                    href={`#catalog-${c.id}`}
+                    className="concept-permalink"
+                    aria-label={`Link to ${c.name}`}
+                  >
+                    #
+                  </a>
                 </div>
                 <h3>{c.name}</h3>
                 {c.summary && <p className="concept-summary">{c.summary}</p>}

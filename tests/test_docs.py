@@ -163,3 +163,107 @@ def test_no_case_mismatched_doc_links(repo_root: Path) -> None:
         "Markdown links reference files that exist only under a different case "
         "(broken on Linux/CI). Fix the link casing:\n  " + "\n  ".join(sorted(offenders))
     )
+
+
+def test_architecture_documents_every_lsat_content_type(repo_root: Path) -> None:
+    """docs/architecture.md must name all four LSAT section types + their loaders.
+
+    BL-20260831-29: the architecture doc described the LSAT module as
+    multiple-choice only, so the Argumentative Writing content type
+    (`writing.py`, `writing_prompts.json`, `writing_rubrics.json`, spec 047)
+    was invisible to anyone reading the architecture first. Pin the row so a
+    fifth content type cannot ship without the doc noticing.
+    """
+    text = (repo_root / "docs" / "architecture.md").read_text(encoding="utf-8")
+    missing = [
+        token
+        for token in (
+            "bank.py",
+            "guides.py",
+            "writing.py",
+            "writing_prompts.json",
+            "writing_rubrics.json",
+            "Argumentative Writing",
+            "/api/lsat/writing/evaluate",
+        )
+        if token not in text
+    ]
+    assert not missing, (
+        "docs/architecture.md no longer documents the LSAT content types "
+        f"(missing: {', '.join(missing)}). Update the 'LSAT content types' row."
+    )
+
+
+_CODE_FENCE_RE = re.compile(r"^\s*(```|~~~)")
+_INLINE_CODE_RE = re.compile(r"`[^`]*`")
+# Deliberately-broken links, if any ever have to exist. Keep this empty:
+# a historical path belongs in an inline code span, not in a dead href
+# (see specs/011-django-backend and docs/adr/0001, BL-20260602-04).
+_BROKEN_LINK_ALLOWLIST: set[str] = set()
+
+
+def _tracked_markdown(repo_root: Path) -> list[Path]:
+    """Every ``*.md`` file git knows about, as absolute paths that still exist.
+
+    Tracked plus not-ignored-untracked: a doc added in the working tree is
+    checked immediately, while `.claude/worktrees/` and other ignored scratch
+    copies — which carry stale links nobody can fix from this repo — stay out.
+    """
+    from tests.conftest import run_subprocess
+
+    result = run_subprocess(
+        # --others --exclude-standard so a doc added in this working tree is
+        # checked before it is committed, while .gitignore'd copies stay out.
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard", "*.md"],
+        cwd=repo_root,
+    )
+    assert result.returncode == 0, f"git ls-files failed: {result.stderr}"
+    paths = [repo_root / rel for rel in result.stdout.split("\0") if rel]
+    return [p for p in paths if p.is_file()]
+
+
+def _link_targets(text: str):
+    """Yield (line_number, href) for every markdown link outside code."""
+    in_fence = False
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if _CODE_FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        for match in _MD_LINK_RE.finditer(_INLINE_CODE_RE.sub("", line)):
+            raw = match.group(1).strip()
+            if not raw:
+                continue
+            href = raw.split()[0].split("#")[0].split("?")[0]
+            if not href or href.startswith(
+                ("http://", "https://", "mailto:", "tel:", "#", "<")
+            ):
+                continue
+            yield lineno, href
+
+
+def test_no_broken_relative_doc_links(repo_root: Path) -> None:
+    """Every relative markdown link must point at a file that exists.
+
+    The promoted form of ``test_no_case_mismatched_doc_links`` (BL-20260602-04,
+    surfaced by specs/021): that guard only caught links whose target existed
+    under a different case, so the ~114 dead ``backend/app/*`` hrefs left over
+    from the pre-Django layout sailed through. Paths that describe deleted code
+    are inline code spans now; anything still written as a link must resolve.
+    """
+    offenders: list[str] = []
+    for md in _tracked_markdown(repo_root):
+        for lineno, href in _link_targets(md.read_text(encoding="utf-8", errors="ignore")):
+            target = md.parent / href
+            if _exists_case_exact(target):
+                continue
+            rel = f"{md.relative_to(repo_root)}:{lineno} -> {href}"
+            if rel.split(" ->")[0].split(":")[0] in _BROKEN_LINK_ALLOWLIST:
+                continue
+            offenders.append(rel)
+    assert not offenders, (
+        "Markdown links point at files that do not exist. Fix the href, or "
+        "render the path as an inline code span if it names deleted code:\n  "
+        + "\n  ".join(sorted(offenders))
+    )

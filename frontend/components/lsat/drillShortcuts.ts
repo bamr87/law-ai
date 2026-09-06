@@ -1,0 +1,57 @@
+import type { ShortcutGroup } from '@/lib/shell/shortcuts'
+
+/**
+ * The keys a drill card actually binds (`QuestionCard.handleKeyDown` and the
+ * choice list's roving tabindex), published to the shell's `?` sheet
+ * (BL-20260901-10).
+ *
+ * Wording is kept in step with the published static site's own reference
+ * (`lsat-static/components/ShortcutHelp.tsx`) so the two products describe the
+ * same drill the same way. It lists **only** what the platform binds — a
+ * shortcut sheet that promises a key nothing listens to is worse than no sheet
+ * at all — and since BL-20260901-06 that is the static site's whole drill map:
+ * the letters and Enter, N/P between questions (BL-20260901-08), and the hint
+ * keys H/J/K/R that `SolveAssist` now answers.
+ *
+ * A module-level constant on purpose — `usePageShortcuts` identifies a group
+ * by title and a new object per render would re-register on every render.
+ */
+export const LSAT_DRILL_SHORTCUTS: ShortcutGroup = {
+  title: 'Question drill',
+  rows: [
+    { keys: 'A – E', label: 'Select that answer choice' },
+    { keys: '↑ ↓', label: 'Move between choices (when a choice has focus)' },
+    { keys: 'Home / End', label: 'First / last choice (when a choice has focus)' },
+    { keys: 'Enter', label: 'Check the answer — then again to advance' },
+    { keys: 'N', label: 'Next question, once this one is checked' },
+    {
+      keys: 'P',
+      label: 'Previous question (Reading Comprehension / Logic Games)',
+    },
+    { keys: 'H', label: 'Reveal the next hint' },
+    { keys: 'J / K', label: 'Move back / forward through revealed hints' },
+    { keys: 'R', label: 'Reveal the final step (after checking)' },
+  ],
+}
+
+/**
+ * The keys the Argumentative Writing surface binds (BL-20260901-09).
+ *
+ * A separate group from the drill's because it is a different task with a
+ * different hazard: the whole screen is a text field for 35 minutes, so the
+ * only key that fires from inside it is `Ctrl`/`⌘`+`Enter` — a bare letter
+ * would be swallowed by the essay.
+ *
+ * `Esc` is listed but is not bound through `lib/lsat/keyboard.ts`: the shell
+ * owns Escape on every route, so the editor handles it on its own element.
+ */
+export const LSAT_WRITING_SHORTCUTS: ShortcutGroup = {
+  title: 'Argumentative Writing',
+  rows: [
+    { keys: 'O', label: 'Open the first prompt, and jump into the editor' },
+    { keys: 'T', label: 'Start or pause the writing clock' },
+    { keys: 'Ctrl / ⌘ + Enter', label: 'Submit the draft and unlock feedback' },
+    { keys: 'M', label: 'Show or hide the model response' },
+    { keys: 'Esc', label: 'Leave the editor — then O returns to it' },
+  ],
+}

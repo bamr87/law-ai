@@ -1,0 +1,110 @@
+# Linux + NVIDIA workstation tier (BL-20260502-02, spec 010 hardware tiers).
+#
+#   make local-ai-up-gpu        # core stack, Ollama on the GPU
+#   make vllm-up                # + the optional vLLM server (profile `vllm`)
+#
+# An OVERLAY, never the default: `make dev` on an Apple Silicon laptop must
+# keep the 7B/8B set and no `deploy.resources` block, because the NVIDIA
+# container runtime does not exist there and the 70B model does not fit.
+# Compose merges this on top of docker-compose.yml, so only the deltas live
+# here.
+#
+# Requirements on the host: NVIDIA driver + nvidia-container-toolkit
+# (`docker run --rm --gpus all nvidia/cuda:12.4.0-base-ubuntu22.04 nvidia-smi`
+# must print your GPUs before any of this works).
+#
+# LegalBench note: the harness is pinned to Ollama on purpose, and this
+# overlay changes which Ollama model answers. Numbers produced on the GPU tier
+# are NOT comparable with laptop-tier numbers — record the model with the run.
+
+services:
+  ollama:
+    # All visible GPUs. Pin to specific cards with
+    # `device_ids: ["0", "1"]` instead of `count: all`.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    environment:
+      # Workstation tier: the 70B q4 becomes the default analyst model and,
+      # being first in the list, the model that gates readiness (bootstrap and
+      # healthcheck both take entry #1). That is deliberate — "healthy" should
+      # mean "can serve the model the backend will ask for" — but the first
+      # boot then blocks on a ~40 GB pull, hence the start_period below.
+      - OLLAMA_BOOTSTRAP_MODELS=${GPU_OLLAMA_BOOTSTRAP_MODELS:-llama3.1:70b-q4_K_M mistral:7b-instruct-q4_K_M llama3.1:8b-instruct-q4_K_M nomic-embed-text}
+      # 70B weights are worth keeping resident; reloading them costs minutes.
+      - OLLAMA_KEEP_ALIVE=${GPU_OLLAMA_KEEP_ALIVE:-30m}
+      # Serve concurrently — a 24 GB card holds the 70B q4 plus room to spare.
+      - OLLAMA_NUM_PARALLEL=${GPU_OLLAMA_NUM_PARALLEL:-2}
+    healthcheck:
+      # A cold 40 GB pull on a 200 Mbit link is ~30 minutes.
+      start_period: 7200s
+    # Weights stream through host RAM on their way to VRAM.
+    mem_limit: 48g
+
+  backend:
+    environment:
+      # The one setting that actually selects the LegalWorkflow model: the
+      # providers read OLLAMA_DEFAULT_MODEL, not DEFAULT_MODEL.
+      #
+      # Read from GPU_-prefixed variables on purpose. `.env.example` ships
+      # OLLAMA_DEFAULT_MODEL=mistral:7b for the laptop tier, and compose
+      # interpolates ${OLLAMA_DEFAULT_MODEL:-...} from that .env — so the
+      # obvious spelling would silently hand the workstation the laptop
+      # model. The overlay owns its own variables instead.
+      - OLLAMA_DEFAULT_MODEL=${GPU_OLLAMA_DEFAULT_MODEL:-llama3.1:70b-q4_K_M}
+
+  worker:
+    environment:
+      - OLLAMA_DEFAULT_MODEL=${GPU_OLLAMA_DEFAULT_MODEL:-llama3.1:70b-q4_K_M}
+
+  # ---------------------------------------------------------------------------
+  # Optional vLLM server (profile `vllm`). Higher throughput than Ollama for
+  # batch work — continuous batching, paged attention, an OpenAI-compatible
+  # API on :8001, and a Prometheus /metrics endpoint the observability overlay
+  # scrapes for tokens/sec.
+  #
+  # NOT part of the provider chain yet: law_ai.core.llm has no
+  # OpenAI-compatible tier, and adding one is a constitution §1 question, not
+  # a compose question. Today this serves benchmarking and manual comparison.
+  # ---------------------------------------------------------------------------
+  vllm:
+    profiles: [ "vllm" ]
+    # Pinned like every other image here; bump deliberately, throughput and
+    # kernel support change between releases.
+    image: vllm/vllm-openai:v0.11.0
+    ports:
+      - "8001:8000"
+    environment:
+      # Gated repos (Llama) need a token with the license accepted.
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN:-}
+    volumes:
+      # Share the weight cache across restarts — these downloads are huge.
+      - hfcache:/root/.cache/huggingface
+    command: >
+      --model ${VLLM_MODEL:-meta-llama/Llama-3.1-8B-Instruct}
+      --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      --max-model-len ${VLLM_MAX_MODEL_LEN:-8192}
+      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.90}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    # vLLM's tokenizer/allocator wants a bigger /dev/shm than the 64 MB default.
+    shm_size: "8gb"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 1800s
+    restart: unless-stopped
+
+volumes:
+  hfcache:

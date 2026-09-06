@@ -1,16 +1,21 @@
 'use client'
 
-import { INSTANCE_SCOPE } from '@/lib/scope/instance'
-import { chainTo, resolveEffective } from '@/lib/scope/resolver'
+import {
+  INSTANCE_SCOPE,
+  settingsChain,
+  userScopeFor,
+} from '@/lib/scope/instance'
+import { resolveEffective } from '@/lib/scope/resolver'
 import {
   deleteSettingValue,
   getSettingsServerSnapshot,
   listSettingValues,
+  serverSyncScope,
   subscribeSettings,
   upsertSettingValue,
 } from '@/lib/scope/store'
 import { SETTING_CATALOG } from '@/lib/settings/catalog'
-import type { SettingDefinition, SettingValue } from '@/lib/scope/types'
+import type { ScopeNode, SettingDefinition, SettingValue } from '@/lib/scope/types'
 import { useMemo, useSyncExternalStore } from 'react'
 import SettingField from './SettingField'
 
@@ -47,7 +52,12 @@ export default function SettingsForm() {
     listSettingValues,
     getSettingsServerSnapshot,
   )
-  const chain = useMemo(() => chainTo(INSTANCE_SCOPE, [INSTANCE_SCOPE]), [])
+  // BL-20260905-10: a signed-in caller edits their *own* rows for anything
+  // settable at user scope, and sees the instance value as the inherited
+  // default behind it. Signed out, this is the single instance scope spec 040
+  // shipped and every field behaves exactly as before.
+  const userScope = userScopeFor(serverSyncScope())
+  const chain = useMemo(() => settingsChain(userScope), [userScope])
 
   const groups = useMemo(() => {
     const out: { id: string; label: string; defs: SettingDefinition<unknown>[] }[] = []
@@ -88,27 +98,33 @@ function CatalogField({
 }: {
   def: SettingDefinition<unknown>
   rows: SettingValue[]
-  chain: ReturnType<typeof chainTo>
+  chain: ScopeNode[]
 }) {
   const effective = resolveEffective(def, chain, rows, true)
+  // The deepest scope in the chain that may hold this setting: a layout
+  // preference lands on the user, a policy value stays on the instance even
+  // for a signed-in editor.
+  const target =
+    [...chain].reverse().find((node) => def.settableAt.includes(node.type)) ??
+    INSTANCE_SCOPE
 
   return (
     <SettingField
       def={def}
       effective={effective}
-      target={INSTANCE_SCOPE}
+      target={target}
       onOverride={() =>
         upsertSettingValue({
-          scopeId: INSTANCE_SCOPE.id,
+          scopeId: target.id,
           key: def.key,
           value: effective.value,
           locked: false,
         })
       }
-      onReset={() => deleteSettingValue(INSTANCE_SCOPE.id, def.key)}
+      onReset={() => deleteSettingValue(target.id, def.key)}
       onChange={(value) =>
         upsertSettingValue({
-          scopeId: INSTANCE_SCOPE.id,
+          scopeId: target.id,
           key: def.key,
           value,
           locked: false,

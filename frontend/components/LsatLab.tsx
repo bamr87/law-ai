@@ -15,8 +15,9 @@
  * preserving split; phase 2 moves them onto `frontend/ui` primitives once
  * spec 039 lands):
  *
- *   OverviewPanel · LrPanel · PassagePanel (RC + LG) · QuestionCard ·
- *   TutorPane · StatsPanel · AuthoringPanel · LabPrimitives · labTabs
+ *   OverviewPanel · LrPanel · PassagePanel (RC + LG) · WritingPanel (WS) ·
+ *   QuestionCard · TutorPane · StatsPanel · AuthoringPanel · LabPrimitives ·
+ *   labTabs
  *
  * Study material is deliberately *not* here. The concept catalog used to be a
  * seventh tab in this bar; it now lives in the library
@@ -38,13 +39,16 @@ import LrPanel from '@/components/lsat/LrPanel'
 import OverviewPanel from '@/components/lsat/OverviewPanel'
 import PassagePanel from '@/components/lsat/PassagePanel'
 import StatsPanel from '@/components/lsat/StatsPanel'
+import WritingPanel from '@/components/lsat/WritingPanel'
 import {
+  TAB_IDS,
   TABS,
   tabId,
   tabPanelId,
   type SessionScore,
   type Tab,
 } from '@/components/lsat/labTabs'
+import { useUrlState, useUrlWrite } from '@/lib/shell/viewState'
 import { useCallback, useEffect, useState } from 'react'
 
 // The ARIA id helpers stay importable from here for anything that linked a
@@ -52,15 +56,34 @@ import { useCallback, useEffect, useState } from 'react'
 export { tabId, tabPanelId }
 
 export default function LsatLab() {
-  const [tab, setTab] = useState<Tab>('overview')
+  // The tab is URL state, not component state (BL-20260831-02): `?tab=RC` is a
+  // link a study group can share, and Back steps between sections instead of
+  // leaving the lab.
+  // A concept deep link (BL-20260905-01). The library's catalog says "drill
+  // them in the lab"; `/lsat?concept=<id>` is what makes that one click rather
+  // than "open the lab, find the section, filter by hand". A concept in the URL
+  // also decides where the lab opens — on the drill, not on Overview — while
+  // an explicit `?tab=` still wins, so a link can name both.
+  const [concept] = useUrlState<string>('concept', { fallback: '' })
+  const [tab, setTab] = useUrlState<Tab>('tab', {
+    fallback: concept ? 'LR' : 'overview',
+    allowed: TAB_IDS,
+  })
+  // Dropping the filter has to pin the tab in the same navigation: the concept
+  // is what was defaulting the lab onto the drill, so removing it alone would
+  // bounce the learner back to Overview. `replace`, not `push` — dismissing a
+  // filter is not a place you want Back to return you to.
+  const writeUrl = useUrlWrite('replace')
+  const clearConcept = useCallback(
+    () => writeUrl({ concept: null, tab }),
+    [tab, writeUrl],
+  )
   const [globalStats, setGlobalStats] = useState<LsatStats | null>(null)
   const [session, setSession] = useState<SessionScore>({
     attempts: 0,
     correct: 0,
     assisted: 0,
   })
-  const [pace, setPace] = useState({ answered: 0, totalSeconds: 0 })
-
   const refreshStats = useCallback(async () => {
     try {
       setGlobalStats(await fetchLsatStats())
@@ -90,7 +113,7 @@ export default function LsatLab() {
 
   return (
     <div className="space-y-6">
-      <Header session={session} globalStats={globalStats} pace={pace} />
+      <Header session={session} globalStats={globalStats} />
       <TabBar tab={tab} onChange={setTab} />
       {/* tabIndex 0: the panel is scrollable content, so it has to be
         * reachable by keyboard once the tab bar hands focus on. */}
@@ -102,9 +125,16 @@ export default function LsatLab() {
         className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
       >
         {tab === 'overview' && <OverviewPanel onJump={setTab} />}
-        {tab === 'LR' && <LrPanel onAttempt={onAttempt} />}
+        {tab === 'LR' && (
+          <LrPanel
+            onAttempt={onAttempt}
+            concept={concept || undefined}
+            onClearConcept={concept ? clearConcept : undefined}
+          />
+        )}
         {tab === 'RC' && <PassagePanel section="RC" onAttempt={onAttempt} />}
         {tab === 'LG' && <PassagePanel section="LG" onAttempt={onAttempt} />}
+        {tab === 'WS' && <WritingPanel />}
         {tab === 'stats' && <StatsPanel session={session} stats={globalStats} />}
         {tab === 'authoring' && <AuthoringPanel />}
       </div>
@@ -119,11 +149,9 @@ export default function LsatLab() {
 function Header({
   session,
   globalStats,
-  pace,
 }: {
   session: SessionScore
   globalStats: LsatStats | null
-  pace: { answered: number; totalSeconds: number }
 }) {
   const accuracy =
     session.attempts > 0
@@ -203,7 +231,7 @@ function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
               title={t.hint}
               onClick={() => onChange(t.id)}
               className={
-                'min-w-[120px] flex-1 rounded-lg px-3 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 ' +
+                'tap-target min-w-[120px] flex-1 rounded-lg px-3 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 ' +
                 (active
                   ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/20'
                   : 'text-slate-300 hover:bg-slate-800/60 hover:text-white')

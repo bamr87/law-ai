@@ -1,11 +1,17 @@
 """LegalWorkflow — 3-node LangGraph: retrieve → analyze → cite_check.
 
 Spec 010 FR-3. Designed to be safe to import even when the ``local-ai``
-extra is not installed: the heavy ``langgraph`` / ``langchain-ollama``
-imports are deferred until ``LegalWorkflow.invoke`` is actually called.
+extra is not installed: the heavy ``langgraph`` imports are deferred until
+``LegalWorkflow.invoke`` is actually called.
+
+The LLM nodes run on :class:`~law_ai.core.llm.ChatProviderChain` (spec 035),
+so the workflow is served by whichever tier of ``LLM_PROVIDER_CHAIN`` answers
+first — Claude by default, Ollama only as the last fallback. Node provenance
+is therefore labelled ``(provider chain)`` and the tier that actually served
+the run is recorded in ``state["model_label"]`` (BL-20260615-02).
 
 Tests can inject a fake ``llm_factory`` and ``cite_resolver`` to exercise
-the node graph without Ollama or Neo4j running.
+the node graph without a provider or Neo4j running.
 """
 
 from __future__ import annotations
@@ -19,13 +25,26 @@ from collections.abc import Awaitable, Callable
 
 from pydantic import BaseModel, Field
 
-from law_ai.core.settings_proxy import settings_proxy as settings
+from law_ai.agents_runtime.attribution import (
+    attribution_from_passage,
+    check_attribution,
+    match_passage,
+)
 from law_ai.core.provenance import logged_node
 from law_ai.core.telemetry import phoenix_trace_url
 
 logger = logging.getLogger("law_ai.graphs.legal_workflow")
 
-PROMPT_VERSION = "1"
+# Bumped to 2 by BL-20260803-02 (coverage relayed into the analyze prompt)
+# and BL-20260803-04 (per-citation §13 attribution in cite_check).
+PROMPT_VERSION = "2"
+
+#: Static provenance label for the LLM nodes. ``logged_node`` binds ``model``
+#: at decoration time, before any provider has been chosen, so the node event
+#: names the *router* rather than pretending to know the tier. The provider that
+#: actually served the call is recorded per-run in ``state["model_label"]`` and
+#: on the OTel span (BL-20260615-02).
+CHAIN_MODEL_LABEL = "(provider chain)"
 
 
 # ---------------------------------------------------------------------------
@@ -41,6 +60,15 @@ class WorkflowCitation(BaseModel):
         description="`analyze` for LLM-emitted, `ollama-hallucination-check` for unresolved.",
     )
     resolved_case_id: str | None = None
+    attribution: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Constitution §13 issuing authority — court, jurisdiction, "
+            "decided_at, binding/persuasive — backfilled from the retrieved "
+            "passage this citation refers to, never from model prose "
+            "(BL-20260803-04)."
+        ),
+    )
 
 
 class RetrievalStats(BaseModel):
@@ -63,6 +91,14 @@ class RetrievalStats(BaseModel):
     jurisdiction_absent: bool = Field(
         default=False,
         description="True when nothing came back from the requested jurisdiction.",
+    )
+    date_earliest: str | None = Field(
+        default=None,
+        description="Earliest decision date among retrieved passages (ISO).",
+    )
+    date_latest: str | None = Field(
+        default=None,
+        description="Latest decision date among retrieved passages (ISO).",
     )
     coverage_note: str = Field(
         default="",
@@ -91,6 +127,10 @@ class LegalWorkflowState(TypedDict, total=False):
     question: str
     jurisdiction: str | None
     case_id: str | None
+    # Optional matter this research round belongs to. The retriever uses it to
+    # promote authorities the matter has already verified (BL-20260817-05);
+    # nothing else in the workflow reads it, and its absence is the norm.
+    matter_id: int | None
     queries: list[str]
     retrieved: list[dict[str, Any]]
     # Coverage detail published by retrievers that expose `last_coverage`
@@ -101,6 +141,10 @@ class LegalWorkflowState(TypedDict, total=False):
     confidence: float
     human_approval_required: bool
     notes: list[str]
+    # Provider/model that actually served the LLM nodes, surfaced from the
+    # ChatProviderChain reply metadata (BL-20260615-02). "(unknown)" until an
+    # LLM node has run.
+    model_label: str
 
 
 # ---------------------------------------------------------------------------
@@ -135,15 +179,14 @@ def _default_llm_factory() -> _LLMLike:
 
 
 async def _default_cite_resolver(citations: list[str]) -> dict[str, str | None]:
-    """Resolve normalized citations against Neo4j via spec 002's resolver."""
-    if not citations:
-        return {}
-    from law_ai.core.neo4j.citation_resolver import resolve_citations
-    from law_ai.core.neo4j.driver import get_neo4j_driver
+    """Resolve normalized citations against Neo4j via spec 002's resolver.
 
-    driver = get_neo4j_driver()
-    async with driver.session() as session:
-        return await resolve_citations(session, citations)
+    Thin alias for the shared helper — ``LegalAnalyst`` grounds its direct-LLM
+    authorities through the same code path (BL-20260615-03).
+    """
+    from law_ai.core.neo4j.citation_resolver import resolve_with_default_driver
+
+    return await resolve_with_default_driver(citations)
 
 
 def _build_default_retriever() -> Retriever:
@@ -179,6 +222,27 @@ def _coerce_text(message: Any) -> str:
             part.get("text", "") for part in content if isinstance(part, dict)
         )
     return str(message)
+
+
+def _coerce_model_label(message: Any) -> str:
+    """Provider/model that served this reply, from ChatProviderChain metadata.
+
+    ``ChatProviderChain`` stamps ``response_metadata`` with ``provider``,
+    ``model`` and a pre-joined ``model_label`` (core/llm/langchain.py). Fakes
+    in tests return bare strings, so an unknown shape degrades to the static
+    chain label rather than guessing a vendor (BL-20260615-02).
+    """
+    metadata = getattr(message, "response_metadata", None)
+    if isinstance(metadata, dict):
+        label = metadata.get("model_label")
+        if label:
+            return str(label)
+        provider, model = metadata.get("provider"), metadata.get("model")
+        if provider and model:
+            return f"{provider}/{model}"
+        if provider:
+            return str(provider)
+    return CHAIN_MODEL_LABEL
 
 
 def _parse_json(text: str, default: dict[str, Any]) -> dict[str, Any]:
@@ -255,7 +319,7 @@ class LegalWorkflow:
 
     @logged_node(
         "retrieve",
-        model="(ollama)",
+        model=CHAIN_MODEL_LABEL,
         prompt_id="legal_workflow.retrieve",
         prompt_version=PROMPT_VERSION,
     )
@@ -271,14 +335,19 @@ class LegalWorkflow:
             f"Jurisdiction: {state.get('jurisdiction') or 'any'}\n"
             f"Question: {question}"
         )
-        raw = _coerce_text(await llm.ainvoke(prompt))
+        reply = await llm.ainvoke(prompt)
+        raw = _coerce_text(reply)
         parsed = _parse_json(raw, {"queries": [question], "rationale": "fallback"})
         raw_queries = parsed.get("queries") or []
         if not isinstance(raw_queries, list):
             raw_queries = []
         queries = [str(q)[:120] for q in raw_queries][:3] or [question]
         retrieved = await self._retriever({**state, "queries": queries})
-        out: dict[str, Any] = {"queries": queries, "retrieved": retrieved}
+        out: dict[str, Any] = {
+            "queries": queries,
+            "retrieved": retrieved,
+            "model_label": _coerce_model_label(reply),
+        }
         # Retrievers may publish a richer coverage envelope (result mix,
         # jurisdictions actually represented). Returning it here is what
         # merges it into graph state — mutating the input state would not.
@@ -293,13 +362,15 @@ class LegalWorkflow:
                 "jurisdiction_absent": bool(
                     getattr(coverage, "jurisdiction_absent", False)
                 ),
+                "date_earliest": getattr(coverage, "date_earliest", None),
+                "date_latest": getattr(coverage, "date_latest", None),
                 "coverage_note": coverage.note() if hasattr(coverage, "note") else "",
             }
         return out
 
     @logged_node(
         "analyze",
-        model="(ollama)",
+        model=CHAIN_MODEL_LABEL,
         prompt_id="legal_workflow.analyze",
         prompt_version=PROMPT_VERSION,
     )
@@ -321,9 +392,42 @@ class LegalWorkflow:
             f"[{idx + 1}] {item.get('title', 'Untitled')}"
             + (f" — {item['court']}" if item.get("court") else "")
             + (f" ({item['decided_at']})" if item.get("decided_at") else "")
+            # BL-20260803-01 / ADR 0004 P3: state the outcome the record gave.
+            # Absent means the record was silent, so nothing is printed rather
+            # than a claim that the case had no outcome.
+            + (
+                f" — disposition: {item['disposition']}"
+                if item.get("disposition")
+                else ""
+            )
+            + (
+                f" (prevailing: {item['prevailing_party_type']})"
+                if item.get("prevailing_party_type")
+                else ""
+            )
+            # BL-20260810-19: an excerpt is verbatim opinion text picked by
+            # rule, which may be a syllabus header rather than the holding.
+            # Say so, so the model does not quote it as "the court held".
+            + (
+                "\n(verbatim excerpt from the opinion, not a holding summary)"
+                if item.get("snippet_kind") == "excerpt"
+                else ""
+            )
             + f"\n{str(item.get('snippet', ''))[:500]}"
             + f"\nURL: {item.get('source_url') or ''}"
             for idx, item in enumerate(retrieved)
+        )
+        # Constitution §13 / BL-20260803-02: the coverage envelope is not a UI
+        # sidecar — the model has to see it and restate it, so the answer
+        # itself says what the corpus could and could not cover.
+        coverage_note = str(
+            (state.get("retrieval_coverage") or {}).get("coverage_note") or ""
+        )
+        coverage_block = (
+            "CORPUS COVERAGE (restate this verbatim as the first sentence of "
+            f"your answer, then analyze): {coverage_note}\n\n"
+            if coverage_note
+            else ""
         )
         prompt = (
             "Answer the question using ONLY the passages below. Cite every "
@@ -332,9 +436,11 @@ class LegalWorkflow:
             "instead of answering from general knowledge. Return strict JSON "
             "with keys answer, citations (array of {text, source_url}), "
             "confidence (0..1).\n\n"
+            f"{coverage_block}"
             f"Question: {question}\n\nPassages:\n{passages}"
         )
-        raw = _coerce_text(await llm.ainvoke(prompt))
+        reply = await llm.ainvoke(prompt)
+        raw = _coerce_text(reply)
         parsed = _parse_json(
             raw,
             {
@@ -357,9 +463,20 @@ class LegalWorkflow:
             # only dict entries carry the {text, source_url} shape we need.
             if isinstance(c, dict) and str(c.get("text", "")).strip()
         ]
+        # §13 (BL-20260803-04): attribution comes off the :Case node the
+        # citation points at, not from anything the model wrote. A citation
+        # we cannot match to a retrieved passage keeps an empty attribution,
+        # which cite_check turns into a review flag.
+        requested = state.get("jurisdiction")
+        for citation in citations:
+            passage = match_passage(citation, retrieved)
+            citation["attribution"] = attribution_from_passage(
+                passage, requested
+            ).model_dump()
         return {
             "answer": str(parsed.get("answer", "")).strip(),
             "citations": citations,
+            "model_label": _coerce_model_label(reply),
             "confidence": _clamp01(parsed.get("confidence")),
         }
 
@@ -401,27 +518,25 @@ class LegalWorkflow:
                         "resolved_case_id": None,
                     }
                 )
+        # §13: an unresolved citation and an under-attributed one are two
+        # different failures, and either one is enough to need a human.
+        attribution_problems = check_attribution(verified)
+        notes = list(state.get("notes") or [])
+        if attribution_problems:
+            notes.append(
+                "Attribution incomplete (constitution §13): "
+                + "; ".join(attribution_problems[:5])
+            )
         return {
             "citations": verified,
-            "human_approval_required": unverified > 0,
+            "human_approval_required": unverified > 0 or bool(attribution_problems),
+            "notes": notes,
         }
 
     # -- public API --------------------------------------------------------
 
     def _build_graph(self, checkpointer: Any) -> Any:
-        from langgraph.graph import END, StateGraph
-
-        builder: Any = StateGraph(LegalWorkflowState)
-        builder.add_node("retrieve", self._retrieve)
-        builder.add_node("analyze", self._analyze)
-        builder.add_node("cite_check", self._cite_check)
-        builder.set_entry_point("retrieve")
-        builder.add_edge("retrieve", "analyze")
-        builder.add_edge("analyze", "cite_check")
-        builder.add_edge("cite_check", END)
-        if checkpointer is not None:
-            return builder.compile(checkpointer=checkpointer)
-        return builder.compile()
+        return build_legal_workflow_graph(workflow=self, checkpointer=checkpointer)
 
     async def invoke(
         self,
@@ -449,8 +564,13 @@ class LegalWorkflow:
         started = time.perf_counter()
         with tracer.start_as_current_span("legal_workflow.invoke") as span:
             span.set_attribute("legal_workflow.thread_id", thread)
-            span.set_attribute("legal_workflow.model", settings.OLLAMA_DEFAULT_MODEL)
             result = await graph.ainvoke(state, config=config)
+            # Label the span with what actually served the call, not the
+            # Ollama default the chain may never have reached.
+            span.set_attribute(
+                "legal_workflow.model",
+                str(result.get("model_label") or CHAIN_MODEL_LABEL),
+            )
             span_ctx = span.get_span_context()
             trace_id = f"{span_ctx.trace_id:032x}" if span_ctx.is_valid else None
         latency_ms = (time.perf_counter() - started) * 1000.0
@@ -476,6 +596,8 @@ class LegalWorkflow:
                 str(j) for j in (cov.get("jurisdictions_present") or [])
             ],
             jurisdiction_absent=bool(cov.get("jurisdiction_absent", False)),
+            date_earliest=cov.get("date_earliest"),
+            date_latest=cov.get("date_latest"),
             coverage_note=str(cov.get("coverage_note") or default_note),
         )
         return LegalWorkflowOutput(
@@ -495,3 +617,42 @@ class LegalWorkflow:
         cp = self._checkpointer
         graph = self._build_graph(cp)
         return await graph.aget_state({"configurable": {"thread_id": thread_id}})
+
+
+# ---------------------------------------------------------------------------
+# Module-level graph factory (BL-20260502-01)
+# ---------------------------------------------------------------------------
+
+
+def build_legal_workflow_graph(
+    *,
+    workflow: LegalWorkflow | None = None,
+    checkpointer: Any | None = None,
+) -> Any:
+    """Compile the retrieve → analyze → cite_check graph.
+
+    Lives at module level so an *external* LangGraph host — the self-hosted
+    ``langchain/langgraph-api`` server behind the compose ``studio`` profile,
+    or ``langgraph dev`` — can load the same graph the API runs and let a
+    designer step through it node by node (``backend/langgraph.json`` points
+    here through :mod:`law_ai.agents_runtime.graphs.studio`).
+
+    ``workflow`` supplies the bound node methods; omitted, a default
+    :class:`LegalWorkflow` is constructed, which is what the Studio host does.
+    ``checkpointer`` is left ``None`` for Studio: the LangGraph server owns
+    persistence and rejects a graph that arrives with its own checkpointer.
+    """
+    from langgraph.graph import END, StateGraph
+
+    wf = workflow if workflow is not None else LegalWorkflow(checkpointer=checkpointer)
+    builder: Any = StateGraph(LegalWorkflowState)
+    builder.add_node("retrieve", wf._retrieve)
+    builder.add_node("analyze", wf._analyze)
+    builder.add_node("cite_check", wf._cite_check)
+    builder.set_entry_point("retrieve")
+    builder.add_edge("retrieve", "analyze")
+    builder.add_edge("analyze", "cite_check")
+    builder.add_edge("cite_check", END)
+    if checkpointer is not None:
+        return builder.compile(checkpointer=checkpointer)
+    return builder.compile()

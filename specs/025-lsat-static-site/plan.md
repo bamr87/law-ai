@@ -1,5 +1,7 @@
 # Plan: LSAT Static Practice Site
 
+> **Superseded (2026-09-05, BL-20260716-11).** The buildless `frontend/public/lsat-practice/` app planned here was replaced by the Next.js static export under [`lsat-static/`](../../lsat-static/); the exporter, `make lsat-export` and the drift gate carried over unchanged. See [docs/lsat-static.md](../../docs/lsat-static.md) for the current architecture and [spec.md](spec.md) for the full supersession note. Kept as the historical record.
+
 ## Architecture
 
 ```

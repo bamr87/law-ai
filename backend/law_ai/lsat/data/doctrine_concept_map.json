@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "note": "Curated map from a matter's issue tags (doctrine slugs) to LSAT reasoning concepts. Every concept id is validated against the concept catalog at import; an unknown id is a hard error, not a silent skip. Add entries as matters use tags the map does not cover — `unmapped_tags` in the study-plan response is the to-do list.",
+  "map": {
+    "contract-formation": {
+      "label": "Contract formation",
+      "why": "Offer, acceptance and consideration are conditional rules: whether a contract exists is a chain of if-then tests, which is exactly the reasoning LR conditionals drill.",
+      "concepts": [
+        "conditional-reasoning",
+        "modus-ponens",
+        "modus-tollens",
+        "necessary-assumption"
+      ]
+    },
+    "contract-interpretation": {
+      "label": "Contract interpretation",
+      "why": "Reading a disputed clause is close reading against context — the RC skill set.",
+      "concepts": [
+        "phrase-in-context",
+        "rc-structure",
+        "detail-question",
+        "rule-substitution"
+      ]
+    },
+    "breach-of-contract": {
+      "label": "Breach of contract",
+      "why": "A breach argument stands or falls on whether the alleged facts satisfy the promise; testing that is sufficient/necessary condition work.",
+      "concepts": [
+        "sufficient-assumption",
+        "necessary-assumption",
+        "must-be-true",
+        "principle-application"
+      ]
+    },
+    "negligence": {
+      "label": "Negligence",
+      "why": "Duty, breach, causation and damages is a four-element test whose hard element is causation — the classic cause-and-correlation trap.",
+      "concepts": [
+        "causation-vs-correlation",
+        "alternative-cause",
+        "principle-application",
+        "flaw-in-reasoning"
+      ]
+    },
+    "causation": {
+      "label": "Causation",
+      "why": "But-for and proximate cause are the legal names for the reasoning LR tests as alternative causes and reversed causation.",
+      "concepts": [
+        "causation-vs-correlation",
+        "alternative-cause",
+        "evaluate-the-argument"
+      ]
+    },
+    "damages": {
+      "label": "Damages",
+      "why": "Quantum arguments turn on rates, totals and samples, where percent-vs-number errors live.",
+      "concepts": ["percent-vs-number", "numeric-distribution", "sampling-flaw"]
+    },
+    "statutory-interpretation": {
+      "label": "Statutory interpretation",
+      "why": "Applying a statute to facts is rule application plus scope discipline: what the text does and does not reach.",
+      "concepts": [
+        "principle-application",
+        "rule-substitution",
+        "phrase-in-context",
+        "concession-and-scope"
+      ]
+    },
+    "constitutional-law": {
+      "label": "Constitutional law",
+      "why": "Tiered scrutiny is principle application; the doctrinal debates are argument-structure questions.",
+      "concepts": [
+        "principle-application",
+        "argument-organization",
+        "point-at-issue",
+        "author-attitude"
+      ]
+    },
+    "civil-procedure": {
+      "label": "Civil procedure",
+      "why": "Jurisdiction and joinder rules are constraint satisfaction — the same machinery as a logic game.",
+      "concepts": [
+        "conditional-reasoning",
+        "in-out-selection",
+        "grouping-game",
+        "elimination-grid"
+      ]
+    },
+    "evidence": {
+      "label": "Evidence",
+      "why": "Admissibility is a rule with exceptions and exceptions to exceptions; inference limits are what MSS questions test.",
+      "concepts": [
+        "conditional-reasoning",
+        "most-strongly-supported",
+        "cannot-be-true",
+        "principle-application"
+      ]
+    },
+    "criminal-law": {
+      "label": "Criminal law",
+      "why": "Mens rea and actus reus are conjunctive elements; defenses are counterarguments to be answered on their own terms.",
+      "concepts": [
+        "conditional-reasoning",
+        "counterargument-response",
+        "role-of-claim",
+        "flaw-in-reasoning"
+      ]
+    },
+    "property": {
+      "label": "Property",
+      "why": "Estates and future interests are ordering problems with strict rules — sequencing, done in legal vocabulary.",
+      "concepts": ["sequencing", "conditional-reasoning", "must-be-true"]
+    },
+    "employment": {
+      "label": "Employment",
+      "why": "Discrimination claims are burden-shifting frameworks: each step is a sufficient or necessary showing, and pretext arguments are alternative-cause arguments.",
+      "concepts": [
+        "sufficient-assumption",
+        "alternative-cause",
+        "principle-application",
+        "weaken"
+      ]
+    },
+    "landlord-tenant": {
+      "label": "Landlord and tenant",
+      "why": "Habitability and notice rules are conditionals with deadlines; the disputes are paradoxes of who did what when.",
+      "concepts": ["conditional-reasoning", "resolve-paradox", "detail-question"]
+    },
+    "administrative-law": {
+      "label": "Administrative law",
+      "why": "Deference doctrines are arguments about how an argument should be evaluated — method and role questions.",
+      "concepts": [
+        "method-of-reasoning",
+        "role-of-claim",
+        "principle-application",
+        "author-attitude"
+      ]
+    },
+    "appeals": {
+      "label": "Appeals",
+      "why": "An appellate brief is an argument about an argument: standard of review, preserved error, and the shape of the reasoning below.",
+      "concepts": [
+        "method-of-reasoning",
+        "argument-organization",
+        "main-conclusion",
+        "counterargument-response"
+      ]
+    },
+    "legal-writing": {
+      "label": "Legal writing",
+      "why": "The writing section rehearses exactly what a brief needs: a position, its warrant, and an honest answer to the other side.",
+      "concepts": [
+        "thesis-position",
+        "warrant",
+        "counterargument-response",
+        "concession-and-scope"
+      ]
+    }
+  }
+}

@@ -7,6 +7,11 @@ the /api/agents endpoint for introspection.
 
 from law_ai.agents_runtime.crews.legal_analyst import LegalAnalyst
 from law_ai.agents_runtime.crews.lsat_content_author import LSATContentAuthor
+from law_ai.agents_runtime.crews.lsat_content_reviewer import (
+    LSATContentReviewer,
+)
+from law_ai.agents_runtime.crews.lsat_draft_judge import LSATDraftJudge
+from law_ai.agents_runtime.crews.lsat_guide_reviewer import LSATGuideReviewer
 from law_ai.agents_runtime.crews.lsat_librarian import LSATLibrarian
 from law_ai.agents_runtime.crews.lsat_solve_guide_author import LSATSolveGuideAuthor
 from law_ai.agents_runtime.crews.lsat_writing_evaluator import LSATWritingEvaluator
@@ -30,7 +35,10 @@ def register_all_agents() -> None:
     register_agent("PrecedentHunter", PrecedentHunter)
     register_agent("IngestionScout", IngestionScout)
     register_agent("LSATContentAuthor", LSATContentAuthor)
+    register_agent("LSATContentReviewer", LSATContentReviewer)
+    register_agent("LSATDraftJudge", LSATDraftJudge)
     register_agent("LSATSolveGuideAuthor", LSATSolveGuideAuthor)
+    register_agent("LSATGuideReviewer", LSATGuideReviewer)
     register_agent("LSATLibrarian", LSATLibrarian)
     register_agent("LSATWritingEvaluator", LSATWritingEvaluator)
     # register_agent("LogicWeaver", LogicWeaver)

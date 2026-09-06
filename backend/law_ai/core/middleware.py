@@ -1,6 +1,6 @@
 """ASGI middleware (spec 011 FR-7).
 
-* ``CorsHeadersMiddleware`` — minimal CORS that matches the FastAPI defaults
+* ``CorsHeadersMiddleware`` — minimal CORS for the Next.js dev origins
   in ``app/main.py`` so the frontend dev server keeps working without a new
   third-party dep.
 * ``ProvenanceMiddleware`` — wraps every request and records an audit event

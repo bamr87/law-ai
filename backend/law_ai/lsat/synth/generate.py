@@ -38,10 +38,13 @@ from law_ai.lsat.services.guides import (
     validate_guide_quality,
 )
 from law_ai.lsat.synth import ENGINE_VERSION
+from law_ai.lsat.synth.difficulty import blend as blend_difficulty
+from law_ai.lsat.synth.difficulty import measure as measure_complexity
 from law_ai.lsat.synth.lexicon import DomainPack, get_domain, load_domains
 from law_ai.lsat.synth.realize import (
     Binding,
     bind,
+    decapitalize,
     legend,
     render_arrangement,
     render_statement,
@@ -95,6 +98,13 @@ class Provenance(BaseModel):
     #: position, rule count, menu ids — so an auditor can see the item's shape
     #: without re-running the draw. Empty for a fixed-arrangement schema.
     arrangement: dict[str, int | str] = Field(default_factory=dict)
+    #: The band the schema declares, kept beside the measured one so a
+    #: disagreement stays visible after the item ships (BL-20260903-14).
+    declared_difficulty: str = ""
+    #: The structural difficulty proxy (an ``ItemComplexity`` dump) the emitted
+    #: band was measured from. ``None`` on a structural item, which has no
+    #: model space to measure and keeps its declared band.
+    complexity: dict[str, Any] | None = None
     #: The polish round's yield (a ``PolishYield`` dump), when ``--polish`` was
     #: asked for — proposed, accepted, rejects by reason, and the provider tier
     #: that answered. ``None`` on an unpolished item.
@@ -136,30 +146,57 @@ def _render_choice(choice: FormalChoice, binding: Binding, family: str) -> str:
     return render_statement(choice.statement, binding)
 
 
+def _question(
+    blueprint: Blueprint, binding: Binding, schema: Schema, rng: random.Random
+) -> str:
+    """The question sentence, with any local supposition folded into it.
+
+    A local games question states its supposition in the question — "If the
+    audit is heard third, which one of the following must be true?" — because
+    it holds for that question alone. The supposition is still a premise for
+    the proof; this only decides where the reader meets it.
+    """
+    sentence = schema.stem(rng)
+    if blueprint.local_condition is None:
+        return sentence
+    condition = decapitalize(
+        render_statement(blueprint.local_condition, binding).rstrip("."), binding
+    )
+    return f"If {condition}, {sentence[0].lower()}{sentence[1:]}"
+
+
 def _stimulus(
     blueprint: Blueprint, binding: Binding, schema: Schema, *, noun: str
 ) -> str:
     parts: list[str] = list(blueprint.preamble)
-    if blueprint.family == "acceptability" and binding.ordering is not None:
+    # Every game needs its board described before its rules, whatever the
+    # question family is: an ordering item and a "cannot be true" item over the
+    # same rules share a setup sentence.
+    if binding.ordering is not None:
         entities = ", ".join(binding.entities[k] for k in sorted(binding.entities))
         parts.append(
             f"{_count(len(binding.entities))} {noun} — {entities} — are taken up "
             f"{binding.ordering.frame.format(n=_count(len(binding.entities)).lower())}."
         )
-    elif blueprint.family == "acceptability" and binding.group_set is not None:
+    elif binding.group_set is not None:
         entities = ", ".join(binding.entities[k] for k in sorted(binding.entities))
-        groups = " and ".join(binding.groups[k] for k in sorted(binding.groups))
+        names = [binding.groups[k] for k in sorted(binding.groups)]
+        groups = (
+            " and ".join(names)
+            if len(names) == 2
+            else ", ".join(names[:-1]) + f", and {names[-1]}"
+        )
         parts.append(
             f"{_count(len(binding.entities))} {noun} — {entities} — are each "
-            f"placed in one of two {binding.group_set.unit}s: {groups}."
+            f"placed in one of {_count(len(names)).lower()} "
+            f"{binding.group_set.unit}s: {groups}."
         )
-    elif binding.ordering is not None and blueprint.family == "must_be_true":
-        entities = ", ".join(binding.entities[k] for k in sorted(binding.entities))
-        parts.append(
-            f"{_count(len(binding.entities))} {noun} — {entities} — are taken up "
-            f"{binding.ordering.frame.format(n=_count(len(binding.entities)).lower())}."
-        )
-    parts.extend(render_statement(p, binding) for p in blueprint.premises)
+    # The local supposition belongs to the question, not the board.
+    parts.extend(
+        render_statement(p, binding)
+        for p in blueprint.premises
+        if p is not blueprint.local_condition
+    )
     if blueprint.conclusion is not None:
         parts.append(
             "It follows that "
@@ -314,12 +351,21 @@ def generate(
 
     credited = next(c for c in labelled if c.role.startswith("credited"))
     question_id = _item_id(schema_id, domain_id, seed, schema.meta.section)
+    # The band is measured from the item's own structure and only then clamped
+    # to the schema's declared judgement (BL-20260903-14): the arrangement is
+    # drawn per seed, so two items from one schema are not equally hard and
+    # must not claim to be.
+    complexity = measure_complexity(blueprint, report)
+    difficulty = blend_difficulty(schema.meta.difficulty, complexity)
     question = Question(
         id=question_id,
         section=schema.meta.section,
         type=schema.meta.section,
-        difficulty=schema.meta.difficulty,
-        stem=f"{_stimulus(blueprint, binding, schema, noun=domain.entity_noun)}\n\n{schema.stem(rng)}",
+        difficulty=difficulty,
+        stem=(
+            f"{_stimulus(blueprint, binding, schema, noun=domain.entity_noun)}\n\n"
+            f"{_question(blueprint, binding, schema, rng)}"
+        ),
         choices=[Choice(label=c.label, text=c.text) for c in labelled],
         correct=credited.label,
         explanation=schema.explain(blueprint, binding, credited.text),
@@ -353,6 +399,8 @@ def generate(
             seed=seed,
             proof_kind=schema.meta.proof_kind,
             arrangement=dict(blueprint.arrangement),
+            declared_difficulty=schema.meta.difficulty,
+            complexity=complexity.dump() if complexity is not None else None,
         ),
     )
 

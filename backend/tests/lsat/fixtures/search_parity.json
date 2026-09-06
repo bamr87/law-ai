@@ -43,6 +43,27 @@
     "must be true": ["must", "true"],
     "  Point-at-Issue ": ["point", "issue"]
   },
+  "typo_pairs": [
+    {"a": "assumption", "b": "assumtion", "typo": true},
+    {"a": "assumption", "b": "assumption", "typo": true},
+    {"a": "sequenc", "b": "seqenc", "typo": true},
+    {"a": "fallacy", "b": "falalcy", "typo": true},
+    {"a": "notation", "b": "rotation", "typo": true},
+    {"a": "conditional", "b": "conditionall", "typo": true},
+    {"a": "premis", "b": "premium", "typo": false},
+    {"a": "parallel", "b": "parralel", "typo": false},
+    {"a": "assumption", "b": "assumptions", "typo": true},
+    {"a": "weaken", "b": "strengthen", "typo": false}
+  ],
+  "corpus_typos": [
+    {"query": "assumtion", "top": "lr-assumption-family"},
+    {"query": "condtional", "top": "conditional-logic-foundations"},
+    {"query": "notaton", "top": "lg-setup-and-notation"},
+    {"query": "seqencing", "top": "lg-game-types"},
+    {"query": "strengthn", "top": "lr-strengthen-and-weaken"},
+    {"query": "pacng", "top": null},
+    {"query": "parralel", "top": null}
+  ],
   "corpus": [
     {"query": "assumptions", "top": "lr-assumption-family"},
     {"query": "assu", "top": "lr-assumption-family"},

@@ -25,6 +25,7 @@ export default function Masthead({
   onToggleInspector,
   onOpenPalette,
   layoutMenu,
+  modulesMenu,
 }: {
   pathname: string
   breadcrumbs?: boolean
@@ -36,6 +37,11 @@ export default function Masthead({
   onOpenPalette: () => void
   /** The Layout menu, rendered beside the panel toggles. */
   layoutMenu?: ReactNode
+  /**
+   * The Modules menu, rendered before the breadcrumb trail. The shell passes
+   * it only when the navigation rail is hidden (BL-20260905-08).
+   */
+  modulesMenu?: ReactNode
 }) {
   const crumbs = breadcrumbsForPath(pathname)
 
@@ -58,6 +64,8 @@ export default function Masthead({
           Law<span className="text-blue-400"> AI</span>
         </span>
       </Link>
+
+      {modulesMenu}
 
       {/* Where am I. Hidden on the narrowest viewports, where the compact tab
        * bar already names the section and horizontal room is scarce. */}

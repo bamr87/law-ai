@@ -10,6 +10,7 @@ import AppShell from '@/components/shell/AppShell'
 import CommandPalette from '@/components/shell/CommandPalette'
 import PageLayout, { StickyToolbar } from '@/components/shell/PageLayout'
 import ShortcutsHelp from '@/components/shell/ShortcutsHelp'
+import { usePageShortcuts } from '@/components/shell/PageShortcuts'
 import { ShellScrollProvider } from '@/components/shell/ShellScroll'
 import { INSTANCE_SCOPE } from '@/lib/scope/instance'
 import { upsertSettingValue } from '@/lib/scope/store'
@@ -43,6 +44,12 @@ vi.mock('next/link', () => ({
     </a>
   ),
 }))
+
+/** A page's contributed group, module-level as `usePageShortcuts` requires. */
+const DRILL = {
+  title: 'Practice drill',
+  rows: [{ keys: 'N', label: 'Next question' }],
+}
 
 function renderShell() {
   return render(
@@ -143,6 +150,41 @@ describe('shell keyboard contract (spec 041 FR-4)', () => {
     await waitFor(() =>
       expect(screen.getByTestId('shortcuts-help')).toBeInTheDocument(),
     )
+  })
+
+  it('shows the rows the page registered, and drops them when it leaves', async () => {
+    // BL-20260901-10: a page's own keys are discoverable from the same sheet
+    // as the shell's, for exactly as long as that page is on screen.
+    function Drilling() {
+      usePageShortcuts(DRILL)
+      return <p>DRILL</p>
+    }
+
+    const { rerender } = render(
+      <AppShell sidebar={<div>SIDEBAR</div>} inspector={<div>INSPECTOR</div>}>
+        <Drilling />
+      </AppShell>,
+    )
+    fireEvent.keyDown(window, { key: '?' })
+    const sheet = await screen.findByTestId('shortcuts-help')
+    expect(within(sheet).getByText('Practice drill')).toBeInTheDocument()
+    expect(within(sheet).getByText('Next question')).toBeInTheDocument()
+    // The shell's own keys are still first.
+    expect(within(sheet).getByText('Anywhere')).toBeInTheDocument()
+
+    rerender(
+      <AppShell sidebar={<div>SIDEBAR</div>} inspector={<div>INSPECTOR</div>}>
+        <p>SOMETHING ELSE</p>
+      </AppShell>,
+    )
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId('shortcuts-help')).queryByText('Practice drill'),
+      ).not.toBeInTheDocument(),
+    )
+    expect(
+      within(screen.getByTestId('shortcuts-help')).getByText('Anywhere'),
+    ).toBeInTheDocument()
   })
 })
 

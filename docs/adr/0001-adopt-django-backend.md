@@ -5,13 +5,16 @@
 - **Spec**: [specs/011-django-backend](../../specs/011-django-backend/spec.md)
 - **Constitution clauses amended**: [§2 Tech Stack (Locked)](../constitution.md#2-tech-stack-locked), [§11 Continuous Evolution — mission-drift guard](../constitution.md#11-continuous-evolution-self-improving-repo)
 
+
+> **Historical note (2026-09-05, BL-20260602-04).** This ADR describes the FastAPI package `backend/app/`, which spec 011 deleted (T-016) in favour of the Django project package `backend/law_ai/`. Its `backend/app/...` paths are rendered as inline code rather than links: the files are gone, and the hrefs 404'd. The decision itself stands as accepted; only the dead links changed.
+
 ## Context
 
-Through specs 001 → 010, the Law AI backend was a FastAPI application under [backend/app/](../../backend/app/) — five routers ([api/health.py](../../backend/app/api/health.py), [api/agents.py](../../backend/app/api/agents.py), [api/analysis.py](../../backend/app/api/analysis.py), [api/graph.py](../../backend/app/api/graph.py), [api/lsat.py](../../backend/app/api/lsat.py)), an env-driven API-key middleware in [core/security.py](../../backend/app/core/security.py), JSONL audit logging in [core/audit_store.py](../../backend/app/core/audit_store.py), and ad-hoc SQL/Cypher migrations in [db/postgres_migrations/](../../backend/app/db/postgres_migrations/) and [db/neo4j_migrations/](../../backend/app/db/neo4j_migrations/). FastAPI delivered the surface area we needed quickly, but four pressures have accumulated:
+Through specs 001 → 010, the Law AI backend was a FastAPI application under `backend/app/` — five routers (`backend/app/api/health.py`, `backend/app/api/agents.py`, `backend/app/api/analysis.py`, `backend/app/api/graph.py`, `backend/app/api/lsat.py`), an env-driven API-key middleware in `backend/app/core/security.py`, JSONL audit logging in `backend/app/core/audit_store.py`, and ad-hoc SQL/Cypher migrations in `backend/app/db/postgres_migrations/` and `backend/app/db/neo4j_migrations/`. FastAPI delivered the surface area we needed quickly, but four pressures have accumulated:
 
 1. **No first-class admin UI for HITL queues.** Spec 004's `pending_review` table and the audit log have no review surface; [BL-20260429-15](../../BACKLOG.md) (HITL approve/reject) and [BL-20260429-14](../../BACKLOG.md) (run drill-down) keep being deferred because we would have to hand-roll CRUD + auth + permissions for each.
-2. **Auth has plateaued at API keys.** Specs 008/009 shipped per-router env-keyed auth ([core/security.py](../../backend/app/core/security.py)) but cannot grow into per-user roles, rotation, audit trails, or rate limits ([BL-20260430-09](../../BACKLOG.md)) without effectively re-implementing `django.contrib.auth`.
-3. **Background work has no home.** [IngestionScout.run_and_commit](../../backend/app/ingestion/scout.py) does its low-confidence quarantine inline in the request path; spec 005's tutor and spec 010's LangGraph workflow have no broker for retries, scheduling, or fan-out.
+2. **Auth has plateaued at API keys.** Specs 008/009 shipped per-router env-keyed auth (`backend/app/core/security.py`) but cannot grow into per-user roles, rotation, audit trails, or rate limits ([BL-20260430-09](../../BACKLOG.md)) without effectively re-implementing `django.contrib.auth`.
+3. **Background work has no home.** IngestionScout.run_and_commit (`backend/app/ingestion/scout.py`) does its low-confidence quarantine inline in the request path; spec 005's tutor and spec 010's LangGraph workflow have no broker for retries, scheduling, or fan-out.
 4. **Streaming is blocked.** Three open backlog items ([BL-20260503-03](../../BACKLOG.md), [BL-20260429-24](../../BACKLOG.md), [BL-20260429-16](../../BACKLOG.md)) want SSE/WebSocket push. FastAPI can do these but we have nothing standardized; Django Channels gives us one ASGI consumer pattern repo-wide.
 
 The previous version of [docs/constitution.md](../constitution.md) §2 explicitly locked the backend to FastAPI and §11 mission-drift guard explicitly forbade "Django-style frameworks" in BACKLOG promotions. This ADR amends both clauses.
@@ -22,13 +25,13 @@ Replace FastAPI with **Django 5 (ASGI via daphne) + Django REST Framework + Chan
 
 1. **HTTP layer**: Django + DRF replaces FastAPI routers. `drf-pydantic` lets us reuse the existing Pydantic request/response models so [frontend/lib/api.ts](../../frontend/lib/api.ts) sees zero JSON-shape change.
 2. **ORM**: Django ORM (async) manages new Postgres tables (`audit.AuditEvent`, `ingestionapp.PendingReview`, `core.ApiToken`). Existing raw SQL migrations are encoded as `RunSQL` operations inside the initial Django migration so a fresh `make migrate` reproduces today's schema.
-3. **Neo4j layer**: unchanged. The async neo4j driver and the Cypher helpers in [backend/app/db/](../../backend/app/db/) are relocated to `backend/law_ai/core/neo4j/` with no logic change.
+3. **Neo4j layer**: unchanged. The async neo4j driver and the Cypher helpers in `backend/app/db/` are relocated to `backend/law_ai/core/neo4j/` with no logic change.
 4. **Auth**: `core.ApiToken` model + custom DRF `ApiKeyAuthentication` + `HasScope` permission preserve the spec-008/009 env-driven UX via an idempotent `manage.py seed_api_keys` command.
 5. **Async**: fully ASGI via daphne. All current `async def` view bodies (notably `await asyncio.gather(LegalAnalyst.run, PrecedentHunter.run)`) port directly. Celery handles background work (ingestion quarantine, JSONL audit fallback). Channels exposes `/ws/agents/{run_id}` for future agent-trace streaming.
 6. **Agent runtime**: framework-agnostic. CrewAI crews, LangGraph workflows, and Pydantic domain models move under `backend/law_ai/agents_runtime/` with no logic change. The `@logged_node` decorator and `register_all_agents()` keep their signatures so the agent code is unchanged beyond import paths.
 7. **Constitution**: §2 backend stack list updated; §11 mission-drift guard reworded to forbid "frameworks not listed in §2" (the previous explicit "Django-style frameworks" phrasing is dropped).
 
-The migration is a **big-bang** cutover on a long-lived feature branch (`feat/011-django-backend`) with green CI per commit; [backend/app/](../../backend/app/) is deleted in the final commit ([spec 011 T-016](../../specs/011-django-backend/tasks.md)).
+The migration is a **big-bang** cutover on a long-lived feature branch (`feat/011-django-backend`) with green CI per commit; `backend/app/` is deleted in the final commit ([spec 011 T-016](../../specs/011-django-backend/tasks.md)).
 
 ## Consequences
 
@@ -47,7 +50,7 @@ The migration is a **big-bang** cutover on a long-lived feature branch (`feat/01
 - Django async ORM has rough edges around transactions; mitigated by keeping ORM writes single-row and using `sync_to_async` for complex flows ([spec 011 R-1](../../specs/011-django-backend/spec.md#12-risks--open-questions)).
 - `drf-pydantic` is a small dependency; pinned and a hand-written-serializer fallback is documented ([spec 011 R-2](../../specs/011-django-backend/spec.md#12-risks--open-questions)).
 - LangGraph checkpointer schema collision with Django migrations — mitigated by isolating the checkpointer in its own `langgraph` Postgres schema ([spec 011 FR-13, AC-6](../../specs/011-django-backend/spec.md)).
-- Big-bang merge non-buildability risk — mitigated by branch protection (green CI per commit) and by deleting [backend/app/](../../backend/app/) only after the test rewrite passes ([spec 011 R-4](../../specs/011-django-backend/spec.md#12-risks--open-questions)).
+- Big-bang merge non-buildability risk — mitigated by branch protection (green CI per commit) and by deleting `backend/app/` only after the test rewrite passes ([spec 011 R-4](../../specs/011-django-backend/spec.md#12-risks--open-questions)).
 
 **Neutral**
 

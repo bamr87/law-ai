@@ -177,7 +177,7 @@ def _shared_cache() -> Any:
     Resolved lazily so importing this module never touches Django, and kept
     behind one function so tests can substitute a broken or shared backend.
     """
-    from django.core.cache import cache  # type: ignore[import-untyped]
+    from django.core.cache import cache
 
     return cache
 

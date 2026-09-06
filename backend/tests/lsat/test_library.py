@@ -299,6 +299,37 @@ class TestSearch:
         _write(sandbox, "solo")
         assert lib.search_library("two")[0]["anchor"] == "two"
 
+    # BL-20260903-06: one-edit typo tolerance, the last resort after exact.
+
+    def test_a_mistyped_token_still_finds_its_article(self, sandbox: Path) -> None:
+        _write(sandbox, "solo", extra="The assumption is unstated.")
+        hits = lib.search_library("assumtion")
+        assert [h["id"] for h in hits] == ["solo"]
+        assert "assumption" in hits[0]["snippet"].lower()
+
+    def test_an_exact_hit_outranks_a_mistyped_one(self, sandbox: Path) -> None:
+        _write(sandbox, "right", title="Notation Habits")
+        _write(sandbox, "close", title="Rotation Habits")
+        hits = lib.search_library("notation")
+        assert [h["id"] for h in hits] == ["right", "close"]
+        assert hits[0]["score"] > hits[1]["score"]
+
+    def test_short_words_are_not_typo_matched(self, sandbox: Path) -> None:
+        """One edit on a four-letter stem is a different word, not a typo."""
+        _write(sandbox, "solo", extra="Games reward frames.")
+        assert lib.search_library("gapes") == []
+
+    def test_two_edits_are_too_many(self, sandbox: Path) -> None:
+        _write(sandbox, "solo", title="Parallel Reasoning")
+        assert lib.search_library("parralel") == []
+
+    def test_is_typo_covers_the_four_single_edits(self) -> None:
+        assert lib.is_typo("assumption", "assumtion")  # dropped letter
+        assert lib.is_typo("assumption", "assumpttion")  # inserted letter
+        assert lib.is_typo("notation", "rotation")  # substituted letter
+        assert lib.is_typo("fallacy", "falalcy")  # transposed letters
+        assert not lib.is_typo("premis", "premium")
+
 
 class TestCrossReferenceLabels:
     """Unlabelled references resolve to a readable name, not a raw id."""

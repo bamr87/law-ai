@@ -10,6 +10,7 @@ cannot fix. No real network: the reachability probe is stubbed and
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock
 
 import httpx
@@ -19,6 +20,7 @@ import respx
 from law_ai.agents_runtime import llm as llm_runtime
 from law_ai.core.llm import providers
 from law_ai.core.llm.base import LLMRequest, LLMUnavailableError
+from law_ai.core.usage import LLMUsage, usage_of
 
 _BASE = "http://ollama.test:11434"
 _GENERATE = f"{_BASE}/api/generate"
@@ -128,3 +130,120 @@ class TestOllamaProviderRetry:
         await ollama_up.agenerate(LLMRequest(prompt="q", json_mode=True))
         sent = route.calls.last.request
         assert b'"format":"json"' in sent.content.replace(b" ", b"")
+
+
+class TestOllamaUsage:
+    """Ollama reports counts at the top level, not in a ``usage`` object."""
+
+    @respx.mock
+    async def test_eval_counts_become_token_usage(self, ollama_up) -> None:
+        respx.post(_GENERATE).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "response": "local answer",
+                    "done": True,
+                    "prompt_eval_count": 57,
+                    "eval_count": 14,
+                },
+            )
+        )
+
+        reply = await ollama_up.agenerate(LLMRequest(prompt="q"))
+
+        assert reply == "local answer"
+        assert usage_of(reply) == LLMUsage(input_tokens=57, output_tokens=14)
+
+    @respx.mock
+    async def test_missing_counts_are_not_an_error(self, ollama_up) -> None:
+        respx.post(_GENERATE).mock(return_value=_ok("local answer"))
+
+        reply = await ollama_up.agenerate(LLMRequest(prompt="q"))
+
+        assert reply == "local answer"
+        assert usage_of(reply) is None
+
+
+# ---------------------------------------------------------------------------
+# Streaming (BL-20260811-20)
+# ---------------------------------------------------------------------------
+
+
+def _ndjson(*frames: dict) -> httpx.Response:
+    """Ollama's streaming body: one JSON object per line, not SSE."""
+    return httpx.Response(
+        200,
+        content="\n".join(json.dumps(frame) for frame in frames).encode(),
+        headers={"content-type": "application/x-ndjson"},
+    )
+
+
+async def _drain(stream) -> list[str]:
+    return [chunk async for chunk in stream]
+
+
+class TestOllamaStreaming:
+    @respx.mock
+    async def test_yields_deltas_and_final_usage(self, ollama_up) -> None:
+        route = respx.post(_GENERATE).mock(
+            return_value=_ndjson(
+                {"response": "loc", "done": False},
+                {"response": "al", "done": False},
+                {
+                    "response": "",
+                    "done": True,
+                    "prompt_eval_count": 7,
+                    "eval_count": 2,
+                },
+            )
+        )
+
+        chunks = await _drain(ollama_up.astream(LLMRequest(prompt="q")))
+
+        assert [str(c) for c in chunks] == ["loc", "al", ""]
+        assert json.loads(route.calls.last.request.content)["stream"] is True
+        assert usage_of(chunks[-1]) == LLMUsage(input_tokens=7, output_tokens=2)
+
+    @respx.mock
+    async def test_json_schema_still_pins_the_format(self, ollama_up) -> None:
+        route = respx.post(_GENERATE).mock(
+            return_value=_ndjson({"response": "{}", "done": True})
+        )
+        schema = {"type": "object"}
+
+        await _drain(ollama_up.astream(LLMRequest(prompt="q", response_schema=schema)))
+
+        assert json.loads(route.calls.last.request.content)["format"] == schema
+
+    @respx.mock
+    async def test_an_error_frame_raises(self, ollama_up) -> None:
+        respx.post(_GENERATE).mock(
+            return_value=_ndjson({"error": "model not found"}),
+        )
+
+        with pytest.raises(LLMUnavailableError, match="model not found"):
+            await _drain(ollama_up.astream(LLMRequest(prompt="q")))
+
+    async def test_an_unreachable_server_fails_before_the_first_token(
+        self, ollama_up, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """So the chain can still fall through: nothing was emitted yet."""
+        monkeypatch.setattr(
+            llm_runtime, "ollama_available_async", AsyncMock(return_value=False)
+        )
+
+        with pytest.raises(LLMUnavailableError):
+            await _drain(ollama_up.astream(LLMRequest(prompt="q")))
+
+    @respx.mock
+    async def test_a_blank_line_is_skipped_not_fatal(self, ollama_up) -> None:
+        respx.post(_GENERATE).mock(
+            return_value=httpx.Response(
+                200,
+                content=b'\n{"response": "x", "done": true}\n\n',
+            )
+        )
+
+        chunks = await _drain(ollama_up.astream(LLMRequest(prompt="q")))
+
+        assert [str(c) for c in chunks] == ["x", ""]

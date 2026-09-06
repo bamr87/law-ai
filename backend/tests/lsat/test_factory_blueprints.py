@@ -95,3 +95,67 @@ class TestCompile:
         assert "Passage / Game Set Generation" in compiled.text
         assert "## Format reference" in compiled.text  # lg-game-001 exists
         assert '"mode": "passage_set"' in compiled.text
+
+
+class TestExemplarCoverage:
+    """BL-20260901-02 — every archetype must have real few-shot material."""
+
+    def test_every_archetype_has_two_items_on_its_primary_concept(
+        self, factory_env: FactoryConfig
+    ) -> None:
+        """One item cannot establish a pattern; the spec-047 archetypes had 0-1."""
+        from law_ai.lsat.factory.taxonomy import by_id
+        from law_ai.lsat.services.bank import load_bank
+
+        bank = list(load_bank().values())
+        thin = {}
+        for archetype_id, archetype in by_id().items():
+            primary = archetype.concepts[0]
+            tagged = [
+                q.id
+                for q in bank
+                if q.section == archetype.section and primary in q.concepts
+            ]
+            if len(tagged) < 2:
+                thin[archetype_id] = tagged
+        assert not thin, f"archetypes without two primary-concept exemplars: {thin}"
+
+    def test_a_true_instance_outranks_a_shared_secondary_concept(
+        self, factory_env: FactoryConfig
+    ) -> None:
+        """The ranking fix: an item tagged with the archetype's primary concept
+        comes first, even when a broader match matches the target difficulty."""
+        from law_ai.lsat.factory.taxonomy import get_archetype
+
+        archetype = get_archetype("lr-point-at-issue")
+        primary = archetype.concepts[0]
+        target = _target(
+            archetype_id="lr-point-at-issue",
+            concepts=list(archetype.concepts),
+            difficulty="hard",
+        )
+        exemplars = select_exemplars(target, k=2)
+        assert exemplars, "the archetype must have exemplars at all"
+        assert all(primary in q.concepts for q in exemplars)
+
+    def test_difficulty_still_breaks_ties_within_the_primary_group(
+        self, factory_env: FactoryConfig
+    ) -> None:
+        from law_ai.lsat.factory.taxonomy import get_archetype
+        from law_ai.lsat.services.bank import load_bank
+
+        archetype = get_archetype("lr-flaw-general")
+        primary = archetype.concepts[0]
+        bank = load_bank()
+        difficulties = {q.difficulty for q in bank.values() if primary in q.concepts}
+        wanted = "easy" if "easy" in difficulties else sorted(difficulties)[0]
+        first = select_exemplars(
+            _target(
+                archetype_id="lr-flaw-general",
+                concepts=list(archetype.concepts),
+                difficulty=wanted,
+            ),
+            k=1,
+        )[0]
+        assert primary in first.concepts
+        assert first.difficulty == wanted

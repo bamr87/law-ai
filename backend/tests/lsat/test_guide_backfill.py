@@ -173,3 +173,51 @@ def test_rejects_bad_section() -> None:
 
     with pytest.raises(CommandError):
         call_command("lsat_guide_backfill", "--section", "XX", stdout=StringIO())
+
+
+def test_backfill_closes_the_gap_end_to_end(monkeypatch: pytest.MonkeyPatch) -> None:
+    """BL-20260831-23 — draft, approve, serve, and never draft it twice.
+
+    The operator's whole loop against a stubbed provider: the command queues a
+    guide, a reviewer promotes it, the guide store serves it, and the next run
+    no longer offers that question as a target.
+    """
+    from law_ai.lsat.services import proposals
+    from law_ai.lsat.services.guides import load_guides, validate_guide_quality
+    from law_ai.lsat.services.bank import load_bank
+
+    _patch_agent(monkeypatch)
+    before = set(load_guides())
+
+    call_command(
+        "lsat_guide_backfill", "--section", "LR", "--limit", "1", stdout=StringIO()
+    )
+    pending = [
+        r
+        for r in proposals.list_proposals("pending", limit=100)
+        if r.get("proposal_kind") == "guide"
+    ]
+    assert len(pending) == 1
+    question_id = pending[0]["draft"]["question_id"]
+    assert question_id not in before, "the command must target a guide-less question"
+
+    row = proposals.promote_guide_to_bank(pending[0]["id"], reviewer="editor")
+    assert row["status"] == "approved"
+
+    guides = load_guides()
+    assert question_id in guides, "an approved guide must serve immediately"
+    assert not validate_guide_quality(guides[question_id], load_bank()[question_id])
+    assert "approved" in guides[question_id].source
+
+    # The gap closed by one, and the next run picks a different question.
+    out = StringIO()
+    call_command(
+        "lsat_guide_backfill",
+        "--section",
+        "LR",
+        "--dry-run",
+        "--limit",
+        "3",
+        stdout=out,
+    )
+    assert question_id not in out.getvalue()

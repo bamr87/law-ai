@@ -13,9 +13,7 @@ orchestrator — they are **not** committed here (constitution §12 invariant I1
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from collections.abc import Iterable
 
 from law_ai.ingestionapp.sources.base import RawDoc, SourceAdapter
 
@@ -34,7 +32,7 @@ class StatuteScoutAdapter(SourceAdapter):
     requires_human_approval = False
     rate_limit_rps = 0.5
 
-    def fetch(self, query: str, *, limit: int = 10) -> Iterable[RawDoc]:
+    async def afetch(self, query: str, *, limit: int = 10) -> list[RawDoc]:
         """Fetch CRS title *query* and return extracted section RawDocs.
 
         Unlike :class:`ColoradoStatutesAdapter`, this adapter runs the
@@ -48,9 +46,6 @@ class StatuteScoutAdapter(SourceAdapter):
         >>> all(d.source_name == "statute_scout" for d in docs)
         True
         """
-        return list(asyncio.run(self._afetch(query, limit=limit)))
-
-    async def _afetch(self, query: str, *, limit: int) -> list[RawDoc]:
         from law_ai.ingestionapp.services.colorado_statutes import (
             ColoradoStatutesClient,
         )

@@ -2,14 +2,19 @@
 
 /**
  * Passage / game panel — shared by RC and LG. A passage (or game setup) on
- * the left, its linked questions stacked on the right.
+ * the left, one of its linked questions on the right, with a numbered strip to
+ * jump between them.
  *
- * Moved out of `LsatLab.tsx` unchanged in phase 1 of BL-20260830-02. Its
- * counterpart is `lsat-static/components/PassagePanel.tsx` (the reader half;
- * the static drill pages questions one at a time instead of stacking them).
+ * Moved out of `LsatLab.tsx` unchanged in phase 1 of BL-20260830-02. The
+ * question column was a single stacked list until BL-20260901-08: with every
+ * question on screen at once there was nothing for `N`/`P` to mean, so RC and
+ * LG were the only sections you had to Tab through — while LR advanced from
+ * the keyboard and the published static site advertised N/P for all three.
+ * The reader half is mirrored by `lsat-static/components/PassagePanel.tsx`,
+ * and this drill now pages the way `lsat-static/components/Drill.tsx` does.
  */
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
   fetchLsatPassage,
@@ -22,8 +27,9 @@ import {
   SkeletonGrid,
   SkeletonQuestion,
 } from '@/components/lsat/LabPrimitives'
-import QuestionCard from '@/components/lsat/QuestionCard'
+import QuestionCard, { type SavedAnswer } from '@/components/lsat/QuestionCard'
 import type { AttemptHandler } from '@/components/lsat/labTabs'
+import { setRemainingQuestions } from '@/lib/lsat/timerStore'
 
 export default function PassagePanel({
   section,
@@ -39,9 +45,23 @@ export default function PassagePanel({
   const [error, setError] = useState<string | null>(null)
   const [loadingPassages, setLoadingPassages] = useState(true)
   const [loadingDetail, setLoadingDetail] = useState(false)
-  const [elapsedQuestionId, setElapsedQuestionId] = useState<string | null>(
-    null,
+  // One question at a time (BL-20260901-08). Stacking the whole set in a
+  // column left RC/LG with no per-question `N`/`P` — Tab was the only route
+  // between questions, while LR advanced from the keyboard and the published
+  // static site advertised N/P for all three sections.
+  const [activeIndex, setActiveIndex] = useState(0)
+  // The answers the panel holds on the learner's behalf: the card is keyed on
+  // the question, so anything it owns is destroyed on the way past. This is
+  // what makes `P` show the answer you already gave instead of a blank card,
+  // and it is the same trick `lsat-static/components/Drill.tsx` plays.
+  const [answers, setAnswers] = useState<ReadonlyMap<string, SavedAnswer>>(
+    () => new Map(),
   )
+  const cardRef = useRef<HTMLDivElement | null>(null)
+  // Bumped by navigation and only by navigation, so the focus effect can tell
+  // "the learner moved" from "this stack just loaded" — the latter must not
+  // steal focus out of the passage select they are still tabbing through.
+  const [moves, setMoves] = useState(0)
 
   useEffect(() => {
     void (async () => {
@@ -66,7 +86,9 @@ export default function PassagePanel({
     if (!activeId) return
     void (async () => {
       setLoadingDetail(true)
-      setElapsedQuestionId(null)
+      setActiveIndex(0)
+      setMoves(0)
+      setAnswers(new Map())
       try {
         const body = await fetchLsatPassage(activeId)
         setActivePassage(body.passage)
@@ -79,7 +101,48 @@ export default function PassagePanel({
     })()
   }, [activeId])
 
+  // The ungraded questions left in the open stack, published to the timer
+  // store because the clock may be docked in a parallel-route slot and cannot
+  // be reached with a prop (BL-20260829-01). Cleared on unmount: leaving the
+  // stack must not leave a stale pace on the clock.
+  useEffect(() => {
+    const ungraded = questions.filter((q) => !answers.has(q.id)).length
+    setRemainingQuestions(questions.length === 0 ? null : ungraded)
+  }, [questions, answers])
+  useEffect(() => () => setRemainingQuestions(null), [])
+
+  // Read the index through a ref so `go` never has to be rebuilt: it is passed
+  // into the card as `onNext`/`onPrev`, and a fresh identity every render
+  // would rebind the card's handler on every keystroke.
+  const indexRef = useRef(0)
+  const lastRef = useRef(0)
+  useEffect(() => {
+    indexRef.current = activeIndex
+    lastRef.current = questions.length - 1
+  })
+  const go = useCallback((to: number) => {
+    const next = Math.max(0, Math.min(lastRef.current, to))
+    if (next === indexRef.current) return
+    setActiveIndex(next)
+    setMoves((m) => m + 1)
+  }, [])
+  // Stable identities: these are the card's `onNext`/`onPrev`, and a fresh
+  // closure every render would rebind its key handler on every keystroke.
+  const nextQuestion = useCallback(() => go(indexRef.current + 1), [go])
+  const prevQuestion = useCallback(() => go(indexRef.current - 1), [go])
+
+  // Land the reader on the new question. Without this, `N` left focus on
+  // <body> — outside the element every drill shortcut is bound to, so the
+  // *next* keystroke did nothing (the same stall LR fixed at its own card).
+  useEffect(() => {
+    if (moves === 0) return
+    cardRef.current?.focus()
+  }, [moves])
+
   const headline = section === 'RC' ? 'Reading Comprehension' : 'Logic Games'
+  const last = questions.length - 1
+  const active =
+    questions.length > 0 ? questions[Math.min(activeIndex, last)] : null
 
   return (
     <section className="space-y-4">
@@ -124,17 +187,44 @@ export default function PassagePanel({
           <PassageReader passage={activePassage} />
           <div className="space-y-4">
             {loadingDetail && <SkeletonQuestion />}
-            {!loadingDetail &&
-              questions.map((q) => (
-                <QuestionCard
-                  key={q.id}
-                  question={q}
-                  onResolved={(r, elapsed, hints) => onAttempt(r.correct, elapsed, hints)}
-                  compact
-                  elapsedEnabled={elapsedQuestionId === q.id}
-                  onActivate={() => setElapsedQuestionId(q.id)}
+            {!loadingDetail && active && (
+              <>
+                <QuestionStrip
+                  questions={questions}
+                  activeIndex={Math.min(activeIndex, last)}
+                  answered={answers}
+                  onPick={go}
                 />
-              ))}
+                {/* Position, announced. Paging a stack one question at a time
+                  * is only navigable if you are told where you landed. */}
+                <p className="sr-only" role="status" aria-live="polite">
+                  Question {Math.min(activeIndex, last) + 1} of{' '}
+                  {questions.length}.
+                </p>
+                <QuestionCard
+                  key={active.id}
+                  cardRef={cardRef}
+                  question={active}
+                  saved={answers.get(active.id) ?? null}
+                  onResolved={(r, elapsed, hints, choice) => {
+                    if (choice) {
+                      setAnswers((prev) =>
+                        new Map(prev).set(active.id, {
+                          choice,
+                          result: r,
+                          elapsedSeconds: elapsed,
+                        }),
+                      )
+                    }
+                    onAttempt(r.correct, elapsed, hints)
+                  }}
+                  browsable={questions.length > 1}
+                  onNext={activeIndex < last ? nextQuestion : undefined}
+                  onPrev={activeIndex > 0 ? prevQuestion : undefined}
+                  compact
+                />
+              </>
+            )}
             {!loadingDetail && questions.length === 0 && (
               <p className="text-sm text-slate-400">
                 No questions linked to this {section === 'LG' ? 'game' : 'passage'}.
@@ -144,6 +234,71 @@ export default function PassagePanel({
         </div>
       )}
     </section>
+  )
+}
+
+/**
+ * The numbered jump strip. Paging one question at a time is only navigable if
+ * you can see how many there are, which ones you have answered, and get to any
+ * of them without walking the whole stack.
+ */
+function QuestionStrip({
+  questions,
+  activeIndex,
+  answered,
+  onPick,
+}: {
+  questions: LsatQuestion[]
+  activeIndex: number
+  answered: ReadonlyMap<string, SavedAnswer>
+  onPick: (index: number) => void
+}) {
+  if (questions.length < 2) return null
+  return (
+    <div
+      role="group"
+      aria-label="Questions in this set"
+      className="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-2 backdrop-blur"
+    >
+      <span className="mr-1 text-[11px] uppercase tracking-wider text-slate-500">
+        Question {activeIndex + 1} / {questions.length}
+      </span>
+      {questions.map((q, i) => {
+        const saved = answered.get(q.id)
+        const active = i === activeIndex
+        let cls =
+          'tap-target inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-md border px-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 '
+        if (active) cls += 'border-blue-500/60 bg-blue-500/20 text-blue-100'
+        else if (saved)
+          cls += saved.result.correct
+            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+            : 'border-red-500/40 bg-red-500/10 text-red-200'
+        else
+          cls +=
+            'border-slate-700 bg-slate-950/40 text-slate-300 hover:border-slate-500 hover:text-white'
+        return (
+          <button
+            key={q.id}
+            type="button"
+            onClick={() => onPick(i)}
+            aria-current={active ? 'true' : undefined}
+            // The state is in the colour too, and colour alone is not a
+            // status: spell it out for anyone who cannot see the swatch.
+            aria-label={
+              `Question ${i + 1}` +
+              (saved
+                ? saved.result.correct
+                  ? ', answered correctly'
+                  : ', answered incorrectly'
+                : ', unanswered')
+            }
+            className={cls}
+          >
+            {i + 1}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 

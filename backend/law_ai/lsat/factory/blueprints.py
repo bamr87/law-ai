@@ -30,6 +30,7 @@ from law_ai.lsat.services.bank import (
     load_concepts,
     load_passages,
 )
+from law_ai.lsat.services.writing import load_writing_prompts, load_writing_rubrics
 
 _PROMPTS_DIR = (
     Path(__file__).resolve().parent.parent.parent / "agents_runtime" / "prompts"
@@ -37,9 +38,19 @@ _PROMPTS_DIR = (
 
 ITEM_TEMPLATE = "lsat_factory_item.v1.md"
 PASSAGE_TEMPLATE = "lsat_factory_passage.v1.md"
+WRITING_TEMPLATE = "lsat_factory_writing.v1.md"
 
 ITEM_TEMPLATE_VERSION = "lsat_factory_item/1"
 PASSAGE_TEMPLATE_VERSION = "lsat_factory_passage/1"
+WRITING_TEMPLATE_VERSION = "lsat_factory_writing/1"
+
+#: Rubric a factory-drafted writing prompt is written against. The library
+#: ships exactly one; when that changes this becomes a target field.
+DEFAULT_RUBRIC_ID = "argumentative-writing-v1"
+
+#: Characters of an exemplar model essay kept as a register reference. The
+#: whole essay would dominate the prompt without teaching anything more.
+_EXEMPLAR_ESSAY_CHARS = 700
 
 
 class CompiledPrompt(BaseModel):
@@ -71,25 +82,36 @@ def _serialize_exemplar(q: Question) -> dict[str, Any]:
 def select_exemplars(target: GenerationTarget, k: int) -> list[Question]:
     """Same-archetype bank items to embed as few-shot references.
 
-    Prefers items matching the target difficulty, then fills with any other
-    matches; deterministic (bank id order) so recompiling a plan yields
-    byte-identical prompts.
+    Bank items carry concepts, not an archetype id, so the match is by concept
+    overlap — and *how well* an item matches has to be ranked or the few-shot
+    block teaches the wrong pattern (BL-20260901-02). An archetype's first
+    concept is its primary tag (see :class:`~law_ai.lsat.factory.taxonomy.
+    Archetype`), so an item carrying it is a true instance of the pattern and
+    outranks one that merely shares a broad secondary concept; ties go to the
+    item with more shared concepts, then to the target difficulty, then to bank
+    id order, which keeps recompiling a plan byte-identical.
     """
     if k <= 0:
         return []
     arch = get_archetype(target.archetype_id)
+    primary = arch.concepts[0]
     wanted = set(arch.concepts)
-    matches = sorted(
-        (
-            q
-            for q in load_bank().values()
-            if q.section == target.section and (set(q.concepts) & wanted)
-        ),
-        key=lambda q: q.id,
-    )
-    same_diff = [q for q in matches if q.difficulty == target.difficulty]
-    rest = [q for q in matches if q.difficulty != target.difficulty]
-    return (same_diff + rest)[:k]
+
+    def rank(q: Question) -> tuple[int, int, int, str]:
+        concepts = set(q.concepts)
+        return (
+            0 if primary in concepts else 1,
+            -len(concepts & wanted),
+            0 if q.difficulty == target.difficulty else 1,
+            q.id,
+        )
+
+    matches = [
+        q
+        for q in load_bank().values()
+        if q.section == target.section and (set(q.concepts) & wanted)
+    ]
+    return sorted(matches, key=rank)[:k]
 
 
 def _concept_slice(target: GenerationTarget) -> list[dict[str, str]]:
@@ -106,9 +128,111 @@ def _concept_slice(target: GenerationTarget) -> list[dict[str, str]]:
     return rows
 
 
+def _writing_exemplar() -> dict[str, Any] | None:
+    """One existing writing prompt as a shape reference (essay truncated)."""
+    prompts = sorted(load_writing_prompts().values(), key=lambda p: p.id)
+    if not prompts:
+        return None
+    ref = prompts[0]
+    return {
+        "title": ref.title,
+        "issue": ref.issue,
+        "context": ref.context,
+        "positions": [p.model_dump() for p in ref.positions],
+        "perspectives": [p.model_dump() for p in ref.perspectives],
+        "task": ref.task,
+        "concepts": list(ref.concepts),
+        "model_response": {
+            "position_id": ref.model_response.position_id,
+            "thesis": ref.model_response.thesis,
+            "essay_excerpt": ref.model_response.essay[:_EXEMPLAR_ESSAY_CHARS],
+            "annotations": [a.model_dump() for a in ref.model_response.annotations],
+        },
+        "self_check": [c.model_dump() for c in ref.self_check],
+    }
+
+
+def _rubric_block() -> str:
+    """The rubric criteria a drafted prompt must reference by id."""
+    rubrics = load_writing_rubrics()
+    rubric = rubrics.get(DEFAULT_RUBRIC_ID) or next(iter(rubrics.values()), None)
+    if rubric is None:  # pragma: no cover - the library ships one
+        return ""
+    return (
+        "\n## Rubric (reference these criterion ids ONLY)\n\n```json\n"
+        + json.dumps(
+            {
+                "id": rubric.id,
+                "criteria": [
+                    {"id": c.id, "name": c.name, "description": c.description}
+                    for c in rubric.criteria
+                ],
+                "bands": [{"level": b.level, "label": b.label} for b in rubric.bands],
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+        + "\n```\n"
+    )
+
+
+def _compile_writing_prompt(target: GenerationTarget, arch: Any) -> CompiledPrompt:
+    """Render a WS authoring prompt (BL-20260831-28).
+
+    Same stack as the item blueprint — template, archetype guidance, one
+    exemplar, the taggable concepts, the machine-readable request — but the
+    exemplar is a writing prompt and the rubric travels with it, because every
+    self-check and annotation must name a criterion the rubric defines.
+    """
+    parts: list[str] = [_load_template(WRITING_TEMPLATE)]
+    parts.append(
+        "\n## Target archetype\n\n"
+        f"- **id**: {arch.id}\n"
+        f"- **name**: {arch.name}\n"
+        f"- **section**: WS\n"
+        f"- **guidance**: {arch.guidance}\n"
+    )
+    exemplar = _writing_exemplar()
+    if exemplar is not None:
+        parts.append(
+            "\n## Exemplar (shape and register reference from the live "
+            "library — invent entirely new content)\n\n```json\n"
+            + json.dumps(exemplar, indent=2, ensure_ascii=False)
+            + "\n```\n"
+        )
+    parts.append(_rubric_block())
+    parts.append(
+        "\n## Concept catalog (tag drafts ONLY with these ids)\n\n```json\n"
+        + json.dumps(_concept_slice(target), indent=2, ensure_ascii=False)
+        + "\n```\n"
+    )
+    parts.append(
+        "\n## Request\n\n```json\n"
+        + json.dumps(
+            {
+                "section": "WS",
+                "archetype_id": target.archetype_id,
+                "difficulty": target.difficulty,
+                "count": target.count,
+                "rubric_id": DEFAULT_RUBRIC_ID,
+                "target_concepts": list(target.concepts),
+                "mode": "writing_prompt",
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+        + "\n```\n"
+    )
+    return CompiledPrompt(
+        template_version=WRITING_TEMPLATE_VERSION, text="".join(parts)
+    )
+
+
 def compile_prompt(target: GenerationTarget, config: FactoryConfig) -> CompiledPrompt:
     """Render the full generation prompt for one target (see module docstring)."""
     arch = get_archetype(target.archetype_id)
+    if target.mode == "writing_prompt":
+        return _compile_writing_prompt(target, arch)
     is_passage_set = target.mode == "passage_set"
     template_name = PASSAGE_TEMPLATE if is_passage_set else ITEM_TEMPLATE
     template_version = (

@@ -27,6 +27,8 @@ import {
 import {
   isTypingTarget,
   matchShortcut,
+  mergeShortcutGroups,
+  SHELL_SHORTCUTS,
   SHORTCUT_HELP,
 } from '@/lib/shell/shortcuts'
 
@@ -106,6 +108,40 @@ describe('keyboard contract', () => {
 
   it('documents every action it can produce', () => {
     expect(SHORTCUT_HELP.length).toBeGreaterThanOrEqual(5)
+  })
+
+  // BL-20260901-10: a page contributes rows to the `?` sheet.
+  it('puts the shell group first and the page groups after it', () => {
+    const page = { title: 'Question drill', rows: [{ keys: 'N', label: 'Next' }] }
+    const merged = mergeShortcutGroups([page])
+    expect(merged.map((g) => g.title)).toEqual([
+      SHELL_SHORTCUTS.title,
+      'Question drill',
+    ])
+    expect(merged[0].rows).toEqual(SHORTCUT_HELP)
+  })
+
+  it('is just the shell group when no page registered one', () => {
+    expect(mergeShortcutGroups([])).toEqual([SHELL_SHORTCUTS])
+  })
+
+  it('lists a title once, however many components registered it', () => {
+    const page = { title: 'Question drill', rows: [{ keys: 'N', label: 'Next' }] }
+    expect(mergeShortcutGroups([page, page, page])).toHaveLength(2)
+  })
+
+  it('drops an empty group rather than printing a heading over nothing', () => {
+    expect(mergeShortcutGroups([{ title: 'Nothing', rows: [] }])).toEqual([
+      SHELL_SHORTCUTS,
+    ])
+  })
+
+  it('never lets a page shadow the shell group', () => {
+    const impostor = {
+      title: SHELL_SHORTCUTS.title,
+      rows: [{ keys: '?', label: 'Something else entirely' }],
+    }
+    expect(mergeShortcutGroups([impostor])).toEqual([SHELL_SHORTCUTS])
   })
 })
 

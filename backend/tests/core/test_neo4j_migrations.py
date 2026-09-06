@@ -8,8 +8,9 @@ This is a unit test (no live Neo4j). It walks every ``.cypher`` file under
 2. The union of declared constraint / index names covers the labels listed in
    spec 015 §7 (FR-1 / FR-2 / FR-3 / FR-4).
 
-A docker-backed integration test that actually runs the DDL is filed as
-follow-up BL-20260509-03.
+The docker-backed half — applying the DDL and diffing ``SHOW CONSTRAINTS`` /
+``SHOW INDEXES`` against :func:`expected_schema_names` — lives in
+``tests/db/test_neo4j_migrations_integration.py`` (BL-20260509-03).
 """
 
 from __future__ import annotations
@@ -61,9 +62,64 @@ def _all_sql() -> str:
 
 
 CREATE_RE = re.compile(
-    r"\bCREATE\s+(CONSTRAINT|INDEX|FULLTEXT\s+INDEX)\b[^;]*?;",
+    r"\bCREATE\s+(CONSTRAINT|INDEX|FULLTEXT\s+INDEX|VECTOR\s+INDEX)\b[^;]*?;",
     re.IGNORECASE | re.DOTALL,
 )
+
+
+# Name is the token right after CREATE [FULLTEXT|VECTOR] CONSTRAINT|INDEX.
+_NAME_RE = re.compile(
+    r"\bCREATE\s+(?:FULLTEXT\s+|VECTOR\s+)?(CONSTRAINT|INDEX)"
+    r"\s+(\w+)\s+IF\s+NOT\s+EXISTS",
+    re.IGNORECASE,
+)
+_FULLTEXT_NAME_RE = re.compile(
+    r"\bCREATE\s+FULLTEXT\s+INDEX\s+(\w+)\s+IF\s+NOT\s+EXISTS",
+    re.IGNORECASE,
+)
+_VECTOR_NAME_RE = re.compile(
+    r"\bCREATE\s+VECTOR\s+INDEX\s+(\w+)\s+IF\s+NOT\s+EXISTS",
+    re.IGNORECASE,
+)
+
+
+def expected_schema_names() -> dict[str, set[str]]:
+    """Constraint / index names the migration set declares.
+
+    Shared with the docker-backed parity test
+    ``tests/db/test_neo4j_migrations_integration.py`` (BL-20260509-03), which
+    asserts ``SHOW CONSTRAINTS`` / ``SHOW INDEXES`` match these exactly after
+    applying 001-007 against a live Neo4j.
+    """
+    blob = _all_sql()
+    constraints = {
+        name for kind, name in _NAME_RE.findall(blob) if kind.upper() == "CONSTRAINT"
+    }
+    fulltext = set(_FULLTEXT_NAME_RE.findall(blob))
+    vector = set(_VECTOR_NAME_RE.findall(blob))
+    indexes = {name for kind, name in _NAME_RE.findall(blob) if kind.upper() == "INDEX"}
+    return {
+        "constraints": constraints,
+        "indexes": indexes - fulltext - vector,
+        "fulltext": fulltext,
+        "vector": vector,
+    }
+
+
+def test_expected_schema_names_are_non_empty_and_disjoint() -> None:
+    names = expected_schema_names()
+    assert names["constraints"], "no named constraints found"
+    assert names["indexes"], "no named range indexes found"
+    assert names["fulltext"], "no named fulltext indexes found"
+    # BL-20260810-17 added the vector indexes the GraphRAG vector leg needs.
+    assert names["vector"] == {
+        "case_embedding_vec",
+        "statute_section_embedding_vec",
+    }
+    assert not names["indexes"] & names["fulltext"]
+    assert not names["indexes"] & names["vector"]
+    assert not names["fulltext"] & names["vector"]
+    assert not names["constraints"] & names["indexes"]
 
 
 def test_every_create_uses_if_not_exists() -> None:

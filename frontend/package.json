@@ -13,11 +13,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.100.0",
-    "@xyflow/react": "^12.10.0",
     "cytoscape": "^3.33.0",
-    "framer-motion": "^12.38.0",
-    "lucide-react": "^1.14.0",
     "next": "^16.3.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
@@ -34,6 +30,7 @@
     "@vitejs/plugin-react": "^6.0.0",
     "@vitest/coverage-v8": "^4.1.0",
     "@vitest/ui": "^4.1.0",
+    "axe-core": "^4.11.4",
     "eslint": "^9.39.0",
     "eslint-config-next": "^16.2.4",
     "jsdom": "^29.1.0",

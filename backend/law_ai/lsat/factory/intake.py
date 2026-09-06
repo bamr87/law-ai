@@ -28,15 +28,22 @@ from __future__ import annotations
 import json
 import logging
 import re
-from collections import Counter
 from collections.abc import Mapping
 from typing import Any, Literal, NamedTuple
 
 from pydantic import BaseModel, Field
 
-from law_ai.agents_runtime.crews.lsat_content_author import DraftQuestion
+from law_ai.agents_runtime.crews.lsat_content_author import (
+    DraftQuestion,
+    answer_key_skew,
+)
 from law_ai.core.provenance import provenance
 from law_ai.lsat.factory.config import FactoryConfig
+from law_ai.lsat.factory.embeddings import (
+    EmbeddingIndex,
+    EmbeddingUnavailable,
+    closest_by_embedding,
+)
 from law_ai.lsat.factory.manifest import GenerationJob, drafts_dir
 from law_ai.lsat.services.bank import load_bank, load_concepts, load_passages
 from law_ai.lsat.services.proposals import list_proposals, record_proposal
@@ -80,6 +87,21 @@ class IngestResult(BaseModel):
         default=None,
         description="Executor failure detail when the job produced no batch "
         "(truncated); None for jobs that reached the gates.",
+    )
+    warnings: list[str] = Field(
+        default_factory=list,
+        description="Non-fatal degradations during intake (e.g. the embedding "
+        "dedup opinion was unavailable and only Jaccard ran).",
+    )
+    judge: dict[str, str] = Field(
+        default_factory=dict,
+        description="Advisory judge verdict per accepted proposal id "
+        "(BL-20260702-02); empty when the judge tier is off.",
+    )
+    guides: dict[str, str] = Field(
+        default_factory=dict,
+        description="Guide proposal id per accepted question proposal id "
+        "(BL-20260901-04); empty when guide-at-authoring is off.",
     )
     trace_id: str | None = None
     model_label: str = "external"
@@ -191,6 +213,45 @@ def _context_tokens(context: Mapping[str, Any] | None) -> frozenset[str]:
     return _tokens(" ".join(parts))
 
 
+def _question_sentences(stem: str, context: frozenset[str]) -> list[str]:
+    """Sentences of *stem* that do not merely restate *context* (may be empty)."""
+    kept: list[str] = []
+    for sentence in _SENTENCE_RE.split(stem):
+        toks = _tokens(sentence)
+        if not toks:
+            continue
+        if len(toks & context) / len(toks) > _CONTEXT_SENTENCE_OVERLAP:
+            continue
+        kept.append(sentence.strip())
+    return kept
+
+
+def _question_text(stem: str, context: frozenset[str]) -> str:
+    """The question-specific prose of *stem*; the whole stem when all of it
+    restates the shared context (BL-20260702-08, reused by the embedding gate).
+    """
+    if not context:
+        return stem
+    kept = _question_sentences(stem, context)
+    return " ".join(kept) if kept else stem
+
+
+def _comparable_text(
+    stem: str,
+    entry_passage_id: str | None,
+    *,
+    context: frozenset[str],
+    passage_key: str | None,
+    config: FactoryConfig,
+) -> str:
+    """Text the semantic gate compares: context-stripped for passage mates."""
+    if not config.dedup_strip_context or not context or passage_key is None:
+        return stem
+    if entry_passage_id != passage_key:
+        return stem
+    return _question_text(stem, context)
+
+
 def _question_tokens(stem: str, context: frozenset[str]) -> tuple[frozenset[str], bool]:
     """Tokens of the question-specific part of *stem* (BL-20260702-08).
 
@@ -211,13 +272,8 @@ def _question_tokens(stem: str, context: frozenset[str]) -> tuple[frozenset[str]
     if not context:
         return full, False
     kept: set[str] = set()
-    for sentence in _SENTENCE_RE.split(stem):
-        toks = _tokens(sentence)
-        if not toks:
-            continue
-        if len(toks & context) / len(toks) > _CONTEXT_SENTENCE_OVERLAP:
-            continue
-        kept |= toks
+    for sentence in _question_sentences(stem, context):
+        kept |= _tokens(sentence)
     if not kept:
         return full, False
     residue = frozenset(kept - _STOPWORDS)
@@ -289,6 +345,78 @@ def _closest(
         if score > best_score:
             best_id, best_score = entry.source_id, score
     return best_id, best_score
+
+
+def _embed_dedup(
+    accepted: list[tuple[int, DraftQuestion]],
+    corpus: list[_CorpusEntry],
+    *,
+    config: FactoryConfig,
+    context: frozenset[str],
+    passage_key: str | None,
+) -> tuple[list[tuple[int, DraftQuestion]], list[GateRejection], str | None]:
+    """Gate 3b — paraphrase detection over the drafts Jaccard let through.
+
+    Token-Jaccard cannot see a reworded question (BL-20260702-01), so the
+    survivors get a second, semantic opinion from the local embedding model.
+    The comparison text is the same context-stripped question prose gate 3
+    uses, so a batch written against one game is judged on its questions.
+
+    Fails open: the first backend error stops the pass, every remaining draft
+    is kept, and the returned warning is surfaced on the ``IngestResult`` —
+    an offline run behaves exactly as it did before this gate existed.
+    """
+    if not config.embed_dedup_enabled or not accepted:
+        return accepted, [], None
+    index = EmbeddingIndex.from_config(config)
+    pool: list[tuple[str, str]] = [
+        (
+            entry.source_id,
+            _comparable_text(
+                entry.stem,
+                entry.passage_id,
+                context=context,
+                passage_key=passage_key,
+                config=config,
+            ),
+        )
+        for entry in corpus
+    ]
+    kept: list[tuple[int, DraftQuestion]] = []
+    rejected: list[GateRejection] = []
+    warning: str | None = None
+    for index_in_batch, draft in accepted:
+        if warning is not None:
+            kept.append((index_in_batch, draft))
+            continue
+        text = _comparable_text(
+            draft.stem,
+            passage_key,
+            context=context,
+            passage_key=passage_key,
+            config=config,
+        )
+        try:
+            closest_id, score = closest_by_embedding(text, pool, index)
+        except EmbeddingUnavailable as exc:
+            warning = f"embedding dedup skipped: {exc}"
+            logger.info("factory intake: %s", warning)
+            kept.append((index_in_batch, draft))
+            continue
+        if score >= config.embed_dedup_threshold:
+            rejected.append(
+                GateRejection(
+                    draft_index=index_in_batch,
+                    reason="duplicate",
+                    detail=f"stem ~{score:.2f} paraphrase of {closest_id} "
+                    "(embedding similarity)",
+                )
+            )
+            continue
+        kept.append((index_in_batch, draft))
+        pool.append((f"batch#{index_in_batch}", text))
+    index.flush()
+    return kept, rejected, warning
 
 
 def _park_pending_passage(
@@ -420,11 +548,25 @@ def ingest_batch(
 ) -> IngestResult:
     """Run one job's raw payload through the gates and record survivors."""
     target = job.target
+    if target.mode == "writing_prompt":
+        # A writing task has no keyed choices to gate; its own module owns
+        # the schema/lint/dedup rules (BL-20260831-28). Imported here to keep
+        # the dependency one-way at module load.
+        from law_ai.lsat.factory.writing_intake import ingest_writing_batch
+
+        return ingest_writing_batch(
+            payload,
+            job=job,
+            config=config,
+            executor_name=executor_name,
+            model_label=model_label,
+            latency_ms=latency_ms,
+        )
     catalog = set(load_concepts().keys())
     passages = dict(load_passages())
     corpus = _dedup_corpus()
     context, passage_key = _dedup_context(payload, job, passages)
-    accepted_drafts: list[DraftQuestion] = []
+    accepted_pairs: list[tuple[int, DraftQuestion]] = []
     rejected: list[GateRejection] = []
 
     raw_drafts = payload.get("drafts") or []
@@ -453,20 +595,31 @@ def ingest_batch(
                 f"{job.job_id}#{index}", draft.stem, _tokens(draft.stem), passage_key
             )
         )
-        accepted_drafts.append(draft)
+        accepted_pairs.append((index, draft))
 
-    # Gate 4: batch answer-key balance (flag, don't reject — AC-4).
-    balance_flag: str | None = None
-    if len(accepted_drafts) >= 3:
-        keys = Counter(d.correct for d in accepted_drafts)
-        label, top = keys.most_common(1)[0]
-        share = top / len(accepted_drafts)
-        if share > config.balance_tolerance:
-            balance_flag = (
-                f"answer-key skew: {top}/{len(accepted_drafts)} drafts keyed "
-                f"{label!r} (share {share:.2f} > tolerance "
-                f"{config.balance_tolerance:.2f})"
-            )
+    # Gate 3b: paraphrase detection on the survivors (BL-20260702-01). Runs
+    # after the token gate so the embedding backend only sees drafts that are
+    # already schema-, lint-, and Jaccard-clean.
+    warnings: list[str] = []
+    accepted_pairs, embed_rejected, embed_warning = _embed_dedup(
+        accepted_pairs,
+        [e for e in corpus if not e.source_id.startswith(f"{job.job_id}#")],
+        config=config,
+        context=context,
+        passage_key=passage_key,
+    )
+    if embed_warning:
+        warnings.append(embed_warning)
+    rejected.extend(embed_rejected)
+    rejected.sort(key=lambda r: r.draft_index)
+    accepted_drafts = [draft for _, draft in accepted_pairs]
+
+    # Gate 4: batch answer-key balance (flag, don't reject — AC-4). Shared
+    # with the direct agent paths via ``answer_key_skew`` (BL-20260606-02) so
+    # factory and non-factory batches are judged by one rule.
+    balance_flag = answer_key_skew(
+        (d.correct for d in accepted_drafts), config.balance_tolerance
+    )
 
     pending_passage_path = (
         _park_pending_passage(payload, job, config)
@@ -493,6 +646,7 @@ def ingest_batch(
             "accepted": len(accepted_drafts),
             "rejected": len(rejected),
             "balance_flag": balance_flag,
+            "warnings": warnings,
         },
         model=model_label,
         latency_ms=latency_ms,
@@ -546,6 +700,7 @@ def ingest_batch(
         rejected=rejected,
         balance_flag=balance_flag,
         pending_passage_path=pending_passage_path,
+        warnings=warnings,
         trace_id=trace_id,
         model_label=model_label,
     )

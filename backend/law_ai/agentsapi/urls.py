@@ -10,6 +10,7 @@ them keep working.
 from __future__ import annotations
 
 import re
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -344,6 +345,61 @@ class AgentSpecsView(_Base):
         return Response({"specs": out, "count": len(out)})
 
 
+#: Where ``TestSynthesizer`` writes its proposals. Fixed, never a request
+#: parameter: this view lists a directory, and a caller-supplied path would
+#: turn that into an arbitrary-file-listing primitive.
+_PROPOSED_TESTS_DIR = ("backend", "tests", "autonomy", "proposed")
+_PROPOSED_SUFFIX = "__autonomy.proposed.py"
+
+
+class AgentProposedTestsView(_Base):
+    """Tests the autonomy loop has drafted and no human has ruled on yet.
+
+    Read-only by constitution I1/I5: proposed files are skip-decorated and
+    never run in CI, and nothing here promotes, un-skips, edits or deletes
+    one. Reviewers move a proposal by hand, in a PR.
+    """
+
+    def get(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        directory = _repo_root().joinpath(*_PROPOSED_TESTS_DIR)
+        if not directory.is_dir():
+            return Response({"count": 0, "files": [], "available": False})
+
+        files: list[dict[str, Any]] = []
+        for entry in sorted(directory.glob("*.proposed.py")):
+            if not entry.is_file():
+                continue
+            try:
+                text = entry.read_text(encoding="utf-8", errors="replace")
+                stat = entry.stat()
+            except OSError:  # pragma: no cover - unreadable file on disk
+                continue
+            name = entry.name
+            # TestSynthesizer names files `<module with dots as underscores>`
+            # + the suffix, and that mapping is lossy (`law_ai.eval` and
+            # `law.ai.eval` collide), so the stem is reported as-is rather
+            # than guessed back into a dotted path.
+            module = (
+                name[: -len(_PROPOSED_SUFFIX)]
+                if name.endswith(_PROPOSED_SUFFIX)
+                else entry.stem
+            )
+            files.append(
+                {
+                    "name": name,
+                    # Repo-relative: the absolute container path ("/repo/…")
+                    # means nothing to a reviewer reading it on their laptop.
+                    "path": "/".join((*_PROPOSED_TESTS_DIR, name)),
+                    "module": module,
+                    "size": stat.st_size,
+                    "mtime": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
+                    "skip_marked": "autonomy-proposed" in text,
+                }
+            )
+        files.sort(key=lambda f: f["mtime"], reverse=True)
+        return Response({"count": len(files), "files": files, "available": True})
+
+
 class LocalAIHealthView(_Base):
     def get(self, request, *args, **kwargs):
         async def _gather() -> dict[str, Any]:
@@ -375,4 +431,21 @@ urlpatterns = [
     path("backlog", AgentBacklogView.as_view(), name="agents-backlog"),
     path("specs", AgentSpecsView.as_view(), name="agents-specs"),
     path("health/local-ai", LocalAIHealthView.as_view(), name="agents-local-ai-health"),
+    # BL-20260511-17: what the autonomy loop has drafted and is waiting on a
+    # human for.
+    path(
+        "proposed-tests",
+        AgentProposedTestsView.as_view(),
+        name="agents-proposed-tests",
+    ),
 ]
+
+# BL-20260511-03: the read-only autonomy dashboard panels live in their own
+# module (this one is already long) and are appended here so they share the
+# /api/agents prefix and the RequireAgent gate. `autonomy_views` imports
+# nothing from this module, so the dependency is one-way.
+from law_ai.agentsapi.autonomy_views import (  # noqa: E402
+    urlpatterns as _autonomy_urlpatterns,
+)
+
+urlpatterns += _autonomy_urlpatterns

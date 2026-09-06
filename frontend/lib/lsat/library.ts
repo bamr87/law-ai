@@ -2,12 +2,26 @@
  * Shared vocabulary and per-reader state for the LSAT knowledge library.
  *
  * Label maps live here rather than in a component so the contents rail, the
- * reader header and the search results all name a `kind` the same way. Read
- * state is per-browser `localStorage` — deliberately not synced anywhere
- * (BL-20260903-05 tracks folding it into `/api/lsat/stats`).
+ * reader header and the search results all name a `kind` the same way.
+ *
+ * Read state is `localStorage` *plus* the server (BL-20260903-05). It used to
+ * be localStorage alone, so a learner who read half the library on a laptop
+ * started again on a phone, and "articles read" was invisible next to drill
+ * accuracy. The browser's copy is still the one that answers instantly and the
+ * one that works offline; the server's copy is what makes a second device
+ * agree with the first, and it is what `/api/lsat/stats` folds in.
+ *
+ * `lsat-static` keeps localStorage as its only store, and always will — a
+ * serverless bundle has nothing to sync with.
  */
 
-import type { LsatArticleKind, LsatArticleLevel, LsatSectionCode } from '@/lib/api'
+import {
+  fetchLsatReadArticles,
+  recordLsatArticleRead,
+  type LsatArticleKind,
+  type LsatArticleLevel,
+  type LsatSectionCode,
+} from '@/lib/api'
 
 export const KIND_LABEL: Record<LsatArticleKind, string> = {
   orientation: 'Orientation',
@@ -77,6 +91,55 @@ export function loadReadIds(): Set<string> {
 
 export function saveReadIds(ids: Set<string>): void {
   safeSet(READ_KEY, JSON.stringify([...ids].sort()))
+}
+
+/**
+ * Concept entries are read-tracked with a `concept:` prefix so a concept and
+ * an article sharing an id never collide. Only articles have a server
+ * counterpart — the endpoint is keyed on the library index — so the prefix is
+ * also what tells the two apart when syncing.
+ */
+const CONCEPT_PREFIX = 'concept:'
+
+export const isArticleReadKey = (key: string): boolean =>
+  !key.startsWith(CONCEPT_PREFIX)
+
+/**
+ * This browser's read set, merged with the server's.
+ *
+ * A union, not a replacement: reading done offline (or before the endpoint
+ * existed) is real progress and must not be erased by a device that has read
+ * less. Unmarking is therefore explicit — a POST with `read: false` — rather
+ * than an absence. The merged set is written back to `localStorage` so the
+ * next load starts from it even with no network.
+ *
+ * Never rejects: an unreachable API leaves the local set exactly as it was.
+ */
+export async function hydrateReadIds(): Promise<Set<string>> {
+  const local = loadReadIds()
+  try {
+    const body = await fetchLsatReadArticles()
+    const merged = new Set(local)
+    for (const id of body.read) merged.add(id)
+    saveReadIds(merged)
+    return merged
+  } catch {
+    return local
+  }
+}
+
+/**
+ * Tell the server about one article's read state, fire-and-forget.
+ *
+ * The local set has already been updated by the time this is called, so a
+ * failure costs cross-device sync for that one article and nothing else — it
+ * must never reach the reader as an error.
+ */
+export function publishReadState(key: string, read: boolean): void {
+  if (!isArticleReadKey(key)) return
+  void recordLsatArticleRead(key, read).catch(() => {
+    /* the browser's own copy is authoritative offline */
+  })
 }
 
 export function loadLastArticleId(): string | null {

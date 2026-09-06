@@ -47,6 +47,22 @@ def test_corpus_rankings_match_the_fixture(parity: dict) -> None:
             assert ids and ids[0] == case["top"], case["query"]
 
 
+def test_typo_predicate_matches_the_fixture(parity: dict) -> None:
+    for case in parity["typo_pairs"]:
+        assert lib.is_typo(case["a"], case["b"]) is case["typo"], case
+        assert lib.is_typo(case["b"], case["a"]) is case["typo"], case
+
+
+def test_mistyped_corpus_queries_match_the_fixture(parity: dict) -> None:
+    """A one-edit typo lands on the same article on both products."""
+    for case in parity["corpus_typos"]:
+        ids = [h["id"] for h in lib.search_library(case["query"], limit=5)]
+        if case["top"] is None:
+            assert ids == [], case["query"]
+        else:
+            assert ids and ids[0] == case["top"], case["query"]
+
+
 def test_stemmer_is_idempotent(parity: dict) -> None:
     """Field words are stemmed once, query words once — the two must agree."""
     for word in parity["stems"]:

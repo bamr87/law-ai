@@ -26,7 +26,9 @@ async def test_agent_run_consumer_ready_and_group_event() -> None:
     assert connected is True
 
     ready = await communicator.receive_json_from()
-    assert ready == {"type": "ready", "run_id": "run-123"}
+    # `since` echoes the replay cursor the server understood — 0 for a fresh
+    # subscriber (BL-20260811-14).
+    assert ready == {"type": "ready", "run_id": "run-123", "since": 0}
 
     layer = get_channel_layer()
     assert layer is not None
@@ -101,6 +103,54 @@ async def test_accepts_valid_api_key_via_query_and_header(settings) -> None:
 
 
 @pytest.mark.asyncio
+async def test_accepts_a_stream_scoped_ticket(settings) -> None:
+    """The browser path (BL-20260430-07): a ticket, never the key itself.
+
+    A browser cannot set a handshake header, and the key is no longer in the
+    bundle, so the frontend's server mints a short-lived ticket signed with
+    the shared key. It is good for one stream, briefly.
+    """
+    from law_ai.core.ws_ticket import mint_ticket
+
+    settings.AGENT_API_KEY = "secret-key"
+    ticket = mint_ticket("run-abc", "secret-key")
+
+    ok = _communicator("run-abc", query=f"ticket={ticket}")
+    connected, _ = await ok.connect()
+    assert connected is True
+    assert (await ok.receive_json_from())["type"] == "ready"
+    await ok.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_rejects_a_ticket_minted_for_another_stream(settings) -> None:
+    from law_ai.agentsapi.consumers import CLOSE_UNAUTHORIZED
+    from law_ai.core.ws_ticket import mint_ticket
+
+    settings.AGENT_API_KEY = "secret-key"
+    other = mint_ticket("run-other", "secret-key")
+
+    comm = _communicator("run-abc", query=f"ticket={other}")
+    connected, code = await comm.connect()
+    assert connected is False
+    assert code == CLOSE_UNAUTHORIZED
+
+
+@pytest.mark.asyncio
+async def test_rejects_an_expired_ticket(settings) -> None:
+    from law_ai.agentsapi.consumers import CLOSE_UNAUTHORIZED
+    from law_ai.core.ws_ticket import mint_ticket
+
+    settings.AGENT_API_KEY = "secret-key"
+    stale = mint_ticket("run-abc", "secret-key", ttl=-1)
+
+    comm = _communicator("run-abc", query=f"ticket={stale}")
+    connected, code = await comm.connect()
+    assert connected is False
+    assert code == CLOSE_UNAUTHORIZED
+
+
+@pytest.mark.asyncio
 async def test_open_when_no_key_configured(settings) -> None:
     """Matches the REST routers' default-open localhost posture."""
     settings.AGENT_API_KEY = ""
@@ -169,3 +219,128 @@ async def test_rejects_invalid_stream_id_at_the_api_boundary() -> None:
             json={"text": "x", "use_langgraph": False, "stream_id": "bad id/../x"},
         )
     assert res.status_code == 422
+
+
+# --- BL-20260811-14: reconnect + event replay ---
+
+
+@pytest.fixture(autouse=True)
+def _memory_replay(monkeypatch: pytest.MonkeyPatch):
+    """Force the in-process buffer so these tests never depend on Redis."""
+    from law_ai.agentsapi import replay
+
+    # Belt and braces: the test settings already pin AGENT_STREAM_REPLAY_URL to
+    # "" so the in-process buffer is used, and this keeps the tests honest if
+    # that ever changes.
+    monkeypatch.setattr(replay, "_client", lambda: None)
+    replay.reset()
+    yield
+    replay.reset()
+
+
+async def _emit(stream_id: str, payload: dict) -> dict:
+    from law_ai.agentsapi.streaming import emit_stream_event
+
+    await emit_stream_event(stream_id, payload, source="test")
+    from law_ai.agentsapi import replay
+
+    return (await replay.events_since(stream_id, 0))[-1]
+
+
+@pytest.mark.asyncio
+async def test_emitted_events_carry_a_monotonic_seq() -> None:
+    """The cursor a reconnecting client uses has to exist on the live frames."""
+    from law_ai.agentsapi import replay
+
+    await _emit("run-seq", {"type": "agent_step", "agent": "A"})
+    await _emit("run-seq", {"type": "agent_step", "agent": "B"})
+    await _emit("run-seq", {"type": "complete"})
+
+    seqs = [e["seq"] for e in await replay.events_since("run-seq", 0)]
+    assert seqs == [1, 2, 3]
+
+
+@pytest.mark.asyncio
+async def test_a_reconnect_with_since_receives_only_what_it_missed() -> None:
+    await _emit("run-drop", {"type": "agent_step", "agent": "A"})
+    await _emit("run-drop", {"type": "agent_step", "agent": "B"})
+    await _emit("run-drop", {"type": "complete"})
+
+    comm = _communicator("run-drop", query="since=1")
+    connected, _ = await comm.connect()
+    assert connected is True
+    assert await comm.receive_json_from() == {
+        "type": "ready",
+        "run_id": "run-drop",
+        "since": 1,
+    }
+
+    replayed = [await comm.receive_json_from() for _ in range(2)]
+    assert [e["seq"] for e in replayed] == [2, 3]
+    assert replayed[0]["agent"] == "B"
+    await comm.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_replay_is_followed_by_live_events() -> None:
+    """Catch-up must not swallow anything produced during the reconnect."""
+    await _emit("run-mixed", {"type": "agent_step", "agent": "A"})
+
+    comm = _communicator("run-mixed", query="since=0&replay=1")
+    connected, _ = await comm.connect()
+    assert connected is True
+    await comm.receive_json_from()  # ready
+
+    assert (await comm.receive_json_from())["seq"] == 1
+    await _emit("run-mixed", {"type": "complete"})
+    live = await comm.receive_json_from()
+    assert live["type"] == "complete"
+    assert live["seq"] == 2
+    await comm.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_a_fresh_subscriber_is_not_handed_an_old_run() -> None:
+    """The spec-032 flow subscribes *before* posting; replay is opt-in."""
+    await _emit("run-reused", {"type": "complete"})
+
+    comm = _communicator("run-reused")
+    connected, _ = await comm.connect()
+    assert connected is True
+    await comm.receive_json_from()  # ready
+    assert await comm.receive_nothing() is True
+    await comm.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_a_garbage_cursor_reads_as_no_cursor() -> None:
+    comm = _communicator("run-garbage", query="since=not-a-number")
+    connected, _ = await comm.connect()
+    assert connected is True
+    assert (await comm.receive_json_from())["since"] == 0
+    await comm.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_a_cursor_past_the_end_replays_nothing() -> None:
+    await _emit("run-ahead", {"type": "complete"})
+
+    comm = _communicator("run-ahead", query="since=99")
+    connected, _ = await comm.connect()
+    assert connected is True
+    await comm.receive_json_from()  # ready
+    assert await comm.receive_nothing() is True
+    await comm.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_the_buffer_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A reconnect window, not an event store."""
+    from law_ai.agentsapi import replay
+
+    monkeypatch.setattr(replay, "MAX_EVENTS", 3)
+    for index in range(5):
+        replay._memory_record("run-cap", {"type": "agent_step", "i": index})
+
+    kept = await replay.events_since("run-cap", 0)
+    assert [e["i"] for e in kept] == [2, 3, 4]

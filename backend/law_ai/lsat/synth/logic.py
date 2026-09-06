@@ -527,6 +527,357 @@ class RegionSpace:
         )
 
 
+# ---------------------------------------------------------------------------
+# Symbolic cardinality reasoning (BL-20260903-16)
+# ---------------------------------------------------------------------------
+#
+# ``RegionSpace`` enumerates, and enumeration ends at three predicates: a fourth
+# takes the space from 6,561 models to 43,046,721, two orders of magnitude past
+# :data:`MAX_MODELS`. Dropping ``max_count`` to 1 would fit, but a per-region
+# cap of 1 removes the 2-vs-1 margin ``Most`` relies on inside a single region,
+# and an entailment decided over a truncated space is not the entailment the
+# item claims.
+#
+# So a four-predicate space is decided rather than enumerated. Every monadic
+# statement is a linear constraint over the 2^K region counts:
+#
+#     All(a, b)      sum(a ∧ ¬b) <= 0        Some(a, b)     sum(a ∧ b)  >= 1
+#     No(a, b)       sum(a ∧ b)  <= 0        NotAll(a, b)   sum(a ∧ ¬b) >= 1
+#     Most(a, b)     sum(a ∧ b) - sum(a ∧ ¬b) >= 1
+#     AtLeast(p, n)  sum(p) >= n             Exactly(p, n)  sum(p) >= n and <= n
+#
+# and entailment is two satisfiability questions: ``premises ∧ ¬candidate`` has
+# no model (entailed) and ``premises ∧ candidate`` has none (contradicted).
+#
+# Two things keep the search small. Constraints of the form ``sum <= 0`` fix
+# every region they mention to zero before the search starts — one universal
+# premise removes a quarter of the variables. And regions that appear in every
+# constraint with the same coefficient are interchangeable: only their *sum* is
+# ever read, so they collapse into one variable. What is left is a handful of
+# variables searched depth-first with interval pruning.
+#
+# The soundness claim is not taken on faith: ``test_synth_logic.py`` cross-checks
+# the solver against full enumeration on every K ≤ 3 pool, where both answers are
+# available.
+
+
+@dataclass(frozen=True)
+class _CountConstraint:
+    """``sum(plus) - sum(minus) op rhs`` over region indices."""
+
+    plus: frozenset[int]
+    minus: frozenset[int]
+    op: str  # ">=" or "<="
+    rhs: int
+
+    def negated(self) -> _CountConstraint:
+        if self.op == ">=":
+            return _CountConstraint(self.plus, self.minus, "<=", self.rhs - 1)
+        return _CountConstraint(self.plus, self.minus, ">=", self.rhs + 1)
+
+
+#: A conjunction of constraints; a problem is a disjunction of these.
+_Conjunction = tuple[_CountConstraint, ...]
+
+#: How many search nodes the solver may open before giving up. Like
+#: :data:`MAX_MODELS`, this is a bound that fails loudly rather than a hope.
+MAX_SEARCH_NODES = 400_000
+
+
+class UndecidableStatement(SynthLogicError):
+    """A statement the symbolic solver has no constraint form for."""
+
+
+def _regions(
+    predicates: Sequence[str], inside: Sequence[str], outside: Sequence[str]
+) -> frozenset[int]:
+    in_bits = sum(1 << predicates.index(n) for n in inside)
+    out_bits = sum(1 << predicates.index(n) for n in outside)
+    return frozenset(
+        r
+        for r in range(2 ** len(predicates))
+        if (r & in_bits) == in_bits and (r & out_bits) == 0
+    )
+
+
+def _pair_constraint(
+    statement: Statement, predicates: Sequence[str]
+) -> _CountConstraint | None:
+    """The two-predicate quantifiers, each one linear constraint."""
+    empty: frozenset[int] = frozenset()
+    if isinstance(statement, All):
+        return _CountConstraint(
+            _regions(predicates, [statement.a], [statement.b]), empty, "<=", 0
+        )
+    if isinstance(statement, No):
+        return _CountConstraint(
+            _regions(predicates, [statement.a, statement.b], []), empty, "<=", 0
+        )
+    if isinstance(statement, Some):
+        return _CountConstraint(
+            _regions(predicates, [statement.a, statement.b], []), empty, ">=", 1
+        )
+    if isinstance(statement, NotAll):
+        return _CountConstraint(
+            _regions(predicates, [statement.a], [statement.b]), empty, ">=", 1
+        )
+    if isinstance(statement, Most):
+        return _CountConstraint(
+            _regions(predicates, [statement.a, statement.b], []),
+            _regions(predicates, [statement.a], [statement.b]),
+            ">=",
+            1,
+        )
+    return None
+
+
+def _atom_constraints(
+    statement: Statement, predicates: Sequence[str]
+) -> tuple[_Conjunction, ...]:
+    """One monadic statement as a disjunction of constraint conjunctions."""
+    empty: frozenset[int] = frozenset()
+    pair = _pair_constraint(statement, predicates)
+    if pair is not None:
+        return ((pair,),)
+    if isinstance(statement, AtLeast):
+        here = _regions(predicates, [statement.predicate], [])
+        return ((_CountConstraint(here, empty, ">=", statement.count),),)
+    if isinstance(statement, Exactly):
+        here = _regions(predicates, [statement.predicate], [])
+        return (
+            (
+                _CountConstraint(here, empty, ">=", statement.count),
+                _CountConstraint(here, empty, "<=", statement.count),
+            ),
+        )
+    raise UndecidableStatement(
+        f"{type(statement).__name__} has no cardinality form — the symbolic "
+        "region space decides monadic quantifier statements only"
+    )
+
+
+def _negate_dnf(dnf: tuple[_Conjunction, ...]) -> tuple[_Conjunction, ...]:
+    """De Morgan over a disjunction of conjunctions, back into the same shape."""
+    out: list[_Conjunction] = [()]
+    for conjunction in dnf:
+        expanded: list[_Conjunction] = []
+        for prefix in out:
+            for constraint in conjunction:
+                expanded.append((*prefix, constraint.negated()))
+        out = expanded
+    return tuple(out)
+
+
+def region_constraints(
+    statement: Statement, predicates: Sequence[str], *, negated: bool = False
+) -> tuple[_Conjunction, ...]:
+    """A statement (or its negation) as a disjunction of constraint conjunctions."""
+    if isinstance(statement, Not):
+        return region_constraints(statement.inner, predicates, negated=not negated)
+    if isinstance(statement, And):
+        parts = [region_constraints(p, predicates) for p in statement.parts]
+        merged: tuple[_Conjunction, ...] = ((),)
+        for part in parts:
+            merged = tuple((*left, *right) for left in merged for right in part)
+        return _negate_dnf(merged) if negated else merged
+    if isinstance(statement, Or):
+        merged = tuple(
+            conj for p in statement.parts for conj in region_constraints(p, predicates)
+        )
+        return _negate_dnf(merged) if negated else merged
+    dnf = _atom_constraints(statement, predicates)
+    return _negate_dnf(dnf) if negated else dnf
+
+
+@dataclass(frozen=True)
+class _Variable:
+    """Regions that every constraint treats identically, and their shared bound."""
+
+    regions: tuple[int, ...]
+    bound: int
+
+
+def _group(
+    constraints: Sequence[_CountConstraint], region_count: int, cap: int
+) -> list[_Variable]:
+    """Collapse interchangeable regions into one variable each.
+
+    A region's *signature* is its coefficient in every constraint. Two regions
+    with the same signature are read only through their sum, so searching them
+    separately multiplies the work for nothing. Regions mentioned by no
+    constraint are dropped entirely: setting them to zero can never break a
+    constraint that does not see them.
+    """
+    signatures: dict[tuple[int, ...], list[int]] = {}
+    for region in range(region_count):
+        signature = tuple(
+            (1 if region in c.plus else 0) - (1 if region in c.minus else 0)
+            for c in constraints
+        )
+        if not any(signature):
+            continue
+        signatures.setdefault(signature, []).append(region)
+    return [
+        _Variable(regions=tuple(regions), bound=len(regions) * cap)
+        for regions in signatures.values()
+    ]
+
+
+def _solve(
+    conjunction: Sequence[_CountConstraint], predicates: Sequence[str], cap: int
+) -> tuple[int, ...] | None:
+    """A witness region-count vector for one conjunction, or None if there is none.
+
+    Depth-first over the grouped variables with interval pruning: a constraint
+    whose best case still fails prunes the branch immediately. Raises
+    :class:`SpaceTooLarge` rather than running unboundedly.
+    """
+    region_count = 2 ** len(predicates)
+    constraints = list(conjunction)
+    # Regions forced to zero by a `sum <= 0` constraint (no negative side).
+    zeroed: set[int] = set()
+    for constraint in constraints:
+        if constraint.op == "<=" and constraint.rhs <= 0 and not constraint.minus:
+            if constraint.rhs < 0:
+                return None  # a non-negative sum cannot be negative
+            zeroed |= constraint.plus
+    live = [
+        _CountConstraint(
+            frozenset(constraint.plus - zeroed),
+            frozenset(constraint.minus - zeroed),
+            constraint.op,
+            constraint.rhs,
+        )
+        for constraint in constraints
+    ]
+    for constraint in live:
+        if not constraint.plus and not constraint.minus:
+            if constraint.op == ">=" and constraint.rhs > 0:
+                return None
+            if constraint.op == "<=" and constraint.rhs < 0:
+                return None
+    variables = _group(live, region_count, cap)
+    assignment: list[int] = [0] * len(variables)
+    nodes = 0
+
+    def _feasible(depth: int) -> bool:
+        """Could every constraint still be met with variables past ``depth`` free?"""
+        for constraint in live:
+            low = 0
+            high = 0
+            for i, var in enumerate(variables):
+                plus = len(set(var.regions) & constraint.plus)
+                minus = len(set(var.regions) & constraint.minus)
+                if plus == 0 and minus == 0:
+                    continue
+                # Each region in the group carries the same coefficient, so the
+                # group's contribution is its value times that coefficient.
+                coefficient = 1 if plus else -1
+                if i < depth:
+                    low += coefficient * assignment[i]
+                    high += coefficient * assignment[i]
+                elif coefficient > 0:
+                    high += var.bound
+                else:
+                    low -= var.bound
+            if constraint.op == ">=" and high < constraint.rhs:
+                return False
+            if constraint.op == "<=" and low > constraint.rhs:
+                return False
+        return True
+
+    def _search(depth: int) -> bool:
+        nonlocal nodes
+        if depth == len(variables):
+            return _feasible(depth)
+        for value in range(variables[depth].bound + 1):
+            nodes += 1
+            if nodes > MAX_SEARCH_NODES:
+                raise SpaceTooLarge(
+                    f"symbolic search over {len(predicates)} predicates opened "
+                    f"more than {MAX_SEARCH_NODES:,} nodes — narrow the schema"
+                )
+            assignment[depth] = value
+            if _feasible(depth + 1) and _search(depth + 1):
+                return True
+        assignment[depth] = 0
+        return False
+
+    if not _search(0):
+        return None
+    counts = [0] * region_count
+    for i, var in enumerate(variables):
+        remaining = assignment[i]
+        for region in var.regions:
+            take = min(cap, remaining)
+            counts[region] = take
+            remaining -= take
+        # A group's bound is len(regions) * cap, so the remainder is always
+        # placed; this is belt and braces.
+        if remaining:  # pragma: no cover - unreachable by construction
+            counts[var.regions[-1]] += remaining
+    for region in zeroed:
+        counts[region] = 0
+    return tuple(counts)
+
+
+@dataclass(frozen=True)
+class SymbolicRegionSpace:
+    """A region space decided by constraint solving instead of enumeration.
+
+    Same statements, same answers, no ``models()``: four predicates make the
+    count space 43 million vectors wide, and the questions an item asks of it
+    ("is this entailed?", "is this consistent?") are decided in milliseconds
+    without visiting one of them.
+
+    ``max_count`` is the per-region cap the search respects, kept for the same
+    reason :class:`RegionSpace` has one — it bounds the witnesses the solver may
+    build, and 2 is enough for every margin ``Most`` can require.
+    """
+
+    predicates: tuple[str, ...]
+    max_count: int = 2
+    kind: str = "region"
+
+    def size(self) -> int:
+        """The space this decides over, reported but never enumerated."""
+        return int((self.max_count + 1) ** (2 ** len(self.predicates)))
+
+    def models(self) -> Iterator[RegionModel]:
+        raise SpaceTooLarge(
+            f"{self.describe()} is decided symbolically and is never enumerated"
+        )
+
+    def describe(self) -> str:
+        return (
+            f"region[{len(self.predicates)} predicates, "
+            f"max {self.max_count} per region] decided symbolically"
+        )
+
+    def witness(
+        self, statements: Sequence[Statement], *, refuting: Statement | None = None
+    ) -> RegionModel | None:
+        """A model of ``statements`` (and of ``¬refuting``), or None if there is none."""
+        problem: list[tuple[_Conjunction, ...]] = [
+            region_constraints(s, self.predicates) for s in statements
+        ]
+        if refuting is not None:
+            problem.append(region_constraints(refuting, self.predicates, negated=True))
+        combined: tuple[_Conjunction, ...] = ((),)
+        for dnf in problem:
+            combined = tuple((*left, *right) for left in combined for right in dnf)
+        for conjunction in combined:
+            counts = _solve(conjunction, self.predicates, self.max_count)
+            if counts is not None:
+                return RegionModel(counts=counts, predicates=self.predicates)
+        return None
+
+    def consistent(
+        self, statements: Sequence[Statement], *, refuting: Statement | None = None
+    ) -> bool:
+        return self.witness(statements, refuting=refuting) is not None
+
+
 @dataclass(frozen=True)
 class OrderSpace:
     """Permutations of ``entities`` — one entity per slot, slot 1 first."""
@@ -623,18 +974,158 @@ class Evaluation:
     def supporting(self, index: int) -> int:
         return bin(self.masks[index]).count("1")
 
+    def key(self, index: int) -> int:
+        """An identity for "holds in exactly these cases".
+
+        Two candidates with the same key are the same choice written twice.
+        The enumerated space can answer that exactly — the mask *is* the key.
+        """
+        return self.masks[index]
+
+    @property
+    def decision(self) -> str:
+        return "enumerated"
+
+
+@dataclass(frozen=True)
+class SymbolicEvaluation:
+    """The same answers for a space that is decided rather than enumerated.
+
+    Statuses and keys are both exact: the solver decides each candidate's
+    standing, and :func:`_symbolic_keys` decides sameness by mutual entailment.
+    The *masks* are the approximation — a truth pattern over the witness models
+    the solver happened to build, used to skip the pairs that obviously differ
+    and to report a supporting-model sample where the enumerated space reports
+    a census.
+    """
+
+    statuses: tuple[Status, ...]
+    masks: tuple[int, ...]
+    keys: tuple[int, ...]
+    premise_models: int
+    space_models: int
+
+    def status_of(self, index: int) -> Status:
+        return self.statuses[index]
+
+    def supporting(self, index: int) -> int:
+        """Witness models the candidate holds in — a sample, not a census."""
+        return bin(self.masks[index]).count("1")
+
+    def key(self, index: int) -> int:
+        return self.keys[index]
+
+    @property
+    def decision(self) -> str:
+        return "symbolic"
+
+
+#: What :func:`evaluate` returns: an exact enumeration, or a solved space.
+EvaluationResult = Evaluation | SymbolicEvaluation
+
+
+def _evaluate_symbolic(
+    space: SymbolicRegionSpace,
+    premises: Sequence[Statement],
+    candidates: Sequence[Statement],
+) -> SymbolicEvaluation:
+    """Decide each candidate with two satisfiability questions, not a census.
+
+    ``entailed`` is "no model of the premises refutes it" and ``contradicted``
+    is "no model of the premises satisfies it" — both exact. The witnesses the
+    solver produces along the way are kept as a sample, so choices can still be
+    compared for sameness without an enumeration to compare over.
+    """
+    base = space.witness(premises)
+    if base is None:
+        raise InconsistentPremises(
+            f"premise set has no model in {space.describe()} — "
+            "the schema's premises contradict each other"
+        )
+    statuses: list[Status] = []
+    witnesses: list[RegionModel] = [base]
+    for candidate in candidates:
+        with_it = space.witness([*premises, candidate])
+        against_it = space.witness(premises, refuting=candidate)
+        if with_it is not None and with_it not in witnesses:
+            witnesses.append(with_it)
+        if against_it is not None and against_it not in witnesses:
+            witnesses.append(against_it)
+        if against_it is None:
+            statuses.append("entailed")
+        elif with_it is None:
+            statuses.append("contradicted")
+        else:
+            statuses.append("contingent")
+    masks = tuple(
+        sum(1 << i for i, model in enumerate(witnesses) if candidate.holds(model))
+        for candidate in candidates
+    )
+    return SymbolicEvaluation(
+        statuses=tuple(statuses),
+        masks=masks,
+        keys=_symbolic_keys(space, premises, candidates, masks),
+        premise_models=len(witnesses),
+        space_models=space.size(),
+    )
+
+
+def _symbolic_keys(
+    space: SymbolicRegionSpace,
+    premises: Sequence[Statement],
+    candidates: Sequence[Statement],
+    masks: Sequence[int],
+) -> tuple[int, ...]:
+    """Exact equivalence-class ids for the candidates, cheaply.
+
+    Two candidates are the same choice iff each entails the other given the
+    premises — two solver calls to decide, and far too many pairs to ask about
+    directly when the pool is sixty statements wide. So the witness masks do
+    the coarse work first: candidates that differ on any witness are certainly
+    different, and only those that agree everywhere are compared exactly. The
+    result is the same partition the enumerated space computes with masks.
+    """
+    keys = [0] * len(candidates)
+    buckets: dict[int, list[int]] = {}
+    for index, mask in enumerate(masks):
+        buckets.setdefault(mask, []).append(index)
+    next_key = 0
+    for members in buckets.values():
+        classes: list[list[int]] = []
+        for index in members:
+            for group in classes:
+                other = candidates[group[0]]
+                one = candidates[index]
+                if not space.consistent(
+                    [*premises, one], refuting=other
+                ) and not space.consistent([*premises, other], refuting=one):
+                    group.append(index)
+                    break
+            else:
+                classes.append([index])
+        for group in classes:
+            for index in group:
+                keys[index] = next_key
+            next_key += 1
+    return tuple(keys)
+
 
 def evaluate(
     space: ModelSpace,
     premises: Sequence[Statement],
     candidates: Sequence[Statement],
-) -> Evaluation:
+) -> EvaluationResult:
     """Enumerate once and record where each candidate holds.
+
+    A :class:`SymbolicRegionSpace` is decided instead of enumerated; the result
+    answers the same questions and says which way it was reached.
 
     Raises :class:`InconsistentPremises` for the same reason
     :func:`classify_all` does: a contradiction entails everything, so reporting
     it as a pass would certify all five choices at once.
     """
+    if isinstance(space, SymbolicRegionSpace):
+        return _evaluate_symbolic(space, premises, candidates)
     kept = _satisfying(space, premises)
     if not kept:
         raise InconsistentPremises(
@@ -667,6 +1158,18 @@ def classify_all(
     is not a technicality: a contradiction entails every candidate, so a schema
     in that state would report all five choices as correct answers.
     """
+    if isinstance(space, SymbolicRegionSpace):
+        pool = list(candidates)
+        result = _evaluate_symbolic(space, premises, pool)
+        return [
+            Classification(
+                status=result.status_of(i),
+                supporting=result.supporting(i),
+                premise_models=result.premise_models,
+                space_models=result.space_models,
+            )
+            for i in range(len(pool))
+        ]
     kept = _satisfying(space, premises)
     if not kept:
         raise InconsistentPremises(
@@ -709,6 +1212,8 @@ def entails(
 
 def satisfiable(space: ModelSpace, statements: Sequence[Statement]) -> bool:
     """True when some model satisfies every statement."""
+    if isinstance(space, SymbolicRegionSpace):
+        return space.consistent(statements)
     return bool(_satisfying(space, statements))
 
 
@@ -724,5 +1229,11 @@ def equivalent(
     (or two wrong ones that a reviewer will argue about), so the verifier
     rejects an item where any pair is.
     """
+    if isinstance(space, SymbolicRegionSpace):
+        # Mutual entailment, which is what "same in every case" means when
+        # there is no enumeration to compare over.
+        return not space.consistent([*premises, one], refuting=other) and not (
+            space.consistent([*premises, other], refuting=one)
+        )
     kept = _satisfying(space, premises)
     return all(one.holds(m) == other.holds(m) for m in kept)

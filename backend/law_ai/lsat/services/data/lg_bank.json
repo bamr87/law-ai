@@ -231,7 +231,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "lg-game-002"
+      "passage_id": "lg-game-002",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lg-007",
@@ -269,7 +275,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "lg-game-003"
+      "passage_id": "lg-game-003",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lg-008",
@@ -307,7 +319,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "lg-game-002"
+      "passage_id": "lg-game-002",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lg-009",
@@ -346,7 +364,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "lg-game-002"
+      "passage_id": "lg-game-002",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lg-010",
@@ -384,7 +408,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "lg-game-004"
+      "passage_id": "lg-game-004",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lg-011",
@@ -422,7 +452,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "lg-game-004"
+      "passage_id": "lg-game-004",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lg-012",
@@ -460,7 +496,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "lg-game-003"
+      "passage_id": "lg-game-003",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lg-013",
@@ -498,7 +540,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "lg-game-004"
+      "passage_id": "lg-game-004",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lg-014",
@@ -537,7 +585,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "lg-game-002"
+      "passage_id": "lg-game-002",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lg-015",
@@ -575,7 +629,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "lg-game-004"
+      "passage_id": "lg-game-004",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lg-016",
@@ -613,7 +673,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "lg-game-004"
+      "passage_id": "lg-game-004",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lg-017",
@@ -651,7 +717,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "lg-game-003"
+      "passage_id": "lg-game-003",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lg-018",
@@ -689,7 +761,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "lg-game-002"
+      "passage_id": "lg-game-002",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lg-019",
@@ -727,7 +805,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "lg-game-003"
+      "passage_id": "lg-game-003",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lg-020",
@@ -915,6 +999,1070 @@
       "concepts": [
         "max-min",
         "numeric-distribution"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-025",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "easy",
+      "passage_id": "lg-game-006",
+      "stem": "Which one of the following could be an accurate schedule of the presentations, from first to fifth, with the room for each?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "R: Belfry; Q: Atrium; S: Atrium; T: Belfry; W: Belfry"
+        },
+        {
+          "label": "B",
+          "text": "S: Atrium; Q: Belfry; R: Atrium; T: Belfry; W: Atrium"
+        },
+        {
+          "label": "C",
+          "text": "Q: Belfry; S: Belfry; R: Atrium; T: Belfry; W: Atrium"
+        },
+        {
+          "label": "D",
+          "text": "Q: Atrium; S: Atrium; T: Belfry; W: Atrium; R: Atrium"
+        },
+        {
+          "label": "E",
+          "text": "Q: Belfry; W: Atrium; S: Atrium; T: Belfry; R: Belfry"
+        }
+      ],
+      "correct": "B",
+      "explanation": "B satisfies every condition: Q precedes R, T is in the Belfry, S is not, the third presentation (R) is in the Atrium, W follows T in the Belfry, and R and W are both in the Atrium. A puts R before Q, violating condition 1. C puts S in the Belfry with T, violating condition 3. D gives the third slot to T in the Belfry, violating condition 4. E splits R and W between the two rooms, violating condition 6.",
+      "concepts": [
+        "hybrid-game",
+        "elimination-grid"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-026",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-006",
+      "stem": "Which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Q is presented in the Atrium."
+        },
+        {
+          "label": "B",
+          "text": "R is presented in the Belfry."
+        },
+        {
+          "label": "C",
+          "text": "T is not presented third."
+        },
+        {
+          "label": "D",
+          "text": "W is presented at some time after T."
+        },
+        {
+          "label": "E",
+          "text": "Exactly two presentations are given in the Atrium."
+        }
+      ],
+      "correct": "C",
+      "explanation": "Condition 2 puts T in the Belfry and condition 4 requires the third presentation to be in the Atrium, so T cannot occupy slot three — C. Both rooms remain open to Q (A) and to R (B), since only T and S are pinned. D fails on the schedule S, Q, W, R, T, where W comes before T. E fixes a count the rules leave free: the Atrium can hold as few as one presentation (S alone) or as many as four.",
+      "concepts": [
+        "hybrid-game",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-027",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-006",
+      "stem": "What is the maximum number of presentations that can be given in the Belfry?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "one"
+        },
+        {
+          "label": "B",
+          "text": "two"
+        },
+        {
+          "label": "C",
+          "text": "three"
+        },
+        {
+          "label": "D",
+          "text": "four"
+        },
+        {
+          "label": "E",
+          "text": "five"
+        }
+      ],
+      "correct": "D",
+      "explanation": "Four, so D. The ceiling has two halves. S can never join the Belfry: condition 2 puts T there and condition 3 keeps S out of T's room, so S is always in the Atrium and five is impossible, which disposes of E. Four is reached by the schedule Q(Belfry), T(Belfry), S(Atrium), R(Belfry), W(Belfry): Q precedes R, the third presentation is in the Atrium, W follows R in the Belfry, and R and W share a room. That witness rules out A, B and C, which all understate what the rules permit.",
+      "concepts": [
+        "max-min",
+        "hybrid-game"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-028",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "hard",
+      "passage_id": "lg-game-006",
+      "stem": "Which one of the following could be a complete and accurate list of the presentations given in the Atrium?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "S, T"
+        },
+        {
+          "label": "B",
+          "text": "Q, R, S"
+        },
+        {
+          "label": "C",
+          "text": "Q, S, W"
+        },
+        {
+          "label": "D",
+          "text": "Q, R, S, T, W"
+        },
+        {
+          "label": "E",
+          "text": "R, S, W"
+        }
+      ],
+      "correct": "E",
+      "explanation": "Condition 2 keeps T in the Belfry, which eliminates A and D outright. Condition 6 makes R and W a pair, so a list containing one without the other is impossible: that is B and C. E survives and is realized by Q(Belfry), T(Belfry), W(Atrium), R(Atrium), S(Atrium), which meets every condition.",
+      "concepts": [
+        "numeric-distribution",
+        "hybrid-game"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-029",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "hard",
+      "passage_id": "lg-game-006",
+      "stem": "Which one of the following, if substituted for the condition that S and T are not presented in the same room, would have the same effect in determining the schedule of presentations?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "S is presented in the Atrium."
+        },
+        {
+          "label": "B",
+          "text": "S and W are presented in the same room."
+        },
+        {
+          "label": "C",
+          "text": "S and R are not presented in the same room."
+        },
+        {
+          "label": "D",
+          "text": "T is not presented in the Atrium."
+        },
+        {
+          "label": "E",
+          "text": "S is presented at some time before T."
+        }
+      ],
+      "correct": "A",
+      "explanation": "Condition 2 already fixes T in the Belfry, so 'S is not in T's room' says no more and no less than 'S is in the Atrium' — A reproduces the original schedule set exactly. B ties S to W and so bars arrangements the original allows, such as S in the Atrium with W in the Belfry. C does the same with R. D merely restates condition 2 and therefore drops the constraint on S altogether, admitting schedules with S in the Belfry. E is an ordering rule that neither implies nor is implied by a room rule.",
+      "concepts": [
+        "rule-substitution",
+        "hybrid-game"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-030",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-006",
+      "stem": "If S is presented first, which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Q is presented second."
+        },
+        {
+          "label": "B",
+          "text": "T is presented second."
+        },
+        {
+          "label": "C",
+          "text": "R is presented fifth."
+        },
+        {
+          "label": "D",
+          "text": "W is presented either third or fifth."
+        },
+        {
+          "label": "E",
+          "text": "Exactly two presentations are given in the Belfry."
+        }
+      ],
+      "correct": "D",
+      "explanation": "With S first, condition 5 leaves W only two homes. W cannot be second, because the first presentation is S in the Atrium; W cannot be fourth, because the third presentation is in the Atrium by condition 4. Slots three and five are both reachable, so D must be true. A and B are each possible and neither is forced — the second slot may go to Q or to T. C happens on S, Q, W, T, R but fails on S, Q, R, T, W. E is not fixed: T may be the only presentation in the Belfry.",
+      "concepts": [
+        "hybrid-game",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-031",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "hard",
+      "passage_id": "lg-game-001",
+      "stem": "Which one of the following, if substituted for the condition that K does not argue first, would have the same effect in determining the order in which the associates argue?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "K argues at some time after G."
+        },
+        {
+          "label": "B",
+          "text": "F argues first or second."
+        },
+        {
+          "label": "C",
+          "text": "Either F or G argues first."
+        },
+        {
+          "label": "D",
+          "text": "H does not argue second."
+        },
+        {
+          "label": "E",
+          "text": "K does not argue immediately before J."
+        }
+      ],
+      "correct": "C",
+      "explanation": "The other two conditions leave F-H as a block with J fourth, so only four orders survive them: F, H, G, J, K; F, H, K, J, G; G, F, H, J, K; and K, F, H, J, G. The first slot can therefore hold only F, G or K, which makes 'K does not argue first' and 'either F or G argues first' the same rule — C. A is stronger than the original: it also bars F, H, K, J, G, where K argues before G. B and D are weaker in the same way, each admitting K, F, H, J, G, the order the original exists to exclude. E both admits that order and bars F, H, K, J, G, so it matches the original in count but not in content.",
+      "concepts": [
+        "rule-substitution",
+        "sequencing"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-032",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "intro",
+      "passage_id": "lg-game-007",
+      "stem": "Which one of the following could be an accurate assignment of clients to attorneys?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Perez: F, J; Rao: G, H; Suzuki: K, L"
+        },
+        {
+          "label": "B",
+          "text": "Perez: F, H, J; Rao: G, K; Suzuki: L"
+        },
+        {
+          "label": "C",
+          "text": "Perez: F, G, J; Rao: H; Suzuki: K, L"
+        },
+        {
+          "label": "D",
+          "text": "Perez: F, J, K, L; Rao: H; Suzuki: G"
+        },
+        {
+          "label": "E",
+          "text": "Perez: F, K, L; Rao: G, H; Suzuki: J"
+        }
+      ],
+      "correct": "D",
+      "explanation": "D breaks no condition: Perez has four clients to Suzuki's one, F and G are apart, H is with Rao and J is with Perez, and K and L are together. A gives Perez and Suzuki two clients each, violating condition 1. B splits K from L, violating condition 4. C puts F and G together, violating condition 2. E assigns H to Rao without assigning J to Perez, violating condition 3.",
+      "concepts": [
+        "grouping-game",
+        "elimination-grid"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-033",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-007",
+      "stem": "Which one of the following could be an accurate list of the number of clients assigned to Perez, to Rao, and to Suzuki, respectively?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "2, 2, 2"
+        },
+        {
+          "label": "B",
+          "text": "3, 1, 2"
+        },
+        {
+          "label": "C",
+          "text": "1, 3, 2"
+        },
+        {
+          "label": "D",
+          "text": "2, 1, 3"
+        },
+        {
+          "label": "E",
+          "text": "4, 2, 0"
+        }
+      ],
+      "correct": "B",
+      "explanation": "Condition 1 requires Perez to have strictly more clients than Suzuki, which eliminates A, C and D at a glance. E gives Suzuki none, and the setup requires every attorney to have at least one. B survives, and is realized by Perez: F, H, J; Rao: G; Suzuki: K, L — F and G are apart, K and L are together, and condition 3 stays idle because H is not with Rao.",
+      "concepts": [
+        "numeric-distribution",
+        "grouping-game"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-034",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-007",
+      "stem": "If H is assigned to Rao, which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "F is assigned to Perez."
+        },
+        {
+          "label": "B",
+          "text": "K and L are assigned to Rao."
+        },
+        {
+          "label": "C",
+          "text": "G is assigned to Suzuki."
+        },
+        {
+          "label": "D",
+          "text": "Rao is assigned exactly one client."
+        },
+        {
+          "label": "E",
+          "text": "Suzuki is assigned exactly one client."
+        }
+      ],
+      "correct": "E",
+      "explanation": "H with Rao forces J to Perez by condition 3. Suzuki must then have at least one client and cannot have two: with H and J spoken for, the only pairs left to give Suzuki are drawn from F, G, K and L, and K and L travel together, which would leave Perez with at most two clients against Suzuki's two, breaking condition 1. So Suzuki has exactly one — E. F and G may be assigned either way round, which disposes of A and C. B and D describe arrangements that are possible but not forced: K and L may sit with Perez instead, leaving Rao with H alone.",
+      "concepts": [
+        "conditional-reasoning",
+        "grouping-game"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-035",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "hard",
+      "passage_id": "lg-game-007",
+      "stem": "If K and L are assigned to Suzuki, which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "J is assigned to Perez."
+        },
+        {
+          "label": "B",
+          "text": "F is assigned to Perez."
+        },
+        {
+          "label": "C",
+          "text": "G is assigned to Rao."
+        },
+        {
+          "label": "D",
+          "text": "Rao is assigned exactly two clients."
+        },
+        {
+          "label": "E",
+          "text": "H is assigned to Rao."
+        }
+      ],
+      "correct": "A",
+      "explanation": "Suzuki now has two, so condition 1 gives Perez at least three, drawn from F, G, H and J. Condition 2 keeps F and G apart, so Perez's three must include both H and J and exactly one of F and G — and every one of those arrangements leaves Rao the other of F and G. J is therefore with Perez in each: A. E fails on the same count, since H is with Perez. D is false: Rao has exactly one. B and C are each true in one of the two arrangements and false in the other.",
+      "concepts": [
+        "conditional-reasoning",
+        "numeric-distribution"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-036",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "elite",
+      "passage_id": "lg-game-007",
+      "stem": "Each of the following could be true EXCEPT:",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Perez is assigned four clients."
+        },
+        {
+          "label": "B",
+          "text": "Rao is assigned three clients."
+        },
+        {
+          "label": "C",
+          "text": "Suzuki is assigned three clients."
+        },
+        {
+          "label": "D",
+          "text": "K and L are assigned to Suzuki."
+        },
+        {
+          "label": "E",
+          "text": "H and J are assigned to the same attorney."
+        }
+      ],
+      "correct": "C",
+      "explanation": "Suzuki with three leaves three clients for Perez and Rao together, and condition 1 then demands that Perez have four or more — impossible. So C cannot be true. Each of the others is realized: Perez: F, J, K, L; Rao: H; Suzuki: G gives A. Perez: F, J; Rao: H, K, L; Suzuki: G gives B. Perez: F, H, J; Rao: G; Suzuki: K, L gives D, and gives E as well, since H and J sit together with Perez there.",
+      "concepts": [
+        "numeric-distribution",
+        "could-be-true-except"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-037",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "intro",
+      "passage_id": "lg-game-008",
+      "stem": "Which one of the following could be an accurate schedule of the depositions, from day 1 through day 7?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "L, T, M, P, N, R, S"
+        },
+        {
+          "label": "B",
+          "text": "L, T, M, N, R, P, S"
+        },
+        {
+          "label": "C",
+          "text": "L, T, S, M, N, P, R"
+        },
+        {
+          "label": "D",
+          "text": "T, L, M, N, P, R, S"
+        },
+        {
+          "label": "E",
+          "text": "L, T, M, N, P, R, S"
+        }
+      ],
+      "correct": "E",
+      "explanation": "E meets every condition: N precedes P, M on day 3 and R on day 6 have exactly two depositions between them, S is last, and T follows L immediately. A deposes P before N, violating condition 1. B puts M on day 3 and R on day 5, with only one deposition between them, violating condition 2. C deposes S third, violating condition 3. D puts T before L, violating condition 4.",
+      "concepts": [
+        "sequencing",
+        "elimination-grid"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-038",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-008",
+      "stem": "Which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "T is not deposed first."
+        },
+        {
+          "label": "B",
+          "text": "M is deposed fourth."
+        },
+        {
+          "label": "C",
+          "text": "S is deposed seventh."
+        },
+        {
+          "label": "D",
+          "text": "L is deposed second."
+        },
+        {
+          "label": "E",
+          "text": "R is deposed at some time before M."
+        }
+      ],
+      "correct": "A",
+      "explanation": "Condition 4 puts L immediately before T, so something always precedes T and T is never first — A. Each of the others could be true and none is forced. L, T, M, N, P, R, S deposes S seventh and M third; R, L, T, M, N, P, S deposes M fourth, puts L second and deposes R before M; and S, L, T, M, N, P, R deposes S first and M before R. Condition 2 fixes the gap between M and R but not their order.",
+      "concepts": [
+        "sequencing",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-039",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-008",
+      "stem": "If S is deposed first, which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "L is deposed second."
+        },
+        {
+          "label": "B",
+          "text": "P is deposed sixth."
+        },
+        {
+          "label": "C",
+          "text": "M is deposed at some time before R."
+        },
+        {
+          "label": "D",
+          "text": "T is deposed no earlier than third."
+        },
+        {
+          "label": "E",
+          "text": "R is deposed seventh."
+        }
+      ],
+      "correct": "D",
+      "explanation": "With day 1 taken by S, L can be no earlier than day 2, and condition 4 puts T on the day after L — so T falls on day 3 or later, which is D. A, B, C and E are each possible and none is forced: S, L, T, M, N, P, R has L second and R seventh, while S, M, L, T, R, N, P has L third, R fifth, and M before R. S, L, T, M, N, P, R also puts P sixth, and S, N, P, M, L, T, R puts P third.",
+      "concepts": [
+        "sequencing",
+        "conditional-reasoning"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-040",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "hard",
+      "passage_id": "lg-game-008",
+      "stem": "If N is deposed first, which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "L is deposed third."
+        },
+        {
+          "label": "B",
+          "text": "M is deposed second."
+        },
+        {
+          "label": "C",
+          "text": "P is deposed sixth."
+        },
+        {
+          "label": "D",
+          "text": "R is deposed fifth."
+        },
+        {
+          "label": "E",
+          "text": "S is deposed seventh."
+        }
+      ],
+      "correct": "E",
+      "explanation": "Condition 3 allows S only day 1 or day 7, and N has taken day 1, so S is last — E. The four schedules that satisfy every condition with N first are N, M, L, T, R, P, S; N, P, M, L, T, R, S; N, P, R, L, T, M, S; and N, R, L, T, M, P, S. L is third in two of them and fourth in the other two, which disposes of A; M is second in one only and R fifth in one only, and P is sixth in two of them but second in the other two, which disposes of B, C and D.",
+      "concepts": [
+        "sequencing",
+        "conditional-reasoning"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-041",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "elite",
+      "passage_id": "lg-game-008",
+      "stem": "Each of the following could be true EXCEPT:",
+      "choices": [
+        {
+          "label": "A",
+          "text": "N is deposed second."
+        },
+        {
+          "label": "B",
+          "text": "L is deposed sixth."
+        },
+        {
+          "label": "C",
+          "text": "T is deposed fourth and P is deposed third."
+        },
+        {
+          "label": "D",
+          "text": "R is deposed first."
+        },
+        {
+          "label": "E",
+          "text": "M is deposed seventh and R is deposed fourth."
+        }
+      ],
+      "correct": "C",
+      "explanation": "If T is deposed fourth, condition 4 puts L third, so P cannot also be third: C cannot be true. Every other option is realized by a schedule that satisfies all four conditions. S, N, P, M, L, T, R deposes N second, for A. S, M, N, P, R, L, T deposes L sixth, for B. R, L, T, M, N, P, S deposes R first, for D. And S, N, P, R, L, T, M deposes R fourth and M seventh, for E.",
+      "concepts": [
+        "sequencing",
+        "could-be-true-except"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-042",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "intro",
+      "passage_id": "lg-game-009",
+      "stem": "Which one of the following could be a complete and accurate list of the essays selected?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Q, R, T"
+        },
+        {
+          "label": "B",
+          "text": "R, T, W"
+        },
+        {
+          "label": "C",
+          "text": "R, S, W"
+        },
+        {
+          "label": "D",
+          "text": "Q, T, W"
+        },
+        {
+          "label": "E",
+          "text": "R, S, T, V"
+        }
+      ],
+      "correct": "B",
+      "explanation": "B satisfies every condition: Q is out, so condition 1 is idle; T is in, satisfying condition 2; W is in and so is R, satisfying condition 3; and V is out, so condition 4 is idle. A selects Q and R together, violating condition 1. C selects neither T nor V, violating condition 2. D selects W without R, violating condition 3. E selects S and V together, violating condition 4.",
+      "concepts": [
+        "in-out-selection",
+        "elimination-grid"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-043",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-009",
+      "stem": "If Q is selected, which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "T is selected."
+        },
+        {
+          "label": "B",
+          "text": "S is selected."
+        },
+        {
+          "label": "C",
+          "text": "V is selected."
+        },
+        {
+          "label": "D",
+          "text": "Exactly four essays are selected."
+        },
+        {
+          "label": "E",
+          "text": "W is selected."
+        }
+      ],
+      "correct": "A",
+      "explanation": "Q rules out R by condition 1, and W needs R by condition 3, so W is out too. Three essays must still be chosen from Q, S, T and V, which means all but one of them; since S and V cannot both be selected (condition 4), the three are Q, T and one of S or V — T is in either way, which is A. Those same two selections show that B and C are each possible without being necessary. D asks for four, which the count above rules out, and E asks for the W that condition 3 has already excluded.",
+      "concepts": [
+        "in-out-selection",
+        "conditional-reasoning"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-044",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-009",
+      "stem": "What is the greatest number of essays that could be selected?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "two"
+        },
+        {
+          "label": "B",
+          "text": "three"
+        },
+        {
+          "label": "C",
+          "text": "four"
+        },
+        {
+          "label": "D",
+          "text": "five"
+        },
+        {
+          "label": "E",
+          "text": "six"
+        }
+      ],
+      "correct": "C",
+      "explanation": "Four, so C. Five would mean leaving out exactly one essay, and condition 1 requires that the one left out be Q or R. Leaving out Q keeps S and V together, which condition 4 forbids; leaving out R keeps W without R, which condition 3 forbids. Six fails for both reasons at once, which disposes of D and E. Four is reached by R, S, T and W: Q is out, T satisfies condition 2, R carries W, and V is out. A is below the three-essay floor the setup imposes, and B understates the maximum.",
+      "concepts": [
+        "in-out-selection",
+        "max-min"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-045",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "hard",
+      "passage_id": "lg-game-009",
+      "stem": "If V is selected, which one of the following could be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "S is selected."
+        },
+        {
+          "label": "B",
+          "text": "W is selected."
+        },
+        {
+          "label": "C",
+          "text": "Exactly two essays are selected."
+        },
+        {
+          "label": "D",
+          "text": "Q and R are both selected."
+        },
+        {
+          "label": "E",
+          "text": "Neither T nor W is selected."
+        }
+      ],
+      "correct": "B",
+      "explanation": "R, V and W is a complete selection that breaks no condition — three essays, V satisfies condition 2, R carries W, and S is out — so B could be true. A is barred by condition 4, which keeps S and V apart. D is barred by condition 1. C is below the floor of three. E is the interesting one: with V in, S is out, so the remaining essays are Q, R, T and W, and dropping both T and W leaves at most Q, R and V — a pair condition 1 forbids, so no selection of three survives.",
+      "concepts": [
+        "in-out-selection",
+        "conditional-reasoning"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-046",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "elite",
+      "passage_id": "lg-game-009",
+      "stem": "Each of the following could be true EXCEPT:",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Exactly four essays are selected."
+        },
+        {
+          "label": "B",
+          "text": "R is selected but T is not."
+        },
+        {
+          "label": "C",
+          "text": "W is selected but S is not."
+        },
+        {
+          "label": "D",
+          "text": "S is selected but T is not."
+        },
+        {
+          "label": "E",
+          "text": "V is selected but R is not."
+        }
+      ],
+      "correct": "D",
+      "explanation": "S selected puts V out by condition 4, and condition 2 then requires T — so D cannot be true, and the chain takes two steps rather than one. Each of the others is a real selection: R, S, T and W gives A; R, V and W gives B and also C; Q, T and V gives E.",
+      "concepts": [
+        "in-out-selection",
+        "could-be-true-except"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-047",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "intro",
+      "passage_id": "lg-game-010",
+      "stem": "Which one of the following could be an accurate schedule of the volunteers?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Monday: B (morning), F (afternoon); Tuesday: C (morning), G (afternoon); Wednesday: D (morning), E (afternoon)"
+        },
+        {
+          "label": "B",
+          "text": "Monday: C (morning), G (afternoon); Tuesday: B (morning), F (afternoon); Wednesday: D (morning), E (afternoon)"
+        },
+        {
+          "label": "C",
+          "text": "Monday: B (morning), C (afternoon); Tuesday: G (morning), F (afternoon); Wednesday: D (morning), E (afternoon)"
+        },
+        {
+          "label": "D",
+          "text": "Monday: B (morning), F (afternoon); Tuesday: C (morning), D (afternoon); Wednesday: G (morning), E (afternoon)"
+        },
+        {
+          "label": "E",
+          "text": "Monday: B (morning), G (afternoon); Tuesday: C (morning), F (afternoon); Wednesday: D (morning), E (afternoon)"
+        }
+      ],
+      "correct": "A",
+      "explanation": "A breaks no condition: B is on Monday, C works a morning, D and E share Wednesday, F works an afternoon, and F and C are on different days. B puts B on Tuesday, violating condition 1. C gives C an afternoon, violating condition 2. D splits D and E between Tuesday and Wednesday, violating condition 3. E puts F and C both on Tuesday, violating condition 5.",
+      "concepts": [
+        "elimination-grid",
+        "grouping-game"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-048",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-010",
+      "stem": "Which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "B works a morning shift."
+        },
+        {
+          "label": "B",
+          "text": "C works on Monday."
+        },
+        {
+          "label": "C",
+          "text": "F works on Monday."
+        },
+        {
+          "label": "D",
+          "text": "Neither D nor E works on Monday."
+        },
+        {
+          "label": "E",
+          "text": "G works on Tuesday."
+        }
+      ],
+      "correct": "D",
+      "explanation": "Condition 1 puts B on Monday, which leaves Monday one open shift; condition 3 requires D and E to share a day, and a shared day takes both of its shifts. Monday cannot hold them, so D is right. Each of the others is possible and none is forced: B may work either Monday shift; C may work Monday, Tuesday or Wednesday; F may work Monday, Tuesday or Wednesday; and G may work Tuesday or Wednesday.",
+      "concepts": [
+        "grouping-game",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-049",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "med",
+      "passage_id": "lg-game-010",
+      "stem": "If C works on Tuesday, which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "D works a morning shift."
+        },
+        {
+          "label": "B",
+          "text": "F works Monday afternoon."
+        },
+        {
+          "label": "C",
+          "text": "G works a morning shift."
+        },
+        {
+          "label": "D",
+          "text": "E works Wednesday morning."
+        },
+        {
+          "label": "E",
+          "text": "B works an afternoon shift."
+        }
+      ],
+      "correct": "B",
+      "explanation": "C on Tuesday keeps F off Tuesday by condition 5, and D and E need a whole day, which only Wednesday can now supply — so F must work Monday, in the afternoon by condition 4. That is B, and it also fixes B on Monday morning, which is why E is false. C is false too: with C in Tuesday's morning, the Tuesday afternoon shift is G's. A and D each hold in one of the two remaining schedules and fail in the other, since D and E may take Wednesday's shifts in either order.",
+      "concepts": [
+        "grouping-game",
+        "conditional-reasoning"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-050",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "hard",
+      "passage_id": "lg-game-010",
+      "stem": "If G works on Wednesday, which one of the following must be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "C works on Wednesday."
+        },
+        {
+          "label": "B",
+          "text": "F works on Monday."
+        },
+        {
+          "label": "C",
+          "text": "B works a morning shift."
+        },
+        {
+          "label": "D",
+          "text": "G works an afternoon shift."
+        },
+        {
+          "label": "E",
+          "text": "D and E work on Tuesday."
+        }
+      ],
+      "correct": "E",
+      "explanation": "D and E need both shifts of one day. B has Monday, and G now has one of Wednesday's two shifts, so the only day left whole is Tuesday — E. The four schedules that satisfy every condition with G on Wednesday divide evenly: in two of them C works Wednesday morning with B and F on Monday, and in the other two C works Monday morning with B beside her in the afternoon and F on Wednesday. A, B, C and D each hold in one pair and fail in the other.",
+      "concepts": [
+        "grouping-game",
+        "conditional-reasoning"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-051",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "elite",
+      "passage_id": "lg-game-010",
+      "stem": "Each of the following could be true EXCEPT:",
+      "choices": [
+        {
+          "label": "A",
+          "text": "B works a morning shift."
+        },
+        {
+          "label": "B",
+          "text": "F works on Wednesday."
+        },
+        {
+          "label": "C",
+          "text": "G works a morning shift."
+        },
+        {
+          "label": "D",
+          "text": "C works on Wednesday."
+        },
+        {
+          "label": "E",
+          "text": "D and F work on the same day."
+        }
+      ],
+      "correct": "E",
+      "explanation": "The day D works is the day E works, and the two of them fill it, so no third volunteer can be scheduled there — F included. E therefore cannot be true, and seeing it means reading condition 3 as a claim about capacity rather than about D and E alone. The others all occur. B Monday morning, F Monday afternoon, C Tuesday morning, G Tuesday afternoon, D and E Wednesday: that is A. C Monday morning, B Monday afternoon, D and E Tuesday, G Wednesday morning, F Wednesday afternoon: that is B and C together. B Monday morning, F Monday afternoon, D and E Tuesday, C Wednesday morning, G Wednesday afternoon: that is D.",
+      "concepts": [
+        "grouping-game",
+        "could-be-true-except"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-052",
+      "section": "LG",
+      "type": "LG",
+      "difficulty": "elite",
+      "passage_id": "lg-game-003",
+      "stem": "Which one of the following could be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "N testifies second and R testifies fifth."
+        },
+        {
+          "label": "B",
+          "text": "M testifies fifth and N testifies first."
+        },
+        {
+          "label": "C",
+          "text": "R testifies second."
+        },
+        {
+          "label": "D",
+          "text": "P testifies third and L testifies sixth."
+        },
+        {
+          "label": "E",
+          "text": "N testifies sixth."
+        }
+      ],
+      "correct": "D",
+      "explanation": "Only four orders satisfy every condition — L, M, P, T, N, R; L, N, R, T, M, P; M, P, N, T, R, L; and N, M, P, T, R, L — and D is realized by the last of them. E is impossible because N must leave room for R after it, and the sixth session is the last. C fails because R second forces N first, leaving M and P to fill sessions three and five around T, which condition 1 forbids. A and B each describe a placement no surviving order contains: with N second, R can only be third, and with N first, M and P must take two consecutive sessions that do not straddle T.",
+      "concepts": [
+        "sequencing",
+        "could-be-true-except"
       ],
       "references": [],
       "source": "original (CC0)"

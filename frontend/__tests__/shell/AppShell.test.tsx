@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import AppShell from '@/components/shell/AppShell'
 import { INSTANCE_SCOPE } from '@/lib/scope/instance'
@@ -65,6 +65,29 @@ describe('AppShell', () => {
     expect(url).toContain('inspector=0')
   })
 
+  it('gives every masthead control the 44px tap target', () => {
+    // WCAG 2.5.8 sets a 24px floor; the masthead is the chrome a thumb hits
+    // first at 390px, so it gets the 44px HIG/AAA guideline instead
+    // (BL-20260831-11). `.tap-target` supplies the height; `scripts/ux_audit.py`
+    // R14 keeps the class on these controls.
+    render(
+      <AppShell sidebar={<div>SIDEBAR</div>} inspector={<div>INSPECTOR</div>}>
+        <p>MAIN</p>
+      </AppShell>,
+    )
+    const masthead = screen.getByTestId('masthead')
+    for (const name of [
+      'Law AI home',
+      'Open command palette',
+      'Collapse sidebar',
+      'Collapse inspector',
+    ]) {
+      expect(within(masthead).getByRole(/home/.test(name) ? 'link' : 'button', {
+        name,
+      })).toHaveClass('tap-target')
+    }
+  })
+
   it('closes the inspector by default on a non-UPL route', () => {
     window.localStorage.clear()
     nav.params = new URLSearchParams()
@@ -116,7 +139,26 @@ describe('AppShell', () => {
     )
     // A phone still needs its primary navigation.
     expect(screen.getByTestId('mobile-tabbar')).toBeInTheDocument()
+    // …and a mouse user who does not know ⌘K needs a way to change module
+    // that does not depend on the (also hideable) breadcrumb trail
+    // (BL-20260905-08).
+    expect(screen.getByRole('button', { name: 'Modules' })).toBeInTheDocument()
     window.localStorage.clear()
+  })
+
+  it('offers no Modules menu while the rail is showing', () => {
+    window.localStorage.clear()
+    nav.path = '/graph'
+    nav.params = new URLSearchParams()
+    render(
+      <AppShell sidebar={<div>SIDEBAR</div>} inspector={<div>INSPECTOR</div>}>
+        <p>MAIN</p>
+      </AppShell>,
+    )
+    expect(screen.getByTestId('nav-rail')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Modules' }),
+    ).not.toBeInTheDocument()
   })
 
   it('docks the sidebar on the right when asked, outermost', async () => {

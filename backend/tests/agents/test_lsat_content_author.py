@@ -315,3 +315,142 @@ class TestNormalizeChoices:
         mod._normalize_choices(item)
         # Not all of A-E present → untouched, so DraftQuestion can reject it.
         assert len(item["choices"]) == 2
+
+
+def _keyed_drafts_payload(keys: list[str], section: str = "LR") -> str:
+    """A batch whose answer keys are exactly *keys* (one draft per key)."""
+    return json.dumps(
+        {
+            "drafts": [
+                {
+                    "section": section,
+                    "difficulty": "med",
+                    "stem": f"Balance stem #{i} about {key}.",
+                    "choices": [
+                        {"label": label, "text": f"{label} choice"}
+                        for label in ["A", "B", "C", "D", "E"]
+                    ],
+                    "correct": key,
+                    "explanation": (
+                        f"Correct {key} because reasoning. The others each fail."
+                    ),
+                    "concepts": ["parallel-reasoning"],
+                    "confidence": 0.8,
+                }
+                for i, key in enumerate(keys)
+            ]
+        }
+    )
+
+
+class TestAnswerKeySkew:
+    """BL-20260606-02: batches are *checked* for A-E spread, not just asked."""
+
+    def test_flags_a_dominant_key(self) -> None:
+        from law_ai.agents_runtime.crews.lsat_content_author import answer_key_skew
+
+        flag = answer_key_skew(["C", "C", "C", "A"])
+        assert flag is not None
+        assert "skew" in flag and "3/4" in flag and "'C'" in flag
+
+    def test_spread_batch_is_not_flagged(self) -> None:
+        from law_ai.agents_runtime.crews.lsat_content_author import answer_key_skew
+
+        assert answer_key_skew(["A", "C", "E"]) is None
+
+    def test_batch_below_sample_size_carries_no_signal(self) -> None:
+        from law_ai.agents_runtime.crews.lsat_content_author import answer_key_skew
+
+        assert answer_key_skew(["B", "B"]) is None
+        assert answer_key_skew([]) is None
+
+    def test_explicit_tolerance_wins_over_the_default(self) -> None:
+        from law_ai.agents_runtime.crews.lsat_content_author import answer_key_skew
+
+        keys = ["A", "A", "B", "C"]  # top share 0.50
+        assert answer_key_skew(keys, 0.60) is None
+        assert answer_key_skew(keys, 0.25) is not None
+
+    def test_default_tolerance_tracks_the_factory_setting(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Factory and direct paths must agree on what "skewed" means."""
+        from django.conf import settings
+
+        from law_ai.agents_runtime.crews.lsat_content_author import (
+            answer_key_skew,
+            default_balance_tolerance,
+        )
+
+        monkeypatch.setattr(
+            settings, "LSAT_FACTORY_BALANCE_TOLERANCE", 0.9, raising=False
+        )
+        assert default_balance_tolerance() == 0.9
+        assert answer_key_skew(["A", "A", "A", "B"]) is None
+
+
+class TestRunBalanceFlag:
+    @pytest.mark.asyncio
+    async def test_skewed_llm_batch_is_flagged_not_rejected(self) -> None:
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
+
+        agent = mod.LSATContentAuthor()
+        with (
+            patch.object(
+                mod.llm,
+                "agenerate",
+                new=AsyncMock(
+                    return_value=_llm_result(_keyed_drafts_payload(["D"] * 4))
+                ),
+            ),
+            patch.object(
+                mod.provenance, "log_agent_call", return_value="trace-skew"
+            ) as mock_log,
+        ):
+            out = await agent.run(
+                {"section": "LR", "difficulty": "med", "count": 4, "concepts": []}
+            )
+        assert len(out.drafts) == 4, "flag, don't reject"
+        assert out.balance_flag is not None and "'D'" in out.balance_flag
+        assert (
+            mock_log.call_args.kwargs["output_data"]["balance_flag"] == out.balance_flag
+        )
+
+    @pytest.mark.asyncio
+    async def test_spread_llm_batch_has_no_flag(self) -> None:
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
+
+        agent = mod.LSATContentAuthor()
+        with (
+            patch.object(
+                mod.llm,
+                "agenerate",
+                new=AsyncMock(
+                    return_value=_llm_result(_keyed_drafts_payload(["A", "C", "E"]))
+                ),
+            ),
+            patch.object(mod.provenance, "log_agent_call", return_value="trace-ok"),
+        ):
+            out = await agent.run(
+                {"section": "LR", "difficulty": "med", "count": 3, "concepts": []}
+            )
+        assert out.balance_flag is None
+        assert len(out.drafts) == 3
+
+    @pytest.mark.asyncio
+    async def test_offline_fallback_batch_is_checked_too(self) -> None:
+        """The fallback rotates keys, so the degraded path stays unflagged."""
+        from law_ai.agents_runtime.crews import lsat_content_author as mod
+
+        agent = mod.LSATContentAuthor()
+
+        async def boom(*args: object, **kwargs: object) -> object:
+            raise mod.llm.LLMUnavailableError("chain down")
+
+        with (
+            patch.object(mod.llm, "agenerate", new=boom),
+            patch.object(mod.provenance, "log_agent_call", return_value="trace-off"),
+        ):
+            out = await agent.run({"section": "LR", "difficulty": "med", "count": 4})
+        assert out.degraded is True
+        assert out.balance_flag is None

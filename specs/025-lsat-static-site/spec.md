@@ -1,7 +1,9 @@
 # Spec: LSAT Static Practice Site — Serverless Delivery on GitHub Pages
 
 - **ID**: 025-lsat-static-site
-- **Status**: shipped
+- **Status**: shipped — **superseded** (implementation replaced; the delivery model stands)
+
+> **Superseded (2026-09-05, BL-20260716-11).** This spec describes the first implementation: a deliberately buildless vanilla app (`index.html` / `styles.css` / `app.js`) at `frontend/public/lsat-practice/`. That directory no longer exists. The site was rebuilt as a Next.js static export (`output: 'export'`) under [`lsat-static/`](../../lsat-static/), deployed by [.github/workflows/deploy-lsat-pages.yml](../../.github/workflows/deploy-lsat-pages.yml). What survives from this spec is the *delivery model* — one HITL-approved `content.json` produced by `manage.py lsat_export`, refreshed with `make lsat-export`, drift-gated by [tests/test_lsat_site.py](../../tests/test_lsat_site.py), published serverlessly to GitHub Pages. What is obsolete is every path and every "no build step" / "must stay buildless" clause below (FR-3, FR-7, FR-9, NG4). **Current description: [docs/lsat-static.md](../../docs/lsat-static.md)**; later shaping specs: [044](../044-static-site-ux-parity/spec.md), [046](../046-static-lsat-feature-parity/spec.md), [047](../047-lsat-continuous-curriculum/spec.md), [048](../048-lsat-knowledge-library/spec.md). The text below is kept unedited as the historical record.
 - **Owner**: @bamr87
 - **Created**: 2026-07-02
 - **Roadmap Epic**: extends spec 005 (LSAT Lab) / spec 024 (content factory) — public, serverless delivery channel for the approved question bank
