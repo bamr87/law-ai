@@ -1,3 +1,27 @@
+# Law AI — Backlog
+
+> **Append-only** register of follow-ups discovered during implementation. Every `/implement` cycle MUST append discovered work here in addition to closing the current task. Items graduate from this list into `specs/NNN-*/` via `/specify`.
+>
+> **Format**: One bullet per item, kebab-case ID, status, brief context, link to the spec/PR that surfaced it.
+
+## Conventions
+
+| Field        | Notes                                                                  |
+| ------------ | ---------------------------------------------------------------------- |
+| `id`         | `BL-YYYYMMDD-NN` — the date discovered + an ordinal                    |
+| `status`     | `open` / `claimed-by:specs/NNN` / `wontfix` (with reason) / `done`     |
+| `kind`       | `feature` / `refactor` / `tech-debt` / `test-gap` / `doc-gap` / `infra`|
+| `severity`   | `low` / `med` / `high`                                                 |
+| `surfaced-in`| Spec or PR that discovered it                                          |
+
+## Triage rules
+
+1. New items go to **Open**. Promotions go to **Claimed**. Resolved items move to **Done** (kept for audit; never delete).
+2. Items unclaimed > 60 days get reviewed at the next `/specify` cycle and either closed `wontfix` or escalated.
+3. CI gate ([scripts/backlog_lint.py](scripts/backlog_lint.py)) enforces format and forbids deletion of historical entries.
+
+---
+
 ## Open
 
 - **BL-20260811-05** — *doc-gap, med* — Have counsel review the spec-030 UPL disclaimer wording and decide whether jurisdiction-specific text or a first-run click-through acknowledgement is warranted; the shipped text is engineering-authored, not legally reviewed. _Surfaced in:_ specs/030-safety-guardrails.
