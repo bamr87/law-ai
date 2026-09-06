@@ -67,7 +67,9 @@ describe('AutonomyDashboard', () => {
     const panel = await screen.findByRole('region', {
       name: /Recent autonomy cycles/i,
     })
-    expect(within(panel).getByText(/is Postgres up/i)).toBeInTheDocument()
+    expect(
+      await within(panel).findByText(/is Postgres up/i),
+    ).toBeInTheDocument()
     expect(
       within(panel).queryByText(/No cycle has run yet/i),
     ).not.toBeInTheDocument()
@@ -182,7 +184,9 @@ describe('AutonomyDashboard', () => {
     const panel = await screen.findByRole('region', {
       name: /Recently quarantined documents/i,
     })
-    expect(within(panel).getByText(/is Postgres up/i)).toBeInTheDocument()
+    expect(
+      await within(panel).findByText(/is Postgres up/i),
+    ).toBeInTheDocument()
   })
 
   it('reports an empty queue as reviewed, not as unavailable', async () => {
