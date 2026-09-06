@@ -1,6 +1,6 @@
 # Spec: Backlog Zero
 
-- **ID**: 051-backlog-zero
+- **ID**: 052-backlog-zero
 - **Status**: in-progress
 - **Owner**: @bamr87
 - **Created**: 2026-09-05

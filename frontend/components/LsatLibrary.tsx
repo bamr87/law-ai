@@ -532,7 +532,7 @@ export default function LsatLibrary() {
   // follow the width that is actually there — one column under 48rem, the
   // rail from 48rem, the outline from 72rem, and wider gutters from 96rem.
   //
-  // Both side columns are preferences (spec 050, `lsat.library.contents` and
+  // Both side columns are preferences (spec 051, `lsat.library.contents` and
   // `lsat.library.outline`). The grid is picked from the four combinations
   // rather than composed, because Tailwind only ships classes it can read.
   const grid = libraryGrid(contentsShown, outlineShown)

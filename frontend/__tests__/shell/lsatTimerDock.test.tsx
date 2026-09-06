@@ -356,7 +356,7 @@ describe('SectionTimerWidget docking', () => {
   })
 })
 
-describe('SectionTimerWidget visibility (spec 050)', () => {
+describe('SectionTimerWidget visibility (spec 051)', () => {
   it('hides an idle clock by preference but never a running one', () => {
     upsertSettingValue({
       scopeId: INSTANCE_SCOPE.id,

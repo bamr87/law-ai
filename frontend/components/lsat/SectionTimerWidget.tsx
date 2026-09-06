@@ -109,7 +109,7 @@ export default function SectionTimerWidget({
 
   // Off the LSAT routes the clock only follows you while a section is
   // actually in progress — otherwise every other module would carry a stopped
-  // 35:00 for no reason. The same rule serves `lsat.timer.visible` (spec 050):
+  // 35:00 for no reason. The same rule serves `lsat.timer.visible` (spec 051):
   // a user may hide an idle clock, never a running one.
   const inProgress = isSectionInProgress(timer)
   if (!onOwnRoute && !inProgress) return null

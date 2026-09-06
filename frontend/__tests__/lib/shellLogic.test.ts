@@ -239,7 +239,7 @@ describe('breadcrumbs', () => {
   })
 })
 
-describe('layout preferences (spec 050)', () => {
+describe('layout preferences (spec 051)', () => {
   beforeEach(() => {
     window.localStorage.clear()
   })

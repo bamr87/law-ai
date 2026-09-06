@@ -226,7 +226,7 @@ describe('masthead (spec 041 FR-5)', () => {
     expect(screen.getByRole('button', { name: 'Layout' })).toBeInTheDocument()
   })
 
-  it('toggles the rail from the palette (spec 050)', async () => {
+  it('toggles the rail from the palette (spec 051)', async () => {
     renderShell()
     expect(screen.getByTestId('nav-rail')).toBeInTheDocument()
     fireEvent.keyDown(window, { key: 'k', metaKey: true })
@@ -281,7 +281,7 @@ describe('PageLayout (spec 041 FR-2)', () => {
     ).toBeInTheDocument()
   })
 
-  it('keeps the header condensed from the first paint on "compact" (spec 050)', async () => {
+  it('keeps the header condensed from the first paint on "compact" (spec 051)', async () => {
     upsertSettingValue({
       scopeId: INSTANCE_SCOPE.id,
       key: pageHeaderMode.key,

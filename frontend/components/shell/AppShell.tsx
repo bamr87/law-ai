@@ -73,7 +73,7 @@ import { useSetting } from './useSetting'
  * Back restores it. Below `md` they become focus-trapped drawers instead of
  * columns, because a 320px viewport has no room for three of them.
  *
- * What the shell shows, and where, is the user's to choose (spec 050): every
+ * What the shell shows, and where, is the user's to choose (spec 051): every
  * part of the chrome except the UPL disclaimer has a preference behind it,
  * edited from the masthead's Layout menu, the palette, or `/settings`. The
  * shell reads them through `useSetting` and stays a plain composition — it

@@ -69,7 +69,7 @@ describe('SETTING_CATALOG', () => {
     expect(SETTING_CATALOG.map((s) => s.key)).toEqual([
       'analysis.hitl_threshold',
       'graph.show_citation_counts',
-      // Layout preferences (spec 050), contiguous so /settings heads them once.
+      // Layout preferences (spec 051), contiguous so /settings heads them once.
       'ui.rail.visible',
       'ui.rail.expanded',
       'ui.sidebar.default_open',

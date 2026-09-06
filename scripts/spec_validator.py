@@ -188,6 +188,32 @@ def stronger_question_warnings(spec_dir: Path) -> list[str]:
     return [message]
 
 
+def _duplicate_numbers(spec_dirs: list[Path]) -> list[str]:
+    """Spec numbers that more than one directory claims.
+
+    The NNN is the spec's identity: `tasks.md`, commit messages, and code
+    comments all cite "spec 050", and two directories answering to that
+    number make every one of those references ambiguous. It happens when two
+    branches allocate the next free number concurrently and only collide on
+    the second merge — which is exactly when nobody is looking. Checked over
+    the whole directory, so it fires even when the run targets one spec.
+    """
+    by_number: dict[str, list[str]] = {}
+    if not SPECS_DIR.is_dir():
+        return []
+    for child in sorted(SPECS_DIR.iterdir()):
+        if not child.is_dir() or child.name.startswith(("_", ".")):
+            continue
+        if SPEC_DIR_RE.match(child.name):
+            by_number.setdefault(child.name.split("-", 1)[0], []).append(child.name)
+    return [
+        f"spec number {number} is claimed by {len(names)} directories "
+        f"({', '.join(names)}) — renumber the one that merged second"
+        for number, names in sorted(by_number.items())
+        if len(names) > 1
+    ]
+
+
 def validate_spec(spec_dir: Path) -> list[str]:
     errors: list[str] = []
     spec = spec_dir / "spec.md"
@@ -302,6 +328,10 @@ def main(argv: list[str]) -> int:
 
     failed = len(bad_targets)
     warned = 0
+    for dup in _duplicate_numbers(spec_dirs):
+        failed += 1
+        print(f"FAIL specs/: {dup}")
+
     for d in spec_dirs:
         errs = validate_spec(d)
         rel = _rel(d)
