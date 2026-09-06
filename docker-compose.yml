@@ -250,6 +250,100 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # ---------------------------------------------------------------------------
+  # Browser end-to-end harness (spec 051 / BL-20260811-16). Both services sit
+  # behind the `e2e` profile so `make dev`, `make test`, and `make down` never
+  # see them; `make test-e2e` is the only entry point.
+  # ---------------------------------------------------------------------------
+  backend-e2e:
+    # The API the e2e browser talks to. Same image, code, and databases as
+    # `backend`, but pinned to the Ollama tier with an unreachable Ollama and
+    # no retries, so `/api/analysis` takes the honest degraded path every
+    # time: deterministic `ready → agent_step → complete` events, no
+    # third-party LLM call, no bill — whatever credentials the operator's
+    # .env carries. `AGENT_API_KEY` is forced from E2E_AGENT_API_KEY (empty
+    # by default) so the auth spec, not the operator's .env, decides whether
+    # the API is gated.
+    profiles: [ "e2e" ]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - path: ./.env
+        required: false
+    environment:
+      - DATABASE_URL=postgresql://law_ai:law_ai-dev@postgres:5432/law_ai
+      - POSTGRES_URL=postgresql+asyncpg://law_ai:law_ai-dev@postgres:5432/law_ai
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=law_ai-dev
+      - REDIS_URL=redis://redis:6379
+      - LANGGRAPH_CHECKPOINTER=postgres
+      - PHOENIX_COLLECTOR_ENDPOINT=
+      - LLM_PROVIDER_CHAIN=ollama
+      - OLLAMA_BASE_URL=http://127.0.0.1:9
+      - OLLAMA_MAX_RETRIES=0
+      - OLLAMA_REQUEST_TIMEOUT_S=5
+      - AGENT_API_KEY=${E2E_AGENT_API_KEY:-}
+      - ANALYSIS_API_KEY=
+      - GRAPH_API_KEY=
+      - LSAT_API_KEY=
+      # Admin HITL spec (BL-20260503-17): `seed_admin` provisions this login.
+      - DJANGO_SUPERUSER_USERNAME=${E2E_ADMIN_USERNAME:-e2e-admin}
+      - DJANGO_SUPERUSER_PASSWORD=${E2E_ADMIN_PASSWORD:-e2e-admin-pass}
+      - REPO_ROOT=/repo
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - ./:/repo
+    command: sh -c "python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py ensure_checkpointer && python manage.py seed_admin && daphne -b 0.0.0.0 -p 8000 law_ai.asgi:application"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 90s
+
+  e2e:
+    # Official Playwright image (browsers + matching driver). The tag MUST
+    # equal the @playwright/test version in frontend/package-lock.json —
+    # tests/test_e2e_harness.py enforces it, because a mismatch fails at
+    # runtime with a misleading "browser not found".
+    #
+    # The browser sees the stack exactly as a developer's does: a tiny TCP
+    # forwarder (frontend/e2e/proxy.mjs, started by playwright.config.ts as
+    # its webServer) maps localhost:3000 → frontend and localhost:8000 →
+    # backend-e2e, so the frontend's baked-in http://localhost:8000 API base
+    # and ws://localhost:8000 stream URL work unchanged.
+    profiles: [ "e2e" ]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.e2e
+    environment:
+      - E2E_FRONTEND_UPSTREAM=${E2E_FRONTEND_UPSTREAM:-frontend:3000}
+      - E2E_BACKEND_UPSTREAM=${E2E_BACKEND_UPSTREAM:-backend-e2e:8000}
+      - E2E_AGENT_API_KEY=${E2E_AGENT_API_KEY:-}
+      - E2E_ADMIN_USERNAME=${E2E_ADMIN_USERNAME:-e2e-admin}
+      - E2E_ADMIN_PASSWORD=${E2E_ADMIN_PASSWORD:-e2e-admin-pass}
+      - CI=${CI:-}
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend-e2e:
+        condition: service_healthy
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    # Chromium is happier with the host IPC namespace (Playwright docs).
+    ipc: host
+    command: npx playwright test
+
 volumes:
   pgdata:
   neo4jdata:

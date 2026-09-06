@@ -26,6 +26,9 @@ env = environ.Env(
     FALLBACK_MODEL=(str, "mistral:7b-instruct-q4_K_M"),
     OLLAMA_DEFAULT_MODEL=(str, "mistral:7b-instruct-q4_K_M"),
     OLLAMA_REQUEST_TIMEOUT_S=(float, 120.0),
+    # Total attempts per Ollama generate call on transient failures (connect /
+    # read-timeout / 429 / 5xx); 1 disables retry (BL-20260810-05).
+    OLLAMA_MAX_RETRIES=(int, 2),
     # Ordered LLM provider chain (spec 034, extended by spec 050). Tried left to
     # right; the first provider that is configured and answers serves the
     # request. Claude is the product-runtime default (constitution §1, amended
@@ -33,9 +36,6 @@ env = environ.Env(
     # xAI tier is inert until an operator runs `make xai-login`, so this default
     # changes nothing for a deployment that has not authorised it.
     LLM_PROVIDER_CHAIN=(str, "claude_code,anthropic_api,xai,ollama"),
-    # Legacy single-provider pin for the LSAT surface; the chain above is the
-    # real selector. Empty = follow the chain.
-    LSAT_LLM_PROVIDER=(str, ""),
     # Claude credentials. OAuth token comes from `claude setup-token`; the API
     # key is the standard ANTHROPIC_API_KEY used as the second-tier fallback.
     ANTHROPIC_BASE_URL=(str, "https://api.anthropic.com"),
@@ -78,11 +78,15 @@ env = environ.Env(
     LSAT_FACTORY_DRAFTS_PER_JOB=(int, 3),
     LSAT_FACTORY_EXEMPLARS=(int, 2),
     LSAT_FACTORY_DEDUP_THRESHOLD=(float, 0.60),
+    # Compare only the question-specific sentences of a stem (drop restated
+    # passage/game setup) in the dedup gate (BL-20260702-08).
+    LSAT_FACTORY_DEDUP_STRIP_CONTEXT=(bool, True),
     LSAT_FACTORY_BALANCE_TOLERANCE=(float, 0.40),
     LSAT_FACTORY_GAP_BOOST=(float, 2.0),
     LSAT_FACTORY_MAX_TOKENS=(int, 8192),
     # JSON object mapping tier→Claude model id; empty = built-in defaults.
     LSAT_FACTORY_CLAUDE_TIERS=(str, ""),
+    LSAT_CROSS_CHECK_ON_APPROVE=(bool, True),
     LANGGRAPH_CHECKPOINTER=(str, "postgres"),
     LANGGRAPH_CHECKPOINTER_SCHEMA=(str, "langgraph"),
     PHOENIX_COLLECTOR_ENDPOINT=(str, ""),
@@ -143,11 +147,11 @@ DEFAULT_MODEL: str = env("DEFAULT_MODEL")
 FALLBACK_MODEL: str = env("FALLBACK_MODEL")
 OLLAMA_DEFAULT_MODEL: str = env("OLLAMA_DEFAULT_MODEL")
 OLLAMA_REQUEST_TIMEOUT_S: float = env.float("OLLAMA_REQUEST_TIMEOUT_S")
+OLLAMA_MAX_RETRIES: int = env.int("OLLAMA_MAX_RETRIES")
 
 # LLM provider chain — Claude first, Anthropic API key second, Ollama last
 # (constitution §1 as amended; see law_ai.core.llm.router).
 LLM_PROVIDER_CHAIN: str = env("LLM_PROVIDER_CHAIN")
-LSAT_LLM_PROVIDER: str = env("LSAT_LLM_PROVIDER")
 ANTHROPIC_BASE_URL: str = env("ANTHROPIC_BASE_URL")
 ANTHROPIC_API_KEY: str = env("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL: str = env("ANTHROPIC_MODEL")
@@ -174,10 +178,15 @@ LSAT_FACTORY_MAX_JOBS: int = env.int("LSAT_FACTORY_MAX_JOBS")
 LSAT_FACTORY_DRAFTS_PER_JOB: int = env.int("LSAT_FACTORY_DRAFTS_PER_JOB")
 LSAT_FACTORY_EXEMPLARS: int = env.int("LSAT_FACTORY_EXEMPLARS")
 LSAT_FACTORY_DEDUP_THRESHOLD: float = env.float("LSAT_FACTORY_DEDUP_THRESHOLD")
+LSAT_FACTORY_DEDUP_STRIP_CONTEXT: bool = env.bool("LSAT_FACTORY_DEDUP_STRIP_CONTEXT")
 LSAT_FACTORY_BALANCE_TOLERANCE: float = env.float("LSAT_FACTORY_BALANCE_TOLERANCE")
 LSAT_FACTORY_GAP_BOOST: float = env.float("LSAT_FACTORY_GAP_BOOST")
 LSAT_FACTORY_MAX_TOKENS: int = env.int("LSAT_FACTORY_MAX_TOKENS")
 LSAT_FACTORY_CLAUDE_TIERS: str = env("LSAT_FACTORY_CLAUDE_TIERS")
+# BL-20260527-06: blind-solve every approved question draft once so a
+# tutor-grade baseline verdict exists for regression tracking. One provider
+# call per approval; set false to make approvals free.
+LSAT_CROSS_CHECK_ON_APPROVE: bool = env.bool("LSAT_CROSS_CHECK_ON_APPROVE")
 
 LANGGRAPH_CHECKPOINTER: str = env("LANGGRAPH_CHECKPOINTER")
 LANGGRAPH_CHECKPOINTER_SCHEMA: str = env("LANGGRAPH_CHECKPOINTER_SCHEMA")
@@ -346,6 +355,20 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {"hosts": [env("REDIS_URL")]},
+    }
+}
+
+# Django cache (BL-20260810-15). Redis-backed so multi-process deployments
+# (daphne + Celery workers) can share cheap cross-process verdicts — first
+# consumer is the Ollama availability probe in `agents_runtime.llm`, which keeps
+# an in-process L1 and only consults this as L2. Every consumer must treat a
+# cache failure as a miss: a Redis outage degrades to per-process behaviour,
+# never to an error in the request path.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": env("REDIS_URL"),
+        "KEY_PREFIX": "law_ai",
     }
 }
 

@@ -1,5 +1,5 @@
 .PHONY: help setup dev down logs ps debug debug-frontend shell-backend shell-frontend manage \
-	test test-backend test-frontend test-coverage test-smoke test-specs \
+	test test-backend test-frontend test-lsat-static test-coverage test-smoke test-specs \
 	test-integration test-legalbench test-legalbench-gate legalbench-baseline \
 	lint format typecheck migrate ingest \
 	evolve-audit lint-specs ux-audit ui-sync \
@@ -47,6 +47,7 @@ help:
 	@echo "  make test              - Backend pytest + frontend vitest"
 	@echo "  make test-backend      - Backend pytest (all unit tests, excludes integration+legalbench)"
 	@echo "  make test-frontend     - Frontend vitest"
+	@echo "  make test-lsat-static  - Static LSAT site vitest (node container, no compose service)"
 	@echo "  make test-coverage     - Coverage reports for backend + frontend"
 	@echo "  make test-smoke        - Repo-wide smoke + spec/backlog lint"
 	@echo "  make test-specs        - Spec validator + backlog lint"
@@ -59,7 +60,7 @@ help:
 	@echo "  make typecheck         - mypy --strict + tsc --noEmit (in containers)"
 	@echo "  make lint-specs        - spec drift + BACKLOG + UI/UX contract (host stdlib)"
 	@echo "  make ux-audit          - UI/UX contract, both front ends (docs/ui-ux-review.md)"
-	@echo "  make ui-sync           - mirror frontend/ui/base.css into lsat-static"
+	@echo "  make ui-sync           - mirror frontend/ui/base.css + lib/shell/rovingFocus.ts into lsat-static"
 	@echo "  make lsat-static-build - build the static LSAT site in a container (as Pages does)"
 	@echo ""
 	@echo "Local AI stack (Spec 010):"
@@ -137,13 +138,23 @@ ingest:
 # Tests (Docker-only)
 # ---------------------------------------------------------------------------
 
-test: test-backend test-frontend
+test: test-backend test-frontend test-lsat-static
 
 test-backend:
 	$(RUN_BACKEND) pytest -m "not integration and not legalbench" -q --tb=short
 
 test-frontend:
 	$(RUN_FRONTEND) npm test -- --run
+
+# Component tests for the static LSAT site (BL-20260831-18). Same container
+# pattern as lsat-static-build — `lsat-static/` has no compose service — but
+# node_modules lives on a named volume so the Linux install never lands in
+# the host checkout and a host `npm install` never breaks the container.
+test-lsat-static:
+	docker run --rm -v "$(PWD)":/repo \
+		-v law_ai_lsat_static_node_modules:/repo/lsat-static/node_modules \
+		-w /repo/lsat-static node:20-alpine \
+		sh -c "npm ci --no-audit --no-fund && npm test -- --run"
 
 test-coverage:
 	$(RUN_BACKEND) pytest --cov=law_ai --cov-report=xml --cov-report=html --cov-report=term
@@ -222,6 +233,8 @@ ux-audit:
 ui-sync:
 	cp frontend/ui/base.css lsat-static/app/base.css
 	@echo "frontend/ui/base.css -> lsat-static/app/base.css"
+	cp frontend/lib/shell/rovingFocus.ts lsat-static/lib/rovingFocus.ts
+	@echo "frontend/lib/shell/rovingFocus.ts -> lsat-static/lib/rovingFocus.ts"
 
 
 evolve-audit:
@@ -283,8 +296,8 @@ lsat-static-build:
 		-e PAGES_BASE_PATH=/law-ai node:20-alpine \
 		sh -c "npm ci --no-audit --no-fund && npm run build"
 
-# Live LSATContentAuthor agent run. Routes through Claude Code when opted in
-# (LSAT_LLM_PROVIDER=claude_code + token in backend/.env). Pass extra flags via
+# Live LSATContentAuthor agent run. Routes through the LLM_PROVIDER_CHAIN
+# (Claude first; pin `LLM_PROVIDER_CHAIN=ollama` for local-only). Pass extra flags via
 # ARGS, e.g. `make lsat-author-demo ARGS='--section RC --difficulty hard'`.
 # Spec 048: the knowledge-library maintenance loop. `audit` is deterministic
 # and needs no provider; `review` invokes LSATLibrarian and files every result

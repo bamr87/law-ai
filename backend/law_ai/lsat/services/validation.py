@@ -22,6 +22,7 @@ from law_ai.lsat.services.bank import (
     load_passages,
 )
 from law_ai.lsat.services.guides import load_guides, validate_guide_quality
+from law_ai.lsat.services.regression import regression_report
 
 _CHOICE_LABELS = ("A", "B", "C", "D", "E")
 
@@ -139,4 +140,6 @@ def validate_question_set(section: str | None = None) -> dict[str, Any]:
         "issues": issues,
         "answer_distribution": _distribution(section),
         "cross_checks": _cross_check_summary(section),
+        # BL-20260527-06: per-item verdict flips over the audit window.
+        "regressions": regression_report(section=section),
     }

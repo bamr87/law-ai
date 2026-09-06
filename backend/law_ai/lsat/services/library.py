@@ -10,6 +10,11 @@ opposed to the material they *practise against*.
 Authoring format
 ----------------
 
+Start a new article by copying ``data/library/_template.md`` — it carries every
+frontmatter key with a placeholder value and one instance of every block and
+span the parser accepts, and the corpus test keeps it parseable. Files whose
+name starts with ``_`` are never loaded as articles.
+
 One Markdown file per article under ``data/library/``, with frontmatter::
 
     ---
@@ -1173,13 +1178,186 @@ def inbound_links(article_id: str) -> list[str]:
 _WEIGHTS = {"title": 8, "summary": 4, "tag": 3, "heading": 3, "body": 1}
 _SNIPPET_RADIUS = 90
 
+#: Query-side synonyms. A query token listed here also matches any of its
+#: alternates, each of which may be a phrase (every word of the phrase must
+#: then be present in the field). Section abbreviations are the reason the
+#: table exists at all — a learner types "LG" far more often than "logic
+#: games" — and the rest are the pairs the corpus itself uses interchangeably.
+#: Mirrored verbatim in ``lsat-static/lib/search.ts``; the parity fixture under
+#: ``backend/tests/lsat/fixtures/search_parity.json`` pins both copies.
+_SYNONYMS: dict[str, tuple[str, ...]] = {
+    "lr": ("logical reasoning",),
+    "rc": ("reading comprehension",),
+    "lg": ("logic games", "analytical reasoning"),
+    "ws": ("writing sample", "writing"),
+    "games": ("logic games",),
+    "game": ("logic games",),
+    "flaw": ("fallacy",),
+    "flaws": ("fallacy",),
+    "fallacy": ("flaw",),
+    "fallacies": ("flaw",),
+    "premise": ("evidence",),
+    "conclusion": ("main point",),
+    "diagram": ("notation",),
+    "diagramming": ("notation",),
+    "timing": ("pacing",),
+    "pacing": ("timing",),
+    "inference": ("must be true",),
+    "necessary": ("required",),
+    "sufficient": ("guarantee",),
+    "contrapositive": ("conditional",),
+}
 
-def _snippet(text: str, needle: str) -> str | None:
-    at = text.lower().find(needle)
-    if at == -1:
+_TOKEN_RE = re.compile(r"[a-z0-9]+")
+
+#: Dropped from the *query* only. "the assumption family" must not hand +8 to
+#: every article whose title happens to start with "The". Field text keeps
+#: them so a synonym phrase such as "must be true" still resolves.
+_STOPWORDS = frozenset(
+    [
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "by",
+        "does",
+        "do",
+        "for",
+        "from",
+        "how",
+        "in",
+        "is",
+        "it",
+        "of",
+        "on",
+        "or",
+        "that",
+        "the",
+        "this",
+        "to",
+        "vs",
+        "what",
+        "when",
+        "why",
+        "with",
+    ]
+)
+
+#: Stems this short are left alone: stripping "s" from "bus" or "ing" from
+#: "ring" produces garbage, and short words are already matched by prefix.
+_MIN_STEM = 4
+
+
+def _strip_double_consonant(stem: str) -> str:
+    """``diagramm`` → ``diagram``: undo the doubling ``-ing``/``-ed`` adds."""
+    if (
+        len(stem) >= 3
+        and stem[-1] == stem[-2]
+        and stem[-1] not in "aeiou"
+        and stem[-1] not in "lsz"
+    ):
+        return stem[:-1]
+    return stem
+
+
+def stem(word: str) -> str:
+    """A small, dependency-free suffix stemmer for the library's vocabulary.
+
+    Deliberately far short of Porter: the rules cover plurals, ``-ing``,
+    ``-ed``, ``-ly`` and ``-ness`` and then drop a trailing ``e``, which is
+    enough for "assumptions" to meet "assumption" and "sequencing" to meet
+    "sequence" and "timed" to meet "time" without conflating "premise" with
+    "premium". The same rules, in the same order, live in
+    ``lsat-static/lib/search.ts``.
+
+    >>> stem("assumptions"), stem("fallacies"), stem("sequencing"), stem("timed")
+    ('assumption', 'fallacy', 'sequenc', 'tim')
+    """
+    w = word.lower()
+    if len(w) < _MIN_STEM:
+        return w
+    if w.endswith("ies") and len(w) > 4:
+        w = w[:-3] + "y"
+    elif w.endswith("sses"):
+        w = w[:-2]
+    elif w.endswith("s") and not w.endswith(("ss", "us", "is")):
+        w = w[:-1]
+    if w.endswith("ness") and len(w) > 6:
+        w = w[:-4]
+    if w.endswith("ing") and len(w) > 5:
+        w = _strip_double_consonant(w[:-3])
+    elif w.endswith("ed") and len(w) > 4:
+        w = _strip_double_consonant(w[:-2])
+    elif w.endswith("ly") and len(w) > 4:
+        w = w[:-2]
+    if w.endswith("e") and len(w) > 3:
+        w = w[:-1]
+    return w
+
+
+def tokenize(text: str) -> list[str]:
+    """Lower-case alphanumeric tokens, in order, duplicates kept."""
+    return _TOKEN_RE.findall(text.lower())
+
+
+def query_tokens(query: str) -> list[str]:
+    """The tokens a query is matched on: ≥2 characters, stopwords dropped.
+
+    >>> query_tokens("the Assumption family")
+    ['assumption', 'family']
+    """
+    return [t for t in tokenize(query) if len(t) >= 2 and t not in _STOPWORDS]
+
+
+def _field_stems(text: str) -> list[str]:
+    return [stem(t) for t in tokenize(text)]
+
+
+def _alternates(token: str) -> list[list[str]]:
+    """Every stem-sequence a query token may match: itself, then synonyms."""
+    out = [[stem(token)]]
+    for phrase in _SYNONYMS.get(token, ()):
+        out.append(_field_stems(phrase))
+    return out
+
+
+def _count_matches(field_stems: list[str], token: str) -> int:
+    """How many times a query token is present in a tokenised field.
+
+    A field word matches when its stem equals the token's stem or when the
+    word begins with the raw token — the latter keeps search-as-you-type
+    working, so "assu" still finds "assumption" before the word is finished.
+    A synonym phrase counts once when every word of it is present.
+    """
+    target = stem(token)
+    count = sum(1 for s in field_stems if s == target or s.startswith(token))
+    field_set = set(field_stems)
+    for phrase in _alternates(token)[1:]:
+        if all(part in field_set for part in phrase):
+            count += 1
+    return count
+
+
+def _first_match_offset(text: str, tokens: list[str]) -> tuple[int, int] | None:
+    """Character span of the first body word any query token matches."""
+    targets = {stem(t) for t in tokens}
+    for match in _TOKEN_RE.finditer(text.lower()):
+        word = match.group(0)
+        if stem(word) in targets or any(word.startswith(t) for t in tokens):
+            return match.start(), match.end()
+    return None
+
+
+def _snippet(text: str, tokens: list[str]) -> str | None:
+    span = _first_match_offset(text, tokens)
+    if span is None:
         return None
+    at, stop = span
     start = max(0, at - _SNIPPET_RADIUS)
-    end = min(len(text), at + len(needle) + _SNIPPET_RADIUS)
+    end = min(len(text), stop + _SNIPPET_RADIUS)
     return (
         ("…" if start else "")
         + text[start:end].strip()
@@ -1187,39 +1365,68 @@ def _snippet(text: str, needle: str) -> str | None:
     )
 
 
+def _score_article(
+    article: Article, tokens: list[str], body: str
+) -> tuple[int, list[str], str | None]:
+    """Field-weighted token score; ``0`` unless every token matches somewhere."""
+    fields = {
+        "title": _field_stems(article.title),
+        "summary": _field_stems(article.summary),
+        "tag": _field_stems(" ".join(article.tags)),
+        "body": _field_stems(body),
+    }
+    headings = [(e.anchor, _field_stems(e.text)) for e in article.outline]
+    score = 0
+    where: list[str] = []
+    anchor: str | None = None
+    for token in tokens:
+        matched = False
+        for name in ("title", "summary", "tag"):
+            if _count_matches(fields[name], token):
+                score += _WEIGHTS[name]
+                matched = True
+                if name not in where:
+                    where.append(name)
+        hit_headings = [a for a, stems in headings if _count_matches(stems, token)]
+        if hit_headings:
+            score += _WEIGHTS["heading"] * len(hit_headings)
+            matched = True
+            if "heading" not in where:
+                where.append("heading")
+            anchor = anchor or hit_headings[0]
+        occurrences = _count_matches(fields["body"], token)
+        if occurrences:
+            score += _WEIGHTS["body"] * min(occurrences, 5)
+            matched = True
+            if "body" not in where:
+                where.append("body")
+        if not matched:
+            return 0, [], None
+    return score, where, anchor
+
+
 def search_library(query: str, *, limit: int = 20) -> list[dict[str, Any]]:
     """Rank articles against a query, with a matched-context snippet.
 
-    A substring + field-weight ranker, not an index: at 30 articles it is
+    A token + field-weight ranker, not an index: at the library's size it is
     instant on both products and needs no build step, which is what lets the
-    offline site search with zero network calls (NFR-OFFLINE-1). It has no
-    stemming — tracked as BL-20260903-06.
+    offline site search with zero network calls (NFR-OFFLINE-1). Each query
+    token is stemmed (:func:`stem`) and expanded through ``_SYNONYMS``, so
+    "assumptions" meets "assumption" and "LG" meets "logic games"; a field
+    word also matches by prefix so search-as-you-type keeps working. Every
+    token must match somewhere in an article for it to be a hit. True fuzzy
+    (edit-distance) matching is deliberately absent — it is the part that
+    needs an index, and the corpus does not need it yet.
+
+    ``lsat-static/lib/search.ts`` mirrors this function rule for rule.
     """
-    needle = query.strip().lower()
-    if len(needle) < 2:
+    tokens = query_tokens(query)
+    if not tokens:
         return []
     hits: list[dict[str, Any]] = []
     for article in load_library().values():
-        score = 0
-        where: list[str] = []
-        if needle in article.title.lower():
-            score += _WEIGHTS["title"]
-            where.append("title")
-        if needle in article.summary.lower():
-            score += _WEIGHTS["summary"]
-            where.append("summary")
-        if any(needle in tag.lower() for tag in article.tags):
-            score += _WEIGHTS["tag"]
-            where.append("tag")
-        headings = [e.text for e in article.outline if needle in e.text.lower()]
-        if headings:
-            score += _WEIGHTS["heading"] * len(headings)
-            where.append("heading")
         body = article_text(article)
-        occurrences = body.lower().count(needle)
-        if occurrences:
-            score += _WEIGHTS["body"] * min(occurrences, 5)
-            where.append("body")
+        score, where, anchor = _score_article(article, tokens, body)
         if not score:
             continue
         hits.append(
@@ -1231,11 +1438,8 @@ def search_library(query: str, *, limit: int = 20) -> list[dict[str, Any]]:
                 "reading_minutes": article.reading_minutes,
                 "score": score,
                 "matched_in": where,
-                "snippet": _snippet(body, needle) or article.summary,
-                "anchor": next(
-                    (e.anchor for e in article.outline if needle in e.text.lower()),
-                    None,
-                ),
+                "snippet": _snippet(body, tokens) or article.summary,
+                "anchor": anchor,
             }
         )
     hits.sort(key=lambda h: (-int(h["score"]), str(h["id"])))

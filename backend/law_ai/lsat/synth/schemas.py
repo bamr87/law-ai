@@ -29,9 +29,10 @@ Two proof kinds live side by side and are never conflated:
 
 from __future__ import annotations
 
+import itertools
 import random
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
 from law_ai.lsat.services.bank import Difficulty, Section
@@ -46,6 +47,7 @@ from law_ai.lsat.synth.logic import (
     AssignSpace,
     Before,
     DiffGroup,
+    Immediately,
     Implies,
     InGroup,
     ModelSpace,
@@ -54,7 +56,9 @@ from law_ai.lsat.synth.logic import (
     Not,
     NotAll,
     NotAtSlot,
+    NotInGroup,
     Or,
+    OrderModel,
     OrderSpace,
     PropSpace,
     RegionSpace,
@@ -125,6 +129,18 @@ class Blueprint:
     #: Extra prose the stimulus needs that is not a premise statement (game
     #: setups, study observations). Rendered verbatim.
     preamble: tuple[str, ...] = ()
+    #: The premise *arrangement* the schema drew for this item — chain length,
+    #: trigger position, rule count, which rule menu entries — so provenance
+    #: records the shape and not only the seed that produced it. Empty for a
+    #: schema whose arrangement is fixed.
+    arrangement: dict[str, int | str] = field(default_factory=dict)
+
+
+#: How many times a schema re-draws its arrangement before giving up. A draw
+#: that pins every atom, or contradicts itself, or entails nothing from the
+#: pool is discarded and the next is tried; the cap is what stops a bad menu
+#: from hanging a sweep.
+MAX_ARRANGEMENT_DRAWS = 40
 
 
 @dataclass(frozen=True)
@@ -331,49 +347,98 @@ def _prop_pool(atoms: Sequence[str]) -> list[Statement]:
     return pool
 
 
+#: Chain lengths a :class:`ConditionalChain` may draw. Two is a single
+#: conditional plus its trigger; four uses every slot but one.
+_CHAIN_LENGTHS = (2, 3, 4)
+#: How many extra conditionals hang off the chain. At least one, or a short
+#: chain with an early trigger pins every atom it mentions.
+_SIDE_COUNTS = (1, 2)
+
+
+def _draw_until(
+    rng: random.Random,
+    attempt: Callable[[random.Random], Blueprint],
+    *,
+    what: str,
+) -> Blueprint:
+    """Re-draw an arrangement until it yields a verifiable blueprint.
+
+    Every draw is a deterministic function of ``rng``, so the item is still
+    fully determined by its seed; the loop only skips the draws the proof
+    engine rejects. It gives up after :data:`MAX_ARRANGEMENT_DRAWS` with the
+    last reason attached, so a menu that can never succeed fails loudly.
+    """
+    last: SchemaError | None = None
+    for _ in range(MAX_ARRANGEMENT_DRAWS):
+        try:
+            return attempt(rng)
+        except SchemaError as exc:
+            last = exc
+    raise SchemaError(
+        f"{what}: no arrangement verified in {MAX_ARRANGEMENT_DRAWS} draws "
+        f"(last: {last})"
+    )
+
+
 @dataclass(frozen=True)
 class ConditionalChain:
     """A → B → C plus a triggering fact; what must follow.
 
     ``forward`` runs modus ponens from the antecedent end; otherwise the chain is
     triggered at the far end and the credited answer is a contrapositive.
+
+    The arrangement is drawn per item rather than fixed: the chain is two to
+    four conditionals long, the trigger lands on any chain atom that leaves
+    something to infer, and one or two further conditionals hang off it. Every
+    draw goes through the same proof, so the variety costs nothing in validity —
+    a draw the checker cannot certify is simply re-drawn.
     """
 
     forward: bool
     meta: SchemaMeta
 
-    def build(self, rng: random.Random, domain: DomainPack) -> Blueprint:
+    def _attempt(self, rng: random.Random) -> Blueprint:
         space = PropSpace(atoms=_PROP_SLOTS)
+        length = rng.choice(_CHAIN_LENGTHS)
+        slots = list(_PROP_SLOTS)
+        rng.shuffle(slots)
+        chain_atoms = slots[:length]
+        spare = slots[length:]
+        sides = min(rng.choice(_SIDE_COUNTS), len(spare))
+        side_atoms = spare[:sides]
         chain: list[Statement] = [
-            Implies(Atom("P"), Atom("Q")),
-            Implies(Atom("Q"), Atom("R")),
-            # Two further conditionals hung off the chain in the direction
-            # that stays *unresolved* once the trigger fires, so the premises
-            # leave models in which D and E vary. Without them the premises pin
-            # every atom, one model survives, and every true statement becomes
-            # entailed — an item with five correct answers. The direction
-            # matters: pointing into a chain that the trigger falsifies pins the
-            # new atoms too.
-            (
-                Implies(Atom("S"), Atom("P"))
-                if self.forward
-                else Implies(Atom("P"), Atom("S"))
-            ),
-            (
-                Implies(Atom("T"), Atom("P"))
-                if self.forward
-                else Implies(Atom("P"), Atom("T"))
-            ),
+            Implies(Atom(a), Atom(b)) for a, b in itertools.pairwise(chain_atoms)
         ]
-        trigger: Statement = Atom("P") if self.forward else Not(Atom("R"))
+        # Forward: the trigger affirms a chain atom and everything downstream
+        # follows, so it must not sit on the last atom. Backward: the trigger
+        # denies one and everything upstream is denied by contraposition, so
+        # it must not sit on the first.
+        if self.forward:
+            trigger_index = rng.randrange(0, length - 1)
+            trigger: Statement = Atom(chain_atoms[trigger_index])
+            credited_pool: list[Statement] = [
+                Atom(a) for a in chain_atoms[trigger_index + 1 :]
+            ]
+        else:
+            trigger_index = rng.randrange(1, length)
+            trigger = Not(Atom(chain_atoms[trigger_index]))
+            credited_pool = [Not(Atom(a)) for a in chain_atoms[:trigger_index]]
+        # The side conditionals hang off the chain in the direction that stays
+        # *unresolved* once the trigger fires, so the premises leave models in
+        # which the side atoms vary. Without them the premises pin every atom,
+        # one model survives, and every true statement becomes entailed — an
+        # item with five correct answers. The direction matters: pointing into
+        # a chain that the trigger falsifies pins the new atoms too.
+        for side in side_atoms:
+            anchor = rng.choice(chain_atoms)
+            chain.append(
+                Implies(Atom(side), Atom(anchor))
+                if self.forward
+                else Implies(Atom(anchor), Atom(side))
+            )
         premises = tuple([*chain, trigger])
         pool = _prop_pool(_PROP_SLOTS)
-        credited = _entailed_from(
-            space,
-            premises,
-            [Atom("R")] if self.forward else [Not(Atom("P")), Not(Atom("Q"))],
-            rng,
-        )
+        credited = _entailed_from(space, premises, credited_pool, rng)
         distractors = select_distractors(space, premises, pool, rng, exclude=credited)
         return Blueprint(
             family="must_be_true",
@@ -385,7 +450,16 @@ class ConditionalChain:
                 *(FormalChoice(role="distractor", statement=d) for d in distractors),
             ),
             space=space,
+            arrangement={
+                "chain_length": length,
+                "trigger_index": trigger_index,
+                "side_conditionals": len(side_atoms),
+                "rule_count": len(premises),
+            },
         )
+
+    def build(self, rng: random.Random, domain: DomainPack) -> Blueprint:
+        return _draw_until(rng, self._attempt, what=self.meta.id)
 
     def stem(self, rng: random.Random) -> str:
         return rng.choice(
@@ -522,13 +596,37 @@ class QuantifierCombination:
     most_most: bool
     meta: SchemaMeta
 
+    def _pairs(self) -> tuple[tuple[str, tuple[Statement, ...]], ...]:
+        """The premise arrangements this variant rotates through, by name.
+
+        Each keeps the variant's characteristic inference — two majorities of
+        one set, or a universal feeding a weaker quantifier — while changing
+        the premise order, the weaker quantifier, or adding a third premise
+        that narrows the picture without touching the credited answer.
+        """
+        if self.most_most:
+            return (
+                ("most-most", (Most("P", "Q"), Most("P", "R"))),
+                ("most-most-reversed", (Most("P", "R"), Most("P", "Q"))),
+                (
+                    "most-most-not-all",
+                    (Most("P", "Q"), Most("P", "R"), NotAll("P", "Q")),
+                ),
+                (
+                    "most-most-not-all-far",
+                    (Most("P", "Q"), NotAll("P", "R"), Most("P", "R")),
+                ),
+            )
+        return (
+            ("all-some", (All("P", "Q"), Some("P", "R"))),
+            ("some-all", (Some("P", "R"), All("P", "Q"))),
+            ("all-some-flipped", (All("P", "Q"), Some("R", "P"))),
+            ("all-most", (All("P", "Q"), Most("P", "R"))),
+        )
+
     def build(self, rng: random.Random, domain: DomainPack) -> Blueprint:
         space = RegionSpace(predicates=_REGION_SLOTS)
-        premises: tuple[Statement, ...] = (
-            (Most("P", "Q"), Most("P", "R"))
-            if self.most_most
-            else (All("P", "Q"), Some("P", "R"))
-        )
+        name, premises = rng.choice(self._pairs())
         pool = _region_pool()
         credited = _entailed_from(
             space, premises, [Some("Q", "R"), Some("R", "Q")], rng
@@ -544,6 +642,7 @@ class QuantifierCombination:
                 *(FormalChoice(role="distractor", statement=d) for d in distractors),
             ),
             space=space,
+            arrangement={"pair": name, "rule_count": len(premises)},
         )
 
     def stem(self, rng: random.Random) -> str:
@@ -560,8 +659,9 @@ class QuantifierCombination:
             "the overlap follows — but only as 'at least one'. A choice claiming "
             "most of one group falls in the other overreaches."
             if self.most_most
-            else "A universal premise licenses substitution into the existential "
-            "one, so the overlap follows."
+            else "A universal premise licenses substitution into the weaker "
+            "one — an existential or a majority — so the overlap follows, and "
+            "follows only as 'at least one'."
         )
         return f"{core} The credited answer is the one that holds in every consistent case: {credited}"
 
@@ -718,34 +818,119 @@ class AssumptionSchema:
 
 _GAME_ENTITIES = ("e1", "e2", "e3", "e4", "e5")
 
+#: Rule counts a game may draw. Two rules is a loose game, four a tight one.
+_RULE_COUNTS = (2, 3, 4)
+#: The arrangement band a sequencing rule set must leave. Fewer than the floor
+#: makes every true statement entailed (one arrangement) or leaves too few
+#: truth patterns for four distinct distractors; more than the ceiling means
+#: the rules barely constrain and the must-be-true variant has nothing to say.
+MIN_ORDERINGS = 2
+MAX_ORDERINGS = 30
 
-def _order_rules(rng: random.Random) -> tuple[Statement, ...]:
+
+def _order_menu(entities: Sequence[str]) -> list[tuple[str, Statement]]:
+    """Every ordering rule the game may draw, tagged with its menu id."""
+    menu: list[tuple[str, Statement]] = []
+    slots = range(1, len(entities) + 1)
+    for a in entities:
+        for b in entities:
+            if a == b:
+                continue
+            menu.append(("before", Before(a, b)))
+            menu.append(("immediately", Immediately(a, b)))
+            if a < b:
+                menu.append(("adjacent", Adjacent(a, b)))
+        for slot in slots:
+            menu.append(("at", AtSlot(a, slot)))
+            menu.append(("not-at", NotAtSlot(a, slot)))
+    return menu
+
+
+def _draw_rules(
+    rng: random.Random,
+    menu: list[tuple[str, Statement]],
+    count: int,
+) -> tuple[tuple[str, ...], tuple[Statement, ...]]:
+    """``count`` rules over pairwise-distinct slot sets.
+
+    Two rules about the same entities are usually one rule written twice
+    (``Before`` plus ``Immediately``) or a contradiction; either way the item
+    reads as machine-made, so each draw mentions a fresh set of slots.
+    """
+    shuffled = list(menu)
+    rng.shuffle(shuffled)
+    ids: list[str] = []
+    rules: list[Statement] = []
+    seen: set[frozenset[str]] = set()
+    for menu_id, rule in shuffled:
+        if len(rules) >= count:
+            break
+        key = rule.slots()
+        if key in seen:
+            continue
+        seen.add(key)
+        ids.append(menu_id)
+        rules.append(rule)
+    return tuple(ids), tuple(rules)
+
+
+def _order_rules(
+    rng: random.Random,
+    *,
+    min_valid: int = MIN_ORDERINGS,
+    max_valid: int = MAX_ORDERINGS,
+) -> tuple[tuple[str, ...], tuple[Statement, ...], list[OrderModel]]:
     """A rule set that constrains without over-determining.
 
-    Re-drawn until it leaves between two and thirty valid arrangements: one
-    arrangement makes every true statement entailed, and too many makes the
-    must-be-true variants have no answer.
+    Two to four rules are drawn from the menu and re-drawn until they leave
+    between ``min_valid`` and ``max_valid`` valid arrangements: one arrangement
+    makes every true statement entailed, and too many makes the must-be-true
+    variant have no answer. Returns the menu ids drawn, the rules, and the
+    arrangements they permit.
     """
-    return (
-        Before("e1", "e2"),
-        Adjacent("e3", "e4"),
-        NotAtSlot("e5", 1),
+    space = OrderSpace(entities=_GAME_ENTITIES)
+    menu = _order_menu(_GAME_ENTITIES)
+    for _ in range(MAX_ARRANGEMENT_DRAWS):
+        count = rng.choice(_RULE_COUNTS)
+        ids, rules = _draw_rules(rng, menu, count)
+        valid = [m for m in space.models() if all(r.holds(m) for r in rules)]
+        if min_valid <= len(valid) <= max_valid:
+            return ids, rules, valid
+    raise SchemaError(
+        f"sequencing rules never landed in the {min_valid}-{max_valid} "
+        f"arrangement band in {MAX_ARRANGEMENT_DRAWS} draws"
     )
 
 
 @dataclass(frozen=True)
 class SequencingGame:
-    """An ordering game: acceptability, or what must be true of every arrangement."""
+    """An ordering game: acceptability, or what must be true of every arrangement.
+
+    The rule set is drawn per item from a menu of before / immediately-before /
+    adjacent / at-slot / not-at-slot rules, two to four at a time, and re-drawn
+    until it leaves a usable number of arrangements. Every draw is proved the
+    same way, so a loose three-rule game and a tight four-rule one carry the
+    same guarantee.
+    """
 
     acceptability: bool
     meta: SchemaMeta
 
     def build(self, rng: random.Random, domain: DomainPack) -> Blueprint:
+        return _draw_until(rng, self._attempt, what=self.meta.id)
+
+    def _attempt(self, rng: random.Random) -> Blueprint:
         space = OrderSpace(entities=_GAME_ENTITIES)
-        premises = _order_rules(rng)
-        valid = [m for m in space.models() if all(r.holds(m) for r in premises)]
-        if len(valid) < CHOICE_COUNT:
-            raise SchemaError("sequencing rules leave too few valid arrangements")
+        # The must-be-true variant needs enough arrangements for four distinct
+        # truth patterns; an acceptability item only needs one valid ordering.
+        rule_ids, premises, valid = _order_rules(
+            rng, min_valid=MIN_ORDERINGS if self.acceptability else CHOICE_COUNT
+        )
+        arrangement: dict[str, int | str] = {
+            "rule_count": len(premises),
+            "rules": "+".join(rule_ids),
+            "valid_orderings": len(valid),
+        }
 
         if self.acceptability:
             # The credited answer is one valid arrangement; each distractor
@@ -782,6 +967,7 @@ class SequencingGame:
                 premises=premises,
                 choices=tuple(choices),
                 space=space,
+                arrangement=arrangement,
             )
 
         pool: list[Statement] = []
@@ -791,7 +977,10 @@ class SequencingGame:
                     pool.append(Before(a, b))
             for slot in range(1, len(_GAME_ENTITIES) + 1):
                 pool.extend([AtSlot(a, slot), NotAtSlot(a, slot)])
-        credited = _entailed_from(space, premises, pool, rng)
+        # A stated rule is entailed by itself; restating one is not an inference.
+        credited = _entailed_from(
+            space, premises, [p for p in pool if p not in premises], rng
+        )
         distractors = select_distractors(space, premises, pool, rng, exclude=credited)
         return Blueprint(
             family="must_be_true",
@@ -803,6 +992,7 @@ class SequencingGame:
                 *(FormalChoice(role="distractor", statement=d) for d in distractors),
             ),
             space=space,
+            arrangement=arrangement,
         )
 
     def stem(self, rng: random.Random) -> str:
@@ -838,22 +1028,45 @@ _GROUP_ENTITIES = ("e1", "e2", "e3", "e4")
 _GROUP_SLOTS = ("g1", "g2")
 
 
+def _group_menu(
+    entities: Sequence[str], groups: Sequence[str]
+) -> list[tuple[str, Statement]]:
+    """Every grouping rule the game may draw, tagged with its menu id."""
+    menu: list[tuple[str, Statement]] = []
+    for i, a in enumerate(entities):
+        for b in entities[i + 1 :]:
+            menu.append(("same", SameGroup(a, b)))
+            menu.append(("different", DiffGroup(a, b)))
+        for g in groups:
+            menu.append(("in", InGroup(a, g)))
+            menu.append(("not-in", NotInGroup(a, g)))
+    return menu
+
+
 @dataclass(frozen=True)
 class GroupingGame:
-    """A distribution game: which assignment could be accurate."""
+    """A distribution game: which assignment could be accurate.
+
+    Two to four rules are drawn per item from a menu of same-group /
+    different-group / placed-in / not-placed-in rules and re-drawn until they
+    leave more than one valid split and enough invalid ones for the distractors.
+    """
 
     meta: SchemaMeta
 
     def build(self, rng: random.Random, domain: DomainPack) -> Blueprint:
+        return _draw_until(rng, self._attempt, what=self.meta.id)
+
+    def _attempt(self, rng: random.Random) -> Blueprint:
         space = AssignSpace(entities=_GROUP_ENTITIES, groups=_GROUP_SLOTS)
-        premises: tuple[Statement, ...] = (
-            DiffGroup("e1", "e2"),
-            SameGroup("e3", "e4"),
-            InGroup("e1", "g1"),
+        rule_ids, premises = _draw_rules(
+            rng, _group_menu(_GROUP_ENTITIES, _GROUP_SLOTS), rng.choice(_RULE_COUNTS)
         )
         valid = [m for m in space.models() if all(r.holds(m) for r in premises)]
         invalid = [m for m in space.models() if not all(r.holds(m) for r in premises)]
-        if not valid or len(invalid) < CHOICE_COUNT - 1:
+        # A rule set that every assignment satisfies is no game, and one that
+        # leaves a single split has been solved by the setup.
+        if len(valid) < 2 or len(invalid) < CHOICE_COUNT - 1:
             raise SchemaError("grouping rules leave no usable split")
         good = rng.choice(valid)
         rng.shuffle(invalid)
@@ -877,6 +1090,11 @@ class GroupingGame:
                 ),
             ),
             space=space,
+            arrangement={
+                "rule_count": len(premises),
+                "rules": "+".join(rule_ids),
+                "valid_splits": len(valid),
+            },
         )
 
     def stem(self, rng: random.Random) -> str:

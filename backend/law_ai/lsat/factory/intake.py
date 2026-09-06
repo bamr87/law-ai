@@ -7,7 +7,11 @@ Spec 024 FR-7 / FR-9. Every raw batch passes four ordered gates:
 2. **concept lint** — every tag exists in the catalog, the section matches
    the target, and any referenced passage exists;
 3. **dedup** — normalized token-Jaccard of the stem against the live bank,
-   pending proposals, and earlier drafts in the same batch (spec 024 AC-3);
+   pending proposals, and earlier drafts in the same batch (spec 024 AC-3).
+   When the job writes against a shared passage/game, sentences that restate
+   that context are dropped first and only the question-specific text is
+   compared, on both sides (BL-20260702-08: LG batch-mates repeating the
+   setup scored ~0.93 against each other in the first live run);
 4. **balance** — batch answer-key skew detection: exceeding the tolerance
    *flags* every affected proposal rather than rejecting (spec 024 AC-4,
    resolving BL-20260606-02's check-at-intake requirement).
@@ -25,7 +29,8 @@ import json
 import logging
 import re
 from collections import Counter
-from typing import Any, Literal
+from collections.abc import Mapping
+from typing import Any, Literal, NamedTuple
 
 from pydantic import BaseModel, Field
 
@@ -90,27 +95,199 @@ def _jaccard(a: frozenset[str], b: frozenset[str]) -> float:
     return len(a & b) / len(a | b)
 
 
-def _dedup_corpus() -> list[tuple[str, frozenset[str]]]:
-    """(source id, stem token set) for the live bank + pending proposals."""
-    corpus: list[tuple[str, frozenset[str]]] = [
-        (q.id, _tokens(q.stem)) for q in load_bank().values()
+class _CorpusEntry(NamedTuple):
+    """One stem the dedup gate compares against, with its passage linkage."""
+
+    source_id: str
+    stem: str
+    tokens: frozenset[str]
+    passage_id: str | None
+
+
+_SENTENCE_RE = re.compile(r"(?<=[.?!:])\s+")
+
+# Function words that carry no question-specific signal. Deliberately leaves
+# modals and negation alone ("must", "could", "cannot", "not", "except"): in
+# LG/RC stems those are exactly what tells one question from its neighbour.
+_STOPWORDS = frozenset(
+    [
+        "a",
+        "an",
+        "the",
+        "of",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "and",
+        "or",
+        "if",
+        "then",
+        "is",
+        "are",
+        "be",
+        "been",
+        "that",
+        "this",
+        "these",
+        "those",
+        "which",
+        "one",
+        "following",
+        "each",
+        "with",
+        "by",
+        "as",
+        "it",
+        "its",
+        "than",
+        "from",
+        "into",
+        "any",
+        "all",
+        "some",
+        "but",
+        "so",
+        "do",
+        "does",
+        "did",
+        "would",
+        "will",
+        "has",
+        "have",
+        "had",
+        "was",
+        "were",
+        "who",
+        "whom",
+        "whose",
+        "what",
+    ]
+)
+
+#: Share of a stem sentence's tokens already present in the passage/game
+#: context above which the sentence counts as a restatement of that context.
+_CONTEXT_SENTENCE_OVERLAP = 0.8
+
+#: Fewer question-specific tokens than this and the residue is too thin to
+#: compare on ("Which must be true?" would collapse onto every other short
+#: question); the kept sentence(s) are then compared whole instead.
+_MIN_QUESTION_TOKENS = 3
+
+
+def _context_tokens(context: Mapping[str, Any] | None) -> frozenset[str]:
+    """Token set of a passage/game context (setup, rules, passage text)."""
+    if not context:
+        return frozenset()
+    parts: list[str] = [
+        str(context[key])
+        for key in ("title", "summary", "setup", "passage", "passage_b")
+        if isinstance(context.get(key), str)
+    ]
+    rules = context.get("rules")
+    if isinstance(rules, list):
+        parts.extend(str(rule) for rule in rules)
+    return _tokens(" ".join(parts))
+
+
+def _question_tokens(stem: str, context: frozenset[str]) -> tuple[frozenset[str], bool]:
+    """Tokens of the question-specific part of *stem* (BL-20260702-08).
+
+    Drops every sentence whose tokens mostly already appear in *context* — a
+    draft restating the shared game setup or passage — then strips function
+    words from what is left. Context tokens are *not* subtracted wholesale:
+    in an LG stem the entity letters and verbs that also live in the setup
+    ("If **H argues** third…" vs "If **K argues** third…") are the signal
+    that separates two questions, so removing them would make every question
+    on a game look alike.
+
+    Returns ``(tokens, stripped)``. ``stripped`` is False when no sentence
+    survived (nothing question-specific to compare — the full stem is used)
+    and True otherwise; a residue thinner than :data:`_MIN_QUESTION_TOKENS`
+    falls back to the kept sentences with their function words.
+    """
+    full = _tokens(stem)
+    if not context:
+        return full, False
+    kept: set[str] = set()
+    for sentence in _SENTENCE_RE.split(stem):
+        toks = _tokens(sentence)
+        if not toks:
+            continue
+        if len(toks & context) / len(toks) > _CONTEXT_SENTENCE_OVERLAP:
+            continue
+        kept |= toks
+    if not kept:
+        return full, False
+    residue = frozenset(kept - _STOPWORDS)
+    if len(residue) < _MIN_QUESTION_TOKENS:
+        return frozenset(kept), True
+    return residue, True
+
+
+def _dedup_context(
+    payload: Mapping[str, Any], job: GenerationJob, passages: Mapping[str, Any]
+) -> tuple[frozenset[str], str | None]:
+    """Shared context a batch's stems may restate, plus its corpus key.
+
+    Returns ``(context tokens, passage key)``: corpus entries carrying that
+    key share the context and get the same stripping. In ``passage_set`` mode
+    the context is the batch's own new passage and the key is the job id, so
+    only intra-batch mates share it; in ``items`` mode both come from the
+    target's existing passage.
+    """
+    target = job.target
+    if target.mode == "passage_set":
+        passage = payload.get("passage")
+        context = passage if isinstance(passage, Mapping) else None
+        return _context_tokens(context), job.job_id
+    if target.passage_id is None:
+        return frozenset(), None
+    passage = passages.get(target.passage_id)
+    if passage is None:
+        return frozenset(), target.passage_id
+    return _context_tokens(passage.model_dump()), target.passage_id
+
+
+def _dedup_corpus() -> list[_CorpusEntry]:
+    """Stems of the live bank + pending proposals, with passage linkage."""
+    corpus: list[_CorpusEntry] = [
+        _CorpusEntry(q.id, q.stem, _tokens(q.stem), q.passage_id)
+        for q in load_bank().values()
     ]
     for row in list_proposals(status="pending", limit=500):
         draft = row.get("draft") or {}
         stem = str(draft.get("stem") or "")
         if stem:
-            corpus.append((str(row.get("id")), _tokens(stem)))
+            passage_id = draft.get("passage_id")
+            corpus.append(
+                _CorpusEntry(
+                    str(row.get("id")),
+                    stem,
+                    _tokens(stem),
+                    str(passage_id) if passage_id else None,
+                )
+            )
     return corpus
 
 
 def _closest(
-    stem_tokens: frozenset[str], corpus: list[tuple[str, frozenset[str]]]
+    stem_tokens: frozenset[str],
+    corpus: list[_CorpusEntry],
+    *,
+    context: frozenset[str] = frozenset(),
+    passage_key: str | None = None,
 ) -> tuple[str, float]:
+    """Best Jaccard match in *corpus*; entries sharing the context are stripped too."""
     best_id, best_score = "", 0.0
-    for source_id, tokens in corpus:
+    for entry in corpus:
+        tokens = entry.tokens
+        if context and passage_key is not None and entry.passage_id == passage_key:
+            tokens, _ = _question_tokens(entry.stem, context)
         score = _jaccard(stem_tokens, tokens)
         if score > best_score:
-            best_id, best_score = source_id, score
+            best_id, best_score = entry.source_id, score
     return best_id, best_score
 
 
@@ -143,8 +320,10 @@ def _gate_draft(
     target: Any,
     catalog: set[str],
     passages: dict[str, Any],
-    corpus: list[tuple[str, frozenset[str]]],
+    corpus: list[_CorpusEntry],
     config: FactoryConfig,
+    context: frozenset[str] = frozenset(),
+    passage_key: str | None = None,
 ) -> tuple[DraftQuestion | None, GateRejection | None]:
     """Run gates 1-3 on one raw draft; returns exactly one of (draft, reject)."""
     if not isinstance(raw_item, dict):
@@ -173,8 +352,19 @@ def _gate_draft(
         return None, rejection
     draft = linted
 
-    # Gate 3: near-duplicate detection (bank + pending + intra-batch).
-    closest_id, score = _closest(_tokens(draft.stem), corpus)
+    # Gate 3: near-duplicate detection (bank + pending + intra-batch), on the
+    # question-specific text when the stem restates a shared context.
+    question, stripped = (
+        _question_tokens(draft.stem, context)
+        if config.dedup_strip_context
+        else (_tokens(draft.stem), False)
+    )
+    closest_id, score = _closest(
+        question,
+        corpus,
+        context=context if stripped else frozenset(),
+        passage_key=passage_key,
+    )
     if score >= config.dedup_threshold:
         return None, GateRejection(
             draft_index=index,
@@ -233,6 +423,7 @@ def ingest_batch(
     catalog = set(load_concepts().keys())
     passages = dict(load_passages())
     corpus = _dedup_corpus()
+    context, passage_key = _dedup_context(payload, job, passages)
     accepted_drafts: list[DraftQuestion] = []
     rejected: list[GateRejection] = []
 
@@ -246,6 +437,8 @@ def ingest_batch(
             passages=passages,
             corpus=corpus,
             config=config,
+            context=context,
+            passage_key=passage_key,
         )
         if rejection is not None or draft is None:
             rejected.append(
@@ -255,7 +448,11 @@ def ingest_batch(
                 )
             )
             continue
-        corpus.append((f"{job.job_id}#{index}", _tokens(draft.stem)))
+        corpus.append(
+            _CorpusEntry(
+                f"{job.job_id}#{index}", draft.stem, _tokens(draft.stem), passage_key
+            )
+        )
         accepted_drafts.append(draft)
 
     # Gate 4: batch answer-key balance (flag, don't reject — AC-4).

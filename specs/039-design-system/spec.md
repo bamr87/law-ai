@@ -57,6 +57,7 @@ Inventory and findings: [docs/ui-ux.md](../../docs/ui-ux.md).
 - **FR-3**: `lsat-static/app/globals.css` imports `tokens.css` + `frontend/ui/semantic.css` (relative or copied-at-build — implementation in plan) and deletes duplicated `:root` hex. Semantic class names (`.btn`, `.card`, `.choice`, …) remain the public API of the static app.
 - **FR-4**: Ship React primitives under `frontend/ui/components/`: `Button`, `Card`, `Input`, `Badge`, `Pill`, `Empty`, `Choice` (radiogroup, porting `lsat-static` QuestionCard keyboard behavior), `LegalDisclaimerBanner`, `LegalDisclaimerFooter`. Each accepts a `className` merge and uses tokens/semantic classes only.
 - **FR-5**: Migrate a proof set onto primitives + tokens: `NavBar`, `LegalDisclaimer.tsx` (become re-exports or thin wrappers), `lsat-static/components/QuestionCard.tsx`. No raw hex in those files after migration.
+  - *Amendment 2026-09-05 (BL-20260831-01, spec 051):* `NavBar.tsx` was deleted — dead since the spec 040 shell replaced it. The proof set is now `LegalDisclaimer.tsx` + `QuestionCard.tsx`; the shipped migration is unchanged.
 - **FR-6**: Catalog at `frontend/ui/README.md` listing every primitive, when to use it, and the two accent roles. [docs/ui-ux.md](../../docs/ui-ux.md) stays the narrative inventory and is updated to describe the new layout as current once primitives land.
 - **FR-7**: Accept [ADR 0006](../../docs/adr/0006-first-party-design-system.md) in the same PR that amends constitution §2 (drop shadcn/ui; name `frontend/ui/`) and §9 (UI changes update `docs/ui-ux.md`). Update AGENTS.md, README, and the ADR index. PRD/Proposal get a one-line pointer rather than a stack rewrite.
 - **FR-8**: Retarget `.design-sync/ds/styles.src.css` to import `frontend/ui/tokens.css` + `semantic.css` instead of duplicating `:root`. Document in `.design-sync/NOTES.md` that the DS consumes `frontend/ui/`. Do not treat design-sync as a second palette.
@@ -95,6 +96,7 @@ None to `agents_runtime`. Dev agents gain `docs/ui-ux.md` + `frontend/ui/README.
 - **AC-2**: Given `lsat-static` production build, when the design system is imported, then the export still contains no Tailwind runtime and existing semantic class names still style Overview/Drill/QuestionCard.
 - **AC-3**: Given `Choice`, when the user arrows through options and presses Enter, then the selected label is submitted and the correct/incorrect classes apply — matching today's QuestionCard.
 - **AC-4**: Given the migrated proof files (NavBar, LegalDisclaimer, QuestionCard), when grepped for raw `#rrggbb` / `rgb(`, then there are zero matches outside `frontend/ui/tokens.css`.
+  - *Amendment 2026-09-05 (BL-20260831-01):* the grep now covers LegalDisclaimer + QuestionCard only; NavBar no longer exists.
 - **AC-5**: Given `make test-frontend`, when the new `__tests__/ui/` files run, then they pass. `python3 scripts/spec_validator.py specs/039-design-system` and `python3 scripts/backlog_lint.py` exit 0.
 - **AC-6**: Given constitution §2 after ADR 0006 is accepted, when an agent reads the locked stack, then it names `frontend/ui/` and does not name shadcn/ui.
 

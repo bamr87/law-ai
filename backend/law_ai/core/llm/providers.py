@@ -16,7 +16,9 @@ the LSAT tutor has always used. Routing, fallback and provenance live in
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import random
 from typing import Any
 
 import httpx
@@ -175,7 +177,14 @@ class OllamaProvider:
         """Call Ollama, failing fast when the server is unreachable.
 
         The TTL-cached reachability probe keeps a down Ollama from burning the
-        full request timeout at the tail of the chain.
+        full request timeout at the tail of the chain. Once the server is
+        known to be up, transient failures — a dropped connection, a read
+        timeout while a model loads, a 429/5xx while it is busy — are retried
+        with bounded exponential backoff (``OLLAMA_MAX_RETRIES`` total
+        attempts, default 2; ``OLLAMA_REQUEST_TIMEOUT_S`` applies per attempt)
+        so one hiccup on the local tier does not fail a whole agent run
+        (BL-20260810-05). Anything else (a 404 for an unpulled model, a 400)
+        raises on the first attempt.
         """
         from law_ai.agents_runtime import llm as llm_runtime
 
@@ -199,11 +208,44 @@ class OllamaProvider:
             payload["format"] = "json"
 
         timeout = httpx.Timeout(float(settings.OLLAMA_REQUEST_TIMEOUT_S))
+        attempts = max(1, int(getattr(settings, "OLLAMA_MAX_RETRIES", 2)))
         async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(url, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-        return str(data.get("response") or "").strip()
+            for attempt in range(attempts):
+                try:
+                    resp = await client.post(url, json=payload)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    return str(data.get("response") or "").strip()
+                except httpx.HTTPStatusError as exc:
+                    status = exc.response.status_code
+                    if (
+                        status not in _OLLAMA_RETRYABLE_STATUS
+                        or attempt == attempts - 1
+                    ):
+                        raise
+                    wait = _ollama_backoff_seconds(attempt)
+                    logger.info(
+                        "Ollama HTTP %s; retry %s/%s in %.1fs",
+                        status,
+                        attempt + 1,
+                        attempts,
+                        wait,
+                    )
+                    await asyncio.sleep(wait)
+                except httpx.TransportError as exc:
+                    if attempt == attempts - 1:
+                        raise
+                    wait = _ollama_backoff_seconds(attempt)
+                    logger.info(
+                        "Ollama transport error (%s); retry %s/%s in %.1fs",
+                        type(exc).__name__,
+                        attempt + 1,
+                        attempts,
+                        wait,
+                    )
+                    await asyncio.sleep(wait)
+        # Unreachable: the loop either returns or raises on the final attempt.
+        raise LLMUnavailableError("Ollama: exhausted retries without a response")
 
     async def probe(self) -> dict[str, Any]:
         base: dict[str, Any] = {
@@ -219,6 +261,25 @@ class OllamaProvider:
             return {**base, "reachable": resp.status_code < 500, "models": models[:10]}
         except Exception as exc:  # pragma: no cover - defensive
             return {**base, "reachable": False, "error": str(exc)[:200]}
+
+
+# Transient Ollama statuses worth one more try: 429 (busy), 5xx (a model still
+# loading, a crashed runner). A 404 means the model is not pulled and a 400
+# means the request is wrong — neither improves with waiting.
+_OLLAMA_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
+
+# Backoff is short on purpose: Ollama sits at the tail of the chain behind two
+# hosted tiers, so a slow retry here lands on top of everything that already
+# failed. Exponential from half a second, capped, with jitter so parallel
+# workers do not re-hit a busy server in lockstep.
+_OLLAMA_BACKOFF_BASE_S = 0.5
+_OLLAMA_BACKOFF_CAP_S = 8.0
+
+
+def _ollama_backoff_seconds(attempt: int) -> float:
+    """Wait before retry number ``attempt + 1`` (0-based ``attempt``)."""
+    wait = min(_OLLAMA_BACKOFF_CAP_S, _OLLAMA_BACKOFF_BASE_S * float(2**attempt))
+    return float(wait + random.uniform(0.0, 0.25))
 
 
 def _with_system(request: LLMRequest) -> str:

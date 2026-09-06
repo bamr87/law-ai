@@ -22,8 +22,8 @@ import time
 import httpx
 from pydantic import BaseModel, Field
 
-from law_ai.core import audit_jsonl as audit_store
 from law_ai.core import claude_code, llm
+from law_ai.core.provenance import provenance
 from law_ai.lsat.services import llm_cache
 from law_ai.lsat.services.bank import (
     ChoiceLabel,
@@ -181,9 +181,16 @@ async def cross_check(q: Question, *, refresh: bool = False) -> CrossCheckResult
 
 
 def _audit_event(result: CrossCheckResult) -> None:
-    audit_store.record(
+    """Append one ``lsat_cross_check`` event per invocation.
+
+    Goes through :func:`provenance.log_event` (BL-20260527-06) so every fresh
+    verdict lands in ``AuditEvent`` as well as the JSONL store: the audit log
+    is the per-question time series :mod:`law_ai.lsat.services.regression`
+    reads, since the response cache only keeps the latest verdict.
+    """
+    provenance.log_event(
+        "lsat_cross_check",
         {
-            "type": "lsat_cross_check",
             "prompt_version": PROMPT_VERSION,
             "question_id": result.question_id,
             "bank_choice": result.bank_choice,
@@ -193,5 +200,5 @@ def _audit_event(result: CrossCheckResult) -> None:
             "used_llm": result.used_llm,
             "cached": result.cached,
             "requires_human_review": result.requires_human_review,
-        }
+        },
     )

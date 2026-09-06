@@ -449,6 +449,20 @@ def rule_lsat_parity(audit: Audit) -> None:
 BASE_CSS = FRONTEND / "ui" / "base.css"
 BASE_CSS_MIRROR = LSAT_STATIC / "app" / "base.css"
 
+#: Every (source, mirror) pair the two front ends share by copy rather than by
+#: import. `make ui-sync` refreshes all of them; R12 fails on any drift.
+#: rovingFocus.ts is the pure keyboard contract for composite widgets
+#: (BL-20260831-08): the static QuestionCard consumes the same function the
+#: platform's useRovingTabIndex does, so an arrow key means one thing in both
+#: products.
+SHARED_MIRRORS: list[tuple[Path, Path]] = [
+    (BASE_CSS, BASE_CSS_MIRROR),
+    (
+        FRONTEND / "lib" / "shell" / "rovingFocus.ts",
+        LSAT_STATIC / "lib" / "rovingFocus.ts",
+    ),
+]
+
 
 def rule_shared_css_mirror(audit: Audit) -> None:
     """R12 — the two front ends really do share one set of primitives.
@@ -459,16 +473,17 @@ def rule_shared_css_mirror(audit: Audit) -> None:
     and a mirror nobody checks is just a fork with extra steps — so this fails
     the build the moment they differ.
     """
-    if not BASE_CSS.is_file() or not BASE_CSS_MIRROR.is_file():
-        audit.add(BASE_CSS_MIRROR, 1, "R12", "shared base.css mirror is missing")
-        return
-    if BASE_CSS.read_bytes() != BASE_CSS_MIRROR.read_bytes():
-        audit.add(
-            BASE_CSS_MIRROR,
-            1,
-            "R12",
-            "drifted from frontend/ui/base.css — run `make ui-sync`",
-        )
+    for source, mirror in SHARED_MIRRORS:
+        if not source.is_file() or not mirror.is_file():
+            audit.add(mirror, 1, "R12", f"shared {source.name} mirror is missing")
+            continue
+        if source.read_bytes() != mirror.read_bytes():
+            audit.add(
+                mirror,
+                1,
+                "R12",
+                f"drifted from {_rel(source)} — run `make ui-sync`",
+            )
 
 
 def rule_page_frame(audit: Audit) -> None:
@@ -509,7 +524,7 @@ RULES = [
     ("R9", "sticky offsets use the shell stack"),
     ("R10", "composite widgets are named and tabs point at panels"),
     ("R11", "no form control is named only by its placeholder"),
-    ("R12", "the mirrored base.css copies are identical"),
+    ("R12", "the mirrored base.css / rovingFocus.ts copies are identical"),
     ("R13", "every platform LSAT component is ported or explains why not"),
 ]
 

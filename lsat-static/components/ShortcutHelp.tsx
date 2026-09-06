@@ -29,6 +29,7 @@ const GROUPS: Group[] = [
     rows: [
       ['A – E', 'Select that answer choice'],
       ['↑ ↓ ← →', 'Move between choices (when a choice has focus)'],
+      ['Home  /  End', 'First / last choice (when a choice has focus)'],
       ['Enter', 'Check the answer — then again to advance'],
       ['N  /  P', 'Next / previous question (answers you gave are kept)'],
       ['H', 'Reveal the next hint'],

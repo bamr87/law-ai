@@ -147,7 +147,7 @@ Three things that make a screenshot honest rather than decorative:
 | R12 | The two copies of `frontend/ui/base.css` have drifted. Run `make ui-sync`. |
 | R13 | A platform LSAT component with no `lsat-static` counterpart and no `static-parity: none — <reason>`. |
 
-**Opting out.** Put `ux-audit: exempt — <reason>` in a comment to exempt a whole file, or `ux-audit: bare-page — <reason>` to exempt one route from R7. A reason is required on the same line, so every exemption explains itself to the next reader. Two exist today: `components/NavBar.tsx` (superseded dead code) and the dashboard route (full-bleed hero).
+**Opting out.** Put `ux-audit: exempt — <reason>` in a comment to exempt a whole file, or `ux-audit: bare-page — <reason>` to exempt one route from R7. A reason is required on the same line, so every exemption explains itself to the next reader. One exists today: the dashboard route (full-bleed hero). The other, `components/NavBar.tsx` (superseded dead code), was deleted under BL-20260831-01.
 
 The keyboard half of a composite widget (one tab stop, arrows move within it) is behavioural and cannot be seen statically — `frontend/__tests__/shell/rovingFocus.test.tsx` covers that half.
 

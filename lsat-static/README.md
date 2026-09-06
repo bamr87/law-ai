@@ -36,6 +36,17 @@ npm run build          # static export → out/
 
 The build serves under a base path for GitHub project Pages (`https://<owner>.github.io/<repo>/`). It defaults to `/law-ai`; override with `PAGES_BASE_PATH` (e.g. `PAGES_BASE_PATH="" npm run build` for a root/custom domain).
 
+## Tests
+
+Component tests run on Vitest + React Testing Library + jsdom, the same toolchain as `frontend/`, configured in [`vitest.config.ts`](vitest.config.ts) and [`vitest.setup.ts`](vitest.setup.ts) and kept under [`__tests__/`](__tests__/). They dispatch real key events against the mounted components, so the keyboard contract is verified behaviourally rather than by the source-string assertions the root suite used to rely on.
+
+```bash
+make test-lsat-static   # from the repo root: Docker-first, node:20-alpine, node_modules on a named volume
+npm test -- --run       # from lsat-static/, if you already have node_modules locally
+```
+
+CI runs the same suite (plus `tsc --noEmit`) in the `lsat-static` job of [`ci.yml`](../.github/workflows/ci.yml) whenever `lsat-static/**` changes.
+
 ## Deployment
 
 Pushed automatically by [`.github/workflows/deploy-lsat-pages.yml`](../.github/workflows/deploy-lsat-pages.yml) on `main` when `lsat-static/**` or the LSAT source bank changes: it runs `npm ci && npm run build` and publishes `out/` to GitHub Pages.

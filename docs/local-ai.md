@@ -78,7 +78,8 @@ The response includes `phoenix_trace_url` and `langgraph_thread_id` — paste ei
 | `LLM_PROVIDER_CHAIN` | `claude_code,anthropic_api,xai,ollama` | Ordered LLM provider list `ChatProviderChain` reads (constitution §1). Pin to `ollama` to force local-only. See [docs/claude-code-dev-llm.md](claude-code-dev-llm.md) for the Claude tiers. |
 | `OLLAMA_BASE_URL` | `http://ollama:11434` | Override to `http://localhost:11434` for host runs. |
 | `OLLAMA_DEFAULT_MODEL` | `mistral:7b-instruct-q4_K_M` | Bump to `llama3.1:8b-instruct-q4_K_M` on 64 GB+. |
-| `OLLAMA_REQUEST_TIMEOUT_S` | `120.0` | Raise for very long contexts. |
+| `OLLAMA_REQUEST_TIMEOUT_S` | `120.0` | Raise for very long contexts. Applies per attempt. |
+| `OLLAMA_MAX_RETRIES` | `2` | Total attempts per Ollama call on transient failures (connect/read-timeout, 429, 5xx) with short exponential backoff; `1` disables retry. Ollama sits at the tail of the chain, so keep this low. |
 | `LANGGRAPH_CHECKPOINTER` | `postgres` | `postgres` \| `redis` \| `memory`. Postgres reads `POSTGRES_URL` (not `DATABASE_URL`, spec 035). |
 | `PHOENIX_COLLECTOR_ENDPOINT` | _(blank in `settings/base.py`; `docker-compose.yml` sets it to `http://phoenix:6006/v1/traces` for the `backend` service)_ | **Unset disables tracing entirely.** Blank it in `.env` to opt out even inside the compose stack. |
 | `PHOENIX_UI_URL` | `http://localhost:6006` | Used to build deep-links in API responses. |

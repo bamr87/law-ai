@@ -48,8 +48,9 @@ export default function Masthead({
       <Link
         href="/"
         aria-label="Law AI home"
-        className="flex shrink-0 items-center gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+        className="tap-target flex shrink-0 items-center gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
       >
+        {/* The mark stays 32px; the link around it is the 44px target. */}
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-bold text-white">
           LA
         </span>
@@ -101,7 +102,7 @@ export default function Masthead({
           type="button"
           onClick={onOpenPalette}
           aria-label="Open command palette"
-          className="flex items-center gap-2 rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-400 transition hover:border-blue-500/40 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+          className="tap-target flex items-center justify-center gap-2 rounded-md border border-slate-700 px-2.5 text-xs text-slate-400 transition hover:border-blue-500/40 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
         >
           <span aria-hidden="true">⌕</span>
           <kbd className="hidden font-mono text-[10px] text-slate-500 sm:inline">
@@ -154,7 +155,7 @@ function PanelToggle({
       title={`${name} (${hint})`}
       onClick={onClick}
       className={
-        'rounded-md border px-2 py-1 text-xs capitalize transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ' +
+        'tap-target rounded-md border px-2.5 text-xs capitalize transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ' +
         (open
           ? 'border-blue-500/40 bg-blue-600/10 text-blue-200'
           : 'border-slate-700 text-slate-400 hover:border-blue-500/40 hover:text-white')

@@ -25,6 +25,7 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from law_ai.core import audit_jsonl as audit_store
+from law_ai.core.provenance import provenance
 from law_ai.core.settings_proxy import settings_proxy as settings
 from law_ai.lsat.services import bank as _bank
 from law_ai.lsat.services.bank import (
@@ -175,6 +176,9 @@ def _replay(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
             state[pid]["note"] = ev.get("note")
             if ev.get("question_id"):
                 state[pid]["question_id"] = ev["question_id"]
+        elif kind == "lsat_proposal.cross_check" and pid in state:
+            # BL-20260527-06: the tutor-grade prediction taken at approval.
+            state[pid]["cross_check"] = ev.get("cross_check")
     return state
 
 
@@ -227,7 +231,53 @@ def set_status(
     row = get_proposal(proposal_id)
     if row is None:
         raise KeyError(f"unknown proposal {proposal_id!r}")
+    _log_decision(row, status=status, reviewer=reviewer, note=note)
     return row
+
+
+#: Audit-event kind every HITL decision on a proposal lands under
+#: (BL-20260810-08). One row per approve *and* per reject, carrying the
+#: reviewer identity and rationale, so a decision is never anonymous or
+#: rationale-free in ``AuditEvent``.
+DECISION_EVENT = "lsat_proposal_decision"
+
+
+def _log_decision(
+    row: dict[str, Any],
+    *,
+    status: ProposalStatus,
+    reviewer: str,
+    note: str | None,
+) -> None:
+    """Write the reviewer's decision to the audit layer (constitution §4).
+
+    Goes through :func:`provenance.log_event` so the event tees to the JSONL
+    store (agent ops dashboard) *and* inserts an ``AuditEvent`` row — the
+    old approve-only ``audit_store.record`` never reached the database and
+    the reject path wrote nothing at all. An audit hiccup must never block
+    a reviewer, so failures are logged and swallowed.
+    """
+    attributed = (reviewer or "").strip()
+    payload: dict[str, Any] = {
+        "proposal_id": row.get("id"),
+        "proposal_kind": row.get("proposal_kind", "question"),
+        "status": status,
+        "reviewer": (
+            attributed if attributed and attributed != "anonymous" else "(unattributed)"
+        ),
+        "note": (note or "")[:500],
+        "section": row.get("section"),
+        "question_id": row.get("question_id"),
+        "trace_id": row.get("agent_trace_id") or "",
+        "model": row.get("model"),
+        "confidence": row.get("confidence"),
+    }
+    try:
+        provenance.log_event(DECISION_EVENT, payload)
+    except Exception:  # pragma: no cover - audit failures must not block UX
+        logger.warning(
+            "provenance.log_event failed for %s", DECISION_EVENT, exc_info=True
+        )
 
 
 def promote_to_bank(
@@ -307,23 +357,7 @@ def promote_to_bank(
         note=note,
         question_id=question_id,
     )
-    # Mirror the promotion into the global audit log so the agent ops
-    # dashboard can correlate with the parent trace.
-    try:
-        audit_store.record(
-            {
-                "type": "lsat_proposal.approved",
-                "proposal_id": proposal_id,
-                "question_id": question_id,
-                "section": section,
-                "reviewer": reviewer,
-                "trace_id": row.get("agent_trace_id"),
-            }
-        )
-    except Exception:  # pragma: no cover - audit failures must not block UX
-        logger.warning(
-            "audit_store.record failed for lsat_proposal.approved", exc_info=True
-        )
+    # The decision itself is audited by set_status (BL-20260810-08).
     return updated
 
 
@@ -406,21 +440,7 @@ def promote_guide_to_bank(
         note=note,
         question_id=guide.question_id,
     )
-    try:
-        audit_store.record(
-            {
-                "type": "lsat_proposal.approved",
-                "proposal_id": proposal_id,
-                "proposal_kind": "guide",
-                "question_id": guide.question_id,
-                "reviewer": reviewer,
-                "trace_id": row.get("agent_trace_id"),
-            }
-        )
-    except Exception:  # pragma: no cover - audit failures must not block UX
-        logger.warning(
-            "audit_store.record failed for lsat_proposal.approved", exc_info=True
-        )
+    # The decision itself is audited by set_status (BL-20260810-08).
     return updated
 
 
@@ -494,22 +514,65 @@ def promote_library_article(
         ) from exc
 
     updated = set_status(proposal_id, "approved", reviewer=reviewer, note=note)
+    # The decision itself is audited by set_status (BL-20260810-08).
+    return updated
+
+
+def cross_check_on_approval(proposal_id: str) -> dict[str, Any] | None:
+    """Blind-solve a just-approved question and pin the verdict to the proposal.
+
+    BL-20260527-06: the LSAT counterpart of the LegalBench regression bundle.
+    Once a draft is in the bank it is run through
+    :func:`law_ai.lsat.services.crosscheck.cross_check` with ``refresh=True``
+    so a *fresh* "tutor-grade" prediction exists for the item from day one;
+    later sweeps append further ``lsat_cross_check`` audit events and
+    :func:`law_ai.lsat.services.regression.regression_report` compares them.
+
+    The verdict is appended to the proposal log as an
+    ``lsat_proposal.cross_check`` row (replayed onto the proposal as
+    ``cross_check``) and returned. Returns ``None`` when the proposal is not
+    an approved question or the check itself failed — a provider outage must
+    never undo an approval. Sync callers only (DRF views, commands).
+    """
+    from asgiref.sync import async_to_sync
+
+    from law_ai.lsat.services.crosscheck import cross_check
+
+    row = get_proposal(proposal_id)
+    if row is None or row.get("status") != "approved":
+        return None
+    if row.get("proposal_kind", "question") != "question":
+        return None
+    question = load_bank().get(str(row.get("question_id") or ""))
+    if question is None:
+        return None
     try:
-        audit_store.record(
+        result = async_to_sync(cross_check)(question, refresh=True)
+    except Exception:
+        logger.warning(
+            "cross-check on approval failed for %s", proposal_id, exc_info=True
+        )
+        return None
+    verdict: dict[str, Any] = {
+        "question_id": question.id,
+        "checked_at": datetime.now(UTC).isoformat(),
+        "agree": result.agree,
+        "bank_choice": result.bank_choice,
+        "model_choice": result.model_choice,
+        "model": result.model,
+        "used_llm": result.used_llm,
+        "requires_human_review": result.requires_human_review,
+    }
+    with _LOCK:
+        _append(
             {
-                "type": "lsat_proposal.approved",
-                "proposal_id": proposal_id,
-                "proposal_kind": "library_article",
-                "article_id": article_id,
-                "reviewer": reviewer,
-                "trace_id": row.get("agent_trace_id"),
+                "type": "lsat_proposal.cross_check",
+                "id": proposal_id,
+                "timestamp": verdict["checked_at"],
+                "cross_check": verdict,
             }
         )
-    except Exception:  # pragma: no cover - audit failures must not block UX
-        logger.warning(
-            "audit_store.record failed for lsat_proposal.approved", exc_info=True
-        )
-    return updated
+    return verdict
 
 
 def _next_question_id(section: Section, existing: set[str | None]) -> str:

@@ -32,7 +32,6 @@ import time
 from pathlib import Path
 from typing import Any, Protocol
 
-import httpx
 from pydantic import BaseModel
 
 from law_ai.agents_runtime.crews.lsat_content_author import (
@@ -75,6 +74,10 @@ _SYSTEM = (
     "You are an expert LSAT item writer. Follow the instructions exactly and "
     "respond with a single JSON object only — no preamble, no markdown fences."
 )
+
+#: ``agent`` recorded on every ``llm_call`` provenance event the model-backed
+#: executors write, so a factory batch is attributable in the audit trail.
+FACTORY_AGENT = "lsat_factory"
 
 
 def _parse_payload(raw: str, job_id: str) -> dict[str, Any]:
@@ -171,7 +174,8 @@ class XaiExecutor:
                     response_schema=schema,
                     max_tokens=int(getattr(settings, "LSAT_FACTORY_MAX_TOKENS", 8192)),
                     providers=(xai_oauth.PROVIDER_NAME,),
-                )
+                ),
+                agent=FACTORY_AGENT,
             )
         except LLMUnavailableError as exc:
             raise ExecutionError(f"job {job.job_id}: xAI unavailable ({exc})") from exc
@@ -185,7 +189,15 @@ class XaiExecutor:
 
 
 class OllamaExecutor:
-    """Local product-runtime generation; every tier → the Ollama default model."""
+    """Local product-runtime generation; every tier → the Ollama default model.
+
+    Routed through ``law_ai.core.llm`` with the chain pinned to the Ollama
+    provider (BL-20260810-05): the transport, its timeout, and its bounded
+    retry/backoff live in :class:`~law_ai.core.llm.providers.OllamaProvider`,
+    and every batch writes an ``llm_call`` provenance event like the hosted
+    executors do (constitution §4). A pinned single-provider chain cannot fall
+    through to a hosted tier, so a nightly local run never bills anyone.
+    """
 
     name = "ollama"
 
@@ -194,29 +206,26 @@ class OllamaExecutor:
 
     async def execute(self, job: GenerationJob) -> RawBatch:
         model = str(settings.OLLAMA_DEFAULT_MODEL)
-        url = str(settings.OLLAMA_BASE_URL).rstrip("/") + "/api/generate"
-        payload = {
-            "model": model,
-            "prompt": job.prompt,
-            "stream": False,
-            "options": {"temperature": 0.4},
-            "format": "json",
-        }
-        timeout = httpx.Timeout(float(settings.OLLAMA_REQUEST_TIMEOUT_S))
         started = time.perf_counter()
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                resp = await client.post(url, json=payload)
-                resp.raise_for_status()
-                data = resp.json()
-        except httpx.HTTPError as exc:
+            result = await llm.aroute(
+                LLMRequest(
+                    prompt=job.prompt,
+                    system=_SYSTEM,
+                    json_mode=True,
+                    temperature=0.4,
+                    models={llm.OLLAMA: model},
+                    providers=(llm.OLLAMA,),
+                ),
+                agent=FACTORY_AGENT,
+            )
+        except LLMUnavailableError as exc:
             raise ExecutionError(f"job {job.job_id}: Ollama error ({exc})") from exc
         latency_ms = (time.perf_counter() - started) * 1000.0
-        raw = str(data.get("response") or "").strip()
         return RawBatch(
             job_id=job.job_id,
-            payload=_parse_payload(raw, job.job_id),
-            model_label=model,
+            payload=_parse_payload(result.text, job.job_id),
+            model_label=result.model_label,
             latency_ms=round(latency_ms, 2),
         )
 

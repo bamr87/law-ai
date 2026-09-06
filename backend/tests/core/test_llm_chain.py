@@ -15,6 +15,7 @@ from unittest.mock import patch
 import pytest
 
 from law_ai.core import llm
+from law_ai.core.llm import providers as llm_providers
 from law_ai.core.llm.base import LLMRequest
 
 
@@ -255,3 +256,50 @@ class TestAdapters:
         with _chain(provider):
             runnable = llm.build_runnable(agent="legal_workflow")
             assert await runnable.ainvoke("q") == "graph answer"
+
+
+# ---------------------------------------------------------------------------
+# Public surface (BL-20260905-12 — the package must export every provider)
+# ---------------------------------------------------------------------------
+
+
+class TestPublicSurface:
+    """``law_ai.core.llm`` re-exports everything ``PROVIDER_REGISTRY`` knows.
+
+    Spec 050 shipped ``XAI``/``XaiProvider`` half-exported and nothing failed;
+    these assertions make the next provider fail loudly instead.
+    """
+
+    def test_every_registered_provider_class_is_exported(self) -> None:
+        for cls in llm_providers.PROVIDER_REGISTRY.values():
+            assert cls.__name__ in llm.__all__, f"{cls.__name__} missing from __all__"
+            assert getattr(llm, cls.__name__) is cls
+
+    def test_registry_keys_match_the_exported_name_constants(self) -> None:
+        exported = {llm.CLAUDE_OAUTH, llm.ANTHROPIC_API, llm.XAI, llm.OLLAMA}
+        assert set(llm_providers.PROVIDER_REGISTRY) == exported
+        for constant in exported:
+            # Each constant is the provider's own `name`, so a chain token and
+            # the class agree on what to call the tier.
+            assert llm_providers.PROVIDER_REGISTRY[constant].name == constant
+
+    def test_registry_order_is_the_default_chain(self) -> None:
+        assert tuple(llm_providers.PROVIDER_REGISTRY) == llm.DEFAULT_CHAIN
+
+    def test_settings_default_parses_to_the_default_chain(self) -> None:
+        """The django-environ default must agree with the router's constant."""
+        from law_ai.settings import base as base_settings
+
+        _cast, declared = base_settings.env.scheme["LLM_PROVIDER_CHAIN"]
+        assert llm.chain_names(str(declared).split(",")) == llm.DEFAULT_CHAIN
+
+    def test_package_docstring_names_every_tier(self) -> None:
+        """The default-chain prose in the package docstring cannot go stale."""
+        doc = llm.__doc__ or ""
+        assert ",".join(llm.DEFAULT_CHAIN) in doc
+        for name in llm_providers.PROVIDER_REGISTRY:
+            assert name in doc
+
+    def test_every_exported_name_resolves(self) -> None:
+        for name in llm.__all__:
+            assert hasattr(llm, name), f"__all__ lists {name!r} but it is missing"

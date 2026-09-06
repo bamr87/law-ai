@@ -94,6 +94,13 @@ class FactoryConfig(BaseModel):
         description="Token-Jaccard stem similarity at/above which a draft is "
         "rejected as a near-duplicate.",
     )
+    dedup_strip_context: bool = Field(
+        default=True,
+        description="Before the dedup comparison, drop stem sentences that "
+        "restate the shared passage/game setup so batch-mates written against "
+        "one context are judged on their question text, not the setup they "
+        "all repeat (BL-20260702-08). Items with no passage are unaffected.",
+    )
     balance_tolerance: float = Field(
         default=0.40,
         gt=0.0,
@@ -163,6 +170,9 @@ class FactoryConfig(BaseModel):
             exemplar_count=int(getattr(settings, "LSAT_FACTORY_EXEMPLARS", 2)),
             dedup_threshold=float(
                 getattr(settings, "LSAT_FACTORY_DEDUP_THRESHOLD", 0.60)
+            ),
+            dedup_strip_context=bool(
+                getattr(settings, "LSAT_FACTORY_DEDUP_STRIP_CONTEXT", True)
             ),
             balance_tolerance=float(
                 getattr(settings, "LSAT_FACTORY_BALANCE_TOLERANCE", 0.40)

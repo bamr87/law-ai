@@ -100,6 +100,24 @@ and in one model every true statement is entailed — an item with five correct 
 - **Slot letters avoid A–E.** Those are the answer labels, and a stimulus
 symbolized `A → B` beside choices labelled (A)–(E) confuses readers and trips the spec 045 guide linter.
 
+## Arrangements are drawn, not fixed
+
+A schema used to hard-code one premise arrangement, so every item from it shared a stimulus shape across every domain and seed. Since `synth/2` (BL-20260903-15) the drawn schemas vary the *shape* under the same proof:
+
+| Schema | What the seed draws |
+| ------ | ------------------- |
+| `lr-conditional-chain-*` | chain length 2–4, trigger position on any chain atom that leaves something to infer, one or two side conditionals hung in the unresolved direction |
+| `lr-quantifier-*` | one of four premise pairs — order, the weaker quantifier (`some` vs `most`), or a third `not every` premise |
+| `lg-sequencing-*` | two to four rules from a menu (before / immediately before / adjacent / at / not at), re-drawn until 2–30 arrangements survive (five or more for must-be-true, so four distinct truth patterns exist) |
+| `lg-grouping-acceptability` | two to four rules from a menu (same / different / placed in / not placed in), re-drawn until more than one split survives |
+
+Every draw goes through the same `select_distractors` proof, so a draw the checker cannot certify — one that pins every atom, contradicts itself, or entails nothing from the pool — is discarded and the next is tried. `MAX_ARRANGEMENT_DRAWS` caps the loop so a bad menu fails loudly instead of hanging a sweep. The assumption and structural schemas keep a fixed skeleton on purpose: their credited answer is defined by the gap, not the shape.
+
+Two consequences worth knowing:
+
+- **The skeleton is keyed on `(engine, schema, seed)` alone**; only the words are keyed on the domain as well. So the same seed yields the same proof in every domain, which makes the spec's "a domain swap changes words and nothing else" claim literal rather than approximate.
+- **Provenance records the draw** (`arrangement`: chain length, trigger index, rule count, menu ids), and `ENGINE_VERSION` is bumped whenever the draw changes. The promotion gate refuses an item whose `engine_version` is not the current one: re-verifying an old seed against a new draw would prove a different item.
+
 ## Where items go
 
 **Default — the review queue.** `--emit proposals` records pending proposals; `lsat_factory execute --executor synth` fulfils manifest jobs with no network and sends drafts through the same dedup, lint and balance gates as LLM drafts.

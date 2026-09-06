@@ -50,6 +50,7 @@ The architecture note at repo root describes an enterprise shell + hierarchical 
 - **FR-6**: Components: `AppShell`, `Masthead`, `NavRail`, `ContextSidebar`, `InspectorPanel`, `ScopeSwitcher` (instance-only, full path), `SettingField`, `InheritanceBadge`, `OverrideControl`. Override is an explicit action; focusing an inherited field does not write.
 - **FR-7**: `/settings` page generated from the setting catalog + `SettingField`. UPL footer remains global (root layout). Analysis inspector includes `LegalDisclaimerBanner`.
 - **FR-8**: Existing URLs (`/`, `/agents`, `/analysis`, `/graph`, `/lsat`) keep working. `NavBar.tsx` remains a horizontal registry-driven bar for `.design-sync` but is not mounted in root layout.
+  - *Amendment 2026-09-05 (BL-20260831-01, spec 051):* `NavBar.tsx` and its `.design-sync` preview were deleted; the design-sync catalog has no chrome preview until `Masthead`/`NavRail` are registered there. The URL clause stands.
 
 ## 7. Non-Functional Requirements
 
@@ -90,6 +91,7 @@ None.
 - **R-1**: Parallel routes can 404 without `default.tsx` — both slots ship `default.tsx`.
 - **R-2**: Coverage thresholds (70% lines) — new shell files must be tested so the suite does not drop.
 - **R-3**: `.design-sync` NavBar preview — keep `NavBar.tsx` export working.
+  - *Amendment 2026-09-05 (BL-20260831-01):* retired with the file; the `next/navigation` shim in `.design-sync/ds/shims/` stays for the next route-aware export.
 
 ## 14. Out of Scope / Follow-ups
 

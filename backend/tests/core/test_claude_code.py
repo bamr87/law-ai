@@ -71,6 +71,17 @@ class TestCredentials:
         settings.CLAUDE_CODE_MODEL = "claude-opus-5"
         assert claude_code.model_label() == "claude_code/claude-opus-5"
 
+    def test_legacy_lsat_provider_pin_is_gone(self) -> None:
+        """BL-20260811-22: ``LSAT_LLM_PROVIDER`` was folded into the chain.
+
+        Guards against reintroduction — ``LLM_PROVIDER_CHAIN`` is the only
+        selector, so neither the reader nor the setting may come back.
+        """
+        from django.conf import settings as django_settings
+
+        assert not hasattr(claude_code, "is_selected")
+        assert not hasattr(django_settings, "LSAT_LLM_PROVIDER")
+
 
 class TestGenerate:
     @respx.mock

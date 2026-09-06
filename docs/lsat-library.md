@@ -57,6 +57,10 @@ That single decision buys three things:
 
 The dialect is **closed**. Anything the parser does not recognise is an error naming the file, never markup passed through to a client.
 
+### Starting a new article
+
+Copy `backend/law_ai/lsat/services/data/library/_template.md` to `<your-id>.md` in the same directory, set `id` to the file name, and replace the placeholders. The template carries every frontmatter key, one instance of every block construct and every typed span, and a body table explaining each key. Files whose name starts with `_` are skipped by the loader and by the export drift gate, so the template is never published — but `tests/lsat/test_library_corpus.py` parses it against the live corpus, so it cannot fall behind the dialect.
+
 ### Frontmatter
 
 ```markdown

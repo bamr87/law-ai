@@ -251,7 +251,7 @@ export default function LayoutMenu({
           }
         }}
         className={
-          'rounded-md border px-2 py-1 text-xs transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ' +
+          'tap-target rounded-md border px-2.5 text-xs transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ' +
           (open
             ? 'border-blue-500/40 bg-blue-600/10 text-blue-200'
             : 'border-slate-700 text-slate-400 hover:border-blue-500/40 hover:text-white')

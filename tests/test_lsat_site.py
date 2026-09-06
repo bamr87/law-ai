@@ -158,6 +158,40 @@ class TestKeyboardContract:
             assert f"['{keys}'," in help_sheet, f"? sheet must document {keys}"
 
 
+class TestSharedRovingFocus:
+    """BL-20260831-08: one keyboard contract for composite widgets, two products.
+
+    `frontend/lib/shell/rovingFocus.ts` is pure TS, so the static export carries
+    a byte-identical mirror (refreshed by `make ui-sync`, drift-gated by
+    ux_audit R12) instead of hand-rolling the arrow-key pattern a second time.
+    The behavioural half lives in lsat-static/__tests__/QuestionCard.test.tsx.
+    """
+
+    SOURCE = REPO / "frontend" / "lib" / "shell" / "rovingFocus.ts"
+    MIRROR = APP / "lib" / "rovingFocus.ts"
+
+    def test_mirror_is_byte_identical(self) -> None:
+        assert self.MIRROR.is_file(), "lsat-static/lib/rovingFocus.ts is missing"
+        assert self.SOURCE.read_bytes() == self.MIRROR.read_bytes(), (
+            "lsat-static/lib/rovingFocus.ts drifted — run `make ui-sync`"
+        )
+
+    def test_question_card_consumes_the_shared_helper(self) -> None:
+        card = (APP / "components" / "QuestionCard.tsx").read_text(encoding="utf-8")
+        assert "from '@/lib/rovingFocus'" in card, (
+            "QuestionCard must import nextRovingIndex, not hand-roll arrows"
+        )
+        assert "nextRovingIndex(" in card
+        # The old modulo-wrap helper is the thing the port retires.
+        assert "function move(" not in card
+
+    def test_ui_sync_refreshes_the_mirror(self) -> None:
+        makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+        assert "lsat-static/lib/rovingFocus.ts" in makefile.split("ui-sync:", 1)[1], (
+            "`make ui-sync` must copy rovingFocus.ts alongside base.css"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Drift gate: committed artifact ↔ source bank
 # ---------------------------------------------------------------------------

@@ -122,17 +122,6 @@ def is_development() -> bool:
     return env in _DEV_ENVIRONMENTS
 
 
-def is_selected() -> bool:
-    """True iff an operator has explicitly pinned the legacy LSAT provider.
-
-    Legacy escape hatch: ``LSAT_LLM_PROVIDER`` predates the provider chain and
-    now only matters when someone pins a single provider for the LSAT surface.
-    The chain in ``LLM_PROVIDER_CHAIN`` is the real selector.
-    """
-    provider = str(getattr(settings, "LSAT_LLM_PROVIDER", "claude_code") or "").lower()
-    return provider == PROVIDER_NAME
-
-
 def is_active() -> bool:
     """True iff the OAuth transport has a usable credential.
 

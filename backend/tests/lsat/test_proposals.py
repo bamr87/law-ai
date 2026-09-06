@@ -21,6 +21,14 @@ def _isolate_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         settings, "LSAT_PROPOSALS_DIR", str(tmp_path / "lsat_proposals"), raising=False
     )
+    # BL-20260527-06: approval blind-solves the new item; keep the verdict
+    # cache out of the checked-in var/ directory too.
+    monkeypatch.setattr(
+        settings,
+        "LSAT_RESPONSE_CACHE_DIR",
+        str(tmp_path / "response_cache"),
+        raising=False,
+    )
 
     # Each test gets its own copy of the bank so promote_to_bank does not
     # mutate the checked-in fixture data.
@@ -527,3 +535,164 @@ class TestPromoteLibraryArticle:
 
         with pytest.raises(KeyError):
             proposals.promote_library_article("prop-doesnotexist")
+
+
+# ---------------------------------------------------------------------------
+# BL-20260810-08 — every HITL decision is attributed + audited
+# ---------------------------------------------------------------------------
+
+
+class TestDecisionAudit:
+    """Approve *and* reject land in ``AuditEvent`` with reviewer + rationale."""
+
+    def _rows(self) -> list[Any]:
+        from law_ai.audit.models import AuditEvent
+        from law_ai.lsat.services.proposals import DECISION_EVENT
+
+        return list(AuditEvent.objects.filter(kind=DECISION_EVENT).order_by("pk"))
+
+    def test_approve_writes_attributed_audit_event(self) -> None:
+        from law_ai.lsat.services import proposals
+
+        pid = proposals.record_proposal(
+            _draft("LR"), agent_trace_id="trace-approve", model="m", confidence=0.9
+        )
+        assert self._rows() == []
+        row = proposals.promote_to_bank(pid, reviewer="alice", note="looks right")
+        events = self._rows()
+        assert len(events) == 1
+        payload = events[0].payload
+        assert payload["proposal_id"] == pid
+        assert payload["status"] == "approved"
+        assert payload["reviewer"] == "alice"
+        assert payload["note"] == "looks right"
+        assert payload["question_id"] == row["question_id"]
+        assert payload["section"] == "LR"
+        assert payload["proposal_kind"] == "question"
+        assert events[0].trace_id == "trace-approve"
+
+    def test_reject_writes_attributed_audit_event(self) -> None:
+        from law_ai.lsat.services import proposals
+
+        pid = proposals.record_proposal(
+            _draft("LR"), agent_trace_id="trace-reject", model="m", confidence=0.4
+        )
+        proposals.set_status(pid, "rejected", reviewer="bob", note="off-topic")
+        events = self._rows()
+        assert len(events) == 1
+        payload = events[0].payload
+        assert payload["proposal_id"] == pid
+        assert payload["status"] == "rejected"
+        assert payload["reviewer"] == "bob"
+        assert payload["note"] == "off-topic"
+        assert events[0].trace_id == "trace-reject"
+
+    def test_anonymous_reviewer_is_logged_as_unattributed(self) -> None:
+        from law_ai.lsat.services import proposals
+
+        pid = proposals.record_proposal(
+            _draft("LR"), agent_trace_id="t", model="m", confidence=0.4
+        )
+        proposals.set_status(pid, "rejected")
+        (event,) = self._rows()
+        assert event.payload["reviewer"] == "(unattributed)"
+        assert event.payload["note"] == ""
+
+    def test_decision_also_tees_to_jsonl_audit_store(self) -> None:
+        from law_ai.core import audit_jsonl as audit_store
+        from law_ai.lsat.services import proposals
+        from law_ai.lsat.services.proposals import DECISION_EVENT
+
+        pid = proposals.record_proposal(
+            _draft("LR"), agent_trace_id="t", model="m", confidence=0.4
+        )
+        proposals.set_status(pid, "rejected", reviewer="carol", note="dup")
+        kinds = [ev.get("type") for ev in audit_store.tail(20)]
+        assert DECISION_EVENT in kinds
+
+
+@pytest.mark.asyncio
+async def test_reject_endpoint_records_reviewer_and_note(client: AsyncClient) -> None:
+    from asgiref.sync import sync_to_async
+
+    from law_ai.lsat.services import proposals
+
+    pid = proposals.record_proposal(
+        _draft("LR"), agent_trace_id="t-api", model="m", confidence=0.5
+    )
+    res = await client.post(
+        f"/api/lsat/proposals/{pid}/reject",
+        json={"reviewer": "dana", "note": "distractor B is also correct"},
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["reviewer"] == "dana"
+
+    def _fetch() -> list[dict[str, Any]]:
+        from law_ai.audit.models import AuditEvent
+        from law_ai.lsat.services.proposals import DECISION_EVENT
+
+        return [
+            e.payload
+            for e in AuditEvent.objects.filter(kind=DECISION_EVENT, trace_id="t-api")
+        ]
+
+    payloads = await sync_to_async(_fetch)()
+    assert len(payloads) == 1
+    assert payloads[0]["status"] == "rejected"
+    assert payloads[0]["reviewer"] == "dana"
+    assert payloads[0]["note"] == "distractor B is also correct"
+
+
+# ---------------------------------------------------------------------------
+# BL-20260527-06 — approval pins a tutor-grade cross-check verdict
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_approve_endpoint_returns_cross_check_verdict(
+    client: AsyncClient,
+) -> None:
+    from law_ai.core.llm.base import LLMResult
+    from law_ai.lsat.services import crosscheck as cc_mod
+    from law_ai.lsat.services import proposals
+
+    pid = proposals.record_proposal(
+        _draft("LR"), agent_trace_id="t1", model="m", confidence=0.9
+    )
+    verdict = LLMResult(
+        text=json.dumps({"choice": "A", "rationale": "Because A."}),
+        provider="claude_code",
+        model="claude-opus-5",
+        latency_ms=1.0,
+    )
+    with patch.object(cc_mod.llm, "agenerate", new=AsyncMock(return_value=verdict)):
+        res = await client.post(f"/api/lsat/proposals/{pid}/approve", json={})
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["status"] == "approved"
+    assert body["cross_check"]["question_id"] == body["question_id"]
+    assert body["cross_check"]["agree"] is True
+    assert body["cross_check"]["used_llm"] is True
+
+    listed = await client.get("/api/lsat/proposals", params={"status": "approved"})
+    row = next(r for r in listed.json()["proposals"] if r["id"] == pid)
+    assert row["cross_check"]["agree"] is True
+
+
+@pytest.mark.asyncio
+async def test_approve_endpoint_cross_check_can_be_disabled(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from law_ai.lsat.services import crosscheck as cc_mod
+    from law_ai.lsat.services import proposals
+
+    monkeypatch.setattr(settings, "LSAT_CROSS_CHECK_ON_APPROVE", False, raising=False)
+    pid = proposals.record_proposal(
+        _draft("LR"), agent_trace_id="t1", model="m", confidence=0.9
+    )
+    mock = AsyncMock()
+    with patch.object(cc_mod.llm, "agenerate", new=mock):
+        res = await client.post(f"/api/lsat/proposals/{pid}/approve", json={})
+    assert res.status_code == 200, res.text
+    assert "cross_check" not in res.json()
+    assert mock.await_count == 0

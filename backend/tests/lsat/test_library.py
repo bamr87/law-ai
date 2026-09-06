@@ -260,6 +260,45 @@ class TestSearch:
         hit = lib.search_library("negation")[0]
         assert "negation" in hit["snippet"].lower()
 
+    # BL-20260903-06: stemming, synonyms, multi-token queries.
+
+    def test_plural_query_matches_singular_body(self, sandbox: Path) -> None:
+        _write(sandbox, "solo", extra="The assumption is unstated.")
+        hits = lib.search_library("assumptions")
+        assert [h["id"] for h in hits] == ["solo"]
+        assert "body" in hits[0]["matched_in"]
+        assert "assumption" in hits[0]["snippet"].lower()
+
+    def test_singular_query_matches_plural_title(self, sandbox: Path) -> None:
+        _write(sandbox, "many", title="Formal Fallacies")
+        assert [h["id"] for h in lib.search_library("fallacy")] == ["many"]
+
+    def test_prefix_keeps_search_as_you_type_working(self, sandbox: Path) -> None:
+        _write(sandbox, "solo", extra="An assumption, unstated.")
+        assert [h["id"] for h in lib.search_library("assu")] == ["solo"]
+
+    def test_every_token_must_match_somewhere(self, sandbox: Path) -> None:
+        _write(sandbox, "both", extra="Sequencing games reward frames.")
+        _write(sandbox, "one", extra="Sequencing only, no second word.")
+        assert [h["id"] for h in lib.search_library("sequencing games")] == ["both"]
+
+    def test_section_abbreviation_expands_to_its_name(self, sandbox: Path) -> None:
+        _write(sandbox, "lg-guide", title="Logic Games Section Guide")
+        _write(sandbox, "other", title="Something Else")
+        hits = lib.search_library("LG")
+        assert [h["id"] for h in hits] == ["lg-guide"]
+        assert "title" in hits[0]["matched_in"]
+
+    def test_stopwords_do_not_score(self, sandbox: Path) -> None:
+        _write(sandbox, "the-one", title="The One")
+        _write(sandbox, "widget", title="Widget", extra="A widget.")
+        assert [h["id"] for h in lib.search_library("the widget")] == ["widget"]
+        assert lib.search_library("the") == []
+
+    def test_anchor_points_at_the_first_matching_heading(self, sandbox: Path) -> None:
+        _write(sandbox, "solo")
+        assert lib.search_library("two")[0]["anchor"] == "two"
+
 
 class TestCrossReferenceLabels:
     """Unlabelled references resolve to a readable name, not a raw id."""

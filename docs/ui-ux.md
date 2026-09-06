@@ -118,7 +118,6 @@ Shared hex coincidence: both canvases are `#0f172a` / `#e2e8f0`. That is the ent
 | File | Kind | Notes |
 |------|------|-------|
 | `shell/` | Chrome | The app shell: `AppShell`, `Masthead`, `NavRail`, `ContextSidebar`, `InspectorPanel`, `MobileTabBar`, `PageLayout` + `StickyToolbar`, `Overlay` (`Drawer` + `useFocusTrap`), `CommandPalette`, `ShortcutsHelp`, `BackToTop`, `ShellScroll`, `useMediaQuery`. Catalogued in [frontend/ui/README.md](../frontend/ui/README.md). |
-| `NavBar.tsx` | **Dead code** | Superseded by `shell/` in spec 040; zero imports. Kept only because spec 039 FR-5 names it in its proof set. Marked `ux-audit: exempt`; deletion tracked as BL-20260831-01. |
 | `LegalDisclaimer.tsx` | Guardrail | `Banner` + `Footer`. UPL copy (BL-20260810-07). Required beside generated analysis. |
 | `HomeStats.tsx` | Widget | Fetches agent/backlog/spec counts. |
 | `AgentDashboard.tsx` | Screen (~1460 lines) | God component: registry, runs, backlog, specs, health, launch modal. |
@@ -154,8 +153,7 @@ Shared hex coincidence: both canvases are `#0f172a` / `#e2e8f0`. That is the ent
 
 1. **UPL disclaimer is global and good.** Both apps mount it. Analysis Studio
 additionally shows `LegalDisclaimerBanner` next to generated IRAC. Keep this as a primitive, not a one-off.
-2. **NavBar "Local" pill is decorative.** It does not read backend health;
-it always looks online. That is a trust bug on a product that otherwise refuses to fabricate.
+2. ~~**NavBar "Local" pill is decorative.**~~ — **resolved 2026-09-05 (BL-20260831-01).** `NavBar.tsx` was dead since the spec 040 shell and has been deleted; the shell's masthead carries no status pill, so nothing looks online that is not.
 3. **Confidence badges have no provenance.** `AgentTrace` paints a green
 percentage. Fine for model self-score if labelled; dangerous if a future change feeds citation counts into it ([BL-20260803-03](../BACKLOG.md)).
 4. ~~**Homepage STACK copy is stale**~~ — **fixed in spec 041.** It now names

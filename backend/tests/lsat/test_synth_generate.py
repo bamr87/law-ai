@@ -296,6 +296,103 @@ class TestGeneration:
         assert len(keys) >= 3
 
 
+#: Schemas whose premise arrangement is drawn per item (BL-20260903-15). The
+#: assumption and structural schemas keep a fixed skeleton on purpose.
+_DRAWN_SCHEMAS = (
+    "lr-conditional-chain-forward",
+    "lr-conditional-chain-contrapositive",
+    "lr-quantifier-most-overlap",
+    "lr-quantifier-all-some",
+    "lg-sequencing-acceptability",
+    "lg-sequencing-must-be-true",
+    "lg-grouping-acceptability",
+)
+
+
+class TestArrangements:
+    """One schema, many premise shapes — under the same proof."""
+
+    @pytest.mark.parametrize("schema_id", _DRAWN_SCHEMAS)
+    def test_seeds_draw_at_least_two_premise_shapes(self, schema_id: str) -> None:
+        items = [generate(schema_id, "municipal-policy", seed=s) for s in range(16)]
+        shapes = {tuple(sorted(i.provenance.arrangement.items())) for i in items}
+        assert len(shapes) >= 2, shapes
+        assert all(i.report.ok for i in items)
+        # Every drawn schema records what it drew, so provenance carries the
+        # shape and not only the seed that produced it.
+        assert all(i.provenance.arrangement for i in items)
+
+    @pytest.mark.parametrize(
+        "schema_id",
+        ("lr-conditional-chain-forward", "lr-conditional-chain-contrapositive"),
+    )
+    def test_chain_length_trigger_and_rule_count_all_vary(self, schema_id: str) -> None:
+        seen: dict[str, set[int | str]] = {
+            "chain_length": set(),
+            "trigger_index": set(),
+            "rule_count": set(),
+        }
+        for seed in range(24):
+            arrangement = generate(
+                schema_id, "field-biology", seed=seed
+            ).provenance.arrangement
+            for key, bucket in seen.items():
+                bucket.add(arrangement[key])
+        for key, values in seen.items():
+            assert len(values) >= 2, f"{schema_id}: {key} never varied"
+
+    def test_game_rule_counts_vary(self) -> None:
+        counts = {
+            generate(
+                "lg-sequencing-must-be-true", "field-biology", seed=s
+            ).provenance.arrangement["rule_count"]
+            for s in range(16)
+        }
+        assert len(counts) >= 2
+
+    def test_same_seed_draws_the_same_arrangement_in_every_domain(self) -> None:
+        """The skeleton is keyed on the seed alone, so a domain swap cannot
+        change the proof — that is the spec's central claim made literal."""
+        arrangements = {
+            tuple(
+                sorted(
+                    generate(
+                        "lg-sequencing-must-be-true", d.id, seed=7
+                    ).provenance.arrangement.items()
+                )
+            )
+            for d in load_domains().values()
+        }
+        assert len(arrangements) == 1
+
+    def test_a_sequencing_key_never_restates_a_rule(self) -> None:
+        schema = get_schema("lg-sequencing-must-be-true")
+        for seed in range(12):
+            blueprint = schema.build(
+                random.Random(seed), load_domains()["municipal-policy"]
+            )
+            credited = blueprint.choices[0].statement
+            assert credited not in blueprint.premises
+
+    def test_redraw_gives_up_after_the_cap(self) -> None:
+        from law_ai.lsat.synth import schemas as mod
+
+        calls = 0
+
+        def _never(rng: random.Random) -> Blueprint:
+            nonlocal calls
+            calls += 1
+            raise mod.SchemaError("no good")
+
+        with pytest.raises(mod.SchemaError, match="no arrangement verified"):
+            mod._draw_until(random.Random(0), _never, what="test")
+        assert calls == mod.MAX_ARRANGEMENT_DRAWS
+
+    def test_fixed_schemas_report_an_empty_arrangement(self) -> None:
+        item = generate("lr-necessary-assumption", "municipal-policy", seed=1)
+        assert item.provenance.arrangement == {}
+
+
 class TestVerificationCatchesDefects:
     def _blueprint_with_broken_key(self) -> tuple[Blueprint, list[LabelledChoice]]:
         """Take a real skeleton and promote a distractor to credited."""

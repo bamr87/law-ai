@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -20,6 +20,7 @@ from law_ai.lsat.factory.executors import (
     DraftFileExecutor,
     ExecutionError,
     ExecutorUnavailable,
+    OllamaExecutor,
     XaiExecutor,
     _parse_payload,
 )
@@ -146,7 +147,7 @@ class TestXaiExecutor:
         )
         captured: dict[str, Any] = {}
 
-        async def fake_aroute(request):
+        async def fake_aroute(request, *, agent=None):
             captured["providers"] = request.providers
             captured["schema"] = request.response_schema
             return SimpleNamespace(
@@ -173,12 +174,102 @@ class TestXaiExecutor:
             xai_oauth.Credentials(access="a", refresh="r", expires_at=time.time() + 999)
         )
 
-        async def boom(request):
+        async def boom(request, *, agent=None):
             raise LLMUnavailableError("xai is down")
 
         monkeypatch.setattr(llm, "aroute", boom)
         with pytest.raises(ExecutionError, match="xAI unavailable"):
             await XaiExecutor(FactoryConfig()).execute(_job())
+
+
+class TestOllamaExecutor:
+    """BL-20260810-05: the local executor rides the chain, pinned to Ollama.
+
+    Before this it hand-rolled its own ``httpx`` post to ``/api/generate`` and
+    wrote no ``llm_call`` provenance. Now it is the same shape as the xAI
+    executor: one provider, no fall-through, transport/retry/timeout owned by
+    ``OllamaProvider``.
+    """
+
+    @pytest.mark.asyncio
+    async def test_pins_the_chain_to_ollama_only(
+        self, settings, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        settings.OLLAMA_DEFAULT_MODEL = "mistral:7b-instruct-q4_K_M"
+        captured: dict[str, Any] = {}
+
+        async def fake_aroute(request, *, agent=None):
+            captured["providers"] = request.providers
+            captured["models"] = dict(request.models)
+            captured["json_mode"] = request.json_mode
+            captured["temperature"] = request.temperature
+            captured["agent"] = agent
+            return SimpleNamespace(
+                text=json.dumps({"drafts": [_DRAFT]}),
+                model_label="ollama/mistral:7b-instruct-q4_K_M",
+                provider="ollama",
+            )
+
+        monkeypatch.setattr(llm, "aroute", fake_aroute)
+        batch = await OllamaExecutor(FactoryConfig()).execute(_job())
+
+        assert captured["providers"] == ("ollama",)
+        assert captured["models"] == {"ollama": "mistral:7b-instruct-q4_K_M"}
+        assert captured["json_mode"] is True
+        assert captured["temperature"] == pytest.approx(0.4)
+        assert captured["agent"] == "lsat_factory"
+        assert batch.model_label == "ollama/mistral:7b-instruct-q4_K_M"
+        assert batch.payload["drafts"][0]["correct"] == "B"
+
+    @pytest.mark.asyncio
+    async def test_chain_failure_becomes_an_execution_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def boom(request, *, agent=None):
+            raise LLMUnavailableError("ollama: ConnectError: refused")
+
+        monkeypatch.setattr(llm, "aroute", boom)
+        with pytest.raises(ExecutionError, match="Ollama error"):
+            await OllamaExecutor(FactoryConfig()).execute(_job())
+
+    @pytest.mark.asyncio
+    async def test_writes_llm_call_provenance(
+        self, settings, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Constitution §4: a factory batch is an LLM call and is audited as one."""
+        settings.OLLAMA_BASE_URL = "http://ollama.test:11434"
+
+        class _Ollama:
+            name = "ollama"
+
+            def configured(self) -> bool:
+                return True
+
+            def unconfigured_reason(self) -> str | None:
+                return None
+
+            def model_for(self, request) -> str:
+                return "mistral:7b-instruct-q4_K_M"
+
+            async def agenerate(self, request) -> str:
+                return json.dumps({"drafts": [_DRAFT]})
+
+            async def probe(self) -> dict[str, Any]:
+                return {"reachable": True}
+
+        monkeypatch.setattr(
+            "law_ai.core.llm.router.build_chain", lambda override=None: (_Ollama(),)
+        )
+        with patch("law_ai.core.provenance.ProvenanceLogger.log_event") as log:
+            batch = await OllamaExecutor(FactoryConfig()).execute(_job())
+
+        assert batch.model_label == "ollama/mistral:7b-instruct-q4_K_M"
+        log.assert_called_once()
+        event_type, payload = log.call_args[0]
+        assert event_type == "llm_call"
+        assert payload["agent"] == "lsat_factory"
+        assert payload["provider"] == "ollama"
+        assert payload["ok"] is True
 
 
 class TestDraftFileExecutor:

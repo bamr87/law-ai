@@ -54,7 +54,7 @@ anthropic-version: 2023-06-01
 
    That's sufficient — no provider opt-in flag is needed; the chain tries `claude_code` first by default. To use an API key instead (e.g. no Claude Code subscription), set `ANTHROPIC_API_KEY` and skip the OAuth token; `ANTHROPIC_MODEL` overrides the model id for that tier only, otherwise it follows `CLAUDE_CODE_MODEL`.
 
-   `LSAT_LLM_PROVIDER` still exists in settings but no code path reads it today (`claude_code.is_selected()`, the function that would check it, has no callers) — it is vestigial. `LLM_PROVIDER_CHAIN` is the real selector; use the local-only pin above if you want to force Ollama instead of Claude.
+   The former `LSAT_LLM_PROVIDER` single-provider pin was removed (BL-20260811-22); an `LSAT_LLM_PROVIDER` line left in a local `.env` is silently ignored. `LLM_PROVIDER_CHAIN` is the only selector; use the local-only pin above if you want to force Ollama instead of Claude.
 
 ## Validate the connection
 
@@ -109,7 +109,6 @@ All three agents — LSAT tutor, LSAT content author, and `LegalAnalyst` — rou
 | `CLAUDE_CODE_REQUEST_TIMEOUT_S` | `60` | HTTP timeout. |
 | `CLAUDE_CODE_MAX_RETRIES` | `3` | Retries on transient `429/5xx/529`. |
 | `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | API base (override for proxies). |
-| `LSAT_LLM_PROVIDER` | _(unset)_ | Vestigial — no code path reads it; kept in settings for backward compatibility only. |
 
 Every call is recorded through the audit layer (the `model` field shows e.g. `claude_code/claude-opus-5` or `anthropic_api/claude-opus-5`), so provenance is preserved regardless of which tier served the request.
 

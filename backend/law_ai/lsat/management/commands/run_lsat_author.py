@@ -1,10 +1,10 @@
 """``run_lsat_author`` — run the LSATContentAuthor agent live.
 
 Drafts an LSAT question end-to-end (prompt → LLM → parse → Pydantic validate →
-provenance) and prints the result. When the dev-time Claude Code OAuth provider
-is opted in (``LSAT_LLM_PROVIDER=claude_code`` + token, in development) the agent
-runs against your Claude Code subscription; otherwise it uses Ollama, and falls
-back to a deterministic offline draft if neither is reachable.
+provenance) and prints the result. Generation routes through the ordered
+``LLM_PROVIDER_CHAIN`` (Claude first, local Ollama last; pin
+``LLM_PROVIDER_CHAIN=ollama`` for local-only), and falls back to a
+deterministic offline draft if no tier is reachable.
 
     make lsat-author-demo
     # or: make manage CMD='run_lsat_author --section RC --difficulty hard'

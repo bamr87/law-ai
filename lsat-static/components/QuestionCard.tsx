@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Question } from '@/lib/types'
 import { recordAttempt } from '@/lib/progress'
 import { useShortcuts } from '@/lib/keyboard'
+import { nextRovingIndex } from '@/lib/rovingFocus'
 import { QuestionElapsed } from './SectionTimer'
 
 interface Props {
@@ -33,6 +34,12 @@ interface Props {
  * roving tabindex, Arrow-key selection-follows-focus, Space selects, Enter on
  * the selected choice submits. After submitting, the key + explanation are
  * revealed and the attempt is recorded to localStorage.
+ *
+ * The arrow/Home/End half of that contract is `nextRovingIndex` — the same
+ * pure function the platform's `useRovingTabIndex` consumes, mirrored into
+ * `lib/rovingFocus.ts` by `make ui-sync` and drift-gated by ux_audit R12 — so
+ * the two products cannot disagree about what an arrow key means
+ * (BL-20260831-08).
  */
 export default function QuestionCard({
   question,
@@ -63,12 +70,6 @@ export default function QuestionCard({
   function focusLabel(label: string) {
     setSelected(label)
     optionRefs.current[label]?.focus()
-  }
-
-  function move(from: string | null, delta: number) {
-    const start = from ? labels.indexOf(from) : -1
-    const next = (start + delta + labels.length) % labels.length
-    focusLabel(labels[next])
   }
 
   function submit() {
@@ -108,17 +109,19 @@ export default function QuestionCard({
 
   function onKeyDown(e: React.KeyboardEvent, label: string) {
     if (submitted) return
+    // Movement: both axes, wrapping, Home/End, and never a modified chord.
+    const next = nextRovingIndex(
+      e,
+      labels.indexOf(selected ?? label),
+      labels.length,
+      { orientation: 'both' },
+    )
+    if (next !== null) {
+      e.preventDefault()
+      focusLabel(labels[next])
+      return
+    }
     switch (e.key) {
-      case 'ArrowDown':
-      case 'ArrowRight':
-        e.preventDefault()
-        move(selected ?? label, 1)
-        break
-      case 'ArrowUp':
-      case 'ArrowLeft':
-        e.preventDefault()
-        move(selected ?? label, -1)
-        break
       case ' ':
         e.preventDefault()
         setSelected(label)

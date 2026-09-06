@@ -1,10 +1,10 @@
 # Law AI UI — conventions
 
-`window.LawAI` exports 16 components from two apps. They share a dark palette but **two different styling idioms** — match the idiom of the group you are building in, and never blend them.
+`window.LawAI` exports 15 components from two apps. They share a dark palette but **two different styling idioms** — match the idiom of the group you are building in, and never blend them.
 
 | Group | Components | Idiom |
 |---|---|---|
-| `frontend` | `AgentDashboard` `AgentTrace` `AnalysisStudio` `GraphViewer` `HomeStats` `KnowledgeGraph` `LegalDisclaimerBanner` `LegalDisclaimerFooter` `LsatLab` `NavBar` | Tailwind utility classes |
+| `frontend` | `AgentDashboard` `AgentTrace` `AnalysisStudio` `GraphViewer` `HomeStats` `KnowledgeGraph` `LegalDisclaimerBanner` `LegalDisclaimerFooter` `LsatLab` | Tailwind utility classes |
 | `lsat-static` | `Concepts` `Drill` `Overview` `PassagePanel` `QuestionCard` `Stats` | Hand-written semantic CSS classes + `var(--*)` tokens |
 
 ## Always wrap in the dark shell
@@ -55,7 +55,7 @@ Tokens: `--bg` `--bg-elev` `--bg-elev-2` `--border` `--text` `--text-muted` `--a
 
 ## Components that own their data
 
-`AgentDashboard` `AnalysisStudio` `HomeStats` `KnowledgeGraph` `LsatLab` `NavBar` `Concepts` `Stats` take **no props**. The first five fetch from `/api/*` on mount and render offline/empty states when no backend answers — expect that in a static design. `Concepts` and `Stats` read bundled content and `localStorage` respectively. Everything else is prop-driven; read the component's `.d.ts` for the exact contract.
+`AgentDashboard` `AnalysisStudio` `HomeStats` `KnowledgeGraph` `LsatLab` `Concepts` `Stats` take **no props**. The first four fetch from `/api/*` on mount and render offline/empty states when no backend answers — expect that in a static design. `Concepts` and `Stats` read bundled content and `localStorage` respectively. Everything else is prop-driven; read the component's `.d.ts` for the exact contract.
 
 ## The UPL rule — not optional
 
@@ -69,7 +69,6 @@ Read `_ds/<folder>/styles.css` and its `@import`ed `_ds_bundle.css` for the real
 
 ```jsx
 <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 text-slate-200 antialiased">
-  <LawAI.NavBar />
   <main className="mx-auto max-w-7xl px-4 py-8">
     <h1 className="text-xl font-semibold tracking-tight">Matter review</h1>
     <div className="mt-6 grid gap-6 lg:grid-cols-2">

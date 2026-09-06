@@ -728,7 +728,7 @@ function ViewTabs({
               title={v.hint}
               onClick={() => onChange(v.id)}
               className={
-                'min-w-[8rem] rounded-lg px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 ' +
+                'tap-target min-w-[8rem] rounded-lg px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 ' +
                 (active
                   ? 'bg-amber-500/20 text-amber-100 ring-1 ring-inset ring-amber-500/40'
                   : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200')

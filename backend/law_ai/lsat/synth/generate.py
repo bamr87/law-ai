@@ -91,6 +91,14 @@ class Provenance(BaseModel):
     domain_id: str
     seed: int
     proof_kind: str
+    #: The premise arrangement the schema drew — chain length, trigger
+    #: position, rule count, menu ids — so an auditor can see the item's shape
+    #: without re-running the draw. Empty for a fixed-arrangement schema.
+    arrangement: dict[str, int | str] = Field(default_factory=dict)
+    #: The polish round's yield (a ``PolishYield`` dump), when ``--polish`` was
+    #: asked for — proposed, accepted, rejects by reason, and the provider tier
+    #: that answered. ``None`` on an unpolished item.
+    polish: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -260,8 +268,14 @@ def generate(
             f"content for schema {schema_id!r}"
         )
 
+    # Two generators, deliberately. The skeleton — chain length, trigger
+    # position, rule set, distractor draw — is keyed on the schema and seed
+    # alone, so the same seed yields the *same proof* in every domain and the
+    # spec's claim that a domain swap changes words and nothing else holds
+    # literally. The words themselves are keyed on the domain as well.
+    skeleton_rng = random.Random(f"{ENGINE_VERSION}|{schema_id}|{seed}")
     rng = random.Random(f"{ENGINE_VERSION}|{schema_id}|{domain_id}|{seed}")
-    blueprint = schema.build(rng, domain)
+    blueprint = schema.build(skeleton_rng, domain)
     spec = blueprint.binding_spec
     binding = bind(
         domain,
@@ -338,6 +352,7 @@ def generate(
             domain_id=domain_id,
             seed=seed,
             proof_kind=schema.meta.proof_kind,
+            arrangement=dict(blueprint.arrangement),
         ),
     )
 

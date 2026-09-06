@@ -70,6 +70,35 @@ _STEMS = (
 )
 
 
+# The lg-game-001 setup + rules as a draft would restate them (BL-20260702-08).
+_LG_SETUP = (
+    "Exactly five associates — F, G, H, J, and K — argue exactly one motion each "
+    "at a single hearing, in five consecutive time slots numbered 1 through 5."
+)
+_LG_RULES = (
+    "F argues immediately before H.",
+    "J argues fourth.",
+    "K does not argue first.",
+)
+_LG_QUESTIONS = (
+    "If F argues second, then which one of the following could be true?",
+    "If G argues immediately after K, then which one of the following is a pair "
+    "of associates who could argue consecutively?",
+)
+
+
+def _lg_draft(question: str, *, correct: str = "B") -> dict[str, Any]:
+    """An LG draft whose stem restates the whole game before asking."""
+    stem = f"{_LG_SETUP} {' '.join(_LG_RULES)} {question}"
+    data = _draft(stem, correct=correct, concepts=["sequencing"])
+    data["section"] = "LG"
+    return data
+
+
+def _lg_job() -> GenerationJob:
+    return _job(section="LG", archetype_id="lg-sequencing", passage_id="lg-game-001")
+
+
 def _ingest(
     payload: dict[str, Any], cfg: FactoryConfig, job: GenerationJob | None = None
 ) -> Any:
@@ -184,6 +213,88 @@ class TestGates:
         assert len(result.accepted) == 1
         row = proposals.list_proposals(status="pending")[0]
         assert row["draft"].get("passage_id") is None
+
+    def test_dedup_strips_restated_game_setup(self, factory_env: FactoryConfig) -> None:
+        """BL-20260702-08: batch-mates restating one setup are not duplicates.
+
+        In the first live run every LG draft repeated the shared game setup,
+        so whole-stem Jaccard scored them ~0.93 against each other and the
+        gate rejected genuinely different questions. Only the question text
+        should be compared.
+        """
+        payload = {
+            "drafts": [
+                _lg_draft(_LG_QUESTIONS[0], correct="A"),
+                _lg_draft(_LG_QUESTIONS[1], correct="D"),
+            ]
+        }
+        result = _ingest(payload, factory_env, job=_lg_job())
+        assert not result.rejected, [r.detail for r in result.rejected]
+        assert len(result.accepted) == 2
+
+    def test_dedup_still_rejects_a_restated_true_duplicate(
+        self, factory_env: FactoryConfig
+    ) -> None:
+        """Stripping the setup must not open the door to a real duplicate."""
+        payload = {
+            "drafts": [
+                _lg_draft(_LG_QUESTIONS[0], correct="A"),
+                _lg_draft(_LG_QUESTIONS[0], correct="C"),
+            ]
+        }
+        result = _ingest(payload, factory_env, job=_lg_job())
+        assert len(result.accepted) == 1
+        assert result.rejected[0].reason == "duplicate"
+        assert "mfst-t-job01#0" in result.rejected[0].detail
+
+    def test_dedup_catches_a_restated_copy_of_a_bank_item(
+        self, factory_env: FactoryConfig
+    ) -> None:
+        """A bank stem wrapped in the game setup is still that bank stem."""
+        bank_stem = load_bank()["lg-003"].stem  # "If G argues fifth, …"
+        result = _ingest({"drafts": [_lg_draft(bank_stem)]}, factory_env, job=_lg_job())
+        assert not result.accepted
+        assert result.rejected[0].reason == "duplicate"
+        assert "lg-003" in result.rejected[0].detail
+
+    def test_dedup_context_stripping_can_be_disabled(
+        self, factory_env: FactoryConfig
+    ) -> None:
+        """With the knob off the old whole-stem comparison is back (and bites)."""
+        cfg = factory_env.model_copy(update={"dedup_strip_context": False})
+        payload = {
+            "drafts": [
+                _lg_draft(_LG_QUESTIONS[0], correct="A"),
+                _lg_draft(_LG_QUESTIONS[1], correct="D"),
+            ]
+        }
+        result = _ingest(payload, cfg, job=_lg_job())
+        assert len(result.accepted) == 1
+        assert result.rejected[0].reason == "duplicate"
+
+    def test_dedup_strips_a_new_passage_set_context(
+        self, factory_env: FactoryConfig
+    ) -> None:
+        """passage_set mode: the batch's own new setup is the context."""
+        payload = {
+            "drafts": [
+                _lg_draft(_LG_QUESTIONS[0], correct="A"),
+                _lg_draft(_LG_QUESTIONS[1], correct="D"),
+            ],
+            "passage": {
+                "section": "LG",
+                "title": "Five associates",
+                "setup": _LG_SETUP,
+                "rules": list(_LG_RULES),
+            },
+        }
+        result = _ingest(
+            payload,
+            factory_env,
+            job=_job(section="LG", archetype_id="lg-sequencing", mode="passage_set"),
+        )
+        assert not result.rejected, [r.detail for r in result.rejected]
+        assert len(result.accepted) == 2
 
     def test_passage_set_parks_new_context(self, factory_env: FactoryConfig) -> None:
         lg = _draft(_STEMS[1], concepts=["grouping-game"])

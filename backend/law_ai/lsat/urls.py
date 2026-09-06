@@ -7,6 +7,7 @@ import random
 from typing import Any
 
 from asgiref.sync import async_to_sync
+from django.conf import settings
 from django.http import Http404
 from django.urls import path
 from pydantic import BaseModel, Field, ValidationError
@@ -33,6 +34,7 @@ from law_ai.lsat.services import proposals as proposals_store
 from law_ai.lsat.services import writing as writing_store
 from law_ai.lsat.services.crosscheck import CrossCheckResult, cross_check
 from law_ai.lsat.services.guides import load_guides, public_guide_view
+from law_ai.lsat.services.ocr_intake import IngestScanRequest, ingest_scan
 from law_ai.lsat.services.library import (
     articles_teaching,
     inbound_links,
@@ -841,6 +843,14 @@ class ProposalApproveView(_Base):
             raise Http404("proposal not found") from exc
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
+        # BL-20260527-06: pin a fresh blind-solve verdict to the new bank item
+        # so later cross-checks can be compared against it (regression.py).
+        if row.get("proposal_kind", "question") == "question" and getattr(
+            settings, "LSAT_CROSS_CHECK_ON_APPROVE", True
+        ):
+            verdict = proposals_store.cross_check_on_approval(proposal_id)
+            if verdict is not None:
+                row = {**row, "cross_check": verdict}
         return Response(row)
 
 
@@ -869,6 +879,61 @@ class ProposalRejectView(_Base):
             note=req.note,
         )
         return Response(row)
+
+
+class ScanIntakeView(_Base):
+    """``POST /api/lsat/intake/ocr`` — a scanned page becomes pending proposals.
+
+    The ingestion door for `ocrmd`, the camera-to-Markdown scanner: it reads a book
+    page twice (local OCR + a vision model), reconciles the two readings, and posts
+    the result here with the page's provenance attached. The text is transcribed
+    into question drafts, gated exactly as factory-generated ones are, and parked in
+    the HITL queue — this endpoint has no path to the live bank.
+
+    Rate-limited on the ``llm`` scope: every call runs an extraction through the
+    provider chain, and the caller is a button on a scanner UI.
+    """
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "llm"
+
+    def post(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        try:
+            req = IngestScanRequest.model_validate(request.data)
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        try:
+            result = ingest_scan(req)
+        except Exception as exc:
+            logger.exception("lsat ocr intake failed: %s", exc)
+            return Response(
+                {"detail": f"scan intake failed: {type(exc).__name__}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        try:
+            audit_store.record(
+                "lsat_intake_ocr",
+                {
+                    "tool": req.provenance.tool,
+                    "document": req.provenance.document,
+                    "page": req.provenance.page,
+                    "page_id": req.provenance.page_id,
+                    "hint": req.hint,
+                    "accepted": len(result.accepted),
+                    "rejected": len(result.rejected),
+                    "ungrounded": len(result.ungrounded),
+                    "model": result.model,
+                    "degraded": result.degraded,
+                },
+            )
+        except Exception:
+            logger.warning(
+                "audit_store.record failed for lsat_intake_ocr", exc_info=True
+            )
+        # 202: drafts were taken in and are waiting for a reviewer, not published.
+        return Response(result.model_dump(), status=status.HTTP_202_ACCEPTED)
 
 
 class GapsView(_Base):
@@ -964,5 +1029,7 @@ urlpatterns = [
         ProposalRejectView.as_view(),
         name="lsat-proposals-reject",
     ),
+    # Scanned-page intake (ocrmd → HITL queue)
+    path("intake/ocr", ScanIntakeView.as_view(), name="lsat-intake-ocr"),
     path("gaps", GapsView.as_view(), name="lsat-gaps"),
 ]

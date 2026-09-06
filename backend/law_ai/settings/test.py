@@ -20,6 +20,15 @@ ALLOWED_HOSTS = ["*"]
 
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 
+# In-process cache for the suite (BL-20260810-15): no Redis, and a fresh
+# namespace per process so a probe verdict cannot leak between test runs.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "law-ai-tests",
+    }
+}
+
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
