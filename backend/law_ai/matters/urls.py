@@ -28,6 +28,7 @@ from rest_framework.views import APIView
 
 from law_ai.core.auth import is_signed_in
 from law_ai.core.provenance import provenance
+from law_ai.ingestionapp.services.ocrmd_plugin import Envelope
 from law_ai.matters.models import (
     SLUG_RE,
     Matter,
@@ -35,6 +36,7 @@ from law_ai.matters.models import (
     MatterAuthority,
     MatterTask,
 )
+from law_ai.matters.services import scanned
 
 logger = logging.getLogger("law_ai.matters")
 
@@ -232,6 +234,35 @@ class MatterArtifactListView(_Base):
             },
         )
         return Response(artifact.as_payload(), status=status.HTTP_201_CREATED)
+
+
+class MatterOcrmdIntakeView(_Base):
+    """``GET/POST /api/matters/<slug>/intake/ocrmd`` — a scanned page filed on this matter.
+
+    The matter half of the ocrmd plug-in (spec 053, :mod:`law_ai.matters.services.scanned`):
+    ``GET`` is the sink descriptor the scanner probes, ``POST`` takes its envelope and
+    files the page as a ``document`` artifact. Signed-in only like every matter route —
+    a scanner sends a user bearer token, not an API key — and a page already filed
+    answers 200 with the artifact it made, so sending twice is safe.
+    """
+
+    def get(self, request: Any, slug: str, *args: Any, **kwargs: Any) -> Response:
+        matter = _matter_or_404(request, slug)
+        return Response(scanned.matter_descriptor(matter))
+
+    def post(self, request: Any, slug: str, *args: Any, **kwargs: Any) -> Response:
+        matter = _matter_or_404(request, slug)
+        try:
+            env = Envelope.model_validate(request.data or {})
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        artifact, created = scanned.file_page(matter, env, request.user)
+        return Response(
+            scanned.delivery(matter, artifact, created, env),
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
 
 
 class _AuthorityRequest(BaseModel):
@@ -504,6 +535,11 @@ urlpatterns = [
     path("", MatterListView.as_view(), name="matter-list"),
     path("calendar", MatterCalendarView.as_view(), name="matter-calendar"),
     path("<str:slug>", MatterDetailView.as_view(), name="matter-detail"),
+    path(
+        "<str:slug>/intake/ocrmd",
+        MatterOcrmdIntakeView.as_view(),
+        name="matter-intake-ocrmd",
+    ),
     path(
         "<str:slug>/artifacts",
         MatterArtifactListView.as_view(),

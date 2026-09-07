@@ -29,7 +29,7 @@ import logging
 from typing import Any
 
 from asgiref.sync import async_to_sync
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from law_ai.agents_runtime.crews.lsat_source_extractor import (
     ExtractedQuestion,
@@ -37,14 +37,58 @@ from law_ai.agents_runtime.crews.lsat_source_extractor import (
     LSATSourceExtractor,
 )
 from law_ai.core.provenance import provenance
+from law_ai.ingestionapp.services.ocrmd_plugin import (
+    Envelope,
+    descriptor,
+    is_envelope,
+    option,
+)
 from law_ai.lsat.factory.config import FactoryConfig
 from law_ai.lsat.factory.intake import GateRejection, _dedup_corpus, _gate_draft
-from law_ai.lsat.services.bank import Difficulty, Section, load_concepts, load_passages
+from law_ai.lsat.services.bank import (
+    DIFFICULTY_ORDER,
+    MCQ_SECTIONS,
+    Difficulty,
+    Section,
+    load_concepts,
+    load_passages,
+)
 from law_ai.lsat.services.proposals import record_proposal
 
 logger = logging.getLogger("law_ai.lsat.ocr_intake")
 
 SOURCE_TOOL = "ocrmd"
+
+#: The sink descriptor (spec 053): what ocrmd probes with ``GET`` before it draws its Send
+#: panel, so the operator sees this door's options with their real choices instead of
+#: typing field names from memory.
+INTAKE_DESCRIPTOR = descriptor(
+    "Law AI — LSAT question",
+    "Extracts the LSAT questions printed on the page and queues them for a human "
+    "reviewer. The text travels; the photograph does not.",
+    [
+        option(
+            "hint",
+            "string",
+            label="which item",
+            help_="e.g. 'question 15'; blank takes every complete one",
+        ),
+        option(
+            "section",
+            "enum",
+            label="section",
+            choices=list(MCQ_SECTIONS),
+            help_="a steer, not a claim — the model reads the page",
+        ),
+        option(
+            "difficulty",
+            "enum",
+            label="difficulty",
+            choices=list(DIFFICULTY_ORDER),
+        ),
+        option("max_items", "integer", label="max items", default=5),
+    ],
+)
 
 
 class ScanProvenance(BaseModel):
@@ -78,6 +122,15 @@ class ScanProvenance(BaseModel):
     bbox: list[float] | None = None
     #: A URL the reviewer can open to see the page image, if the scanner is reachable.
     image_url: str = ""
+    # --- carried by the sink envelope (spec 053) ------------------------------------
+    tool_version: str = ""
+    #: Disagreement marks still open in the text that was sent (the scanner strips
+    #: nothing; the extractor does, see ``clean_page_text``).
+    unresolved: int | None = None
+    #: The page in the scanner's own UI, for a reviewer who wants the context.
+    page_url: str = ""
+    #: The book, as the scanner's catalogue names it.
+    document_title: str = ""
 
     def is_traceable(self) -> bool:
         return bool(self.document and (self.page is not None or self.page_id))
@@ -90,6 +143,41 @@ class IngestScanRequest(BaseModel):
     section: Section | None = None
     difficulty: Difficulty | None = None
     max_items: int = Field(default=5, ge=1, le=20)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_envelope(cls, data: Any) -> Any:
+        """The ocrmd envelope — ``text``, ``provenance``, ``document``, ``options`` —
+        mapped onto the fields this door has taken since it opened. The legacy shape
+        (``source_text`` + top-level ``hint``/``section``/``difficulty``) still works,
+        so nothing that posted here before spec 053 has to change.
+        """
+        if not isinstance(data, dict) or not is_envelope(data):
+            return data
+        env = Envelope.model_validate(data)
+        opts = env.options
+        prov = env.provenance.model_dump()
+        prov["document_title"] = env.document.title or ""
+        out: dict[str, Any] = {
+            "source_text": env.text,
+            "provenance": prov,
+            "hint": str(opts.get("hint") or ""),
+        }
+        for key in ("section", "difficulty", "max_items"):
+            if opts.get(key) not in (None, ""):
+                out[key] = opts[key]
+        return out
+
+    @model_validator(mode="after")
+    def _only_keyed_sections(self) -> IngestScanRequest:
+        """WS is an essay task with no answer key: it can never be the target of this
+        door, and saying so here is a 422 with the field named rather than a 500."""
+        if self.section is not None and self.section not in MCQ_SECTIONS:
+            raise ValueError(
+                f"section {self.section!r} has no multiple-choice form "
+                f"(expected one of {list(MCQ_SECTIONS)})"
+            )
+        return self
 
 
 class IngestScanResult(BaseModel):
@@ -107,6 +195,16 @@ class IngestScanResult(BaseModel):
     model: str = ""
     degraded: bool = False
     extracted: int = 0
+    # --- the answer in the sink contract's terms (spec 053) ---------------------------
+    summary: str = ""
+    items: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="One row per accepted draft: id, title (the stem), detail, status.",
+    )
+    warnings: list[str] = Field(
+        default_factory=list,
+        description="Ungrounded and gate-rejected drafts, one sentence each.",
+    )
 
 
 class _Target(BaseModel):
@@ -145,6 +243,52 @@ def _meta_for(
         },
         "agent_notes": out.notes,
     }
+
+
+def _summarise(result: IngestScanResult) -> None:
+    """Fill ``summary``/``items``/``warnings`` from the gate outcome — one line a person
+    (or the scanner's UI) can act on, then one row per draft they can find in the queue.
+    """
+    if result.accepted:
+        keys = ", ".join(str(a.get("correct")) for a in result.accepted)
+        result.summary = (
+            f"{len(result.accepted)} question(s) queued for review (key {keys})"
+        )
+    elif result.ungrounded:
+        result.summary = (
+            f"nothing queued: {len(result.ungrounded)} draft(s) were not supported by "
+            "the page text"
+        )
+    elif result.rejected:
+        reasons = ", ".join(sorted({str(r.reason) for r in result.rejected}))
+        result.summary = (
+            f"nothing queued: {len(result.rejected)} draft(s) rejected ({reasons})"
+        )
+    elif result.degraded:
+        result.summary = "nothing queued: no model answered"
+    else:
+        result.summary = "nothing queued: no complete question was found on this page"
+    result.items = [
+        {
+            "id": a.get("id"),
+            "title": str(a.get("stem") or "")[:120],
+            "detail": (
+                f"{a.get('section')}/{a.get('difficulty')} · key {a.get('correct')} "
+                f"({a.get('key_source')}) · grounding {a.get('grounding')} · "
+                f"confidence {a.get('confidence')}"
+            ),
+            "status": "pending",
+        }
+        for a in result.accepted
+    ]
+    result.warnings = [
+        f"dropped, not supported by the page text (grounding {u.get('grounding')}): "
+        f"{str(u.get('source_excerpt'))[:80]}"
+        for u in result.ungrounded
+    ] + [
+        f"rejected at the {r.reason} gate: {str(r.detail)[:120]}"
+        for r in result.rejected
+    ]
 
 
 def ingest_scan(req: IngestScanRequest) -> IngestScanResult:
@@ -243,4 +387,5 @@ def ingest_scan(req: IngestScanRequest) -> IngestScanResult:
     except Exception:  # pragma: no cover - the audit sink must never fail a scan
         logger.warning("provenance.log_event failed for lsat_ocr_intake", exc_info=True)
 
+    _summarise(result)
     return result

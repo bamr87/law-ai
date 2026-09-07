@@ -48,7 +48,11 @@ from law_ai.lsat.services.shuffle import (
     to_canonical,
     to_display,
 )
-from law_ai.lsat.services.ocr_intake import IngestScanRequest, ingest_scan
+from law_ai.lsat.services.ocr_intake import (
+    INTAKE_DESCRIPTOR,
+    IngestScanRequest,
+    ingest_scan,
+)
 from law_ai.lsat.services.library import (
     articles_teaching,
     inbound_links,
@@ -1545,9 +1549,11 @@ class ScanIntakeView(_Base):
 
     The ingestion door for `ocrmd`, the camera-to-Markdown scanner: it reads a book
     page twice (local OCR + a vision model), reconciles the two readings, and posts
-    the result here with the page's provenance attached. The text is transcribed
+    the result here with the page's provenance attached — as its sink *envelope*
+    (spec 053), or in the legacy ``source_text`` shape. The text is transcribed
     into question drafts, gated exactly as factory-generated ones are, and parked in
-    the HITL queue — this endpoint has no path to the live bank.
+    the HITL queue — this endpoint has no path to the live bank. ``GET`` answers with
+    the sink descriptor the scanner probes first.
 
     Rate-limited on the ``llm`` scope: every call runs an extraction through the
     provider chain, and the caller is a button on a scanner UI.
@@ -1556,12 +1562,20 @@ class ScanIntakeView(_Base):
     throttle_classes = [ScopedActorRateThrottle]
     throttle_scope = "llm"
 
+    def get(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        """The sink descriptor (spec 053): what this door is and which options it
+        takes, so the scanner draws real choices instead of asking for field names."""
+        return Response(INTAKE_DESCRIPTOR)
+
     def post(self, request: Any, *args: Any, **kwargs: Any) -> Response:
         try:
             req = IngestScanRequest.model_validate(request.data)
         except ValidationError as exc:
+            # include_context=False: a validator's ValueError rides in `ctx` and is
+            # not JSON; the message and the field are what the caller needs.
             return Response(
-                {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+                {"detail": exc.errors(include_context=False, include_input=False)},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
         try:
             result = ingest_scan(req)

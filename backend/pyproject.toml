@@ -124,6 +124,20 @@ nlp = [
     "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
 ]
 
+# Spec 053: the ocrmd scanner as an optional library (ENABLE_OCRMD). Not in the default
+# image — `INSTALL_OCRMD=1 docker compose build backend` adds it — because it pins opencv
+# (which needs libGL in the container), pulls an ONNX runtime, and is pinned to a git ref
+# until ocrmd is on PyPI. RapidOCR is the engine on Linux (Apple Vision is macOS-only);
+# pymupdf renders PDFs. Inside Law AI it runs OCR only: see
+# law_ai/ingestionapp/services/ocrmd_plugin.py. License: MIT (ocrmd), Apache-2.0
+# (rapidocr, onnxruntime), AGPL-3.0 (pymupdf — optional; drop it to lose PDF ingest).
+ocrmd = [
+    "ocrmd @ git+https://github.com/bamr87/ocrmd@main",
+    "rapidocr>=3.0",
+    "onnxruntime>=1.20",
+    "pymupdf>=1.24",
+]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["law_ai*"]
@@ -170,7 +184,7 @@ django_settings_module = "law_ai.settings.test"
 
 [[tool.mypy.overrides]]
 # `celery` and `lxml` publish no py.typed marker and no first-party stubs.
-module = ["neo4j.*", "crewai.*", "langgraph.*", "eyecite.*", "spacy.*", "pypdf.*", "drf_pydantic.*", "channels.*", "channels_redis.*", "daphne.*", "environ.*", "celery.*", "lxml.*", "jose.*", "passlib.*"]
+module = ["neo4j.*", "crewai.*", "langgraph.*", "eyecite.*", "spacy.*", "pypdf.*", "drf_pydantic.*", "channels.*", "channels_redis.*", "daphne.*", "environ.*", "celery.*", "lxml.*", "jose.*", "passlib.*", "ocrmd.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
