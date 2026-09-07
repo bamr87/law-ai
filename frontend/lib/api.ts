@@ -7,6 +7,28 @@ export const PROXY_BASE = '/api/backend'
 export const API_BASE = resolveApiBase()
 
 /**
+ * Record a failed request in the feedback widget's capture buffer.
+ *
+ * A user reporting "the analysis page is broken" cannot tell you that
+ * `/api/analysis` returned 502 after 1.2s — the UI shows them a toast, not a
+ * status code. This puts the call that actually failed into the same buffer the
+ * report attaches, so the issue arrives with the evidence instead of a request
+ * for it. No-ops when the widget is not loaded (SSR, tests).
+ *
+ * Only the method, path, status and duration are recorded: never headers, never
+ * bodies, and — since BL-20260430-07 removed the client-side key entirely —
+ * there is no credential in this layer to leak in the first place. The buffer
+ * redacts on the way in as a second line of defence.
+ */
+function recordFailure(method: string, path: string, detail: string): void {
+  if (typeof window === 'undefined') return
+  const w = window as unknown as {
+    __fleetFeedback?: { breadcrumb?: (level: string, message: string) => void }
+  }
+  w.__fleetFeedback?.breadcrumb?.('net', `${method} ${path} → ${detail}`)
+}
+
+/**
  * Where API calls go.
  *
  * `NEXT_PUBLIC_API_BASE_URL` decides, and every shipped configuration
@@ -38,13 +60,34 @@ function resolveApiBase(): string {
  *   `NEXT_PUBLIC_*` secret is not a secret.
  * - With no key configured on the server (local dev), nothing is added at all
  *   — the local-first posture from constitution §1 is unchanged.
+ * - Failures (non-2xx, and network errors) leave a breadcrumb for the feedback
+ *   widget. Success is not recorded: a 40-entry ring filled with 200s is a ring
+ *   with no room for the one line that explains the failure.
  */
 export async function apiFetch(
   path: string,
   init: RequestInit = {},
 ): Promise<Response> {
   const headers = new Headers(init.headers)
-  return fetch(`${API_BASE}${path}`, { ...init, headers })
+  const method = (init.method || 'GET').toUpperCase()
+  const started = Date.now()
+  try {
+    const res = await fetch(`${API_BASE}${path}`, { ...init, headers })
+    if (!res.ok) {
+      recordFailure(method, path, `${res.status} (${Date.now() - started}ms)`)
+    }
+    return res
+  } catch (err) {
+    // The rejection still propagates; this only observes it on the way past.
+    recordFailure(
+      method,
+      path,
+      `network error after ${Date.now() - started}ms: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    )
+    throw err
+  }
 }
 
 // Spec 008 alias kept for source-compat with earlier call sites.

@@ -1,5 +1,6 @@
 'use client'
 
+import { openFeedback } from '@/components/shell/FeedbackButton'
 import { useEffect } from 'react'
 
 /**
@@ -38,13 +39,44 @@ export default function AppError({
             digest {error.digest}
           </p>
         )}
-        <button
-          type="button"
-          onClick={reset}
-          className="mt-5 rounded-lg border border-red-400/40 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-100 transition hover:bg-red-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300"
-        >
-          Try again
-        </button>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={reset}
+            className="rounded-lg border border-red-400/40 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-100 transition hover:bg-red-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300"
+          >
+            Try again
+          </button>
+          {/* The user is already looking at the failure; asking them to
+           * reproduce it somewhere else loses the stack, the digest, and the
+           * console lines the widget already holds. One click files all of it. */}
+          <button
+            type="button"
+            onClick={() =>
+              openFeedback({
+                type: 'fix-page',
+                description: 'This section failed to load.',
+                extra: [
+                  '<details>',
+                  '<summary>Error detail</summary>',
+                  '',
+                  '```text',
+                  `${error.name}: ${error.message}`,
+                  error.digest ? `digest: ${error.digest}` : '',
+                  error.stack ? `\n${error.stack}` : '',
+                  '```',
+                  '',
+                  '</details>',
+                ]
+                  .filter(Boolean)
+                  .join('\n'),
+              })
+            }
+            className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-400 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+          >
+            Report this
+          </button>
+        </div>
       </div>
     </div>
   )
