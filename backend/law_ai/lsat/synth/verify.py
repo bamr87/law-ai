@@ -20,6 +20,14 @@ The family rules:
     ``premises ∧ conclusion ⊨ credited``, and not so for any distractor. This is
     the negation test stated model-theoretically: if the argument is sound, a
     necessary assumption must hold.
+``rule_substitution``
+    The credited choice, put in place of the rule the item offers to replace,
+    leaves the set of valid arrangements *exactly* unchanged — it permits
+    nothing new and forbids nothing old — and every distractor changes that set
+    in one direction or the other. This is the one family whose criterion is a
+    claim about the model *set* rather than about a single choice's status:
+    every choice holds in every premise model, so the must-be-true rule would
+    call all five correct.
 ``structural``
     No model check. The credited answer came from the attack pool, every
     distractor from the disjoint inert pool, and the report says the guarantee is
@@ -36,8 +44,10 @@ from pydantic import BaseModel, Field
 from law_ai.lsat.services.bank import ChoiceLabel
 from law_ai.lsat.synth.logic import (
     Evaluation,
+    EvaluationResult,
     InconsistentPremises,
     Statement,
+    SynthLogicError,
     evaluate,
 )
 from law_ai.lsat.synth.schemas import Blueprint, ProofKind
@@ -79,6 +89,11 @@ class VerificationReport(BaseModel):
     space: str = "n/a"
     space_models: int = 0
     premise_models: int = 0
+    #: How the entailments were settled — ``enumerated`` (every model of the
+    #: space was visited) or ``symbolic`` (a constraint solver decided them,
+    #: because the space is too wide to enumerate). Both are proofs; only the
+    #: model counts mean different things, and the summary says which.
+    decision: str = "enumerated"
     credited_label: str
     choices: list[ChoiceStatus] = Field(default_factory=list)
     checks: list[Check] = Field(default_factory=list)
@@ -95,6 +110,13 @@ class VerificationReport(BaseModel):
         verdict = "verified" if self.ok else "FAILED"
         if self.proof_kind == "structural":
             return f"{verdict} ({self.proof_kind}; {len(self.checks)} checks)"
+        if self.decision == "symbolic":
+            return (
+                f"{verdict} ({self.proof_kind}, decided symbolically over "
+                f"{self.space_models} possible count vectors; "
+                f"{self.premise_models} witness model(s); "
+                f"{len(self.checks)} checks)"
+            )
         return (
             f"{verdict} ({self.proof_kind}; {self.premise_models} of "
             f"{self.space_models} models satisfy the premises; "
@@ -185,7 +207,7 @@ def _surface_checks(choices: list[LabelledChoice]) -> list[Check]:
 def _family_checks(
     blueprint: Blueprint,
     choices: list[LabelledChoice],
-    result: Evaluation,
+    result: EvaluationResult,
     credited_index: int,
 ) -> list[Check]:
     """The rule that defines what "correct" means for this item's family."""
@@ -244,6 +266,8 @@ def _family_checks(
                 detail=f"also permitted: {', '.join(offenders)}" if offenders else "",
             )
         )
+    elif blueprint.family == "rule_substitution":
+        out.extend(_substitution_checks(blueprint, choices, credited_index))
     elif blueprint.family in ("sufficient_assumption", "necessary_assumption"):
         out.extend(_assumption_checks(blueprint, choices, result, credited_index))
     else:  # pragma: no cover - registry is closed
@@ -313,6 +337,7 @@ def verify(
         return report
 
     report.premise_models = result.premise_models
+    report.decision = result.decision
     report.choices = [
         ChoiceStatus(
             label=c.label,
@@ -340,15 +365,19 @@ def verify(
     # distractor is an impossible arrangement, so they all share the empty mask
     # by design, and the check that matters there is that the arrangements read
     # differently — which `choices_distinct` already makes.
-    if blueprint.family != "acceptability":
+    # A substitution item is the same case for a different reason: every
+    # choice is a rule that holds in every premise model, so all five share the
+    # full mask by construction and equivalence is decided over the *other*
+    # rules' board instead — which `_substitution_checks` does directly.
+    if blueprint.family not in ("acceptability", "rule_substitution"):
         seen: dict[int, str] = {}
         equivalents: list[str] = []
         for i, choice in enumerate(choices):
-            mask = result.masks[i]
-            if mask in seen:
-                equivalents.append(f"{seen[mask]}={choice.label}")
+            key = result.key(i)
+            if key in seen:
+                equivalents.append(f"{seen[key]}={choice.label}")
             else:
-                seen[mask] = choice.label
+                seen[key] = choice.label
         checks.append(
             Check(
                 name="no_equivalent_choices",
@@ -362,10 +391,99 @@ def verify(
     return report
 
 
+def _substitution_checks(
+    blueprint: Blueprint,
+    choices: list[LabelledChoice],
+    credited_index: int,
+) -> list[Check]:
+    """ "The same effect" — decided over the board the other rules leave.
+
+    Lift the offered rule out, enumerate what the remaining rules still allow,
+    and compare the arrangements each choice keeps against the arrangements the
+    original rule kept. Equality in both directions is the criterion the
+    archetype names; a superset permits something new, a subset forbids
+    something old, and either is a wrong answer for a nameable reason.
+    """
+    space = blueprint.space
+    target = blueprint.substituted
+    if space is None or target is None:
+        return [
+            Check(
+                name="substituted_rule_present",
+                passed=False,
+                detail="a substitution item must name the rule it replaces",
+            )
+        ]
+    kept = [p for p in blueprint.premises if p is not target]
+    try:
+        board = [m for m in space.models() if all(r.holds(m) for r in kept)]
+    except SynthLogicError as exc:  # pragma: no cover - OrderSpace enumerates
+        raise SynthLogicError(
+            "rule substitution is decided over an enumerated space; "
+            f"{space.describe()} cannot be walked"
+        ) from exc
+
+    def survivors(statement: Statement) -> set[int]:
+        return {i for i, model in enumerate(board) if statement.holds(model)}
+
+    original = survivors(target)
+    checks = [
+        Check(
+            name="the_replaced_rule_does_something",
+            passed=len(original) < len(board),
+            detail=(
+                "the rule offered for replacement forbids nothing the others "
+                "do not forbid already"
+            ),
+        )
+    ]
+    credited_statement = choices[credited_index].statement
+    credited_keeps = survivors(credited_statement) if credited_statement else set()
+    checks.append(
+        Check(
+            name="credited_substitute_has_the_same_effect",
+            passed=credited_statement is not None and credited_keeps == original,
+            detail=_direction(credited_keeps, original),
+        )
+    )
+    offenders = []
+    for i, choice in enumerate(choices):
+        if i == credited_index or choice.statement is None:
+            continue
+        if survivors(choice.statement) == original:
+            offenders.append(choice.label)
+    checks.append(
+        Check(
+            name="no_distractor_has_the_same_effect",
+            passed=not offenders,
+            detail=(
+                f"also leaves the board unchanged: {', '.join(offenders)}"
+                if offenders
+                else ""
+            ),
+        )
+    )
+    return checks
+
+
+def _direction(keeps: set[int], original: set[int]) -> str:
+    """Name which way a substitute is wrong, or say nothing when it is right."""
+    if keeps == original:
+        return ""
+    if original < keeps:
+        return f"permits {len(keeps - original)} arrangement(s) the rule forbade"
+    if keeps < original:
+        return f"forbids {len(original - keeps)} arrangement(s) the rule allowed"
+    return (
+        f"permits {len(keeps - original)} and forbids "
+        f"{len(original - keeps)} arrangement(s)"
+    )
+
+
 def _assumption_checks(
     blueprint: Blueprint,
     choices: list[LabelledChoice],
-    result: Evaluation,
+    result: EvaluationResult,
     credited_index: int,
 ) -> list[Check]:
     """The exact model-theoretic criteria, read off the shared truth masks.
@@ -388,6 +506,16 @@ def _assumption_checks(
                 detail="an assumption item needs a conclusion to test against",
             )
         ]
+    if not isinstance(result, Evaluation):
+        # The assumption criteria are set inclusions between truth masks, and a
+        # symbolically-decided space has only witness samples. Rather than
+        # weaken the criterion, refuse the combination: no assumption schema
+        # uses a symbolic space today, and one that wants to must teach the
+        # solver these relations first.
+        raise SynthLogicError(
+            "assumption families are decided over an enumerated space; "
+            f"{blueprint.family!r} cannot be proved symbolically yet"
+        )
     # The conclusion was appended after the choices in `evaluate`.
     conclusion_mask = result.masks[len(choices)]
     full = (1 << result.premise_models) - 1

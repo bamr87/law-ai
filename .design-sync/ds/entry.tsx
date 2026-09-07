@@ -27,7 +27,6 @@ export { default as KnowledgeGraph } from '../../frontend/components/KnowledgeGr
 export { LegalDisclaimerBanner } from '../../frontend/components/LegalDisclaimer';
 export { default as LegalDisclaimerFooter } from '../../frontend/components/LegalDisclaimer';
 export { default as LsatLab } from '../../frontend/components/LsatLab';
-export { default as NavBar } from '../../frontend/components/NavBar';
 
 // ── lsat-static/ — the static LSAT practice site ────────────────────────────
 export { default as Concepts } from '../../lsat-static/components/Concepts';

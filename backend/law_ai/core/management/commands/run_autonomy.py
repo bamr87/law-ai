@@ -18,9 +18,11 @@ All runs are logged through ``law_ai.core.autonomy`` which emits paired
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 import sys
+from collections.abc import Callable
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
@@ -40,7 +42,10 @@ class Command(BaseCommand):
                 "corpus_growth",
                 "digest",
                 "lsat_content",
+                "lsat_factory",
                 "lsat_library",
+                "lsat_cross_check",
+                "commit_approved",
             ],
             help="Kind of cycle to run (default: test_pillar).",
         )
@@ -62,7 +67,32 @@ class Command(BaseCommand):
             "--cycle-id",
             dest="cycle_id",
             default=None,
-            help="Optional idempotency key (UUID4). Reuse to re-check a prior run.",
+            help=(
+                "Idempotency key (UUID4). Reusing a key that already completed "
+                "replays that run's recorded result instead of running the "
+                "cycle again."
+            ),
+        )
+        parser.add_argument(
+            "--window-to-now",
+            dest="window_to_now",
+            action="store_true",
+            default=False,
+            help=(
+                "digest only: end the digest window at *now* instead of the "
+                "previous UTC midnight, so a digest composed inside a CI run "
+                "includes that run's own events (BL-20260511-19)."
+            ),
+        )
+        parser.add_argument(
+            "--stream-id",
+            dest="stream_id",
+            default=None,
+            help=(
+                "WebSocket correlation id (BL-20260811-15). Subscribe to "
+                "/ws/agents/<stream-id> before starting the cycle to watch its "
+                "start/end events live; charset ^[A-Za-z0-9._-]{1,64}$."
+            ),
         )
         parser.add_argument(
             "--dry-run",
@@ -78,6 +108,8 @@ class Command(BaseCommand):
         source: str | None = options["source"]  # type: ignore[assignment]
         budget: int | None = options["budget"]  # type: ignore[assignment]
         cycle_id: str | None = options["cycle_id"]  # type: ignore[assignment]
+        stream_id: str | None = options["stream_id"]  # type: ignore[assignment]
+        window_to_now: bool = options["window_to_now"]  # type: ignore[assignment]
         dry_run: bool = options["dry_run"]  # type: ignore[assignment]
 
         # ------------------------------------------------------------------
@@ -96,13 +128,19 @@ class Command(BaseCommand):
                 returncode=1,
             )
 
-        payload: dict[str, Any] = {"kind": kind}
-        if source:
-            payload["source"] = source
-        if budget is not None:
-            payload["budget"] = budget
-        if cycle_id:
-            payload["cycle_id"] = cycle_id
+        payload: dict[str, Any] = {
+            "kind": kind,
+            **{
+                key: value
+                for key, value in (
+                    ("source", source),
+                    ("budget", budget),
+                    ("cycle_id", cycle_id),
+                    ("stream_id", stream_id),
+                )
+                if value is not None and value != ""
+            },
+        }
 
         if dry_run:
             self.stdout.write(self.style.WARNING("[dry-run] would run:"))
@@ -117,22 +155,18 @@ class Command(BaseCommand):
         # ------------------------------------------------------------------
         # Delegate to the audited entry point
         # ------------------------------------------------------------------
-        def _runner(context: dict[str, Any]) -> dict[str, Any]:
-            """Dispatch to the appropriate sub-runner for the requested kind."""
-            if kind == "test_pillar":
-                return _run_test_pillar(context, budget=budget)
-            if kind == "corpus_growth":
-                return _run_corpus_growth(context, source=source, budget=budget)
-            if kind == "digest":
-                return _run_digest(context)
-            if kind == "lsat_content":
-                return _run_lsat_content(context, budget=budget)
-            if kind == "lsat_library":
-                return _run_lsat_library(context, budget=budget)
-            raise ValueError(f"Unknown kind: {kind!r}")  # unreachable via argparse
+        # One dispatch table, shared with the Celery task (BL-20260906-26):
+        # `build_runner` is defined at the bottom of this module, beside the
+        # sub-runners it names.
+        try:
+            runner = build_runner(
+                kind, source=source, budget=budget, window_to_now=window_to_now
+            )
+        except ValueError as exc:  # unreachable via argparse choices
+            raise CommandError(str(exc), returncode=1) from exc
 
         try:
-            result = autonomy.run_cycle(kind, _runner, payload=payload)
+            result = autonomy.run_cycle(kind, runner, payload=payload)
         except Exception as exc:
             self.stderr.write(self.style.ERROR(f"autonomy cycle failed: {exc}"))
             sys.exit(2)
@@ -147,9 +181,16 @@ class Command(BaseCommand):
             )
         elif status == "ok":
             sub = result.get("result", {})
+            # BL-20260511-29: say plainly that nothing ran, so an operator who
+            # reuses a --cycle-id is never misled into thinking it did.
+            verb = (
+                "Cycle replayed (already ran)."
+                if result.get("replayed")
+                else ("Cycle complete.")
+            )
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"Cycle complete. kind={kind} cycle_id={cycle_id_out} "
+                    f"{verb} kind={kind} cycle_id={cycle_id_out} "
                     f"result={json.dumps(sub, default=str)}"
                 )
             )
@@ -213,6 +254,30 @@ def _run_test_pillar(context: dict[str, Any], *, budget: int | None) -> dict[str
     return {"proposed_tests": proposed, "budget": budget}
 
 
+async def _topic_frontier_cycle(factory: Any) -> Any:
+    """Run one TopicFrontier cycle under a checkpointer when one is available.
+
+    ``build_checkpointer`` returns a bare saver for ``memory`` and an async
+    context manager for ``postgres``/``redis``; both shapes are handled here so
+    the graph gets durable node-level checkpoints (BL-20260511-31). Any failure
+    to obtain a saver is logged and the cycle runs unpersisted.
+    """
+    from contextlib import AbstractAsyncContextManager
+
+    from law_ai.agents_runtime.graphs.runtime import build_checkpointer
+
+    try:
+        maybe_saver = build_checkpointer()
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("topic_frontier: no checkpointer (%s); running unpersisted", exc)
+        return await factory().run()
+
+    if isinstance(maybe_saver, AbstractAsyncContextManager):
+        async with maybe_saver as saver:
+            return await factory(checkpointer=saver).run()
+    return await factory(checkpointer=maybe_saver).run()
+
+
 def _run_corpus_growth(
     context: dict[str, Any],
     *,
@@ -223,13 +288,17 @@ def _run_corpus_growth(
 
     Runs the :class:`~law_ai.agents_runtime.graphs.topic_frontier.TopicFrontier`
     async workflow and returns the dispatch summary.
+
+    BL-20260511-31: the cycle is checkpointed when a saver can be built, so a
+    crashed dispatch resumes instead of re-scanning the graph from scratch. A
+    checkpointer that will not open degrades to an unpersisted run rather than
+    failing the cycle.
     """
     import asyncio
 
     from law_ai.agents_runtime.graphs.topic_frontier import TopicFrontier
 
-    tf = TopicFrontier()
-    output = asyncio.run(tf.run())
+    output = asyncio.run(_topic_frontier_cycle(TopicFrontier))
 
     context["dispatched_count"] = len(output.dispatched)
     return {
@@ -240,13 +309,35 @@ def _run_corpus_growth(
     }
 
 
-def _run_digest(context: dict[str, Any]) -> dict[str, Any]:
-    """Invoke :func:`law_ai.core.autonomy.compose_digest` (T-010)."""
-    from law_ai.core.autonomy import compose_digest
+def _run_digest(
+    context: dict[str, Any], *, window_to_now: bool = False
+) -> dict[str, Any]:
+    """Compose the digest, then push it to the configured channels (T-010).
 
-    digest_path = compose_digest()
+    BL-20260511-05: the ``digest-<date>.md`` file used to be the only
+    surface. ``deliver_digest`` fans it out to Slack and/or email when those
+    are configured and is a no-op otherwise, so the file remains the fallback
+    surface for an operator who has configured nothing.
+
+    BL-20260511-19: ``window_to_now`` ends the digest window at *now* rather
+    than the previous UTC midnight. A CI run that composes a digest of its own
+    work needs that — the default window would otherwise exclude every event
+    the same run just produced.
+    """
+    from datetime import UTC, datetime
+
+    from law_ai.core.autonomy import compose_digest, deliver_digest
+
+    digest_path = compose_digest(
+        window_end=datetime.now(UTC) if window_to_now else None
+    )
     context["digest_path"] = str(digest_path)
-    return {"digest_path": str(digest_path)}
+    delivery = deliver_digest(digest_path)
+    context["digest_delivered"] = delivery["delivered"]
+    return {
+        "digest_path": str(digest_path),
+        "delivery": delivery,
+    }
 
 
 def _run_lsat_content(context: dict[str, Any], *, budget: int | None) -> dict[str, Any]:
@@ -261,6 +352,7 @@ def _run_lsat_content(context: dict[str, Any], *, budget: int | None) -> dict[st
         GenerateQuestionsInput,
         LSATContentAuthor,
     )
+    from law_ai.agents_runtime.crews.lsat_content_reviewer import review_drafts
     from law_ai.lsat.services import proposals as proposals_store
 
     count = max(1, min(budget or 5, 10))
@@ -285,84 +377,355 @@ def _run_lsat_content(context: dict[str, Any], *, budget: int | None) -> dict[st
     agent = LSATContentAuthor()
     output = asyncio.run(agent.run(inp.model_dump()))
     persisted = 0
-    for draft in output.drafts:
+    # BL-20260606-02: a skewed answer-key batch reaches the HITL queue carrying
+    # the flag, so the reviewer sees the skew the prompt failed to prevent.
+    base_meta: dict[str, Any] = (
+        {"balance_flag": output.balance_flag} if output.balance_flag else {}
+    )
+    # BL-20260527-04: blind pre-review so a human reads the borderline drafts
+    # first. Advisory only — a low score never blocks the proposal.
+    reviews = asyncio.run(review_drafts([d.model_dump() for d in output.drafts]))
+    flagged = 0
+    for draft, review in zip(output.drafts, reviews, strict=True):
+        meta: dict[str, Any] = dict(base_meta)
+        if review is not None:
+            meta["review"] = review
+            flagged += int(bool(review.get("flagged")))
         proposals_store.record_proposal(
             draft.model_dump(),
             agent_trace_id=output.trace_id or "",
             model=output.model,
             confidence=output.confidence,
             source_concept_ids=target_concepts,
+            meta=meta or None,
         )
         persisted += 1
 
     summary = {
         "drafts_persisted": persisted,
+        "drafts_flagged": flagged,
         "section": target_section,
         "difficulty": target_difficulty,
         "target_concepts": target_concepts,
         "model": output.model,
         "degraded": output.degraded,
+        "balance_flag": output.balance_flag,
         "trace_id": output.trace_id,
     }
     context.update(summary)
     return summary
 
 
-def _run_lsat_library(context: dict[str, Any], *, budget: int | None) -> dict[str, Any]:
-    """Review the stalest knowledge-library articles (spec 048 FR-17).
+def _run_lsat_factory(context: dict[str, Any], *, budget: int | None) -> dict[str, Any]:
+    """Run one coverage-driven factory batch on the local model (spec 024 FR-8).
 
-    Review only. Every result is filed as a ``library_finding`` proposal with
-    ``status="pending"``; nothing under ``data/library/`` is touched, and
-    promotion stays a deliberate human act (spec 048 AC-10, constitution §5).
+    BL-20260702-04. plan → compile → run(ollama) → intake, pinned to the local
+    provider so a nightly beat can never bill a hosted tier, and capped by the
+    cycle budget so a small box is not asked for a hundred items at 03:00. Like
+    every other LSAT pillar this only *drafts*: survivors land as ``pending``
+    proposals for a human (constitution §5).
+
+    BL-20260905-49: the batch now judges itself where judging is free. The
+    executor is pinned to Ollama, but the judge tier goes through the provider
+    chain (``law_ai.core.llm``), so it is switched on here exactly when that
+    chain is local-only — a nightly beat must not quietly start billing a
+    hosted tier for a second model call per draft. On the default Claude-first
+    chain the operator opts in the usual way, with ``LSAT_FACTORY_JUDGE``.
+    """
+    import asyncio
+
+    from law_ai.core.llm import chain_names
+    from law_ai.lsat.factory import FactoryConfig, compile_plan, execute_manifest
+    from law_ai.lsat.factory.executors import ExecutorUnavailable, OllamaExecutor
+
+    max_jobs = max(1, min(budget or 4, 12))
+    settings_config = FactoryConfig.from_settings()
+    judge_enabled = settings_config.judge_enabled or set(chain_names()) <= {"ollama"}
+    config = settings_config.model_copy(
+        update={"max_jobs": max_jobs, "judge_enabled": judge_enabled}
+    )
+    manifest, manifest_path = compile_plan(config)
+    if not manifest.jobs:
+        summary = {
+            "manifest_id": manifest.manifest_id,
+            "jobs": 0,
+            "accepted": 0,
+            "rejected": 0,
+            "errors": 0,
+            "note": "coverage is at target; nothing to generate",
+        }
+        context.update(summary)
+        return summary
+
+    try:
+        executor = OllamaExecutor(config)
+    except ExecutorUnavailable as exc:  # pragma: no cover - defensive
+        summary = {
+            "manifest_id": manifest.manifest_id,
+            "jobs": 0,
+            "accepted": 0,
+            "rejected": 0,
+            "errors": 1,
+            "note": f"executor unavailable: {exc}",
+        }
+        context.update(summary)
+        return summary
+
+    results = asyncio.run(execute_manifest(manifest, executor, config))
+    summary = {
+        "manifest_id": manifest.manifest_id,
+        "manifest_path": str(manifest_path),
+        "jobs": len(results),
+        "accepted": sum(len(r.accepted) for r in results),
+        "rejected": sum(len(r.rejected) for r in results),
+        "errors": sum(1 for r in results if r.error),
+        "executor": executor.name,
+        "judge_enabled": config.judge_enabled,
+    }
+    context.update(summary)
+    return summary
+
+
+def _run_commit_approved(
+    context: dict[str, Any], *, budget: int | None
+) -> dict[str, Any]:
+    """Sweep human-approved quarantine rows into the graph (BL-20260811-02).
+
+    Approvals used to need a manual ``manage.py review_queue commit`` (or a
+    hand-run Celery task) before reaching Neo4j, so a reviewer's decision
+    could sit unapplied indefinitely. Routing the sweep through
+    ``autonomy.run_cycle`` gives it the ``AUTONOMY_ENABLED`` kill-switch
+    (constitution §12 I3) and the cycle audit event for free.
+
+    Not an autonomy *decision*: every row here was already approved by a
+    person, so the HITL gate (§5) is upstream of this runner — it only
+    applies decisions humans already made, capped by ``budget``.
+    """
+    from law_ai.ingestionapp.services.approval import (
+        DEFAULT_SWEEP_LIMIT,
+        commit_approved_reviews,
+    )
+
+    limit = max(1, min(budget or DEFAULT_SWEEP_LIMIT, 200))
+    results = commit_approved_reviews(limit)
+    committed = sum(1 for r in results if r.get("committed"))
+    failed = sum(1 for r in results if r.get("error"))
+    return {
+        "kind": "commit_approved",
+        "cycle_id": context.get("cycle_id", ""),
+        "processed": len(results),
+        "committed": committed,
+        "failed": failed,
+        "limit": limit,
+    }
+
+
+def _run_lsat_library(context: dict[str, Any], *, budget: int | None) -> dict[str, Any]:
+    """Work the knowledge library's own audit findings (spec 048 FR-17).
+
+    The cycle picks its own targets: ``pick_librarian_targets`` ranks the
+    deterministic audit into reviews (unreviewed, thin, unreachable) and a
+    capped tail of gap-driven expansions, so no human target list is needed
+    (BL-20260903-08).
+
+    Proposals only. A review files a ``library_finding``, an expansion files
+    the merged article as a ``library_article``; both land ``pending``,
+    nothing under ``data/library/`` is touched, and promotion stays a
+    deliberate human act (spec 048 AC-10, constitution §5).
     """
     import asyncio
 
     from law_ai.agents_runtime.crews.lsat_librarian import LSATLibrarian
     from law_ai.lsat.services import proposals as proposals_store
-    from law_ai.lsat.services.library import library_audit, load_library
+    from law_ai.lsat.services.library import (
+        library_audit,
+        merge_expansion,
+        pick_librarian_targets,
+    )
 
     count = max(1, min(budget or 3, 10))
     report = library_audit()
-    # Stalest first; the audit already orders them by days-since-review. A
-    # freshly-reviewed library falls back to the head of the corpus so the
-    # cycle still does something rather than idling (BL-20260903-08 tracks a
-    # real picker).
-    targets = [row["id"] for row in report["freshness"]["stale_articles"]]
-    if not targets:
-        targets = sorted(load_library())
-    targets = targets[:count]
+    requests = pick_librarian_targets(report, limit=count)
 
     agent = LSATLibrarian()
-    filed = 0
+    reviews = 0
+    expansions = 0
     findings = 0
     degraded = False
-    for article_id in targets:
-        output = asyncio.run(agent.run({"action": "review", "article_id": article_id}))
+    for request in requests:
+        output = asyncio.run(agent.run(request.to_input()))
         degraded = degraded or output.degraded
         if output.degraded:
             # An offline fallback carries no review; filing it would only add
             # noise a reviewer has to reject.
             continue
+        draft: dict[str, Any] = {
+            "article_id": request.article_id,
+            "summary": output.summary,
+            "reason": request.reason,
+        }
+        if request.action == "expand" and output.proposed_markdown:
+            draft["gap"] = request.gap
+            draft["markdown"] = merge_expansion(
+                request.article_id, output.proposed_markdown
+            )
+            kind = "library_article"
+            expansions += 1
+        else:
+            draft["findings"] = [f.model_dump() for f in output.findings]
+            kind = "library_finding"
+            findings += len(output.findings)
+            reviews += 1
         proposals_store.record_proposal(
-            {
-                "article_id": article_id,
-                "summary": output.summary,
-                "findings": [f.model_dump() for f in output.findings],
-            },
+            draft,
             agent_trace_id=output.trace_id or "",
             model=output.model,
             confidence=output.confidence,
-            proposal_kind="library_finding",
+            proposal_kind=kind,
         )
-        filed += 1
-        findings += len(output.findings)
 
     summary = {
-        "articles_reviewed": len(targets),
-        "reviews_filed": filed,
+        "articles_reviewed": len(requests),
+        "reviews_filed": reviews,
+        "expansions_filed": expansions,
         "findings": findings,
-        "targets": targets,
+        "targets": [r.article_id for r in requests],
+        "picked": [
+            {"action": r.action, "article_id": r.article_id, "reason": r.reason}
+            for r in requests
+        ],
         "degraded": degraded,
     }
     context.update(summary)
     return summary
+
+
+#: Hard ceiling on one cross-check cycle, whatever budget is asked for.
+#: Every question is a blind re-solve through the provider chain, so a beat
+#: that forgets its budget must still cost a bounded amount (BL-20260905-58).
+CROSS_CHECK_MAX_PER_CYCLE = 25
+
+
+def _run_lsat_cross_check(
+    context: dict[str, Any], *, budget: int | None
+) -> dict[str, Any]:
+    """Blind-solve unchecked bank questions and queue the disagreements.
+
+    BL-20260905-58. ``manage.py lsat_cross_check_sweep`` (BL-20260831-21) could
+    only be run by hand, so coverage grew when somebody remembered rather than
+    on a cadence. This is the same sweep as an autonomy kind: it reuses the
+    command's own helpers so there is exactly one definition of "unchecked",
+    "already queued" and "how a disagreement is filed".
+
+    Files proposals only. A disagreement lands ``pending`` for a human
+    (constitution §5) and nothing in the bank is touched; agreement writes
+    only the cached verdict the primitive already stores. A degraded verdict
+    (no provider reachable) is never filed — an outage is not a disagreement.
+
+    Budget is the knob: ``budget`` questions per cycle, defaulting to a small
+    number and hard-capped at :data:`CROSS_CHECK_MAX_PER_CYCLE`, because every
+    question here is a real provider call.
+    """
+    from asgiref.sync import async_to_sync
+
+    from law_ai.lsat.management.commands.lsat_cross_check_sweep import (
+        checked_question_ids,
+        file_disagreement,
+        pending_crosscheck_ids,
+    )
+    from law_ai.lsat.services.bank import load_bank
+    from law_ai.lsat.services.crosscheck import cross_check
+
+    limit = max(1, min(budget or 5, CROSS_CHECK_MAX_PER_CYCLE))
+    bank = load_bank()
+    skip = pending_crosscheck_ids() | checked_question_ids()
+    targets = sorted(qid for qid in bank if qid not in skip)[:limit]
+
+    agreed = filed = degraded = failed = 0
+    filed_ids: list[str] = []
+    for qid in targets:
+        try:
+            result = async_to_sync(cross_check)(bank[qid])
+        except Exception as exc:  # pragma: no cover - defensive
+            failed += 1
+            logger.warning("cross-check failed for %s: %s", qid, exc)
+            continue
+        if not result.used_llm:
+            degraded += 1
+            continue
+        if result.agree:
+            agreed += 1
+            continue
+        filed_ids.append(file_disagreement(bank[qid], result))
+        filed += 1
+
+    summary = {
+        "solved": len(targets),
+        "agreed": agreed,
+        "filed": filed,
+        "degraded": degraded,
+        "failed": failed,
+        "limit": limit,
+        "proposals": filed_ids,
+    }
+    context.update(summary)
+    return summary
+
+
+# ---------------------------------------------------------------------------
+# Dispatch table (BL-20260906-26)
+# ---------------------------------------------------------------------------
+
+#: Every autonomy kind, mapped to the sub-runner it dispatches to.
+#:
+#: There used to be two copies of this as an if-chain — one here and one in
+#: ``law_ai.core.tasks.autonomy_cycle`` — which is how the beat entry for
+#: ``lsat_cross_check`` came to raise ``Unknown kind`` even though the CLI
+#: dispatched it fine. It also outgrew ruff's six-return limit, so both copies
+#: carried a ruff PLR0911 suppression. Adding a pillar is now one entry here
+#: plus one ``--kind`` choice above.
+AUTONOMY_RUNNERS: dict[str, Callable[..., dict[str, Any]]] = {
+    "test_pillar": _run_test_pillar,
+    "corpus_growth": _run_corpus_growth,
+    "digest": _run_digest,
+    "lsat_content": _run_lsat_content,
+    "lsat_factory": _run_lsat_factory,
+    "lsat_library": _run_lsat_library,
+    "lsat_cross_check": _run_lsat_cross_check,
+    "commit_approved": _run_commit_approved,
+}
+
+
+def build_runner(
+    kind: str,
+    *,
+    source: str | None = None,
+    budget: int | None = None,
+    window_to_now: bool = False,
+) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    """Return the ``run_cycle`` runner for ``kind``.
+
+    The sub-runners take different keyword arguments (only ``corpus_growth``
+    wants a ``source``, only ``digest`` a ``window_to_now``), so each one is
+    handed exactly the arguments its signature declares. Reading the signature
+    rather than keeping a second table of argument names is what stops the two
+    from drifting — the drift this function exists to end.
+
+    Raises:
+        ValueError: if ``kind`` is not a registered autonomy kind.
+    """
+    try:
+        runner = AUTONOMY_RUNNERS[kind]
+    except KeyError:
+        raise ValueError(
+            f"Unknown kind: {kind!r}. Known: {sorted(AUTONOMY_RUNNERS)}"
+        ) from None
+
+    available = {"source": source, "budget": budget, "window_to_now": window_to_now}
+    params = inspect.signature(runner).parameters
+    kwargs = {name: value for name, value in available.items() if name in params}
+
+    def _runner(context: dict[str, Any]) -> dict[str, Any]:
+        return runner(context, **kwargs)
+
+    return _runner

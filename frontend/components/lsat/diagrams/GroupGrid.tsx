@@ -22,7 +22,7 @@ export default function GroupGrid({ rep }: { rep: LsatGridRep }) {
     <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-950/60 p-3">
       <table className="min-w-full border-collapse text-sm">
         {rep.note && (
-          <caption className="mb-2 caption-top text-left text-xs italic text-slate-500">
+          <caption className="mb-2 caption-top text-left text-xs italic text-slate-400">
             {rep.note}
           </caption>
         )}
@@ -74,7 +74,7 @@ export default function GroupGrid({ rep }: { rep: LsatGridRep }) {
           ))}
         </tbody>
       </table>
-      <p className="mt-2 text-[11px] text-slate-500">
+      <p className="mt-2 text-[11px] text-slate-400">
         <span className="text-emerald-300">✓</span> = satisfies ·{' '}
         <span className="text-rose-300">✕</span> = violates ·{' '}
         <span className="text-amber-300">?</span> = undetermined

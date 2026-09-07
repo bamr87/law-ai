@@ -1,0 +1,7 @@
+{
+  "python_version": "3.12",
+  "dependencies": ["."],
+  "graphs": {
+    "legal_workflow": "./law_ai/agents_runtime/graphs/studio.py:make_graph"
+  }
+}

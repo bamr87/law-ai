@@ -60,18 +60,39 @@ class TestLegalBenchConfig:
 
 
 class TestLoaders:
-    def test_load_synthetic_stub_when_no_cache(self) -> None:
-        from law_ai.eval.loaders import load_task
+    @pytest.fixture()
+    def empty_cache(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        """Point the loader at a directory with nothing in it (BL-20260906-32).
 
+        Without this these two tests read `backend/var/legalbench/` on any
+        machine that has run `make legalbench-cache`, so "when no cache" was
+        measuring whatever the developer had fetched.
+        """
+        from law_ai.eval import loaders
+
+        monkeypatch.setattr(
+            loaders,
+            "subset_cache_path",
+            lambda subset: tmp_path / subset / "items.jsonl",
+        )
+        return tmp_path
+
+    def test_load_synthetic_stub_when_no_cache(self, empty_cache: Path) -> None:
+        from law_ai.eval.loaders import is_synthetic, load_task
+
+        assert is_synthetic("core_reasoning") is True
         items = load_task("core_reasoning")
         assert len(items) >= 1
+        # The stub, not the dataset: every fixture index is marked as one.
+        assert all(str(item["index"]).startswith("stub-") for item in items)
         for item in items:
             assert "text" in item
             assert "answer" in item
 
-    def test_limit_is_respected(self) -> None:
+    def test_limit_is_respected(self, empty_cache: Path) -> None:
         from law_ai.eval.loaders import load_task
 
+        assert len(load_task("core_reasoning")) > 1
         items = load_task("core_reasoning", limit=1)
         assert len(items) == 1
 
@@ -253,9 +274,22 @@ class TestRunEval:
     def test_run_eval_returns_report_dict(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """run_eval executes end-to-end with Ollama stubbed out."""
+        """run_eval executes end-to-end with Ollama stubbed out.
+
+        The cache path is redirected at an empty temp dir so the loader falls
+        back to its synthetic stubs deterministically: once `make
+        legalbench-cache` (BL-20260811-09) has run, `backend/var/legalbench/`
+        holds the real items and this assertion would otherwise depend on
+        whether the developer had fetched the dataset.
+        """
+        from law_ai.eval import loaders
         from law_ai.eval.legalbench import LegalBenchConfig, run_eval
 
+        monkeypatch.setattr(
+            loaders,
+            "subset_cache_path",
+            lambda subset: tmp_path / subset / "items.jsonl",
+        )
         report_path = tmp_path / "run.json"
         cfg = LegalBenchConfig(
             subsets=["definitions"],
@@ -317,3 +351,78 @@ class TestCLI:
         assert args.subset == "definitions"
         assert args.limit == 5
         assert args.model == "phi3:mini"
+
+
+# ---------------------------------------------------------------------------
+# Synthetic gate (BL-20260811-10) — a stub-backed run must never satisfy CI
+# ---------------------------------------------------------------------------
+
+
+class TestSyntheticGate:
+    """`--fail-on-synthetic` is the flag that makes the nightly gate honest.
+
+    Before the flip, a runner with no cached dataset scored five smoke
+    fixtures, found no baseline to compare against, and exited 0 — a green
+    gate that had measured nothing.
+    """
+
+    @staticmethod
+    def _args(**overrides: bool) -> Any:
+        from law_ai.eval.legalbench import _build_parser
+
+        flags: list[str] = []
+        if overrides.get("check_regression", True):
+            flags.append("--check-regression")
+        if overrides.get("fail_on_synthetic", True):
+            flags.append("--fail-on-synthetic")
+        if overrides.get("update_baseline", False):
+            flags.append("--update-baseline")
+        return _build_parser().parse_args(flags)
+
+    def test_stub_backed_run_fails_the_gate(self, capsys: Any) -> None:
+        from law_ai.eval.legalbench import _apply_gates
+
+        report = {
+            "synthetic": True,
+            "subsets": [
+                {"subset": "core_reasoning", "accuracy": 1.0, "synthetic": True}
+            ],
+        }
+        assert _apply_gates(report, self._args()) == 1
+        assert "synthetic" in capsys.readouterr().err
+
+    def test_real_run_matching_its_baseline_passes(self) -> None:
+        from law_ai.eval.legalbench import _apply_gates
+
+        report = {
+            "synthetic": False,
+            "subsets": [
+                {"subset": "core_reasoning", "accuracy": 0.62, "synthetic": False}
+            ],
+            "delta": {
+                "core_reasoning": {"before": 0.62, "after": 0.62, "delta_pp": 0.0}
+            },
+        }
+        assert _apply_gates(report, self._args()) == 0
+
+    def test_real_run_regressing_more_than_a_point_fails(self) -> None:
+        from law_ai.eval.legalbench import _apply_gates
+
+        report = {
+            "synthetic": False,
+            "subsets": [
+                {"subset": "core_reasoning", "accuracy": 0.60, "synthetic": False}
+            ],
+            "delta": {
+                "core_reasoning": {"before": 0.62, "after": 0.60, "delta_pp": -2.0}
+            },
+        }
+        assert _apply_gates(report, self._args()) == 1
+
+    def test_ci_recipe_passes_the_flag(self) -> None:
+        """The gate is only flipped if `make test-legalbench-gate` carries it."""
+        makefile = Path("/repo/Makefile")
+        if not makefile.exists():  # repo root not mounted in this container
+            pytest.skip("/repo/Makefile not mounted")
+        recipe = makefile.read_text(encoding="utf-8").split("test-legalbench-gate:")[1]
+        assert "--fail-on-synthetic" in recipe.split("\n\n")[0]

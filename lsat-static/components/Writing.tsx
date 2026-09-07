@@ -4,6 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { WritingPrompt } from '@/lib/types'
 import { rubricFor, sectionMeta, writingPrompts } from '@/lib/data'
 import { useShortcuts } from '@/lib/keyboard'
+import {
+  readLocal,
+  writeLocal,
+  writingDraftKey,
+  writingSubmittedKey,
+} from '@/lib/deviceState'
 
 /**
  * Argumentative Writing practice (spec 047 FR-3).
@@ -21,26 +27,14 @@ import { useShortcuts } from '@/lib/keyboard'
 
 type Phase = 'list' | 'draft' | 'review'
 
-const DRAFT_KEY = (id: string) => `lsat-writing:draft:${id}`
-const DONE_KEY = (id: string) => `lsat-writing:submitted:${id}`
-
-function readLocal(key: string): string | null {
-  try {
-    return window.localStorage.getItem(key)
-  } catch {
-    // Private browsing and blocked site-data both throw here; a lost draft is
-    // a worse outcome than a lost feature, but neither should break the page.
-    return null
-  }
-}
-
-function writeLocal(key: string, value: string): void {
-  try {
-    window.localStorage.setItem(key, value)
-  } catch {
-    /* storage unavailable — drafting still works for this session */
-  }
-}
+// Drafts and submissions are per prompt, so the keys are built rather than
+// listed — which is why they live with the rest of this device's state
+// (BL-20260702-10): export has to find them by prefix. `readLocal`/`writeLocal`
+// carry the same guard the private copies here used to: private browsing and
+// blocked site data both throw, and a lost draft is a worse outcome than a
+// lost feature, but neither may break the page.
+const DRAFT_KEY = writingDraftKey
+const DONE_KEY = writingSubmittedKey
 
 function countWords(text: string): number {
   const trimmed = text.trim()

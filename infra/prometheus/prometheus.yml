@@ -1,0 +1,46 @@
+# Prometheus scrape config for the server / multi-GPU tier (BL-20260502-03).
+#
+# Mounted read-only into the prometheus service by
+# docker-compose.observability.yml. Targets that are not running simply show as
+# DOWN on /targets — that is the intended signal, not an error: the vLLM and
+# GPU jobs only exist on a workstation with those services enabled.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    stack: law-ai
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [ "localhost:9090" ]
+
+  # Queue depth. Celery's broker is Redis, and a Celery queue IS a Redis list,
+  # so `redis_key_size{key="celery"}` is the number of tasks waiting. This is
+  # why REDIS_EXPORTER_CHECK_KEYS names the two queues the worker consumes
+  # (see the worker command in docker-compose.yml: -Q autonomy,celery).
+  - job_name: redis
+    static_configs:
+      - targets: [ "redis-exporter:9121" ]
+
+  # Tokens/sec + request queue. vLLM ships a Prometheus endpoint:
+  #   vllm:generation_tokens_total, vllm:prompt_tokens_total,
+  #   vllm:num_requests_running / _waiting, vllm:time_per_output_token_seconds.
+  # Only up when the `vllm` profile of docker-compose.gpu.yml is running.
+  - job_name: vllm
+    metrics_path: /metrics
+    static_configs:
+      - targets: [ "vllm:8000" ]
+
+  # GPU utilization, memory, temperature, power. NVIDIA-only, so the exporter
+  # sits behind the `gpu-metrics` profile and this target is DOWN elsewhere.
+  - job_name: dcgm
+    static_configs:
+      - targets: [ "dcgm-exporter:9400" ]
+
+  # NOTE: Ollama exposes no Prometheus endpoint (as of 0.12.x), so there is no
+  # tokens/sec for the Ollama tier here — that is what vLLM is for on this
+  # tier. LLM latency and token counts for BOTH tiers are recorded per call in
+  # the `llm_call` provenance events and in Phoenix traces; Prometheus is the
+  # infrastructure view, not a replacement for the audit trail.

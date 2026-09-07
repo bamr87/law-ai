@@ -128,6 +128,32 @@ export function inboundArticles(id: string): Article[] {
   )
 }
 
+/**
+ * Articles that teach a concept — the inverse of `Article.concepts`.
+ *
+ * Mirrors the platform's `articles_teaching` (spec 048 FR-7), inline concept
+ * spans included: a learner who misses a concept-tagged question needs a way
+ * from the tag to the material, not only from the material to the tag.
+ */
+export function articlesTeaching(conceptId: string): Article[] {
+  return articles.filter(
+    (a) =>
+      a.concepts.includes(conceptId) ||
+      a.blocks.some((b) =>
+        b.block_type === 'paragraph'
+          ? b.spans.some((s) => s.kind === 'concept' && s.ref_id === conceptId)
+          : false,
+      ),
+  )
+}
+
+/** Bank questions tagged with a concept. */
+export function questionsForConcept(conceptId: string): Question[] {
+  return content.questions.filter((q) =>
+    (q.concepts ?? []).includes(conceptId),
+  )
+}
+
 /** Bank questions tagged with any concept this article teaches. */
 export function drillsForArticle(article: Article): Question[] {
   if (article.concepts.length === 0) return []

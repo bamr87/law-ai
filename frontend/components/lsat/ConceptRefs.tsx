@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
 import { fetchLsatConcepts, type LsatConcept } from '@/lib/api'
@@ -11,7 +12,12 @@ import { fetchLsatConcepts, type LsatConcept } from '@/lib/api'
  * concepts a question is tagged with — name, summary, and the schema-level
  * examples the concept derives from — resolved against the in-app concept
  * catalog (`/api/lsat/concepts`). External source URLs are excluded by
- * design; deeper reading lives on the Concepts tab.
+ * design.
+ *
+ * The one link is inward, to the catalog's own entry in the library, which is
+ * where the concept's cross-references and the articles teaching it live. A
+ * missed question is exactly the moment a learner wants that, and before the
+ * concepts merge the answer was "go find the Concepts tab".
  */
 
 let catalogPromise: Promise<Map<string, LsatConcept>> | null = null
@@ -51,7 +57,7 @@ export default function ConceptRefs({ conceptIds }: { conceptIds: string[] }) {
 
   return (
     <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950/60 p-4">
-      <div className="text-[11px] uppercase tracking-wider text-slate-500">
+      <div className="text-[11px] uppercase tracking-wider text-slate-400">
         Derived from
       </div>
       <ul className="mt-2 space-y-2">
@@ -92,6 +98,12 @@ export default function ConceptRefs({ conceptIds }: { conceptIds: string[] }) {
                     </ul>
                   </div>
                 )}
+                <Link
+                  href={`/lsat/library#catalog-${concept.id}`}
+                  className="mt-2 inline-block text-[11px] text-amber-300 underline underline-offset-2 hover:text-amber-200"
+                >
+                  Study {concept.name} in the library →
+                </Link>
               </details>
             </li>
           )

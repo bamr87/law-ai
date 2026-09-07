@@ -26,6 +26,10 @@
    */
   --shell-masthead-h: 3.5rem;
   --shell-rail-w: 3.5rem;
+  /* The labelled rail (BL-20260831-06), opt-in and `xl`-only: 11rem holds the
+   * longest catalog label ("Analysis Studio") beside its glyph without
+   * wrapping, and leaves the sidebar + inspector + a readable page at 1280px. */
+  --shell-rail-w-expanded: 11rem;
   --shell-sidebar-w: 14rem;
   --shell-inspector-w: 19rem;
   --shell-tabbar-h: 3.5rem;
@@ -41,8 +45,11 @@
    * toolbar's first pixel behind the header, which is invisible; erring large
    * would leave a sliver of scrolling content showing between the two. */
   --shell-pageheader-h: 2.75rem;
-  /* Height of a `StickyToolbar` — the second rung of the stack. */
-  --shell-toolbar-h: 2.75rem;
+  /* Height of a `StickyToolbar` — the second rung of the stack. 60px: the
+   * toolbar's 8px padding top and bottom around a 44px `.tap-target` tab
+   * (BL-20260831-11). The LSAT sticky asides key their offset off this, so
+   * it has to track the tallest control the toolbar holds. */
+  --shell-toolbar-h: 3.75rem;
 
   /* Re-point at palette tokens when spec 039 lands. */
   --shell-scrollbar-thumb: rgb(51 65 85);
@@ -98,6 +105,22 @@
 .shell-scroll::-webkit-scrollbar-track,
 .shell-panel-scroll::-webkit-scrollbar-track {
   background: var(--shell-scrollbar-track);
+}
+
+/* --- Touch targets -------------------------------------------------------
+ * WCAG 2.5.8 sets a 24px floor; the platform guidelines (HIG, Material,
+ * WCAG AAA) ask for 44px. The masthead controls and the LSAT section tabs
+ * are the controls a thumb has to hit first at 390px, so they get the
+ * guideline, not the floor. Unconditional rather than behind
+ * `pointer: coarse` (which is what `lsat-static/app/globals.css` does): the
+ * masthead is 56px tall and the toolbar sizes itself from the tab, so the
+ * bigger target costs a desktop layout nothing and a mouse user gets it for
+ * free. `scripts/ux_audit.py` R14 keeps it on those controls.
+ * (BL-20260831-11.)
+ */
+.tap-target {
+  min-height: 44px;
+  min-width: 44px;
 }
 
 /* --- Sticky stack --------------------------------------------------------

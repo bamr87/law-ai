@@ -97,6 +97,51 @@ MERGE (sec)-[r:PART_OF]->(s)
 RETURN sec
 """
 
+# Vector leg (BL-20260810-17); see the note on SET_CASE_EMBEDDING_CYPHER in
+# queries.py for why this is a separate statement.
+SET_SECTION_EMBEDDING_CYPHER = """
+MATCH (sec:StatuteSection {id: $id})
+SET sec.embedding = $embedding,
+    sec.embedding_model = $model,
+    sec.embedding_at = $embedded_at
+RETURN sec.id AS id
+"""
+
+
+async def embed_statute_section(
+    session: AsyncSession,
+    section_id: str,
+    *,
+    citation: str | None,
+    heading: str | None,
+    text: str | None,
+) -> bool:
+    """Compute and store a ``:StatuteSection`` embedding; fail-open."""
+    from datetime import UTC, datetime
+
+    from law_ai.core.llm.embeddings import (
+        embed_text,
+        embedding_model,
+        statute_embedding_text,
+    )
+
+    body = statute_embedding_text(citation, heading, text)
+    if not body:
+        return False
+    vector = await embed_text(body, component="ingest_statute_section")
+    if vector is None:
+        return False
+    await session.run(
+        SET_SECTION_EMBEDDING_CYPHER,
+        {
+            "id": section_id,
+            "embedding": vector,
+            "model": embedding_model(),
+            "embedded_at": datetime.now(UTC).isoformat(),
+        },
+    )
+    return True
+
 
 async def commit_statute_extraction(
     session: AsyncSession,
@@ -183,6 +228,13 @@ async def commit_statute_extraction(
                 "ingest_timestamp": iso_ts,
                 "agent_version": extraction.agent_version,
             },
+        )
+        await embed_statute_section(
+            session,
+            sec.id,
+            citation=sec.citation,
+            heading=sec.heading,
+            text=sec.text,
         )
         edges += 1  # Section→Statute :PART_OF
 

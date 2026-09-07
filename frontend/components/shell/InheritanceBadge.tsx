@@ -7,7 +7,7 @@ export default function InheritanceBadge<T>({
 }) {
   if (effective.source === 'default') {
     return (
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-400">
         Using definition default
         {effective.canOverride ? ' · Override for this instance' : ''}
       </p>
@@ -22,14 +22,14 @@ export default function InheritanceBadge<T>({
   }
   if (effective.isInherited) {
     return (
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-400">
         Inherited from {effective.source.scopeName}
         {effective.canOverride ? ' · Override for this instance' : ''}
       </p>
     )
   }
   return (
-    <p className="text-xs text-slate-500">
+    <p className="text-xs text-slate-400">
       Set on {effective.source.scopeName}
       {effective.canOverride ? ' · Reset to inherited' : ''}
     </p>

@@ -4,6 +4,8 @@ The library is the LSAT module's **prose layer**: long-form, cross-linked study 
 
 Introduced by [specs/048-lsat-knowledge-library](../specs/048-lsat-knowledge-library/spec.md).
 
+**Two views, one surface.** The library reads in two modes on both products — **Articles** (the reader) and **Concepts** (the catalog of recurring reasoning patterns that `concepts.json` defines and every article and bank question is tagged with). The catalog used to be a tab in the practice lab and a separate destination on the static site, which meant an article could name a concept but a concept named nothing. In the library it carries `taught_in` — the concept → article inverse `/api/lsat/concepts/<id>` has always returned — so a learner who misses a concept-tagged question can go tag → material in one hop. This does not merge the *data*: `concepts.json` is still the tagging vocabulary and articles reference concepts rather than absorbing them (spec 048 NG5).
+
 ## Where it lives
 
 | Thing | Path |
@@ -14,8 +16,33 @@ Introduced by [specs/048-lsat-knowledge-library](../specs/048-lsat-knowledge-lib
 | API | `backend/law_ai/lsat/urls.py` → `/api/lsat/library/*` |
 | Platform reader | `frontend/components/LsatLibrary.tsx` + `components/lsat/library/` |
 | Offline reader | `lsat-static/components/Library.tsx` + `components/library/` |
+| Concept catalog | `frontend/components/LsatLibrary.tsx` (Concepts view) · `lsat-static/components/Concepts.tsx` |
 | Maintenance agent | `backend/law_ai/agents_runtime/crews/lsat_librarian.py` |
 | Command | `backend/law_ai/lsat/management/commands/lsat_library.py` |
+
+## The entry template
+
+An article and a concept are different data but the same kind of thing to a reader: an entry on a shelf. Both readers on both products therefore render through one template, in one order, and every cross-reference section carries a fixed anchor (`#entry-<section>`) so the outline column lists it whichever view is open. A section with nothing to show is omitted rather than rendered empty — with one exception, noted below.
+
+| Step | Article | Concept |
+| ---- | ------- | ------- |
+| Header | kind · level · reading time · word count · sections; title; summary; tag and archetype chips | "Concept" · example count · articles taught in · sections; title; summary |
+| Actions | Mark as read · Drill this (N questions) | Mark as read · Drill this (N questions) |
+| Read first | prerequisites | — |
+| Body | the typed blocks | the detail paragraph |
+| Schema & examples | — | `#entry-examples` |
+| Concepts in this article | `#entry-concepts` — cards, each also the `#concept-<id>` landing spot for inline references | — |
+| Articles on this concept | — | `#entry-articles` — `taught_in`, resolved against the index. **Always rendered**: a learner who missed a tagged question arrives here needing the material, so "no article covers this concept yet" is an answer where an omitted section is not |
+| Related | `#entry-related` — `related` articles | `#entry-related` — `see_also`, resolved against the catalog; an id the catalog no longer holds is shown as text, not a dead button |
+| Reading tracks | `#entry-tracks` — tracks containing the article | `#entry-tracks` — tracks reaching any article that teaches it |
+| References | `#entry-references` | `#entry-references` |
+| Provenance | source · revision · last reviewed · status | concept catalog · sections |
+
+The two cross-reference directions use the same card component, so an article's concepts and a concept's articles look alike and open alike. Read state is one `localStorage` set for both kinds of entry — articles under their bare id (what every existing entry already holds), concepts under `concept:<id>` — and each rail reports its own "N of M read". The rails share one row shape too: read-state dot, title, and a second line that says what you get (reading time for an article, "taught in N articles" for a concept).
+
+**Reading progress syncs on the platform, and only there (BL-20260903-05).** `localStorage` is still the copy that answers instantly and the one that works offline, but the platform also records each article's read state through `POST /api/lsat/library/read` — the same append-only audit store `lsat_grade` writes to — and merges the server's set with the browser's on load. The merge is a union, never a replacement: reading done offline is real progress and a device that has read less must not erase it, so unmarking is an explicit `read: false` event rather than an absence. `GET /api/lsat/stats` folds the result in as `articles_read` / `articles_total`, plus a per-section `articles_read`, so the library half of the loop is visible next to drill accuracy instead of invisible beside it. Identity is the signed-in account when there is one and the deployment otherwise — the audit tail every other stat reads has never been per-user, so "cross-device" means "cross-device for this deployment" until LSAT surfaces get real per-user scoping. `lsat-static` keeps `localStorage` as its only store and always will: a serverless bundle has nothing to sync with, and stats parity there is already a declared non-goal.
+
+The static site renders the same template with its own layout: the article reader section for section, and the concept catalog as cards that carry the same header facts and the same cross-reference blocks in the same order.
 
 ## Markdown in, typed blocks out
 
@@ -31,6 +58,10 @@ That single decision buys three things:
   silently vanish from the offline site.
 
 The dialect is **closed**. Anything the parser does not recognise is an error naming the file, never markup passed through to a client.
+
+### Starting a new article
+
+Copy `backend/law_ai/lsat/services/data/library/_template.md` to `<your-id>.md` in the same directory, set `id` to the file name, and replace the placeholders. The template carries every frontmatter key, one instance of every block construct and every typed span, and a body table explaining each key. Files whose name starts with `_` are skipped by the loader and by the export drift gate, so the template is never published — but `tests/lsat/test_library_corpus.py` parses it against the live corpus, so it cannot fall behind the dialect.
 
 ### Frontmatter
 
@@ -93,6 +124,24 @@ Every id resolves at load: concepts against `concepts.json`, articles against th
 
 A renamed concept therefore breaks CI, not a reader's page.
 
+## Search, on both products
+
+Search is a **token + field-weight ranker**, not an index: `search_library()` in `library.py` and `searchLibrary()` in `lsat-static/lib/search.ts` are hand-mirrored implementations of one set of rules, which is what lets the offline site search with zero network calls (NFR-OFFLINE-1) and no build step.
+
+| Rule | What it does |
+| ---- | ------------ |
+| Field weights | title 8 · summary 4 · tag 3 · heading 3 · body 1; a body field is capped at five occurrences so a long article cannot win on repetition alone |
+| Stemming | plurals, `-ing`, `-ed`, `-ly`, `-ness` and a trailing `e`, on words of ≥ 4 characters — "assumptions" meets "assumption", "sequencing" meets "sequence" |
+| Prefix | a field word beginning with the raw token matches, so search-as-you-type answers before the word is finished |
+| Synonyms | query-side only: section abbreviations (`LG` → "logic games", "analytical reasoning") and the pairs the corpus uses interchangeably (flaw/fallacy, timing/pacing, diagram/notation). A multi-word alternate counts when every one of its words is in the field |
+| Stopwords | dropped from the query only, so "the assumption family" does not hand +8 to every article titled "The …" |
+| Typo tolerance | a token that matches **nothing** exactly is retried within one edit — substitute, insert, drop or swap two letters — on stems of ≥ 5 characters, scored at half weight. "assumtion" lands on the assumption family; "parralel" (two edits) and "gapes" (short stem) still return nothing |
+| Conjunction | every query token must match somewhere in an article for it to be a hit |
+
+True fuzzy ranking — edit distance as a *score*, or an inverted index — is still out: at 35 articles the ranker is instant on both products, and an index is a build step the offline site does not have.
+
+`backend/tests/lsat/fixtures/search_parity.json` is the contract between the two copies: the stemmer's output, query tokenisation, the typo predicate, and the top hit for a set of real queries. Both `backend/tests/lsat/test_search_parity.py` and `lsat-static/__tests__/search.test.ts` load it, so a rule changed on one side and not the other fails a suite.
+
 ## Working on it
 
 ```bash
@@ -113,6 +162,10 @@ make lsat-export
 
 **After editing any article or the tracks file, run `make lsat-export`.** `tests/test_lsat_site.py` fails CI when the committed `lsat-static/content.json` lags the source.
 
+## The neighbouring loop: solve guides
+
+Guides are not library articles — a guide walks one bank question, an article explains a pattern — but they are maintained the same way, through the same proposal queue. Their runbook (backfill, judge tier, `guides.json` promotion) has its own page: [docs/lsat-solve-guides.md](lsat-solve-guides.md).
+
 ## The maintenance loop
 
 `LSATLibrarian` (`human_approval_required = True`) does one of three jobs per run — `review`, `correct`, `expand` — through the provider chain in `law_ai.core.llm`, never a direct transport, with a deterministic offline fallback at confidence 0.0 and one `provenance.log_agent_call` per run.
@@ -121,7 +174,19 @@ Its confidence ceiling is 0.6, below the solve-guide author's 0.7: prose about e
 
 Everything it produces lands in the existing proposal store under `library_finding` (a review report — read and closed by a human, never promoted) or `library_article` (a draft). `promote_library_article` re-parses the draft **and** reloads the whole library before keeping the write, rolling back if the new text dangles a cross-reference or introduces a cycle.
 
-A Celery beat entry (`autonomy-lsat-library`, Mondays 05:00 UTC) runs `review` only, gated by `AUTONOMY_ENABLED`. Weekly rather than daily: prose about exam structure does not change on a daily cadence, and each review is a full-article model call.
+A Celery beat entry (`autonomy-lsat-library`, Mondays 05:00 UTC) runs it gated by `AUTONOMY_ENABLED`. Weekly rather than daily: prose about exam structure does not change on a daily cadence, and each review is a full-article model call.
+
+**It picks its own targets.** `pick_librarian_targets(report, limit=N)` in `library.py` ranks the audit — no model call, no human target list, same report in, same targets out:
+
+| Rank | Signal | Action |
+| ---- | ------ | ------ |
+| 1 | `freshness.stale_articles` — never reviewed, or older than `STALE_AFTER_DAYS` (audit order: oldest first) | `review` |
+| 2 | `words.thin_articles` — under the `THIN_ARTICLE_WORDS` floor | `review` |
+| 3 | `graph.orphan_articles`, then `graph.articles_in_no_track` — nothing links to it, no track reaches it | `review` |
+| 4 | `coverage.concepts_untaught` and `coverage.archetypes_uncovered`, hosted in that section's hub article, capped at `MAX_EXPANSIONS_PER_RUN` | `expand` |
+| 5 | everything else, in id order | `review` |
+
+Each article appears once, under the first signal that named it, and `--limit` (or the run's budget) caps how many targets come back. Expansions rank last and are capped tightly because a draft costs a reviewer far more than a report does: an `expand` result is merged into the article's current source (`merge_expansion`) and filed as a whole `library_article` draft, so what a reviewer approves is exactly the file that lands. A gap in a section with no article at all has no host to expand into, because `expand` drafts a body and cannot write frontmatter. `make manage CMD='lsat_library scaffold --article rc-hub --title "…" --summary "…" --section RC'` writes that frontmatter and a stub body, after which the section has a host and the cycle can widen the library rather than only deepen it (BL-20260905-53). A scaffold a gap names is expanded rather than reviewed — it is thin and orphaned by construction, and reviewing an empty stub would claim it forever.
 
 ## Guardrails
 

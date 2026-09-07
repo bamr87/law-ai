@@ -98,9 +98,14 @@ export function useModalBlock(active = true): void {
 export function useShortcuts(map: ShortcutMap, opts: ShortcutOptions = {}): void {
   const { enabled = true, whileModal = false, allowWhileTyping } = opts
   const allowRef = useRef(allowWhileTyping)
-  allowRef.current = allowWhileTyping
   const mapRef = useRef(map)
-  mapRef.current = map
+  // Written from an effect, not during render, exactly as the platform hook
+  // does it (frontend/lib/lsat/keyboard.ts) — a ref mutated in the render body
+  // is a rules-of-React violation the new lint gate rejects (BL-20260905-15).
+  useEffect(() => {
+    allowRef.current = allowWhileTyping
+    mapRef.current = map
+  })
 
   useEffect(() => {
     if (!enabled) return

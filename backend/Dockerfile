@@ -19,7 +19,16 @@ COPY manage.py ./
 # rebuilds: law_ai/ is COPYied above, so any code change invalidates this
 # layer — the cache turns those reinstalls from a multi-GB download into a
 # local re-link.
-RUN --mount=type=cache,target=/root/.cache/pip pip install -e ".[dev,local-ai]"
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e ".[dev,local-ai,future-auth]"
+
+# BL-20260429-03: the optional NER pass (ENABLE_NER) needs a spaCy pipeline
+# present in the image. Without it `ENABLE_NER=true` silently yields zero
+# entities and the only documented cure is a host `pip install`, which the
+# Docker-first rule forbids. Kept as its own `--no-deps` layer so the
+# resolution above is neither re-run nor perturbed — the wheel is the whole
+# `nlp` extra, and spaCy itself is already a core dependency.
+RUN --mount=type=cache,target=/root/.cache/pip pip install --no-deps \
+    "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
 
 # Copy the rest of the application code (tests, scripts, etc.)
 COPY . .

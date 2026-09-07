@@ -1,42 +1,58 @@
 'use client'
 
-import SectionTimerWidget from '@/components/lsat/SectionTimerWidget'
+import { MODULE_CATALOG, moduleForPath } from '@/lib/modules/catalog'
 import type { Dock } from '@/lib/settings/catalog'
-import type { ComponentType } from 'react'
+import { DOCK_REGISTRY, type DockedWidgetProps } from './dockRegistry'
 
-export interface DockedWidgetProps {
-  /** The zone asking to render. The widget draws only if it belongs here. */
-  dock: Dock
-  onOwnRoute: boolean
-  openDocks: Dock[]
-}
+export type { DockedWidgetProps }
 
 /**
- * Widgets a module can dock into the shell's panels.
+ * One dock zone — a slot in a shell panel where modules park widgets.
  *
- * Registered here rather than in `lib/modules/catalog.ts` so the catalog stays
- * a plain data module that server components can import. Each widget decides
- * for itself whether it belongs in the asking zone and whether it should show
- * on the current route — the shell stays ignorant of what LSAT is.
+ * Which widgets exist is the module catalog's answer (`dockWidgets`), the same
+ * way nav and sidebar entries are (BL-20260831-14); this component only asks
+ * every module what it contributes and hands each widget the zone. Each widget
+ * decides for itself whether it belongs here and whether it should show on the
+ * current route, so the shell stays ignorant of what LSAT is — including for
+ * "am I on my own route", which is now `moduleForPath` against the module that
+ * declared the widget rather than a hard-coded `/lsat` prefix.
  */
-const DOCKED_WIDGETS: { id: string; Widget: ComponentType<DockedWidgetProps> }[] =
-  [{ id: 'lsat-timer', Widget: SectionTimerWidget }]
-
 export default function DockZone({
   dock,
-  onOwnRoute,
+  pathname,
   openDocks,
-}: DockedWidgetProps) {
+}: {
+  dock: Dock
+  pathname: string
+  openDocks: Dock[]
+}) {
+  const activeModuleId = moduleForPath(pathname).id
+
   return (
     <>
-      {DOCKED_WIDGETS.map(({ id, Widget }) => (
-        <Widget
-          key={id}
-          dock={dock}
-          onOwnRoute={onOwnRoute}
-          openDocks={openDocks}
-        />
-      ))}
+      {MODULE_CATALOG.flatMap((mod) =>
+        (mod.dockWidgets ?? []).map((id) => {
+          const Widget = DOCK_REGISTRY[id]
+          if (!Widget) {
+            // A declared id with no component is a wiring mistake, not a
+            // reason to take the shell down: say so once and render nothing.
+            if (process.env.NODE_ENV !== 'production') {
+              console.warn(
+                `DockZone: module "${mod.id}" declares unknown dock widget "${id}"`,
+              )
+            }
+            return null
+          }
+          return (
+            <Widget
+              key={id}
+              dock={dock}
+              onOwnRoute={activeModuleId === mod.id}
+              openDocks={openDocks}
+            />
+          )
+        }),
+      )}
     </>
   )
 }

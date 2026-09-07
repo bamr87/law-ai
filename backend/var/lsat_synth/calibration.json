@@ -1,0 +1,246 @@
+{
+  "kind": "structural",
+  "seeds": 2,
+  "cuts_in_use": [
+    15.31,
+    17.56
+  ],
+  "cuts_suggested": [
+    15.31,
+    17.56
+  ],
+  "items": 160,
+  "schemas": [
+    {
+      "schema_id": "lr-conditional-one-step",
+      "declared": "intro",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 12.906,
+      "bands": {
+        "easy": 8
+      }
+    },
+    {
+      "schema_id": "lg-sequencing-one-rule",
+      "declared": "intro",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 10.795,
+      "bands": {
+        "easy": 8
+      }
+    },
+    {
+      "schema_id": "lr-conditional-chain-forward",
+      "declared": "easy",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 15.939,
+      "bands": {
+        "easy": 4,
+        "med": 4
+      }
+    },
+    {
+      "schema_id": "lr-conditional-chain-contrapositive",
+      "declared": "med",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 15.606,
+      "bands": {
+        "med": 4,
+        "easy": 4
+      }
+    },
+    {
+      "schema_id": "lr-conditional-cannot-be-true",
+      "declared": "med",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 16.606,
+      "bands": {
+        "med": 8
+      }
+    },
+    {
+      "schema_id": "lr-quantifier-most-overlap",
+      "declared": "hard",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 17.025,
+      "bands": {
+        "med": 4,
+        "hard": 4
+      }
+    },
+    {
+      "schema_id": "lr-quantifier-all-some",
+      "declared": "med",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 16.036,
+      "bands": {
+        "med": 8
+      }
+    },
+    {
+      "schema_id": "lg-sequencing-cannot-be-true",
+      "declared": "hard",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 15.486,
+      "bands": {
+        "easy": 4,
+        "med": 4
+      }
+    },
+    {
+      "schema_id": "lg-sequencing-local-conditional",
+      "declared": "med",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 18.862,
+      "bands": {
+        "hard": 8
+      }
+    },
+    {
+      "schema_id": "lg-conditional-selection",
+      "declared": "med",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 15.545,
+      "bands": {
+        "med": 4,
+        "easy": 4
+      }
+    },
+    {
+      "schema_id": "lg-numeric-distribution",
+      "declared": "hard",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 18.063,
+      "bands": {
+        "hard": 8
+      }
+    },
+    {
+      "schema_id": "lg-max-min",
+      "declared": "med",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 17.848,
+      "bands": {
+        "med": 4,
+        "hard": 4
+      }
+    },
+    {
+      "schema_id": "lr-supported-inference",
+      "declared": "med",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 15.814,
+      "bands": {
+        "med": 8
+      }
+    },
+    {
+      "schema_id": "lr-quantifier-chain-four-term",
+      "declared": "hard",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 22.294,
+      "bands": {
+        "hard": 8
+      }
+    },
+    {
+      "schema_id": "lr-sufficient-assumption",
+      "declared": "med",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 15.306,
+      "bands": {
+        "easy": 8
+      }
+    },
+    {
+      "schema_id": "lr-necessary-assumption",
+      "declared": "hard",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 13.306,
+      "bands": {
+        "easy": 8
+      }
+    },
+    {
+      "schema_id": "lg-sequencing-acceptability",
+      "declared": "easy",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 14.395,
+      "bands": {
+        "easy": 8
+      }
+    },
+    {
+      "schema_id": "lg-sequencing-must-be-true",
+      "declared": "med",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 15.795,
+      "bands": {
+        "med": 4,
+        "easy": 4
+      }
+    },
+    {
+      "schema_id": "lg-rule-substitution",
+      "declared": "hard",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 18.395,
+      "bands": {
+        "hard": 8
+      }
+    },
+    {
+      "schema_id": "lg-grouping-acceptability",
+      "declared": "easy",
+      "proof_kind": "logical",
+      "items": 8,
+      "mean_score": 13.045,
+      "bands": {
+        "easy": 8
+      }
+    },
+    {
+      "schema_id": "lr-causal-weaken",
+      "declared": "med",
+      "proof_kind": "structural",
+      "items": 0,
+      "mean_score": null,
+      "bands": {}
+    },
+    {
+      "schema_id": "lr-causal-strengthen",
+      "declared": "med",
+      "proof_kind": "structural",
+      "items": 0,
+      "mean_score": null,
+      "bands": {}
+    },
+    {
+      "schema_id": "lr-percent-vs-number",
+      "declared": "hard",
+      "proof_kind": "structural",
+      "items": 0,
+      "mean_score": null,
+      "bands": {}
+    }
+  ]
+}

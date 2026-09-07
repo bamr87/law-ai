@@ -35,6 +35,8 @@ from law_ai.lsat.synth.logic import (
     Atom,
     Before,
     DiffGroup,
+    GroupAtLeast,
+    GroupAtMost,
     Exactly,
     GroupSize,
     Iff,
@@ -162,6 +164,37 @@ def _cap(text: str) -> str:
     return text[0].upper() + text[1:] if text else text
 
 
+#: Small numbers spelled out. "Exactly 2 of them" reads as generated text and
+#: "Exactly two of them" reads as an exam.
+_NUMBER_WORDS = {
+    0: "none",
+    1: "one",
+    2: "two",
+    3: "three",
+    4: "four",
+    5: "five",
+    6: "six",
+    7: "seven",
+}
+
+
+def decapitalize(text: str, binding: Binding) -> str:
+    """Lower the first letter unless it belongs to a name.
+
+    A rendered sentence starts capitalized, and folding one into the middle of
+    another ("If X, then …") has to undo that — except when the first word is a
+    person or a group the pack named, where the capital is the name's own.
+    """
+    if not text:
+        return text
+    first = text.split(" ", 1)[0].strip(",")
+    names = {value.split(" ")[0] for value in binding.entities.values()}
+    names |= {value.split(" ")[0] for value in binding.groups.values()}
+    if first in names:
+        return text
+    return text[0].lower() + text[1:]
+
+
 def _ordering(binding: Binding) -> OrderingSetting:
     if binding.ordering is None:
         raise LexiconError("statement needs an ordering setting but none is bound")
@@ -183,12 +216,20 @@ def _render_propositional(  # noqa: PLR0911 — one return per statement type; t
         )
 
     if isinstance(statement, Implies):
-        a_slot, a_neg = _literal(statement.antecedent)
-        b_slot, b_neg = _literal(statement.consequent)
-        return _cap(
-            f"if {subject.singular} {_vp(binding, a_slot, negated=a_neg, plural=False)}, "
-            f"then it {_vp(binding, b_slot, negated=b_neg, plural=False)}."
-        )
+        if _is_literal(statement.antecedent) and _is_literal(statement.consequent):
+            a_slot, a_neg = _literal(statement.antecedent)
+            b_slot, b_neg = _literal(statement.consequent)
+            return _cap(
+                f"if {subject.singular} {_vp(binding, a_slot, negated=a_neg, plural=False)}, "
+                f"then it {_vp(binding, b_slot, negated=b_neg, plural=False)}."
+            )
+        # A conditional whose sides are not propositions about the subject —
+        # a games rule like "if this one is on the north ward, that one is
+        # not". Each side is rendered by its own family's frame and the names
+        # keep their capitals, so nothing is lowercased on the way in.
+        antecedent = render_statement(statement.antecedent, binding).rstrip(".")
+        consequent = render_statement(statement.consequent, binding).rstrip(".")
+        return f"If {antecedent}, then {decapitalize(consequent, binding)}."
 
     if isinstance(statement, Iff):
         a_slot, a_neg = _literal(statement.left)
@@ -297,7 +338,9 @@ def _render_ordering(statement: Statement, binding: Binding) -> str | None:
     return None
 
 
-def _render_grouping(statement: Statement, binding: Binding) -> str | None:
+def _render_grouping(  # noqa: PLR0911 — one return per statement type; this is a dispatch table
+    statement: Statement, binding: Binding
+) -> str | None:
     if isinstance(statement, InGroup):
         group_set = binding.group_set
         frame = group_set.frame if group_set else "is assigned to"
@@ -317,8 +360,20 @@ def _render_grouping(statement: Statement, binding: Binding) -> str | None:
             f"are not placed in the same {_group_unit(binding)}."
         )
     if isinstance(statement, GroupSize):
+        word = _NUMBER_WORDS.get(statement.count, str(statement.count))
+        verb = "is" if statement.count == 1 else "are"
         return (
-            f"Exactly {statement.count} of them are placed in "
+            f"Exactly {word} of them {verb} placed in "
+            f"{binding.group(statement.group)}."
+        )
+    if isinstance(statement, GroupAtMost | GroupAtLeast):
+        word = _NUMBER_WORDS.get(statement.count, str(statement.count))
+        bound = "At most" if isinstance(statement, GroupAtMost) else "At least"
+        # "At most one of them is placed" — the bound governs the number, so
+        # the verb agrees with the number and not with the bound.
+        verb = "is" if statement.count == 1 else "are"
+        return (
+            f"{bound} {word} of them {verb} placed in "
             f"{binding.group(statement.group)}."
         )
 
@@ -481,6 +536,10 @@ def _symbolize_game(  # noqa: PLR0911 — one return per statement type; this is
         return f"{name(statement.one)} ≠ {name(statement.other)}"
     if isinstance(statement, GroupSize):
         return f"|{name(statement.group)}| = {statement.count}"
+    if isinstance(statement, GroupAtMost):
+        return f"|{name(statement.group)}| ≤ {statement.count}"
+    if isinstance(statement, GroupAtLeast):
+        return f"|{name(statement.group)}| ≥ {statement.count}"
     return None
 
 

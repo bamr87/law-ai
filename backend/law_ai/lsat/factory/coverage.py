@@ -16,15 +16,16 @@ The output is a deterministic, priority-ranked list of
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from law_ai.lsat.factory.config import FactoryConfig, ModelTier, route_tier
 from law_ai.lsat.factory.taxonomy import (
     Archetype,
-    all_archetypes,
+    every_archetype,
     validate_taxonomy,
+    writing_archetypes,
 )
 from law_ai.lsat.services.bank import (
     DIFFICULTY_ORDER,
@@ -36,6 +37,7 @@ from law_ai.lsat.services.bank import (
     load_passages,
 )
 from law_ai.lsat.services.proposals import gap_analysis
+from law_ai.lsat.services.writing import load_writing_prompts
 
 #: Census axis — every band the scale defines, easiest first (spec 047 FR-8).
 #: An archetype that declares no weight for a band simply wants nothing there.
@@ -48,7 +50,7 @@ _WEAK_ACCURACY = 0.70
 # A target either adds items against an existing passage / standalone stimulus
 # ("items") or must author a brand-new passage or game plus its question set
 # ("passage_set" — routed to the premium tier by default).
-TargetMode = Literal["items", "passage_set"]
+TargetMode = Literal["items", "passage_set", "writing_prompt"]
 
 
 class CoverageCell(BaseModel):
@@ -85,6 +87,11 @@ class GenerationTarget(BaseModel):
 
 
 def _matches(question: Question, archetype: Archetype) -> bool:
+    # BL-20260905-54: an item stamped with the archetype it was generated for
+    # says so itself, and the proxy below must not then count it under a
+    # *second* archetype that happens to share its primary concept.
+    if question.archetype is not None:
+        return question.archetype == archetype.id
     # Primary-concept matching (the taxonomy's documented contract): an item
     # drills an archetype only when it carries the archetype's *first* concept
     # tag. Any-overlap would let e.g. sequencing must-be-true items masquerade
@@ -92,19 +99,72 @@ def _matches(question: Question, archetype: Archetype) -> bool:
     return archetype.concepts[0] in question.concepts
 
 
+def _effective_bands() -> dict[str, Difficulty]:
+    """``question_id → measured band`` for synthesized items with enough grades.
+
+    BL-20260903-14: a band the census counts should be the band learners
+    experienced. :mod:`law_ai.lsat.synth.calibrate` returns a row only for a
+    schema past its attempts floor, so this is empty until the evidence exists
+    and the declared band stands until then.
+    """
+    try:
+        from law_ai.lsat.synth.calibrate import measured_bands
+
+        return measured_bands()
+    except Exception:  # pragma: no cover - audit/store issues must not block
+        return {}
+
+
+def _writing_matches(prompt: Any, archetype: Archetype) -> bool:
+    """A writing prompt drills a WS archetype when it carries its primary tag."""
+    return archetype.concepts[0] in prompt.concepts
+
+
+def _writing_census() -> dict[tuple[str, Difficulty], int]:
+    """Writing prompts per ``(WS archetype, difficulty)`` cell.
+
+    BL-20260831-28: the writing library was invisible to the factory, so the
+    coverage loop could grow the MCQ bank and nothing else. Writing prompts
+    live in their own store (they produce an essay, not a keyed choice), so
+    they are counted from :func:`load_writing_prompts` rather than the bank.
+    """
+    counts: dict[tuple[str, Difficulty], int] = {}
+    ws_archetypes = list(writing_archetypes())
+    if not ws_archetypes:  # pragma: no cover - registry always has WS now
+        return counts
+    try:
+        prompts = list(load_writing_prompts().values())
+    except Exception:  # pragma: no cover - a broken store must not block planning
+        prompts = []
+    for arch in ws_archetypes:
+        for diff in DIFFICULTIES:
+            counts[(arch.id, diff)] = sum(
+                1 for p in prompts if p.difficulty == diff and _writing_matches(p, arch)
+            )
+    return counts
+
+
 def census() -> dict[tuple[str, Difficulty], int]:
     """Bank items per ``(archetype_id, difficulty)`` cell.
 
     An item may still count toward several archetypes when it carries several
     primary tags; that is correct — it genuinely drills each such pattern.
+
+    A synthesized item whose schema has enough graded attempts is counted in
+    its *measured* band rather than the one it was emitted with.
     """
     counts: dict[tuple[str, Difficulty], int] = {}
     bank = list(load_bank().values())
-    for arch in all_archetypes():
+    measured = _effective_bands()
+    banded = [(measured.get(q.id, q.difficulty), q) for q in bank]
+    for arch in every_archetype():
+        if arch.section == "WS":
+            continue  # counted from the writing store, not the bank
         for diff in DIFFICULTIES:
             counts[(arch.id, diff)] = sum(
-                1 for q in bank if q.difficulty == diff and _matches(q, arch)
+                1 for band, q in banded if band == diff and _matches(q, arch)
             )
+    counts.update(_writing_census())
     return counts
 
 
@@ -124,7 +184,7 @@ def coverage_matrix(config: FactoryConfig) -> list[CoverageCell]:
     """
     counts = census()
     cells: list[CoverageCell] = []
-    for arch in all_archetypes():
+    for arch in every_archetype():
         per_archetype_total = config.target_per_cell * len(arch.difficulty_weights)
         for diff in DIFFICULTIES:
             weight = arch.difficulty_weights.get(diff, 0.0)
@@ -213,7 +273,7 @@ def plan_targets(config: FactoryConfig) -> list[GenerationTarget]:
     targets: list[GenerationTarget] = []
     diff_order = {d: i for i, d in enumerate(DIFFICULTIES)}
     cells = [c for c in coverage_matrix(config) if c.deficit > 0]
-    arch_index = {a.id: a for a in all_archetypes()}
+    arch_index = {a.id: a for a in every_archetype()}
 
     for cell in cells:
         arch = arch_index[cell.archetype_id]
@@ -221,15 +281,21 @@ def plan_targets(config: FactoryConfig) -> list[GenerationTarget]:
         priority = cell.deficit * (config.gap_boost if boosted else 1.0)
         passage_id: str | None = None
         mode: TargetMode = "items"
-        if arch.requires_passage:
+        if arch.section == "WS":
+            # A writing prompt is a whole authored task (issue, positions,
+            # perspectives, annotated model essay), so it gets its own mode and
+            # is never batched like MCQ items.
+            mode = "writing_prompt"
+        elif arch.requires_passage:
             passage_id, mode = _passage_for(
                 arch, passage_question_counts=passage_counts
             )
         tier = route_tier(cell.difficulty, arch.tier_hint)
         if mode == "passage_set":
             tier = route_tier(cell.difficulty, "premium")
+        library = "library has" if mode == "writing_prompt" else "bank has"
         rationale = (
-            f"bank has {cell.have}/{cell.want} {cell.difficulty} items for "
+            f"{library} {cell.have}/{cell.want} {cell.difficulty} items for "
             f"{arch.name}"
             + (" — learner-weak concepts" if boosted else "")
             + (
@@ -238,12 +304,18 @@ def plan_targets(config: FactoryConfig) -> list[GenerationTarget]:
                 else ""
             )
         )
+        # One writing prompt per job: an annotated model essay is the most
+        # expensive thing the factory can ask for, and reviewers read them one
+        # at a time anyway (NFR-PROV-1 keeps every one HITL-gated).
+        count = (
+            1 if mode == "writing_prompt" else min(cell.deficit, config.drafts_per_job)
+        )
         targets.append(
             GenerationTarget(
                 section=arch.section,
                 archetype_id=arch.id,
                 difficulty=cell.difficulty,
-                count=min(cell.deficit, config.drafts_per_job),
+                count=count,
                 concepts=list(arch.concepts),
                 mode=mode,
                 passage_id=passage_id,

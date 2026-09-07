@@ -136,6 +136,37 @@ class PassageContext(BaseModel):
         return self
 
 
+#: How a bank item was reviewed before it was allowed to serve learners.
+#: ``editorial`` is a person reading the item and approving it (the HITL queue
+#: stamps this); ``machine-judge`` is an automated adversarial pass, which is
+#: weaker and must never be labelled as editorial; ``proof`` is a
+#: finite-model-checked synthesized item (spec 049).
+#:
+#: There is deliberately no value for "a person wrote this and it was reviewed
+#: in the pull request that added it" (BL-20260905-51). That path leaves its
+#: record in git, not in the data file, and inventing a ``pr-review`` method
+#: would mean writing a reviewer name no one can check. The convention is
+#: instead: ``review is None`` on a hand-authored item means PR review, and a
+#: *machine*-authored item must always carry a record (test_bank_review.py
+#: enforces exactly that asymmetry).
+ReviewMethod = Literal["editorial", "machine-judge", "proof"]
+
+
+class QuestionReview(BaseModel):
+    """The review a bank item actually received (BL-20260429-19).
+
+    Bulk-imported factory items used to carry only a ``source`` string, so
+    "reviewed" and "machine-checked" were indistinguishable after the fact.
+    This records which happened, by whom, and when — an item can be trusted
+    exactly as far as its review record says.
+    """
+
+    method: ReviewMethod
+    reviewed_by: str = Field(description="Person or system that did the review.")
+    reviewed_at: str = Field(description="ISO date of the review.")
+    note: str | None = None
+
+
 class Question(BaseModel):
     id: str
     section: Section
@@ -156,6 +187,21 @@ class Question(BaseModel):
     passage_id: str | None = Field(
         default=None,
         description="Set on RC + LG items to link them to a PassageContext.",
+    )
+    archetype: str | None = Field(
+        default=None,
+        description="Factory taxonomy archetype this item instantiates "
+        "(BL-20260905-54). Stamped at promotion from the generation job that "
+        "drafted it. None means it predates the stamp, and the coverage "
+        "census falls back to matching on the archetype's primary concept.",
+    )
+    review: QuestionReview | None = Field(
+        default=None,
+        description="How this item was reviewed before it entered the bank "
+        "(BL-20260429-19). None is the hand-authored convention "
+        "(BL-20260905-51): the item was written by a person and reviewed in "
+        "the pull request that added it, which leaves no record here. A "
+        "machine-authored item may never rely on it — see ReviewMethod.",
     )
 
     @model_validator(mode="before")
@@ -227,6 +273,10 @@ class PublicQuestion(BaseModel):
     concepts: list[str] = Field(default_factory=list)
     references: list[Reference] = Field(default_factory=list)
     passage_id: str | None = None
+    #: The signed permutation this serve used (BL-20260606-01). Present only
+    #: when the question was requested with ``shuffle``; the client echoes it
+    #: back at grade time so the answer is read in the order it was shown.
+    remap: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -252,7 +302,7 @@ def load_bank() -> dict[str, Question]:
         if not path.is_file():
             continue
         raw = _load_json(path)
-        for entry in raw.get("items", []):  # type: ignore[union-attr]
+        for entry in raw.get("items", []):
             items.append(Question.model_validate(entry))
 
     if not items:
@@ -274,7 +324,7 @@ def load_passages() -> dict[str, PassageContext]:
     if not path.is_file():
         return {}
     raw = _load_json(path)
-    items = [PassageContext.model_validate(x) for x in raw.get("items", [])]  # type: ignore[union-attr]
+    items = [PassageContext.model_validate(x) for x in raw.get("items", [])]
     return {p.id: p for p in items}
 
 
@@ -285,7 +335,7 @@ def load_concepts() -> dict[str, Concept]:
     if not path.is_file():
         return {}
     raw = _load_json(path)
-    items = [Concept.model_validate(x) for x in raw.get("items", [])]  # type: ignore[union-attr]
+    items = [Concept.model_validate(x) for x in raw.get("items", [])]
     return {c.id: c for c in items}
 
 
@@ -296,7 +346,7 @@ def load_sections() -> dict[str, SectionInfo]:
     if not path.is_file():
         return {}
     raw = _load_json(path)
-    items = [SectionInfo.model_validate(x) for x in raw.get("items", [])]  # type: ignore[union-attr]
+    items = [SectionInfo.model_validate(x) for x in raw.get("items", [])]
     return {s.code: s for s in items}
 
 

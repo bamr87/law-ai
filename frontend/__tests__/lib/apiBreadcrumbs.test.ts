@@ -72,16 +72,19 @@ describe('apiFetch breadcrumbs', () => {
     expect(breadcrumb).not.toHaveBeenCalled()
   })
 
-  it('never records headers or bodies — the API key must not reach a report', async () => {
+  it('never records headers or bodies, whatever the caller passes', async () => {
     server.use(
       http.post(`${BASE}/api/analysis`, () =>
         HttpResponse.json({ detail: 'nope' }, { status: 401 }),
       ),
     )
 
+    // apiFetch adds no credential of its own since BL-20260430-07 (the proxy
+    // route attaches the key server-side), but a caller can still pass headers
+    // and a body — and neither may reach a report.
     await apiFetch('/api/analysis', {
       method: 'POST',
-      headers: { 'X-API-Key': 'super-secret-key' },
+      headers: { 'X-Caller-Token': 'super-secret-key' },
       body: JSON.stringify({ text: 'privileged client matter' }),
     })
 

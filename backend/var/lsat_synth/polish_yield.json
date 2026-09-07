@@ -1,0 +1,66 @@
+{
+  "engine_version": "synth/2",
+  "floor": 0.5,
+  "rounds_per_domain": 2,
+  "proposals_per_round": 6,
+  "errors": {
+    "unavailable": 2,
+    "unparseable": 1
+  },
+  "overall": {
+    "proposed": 30,
+    "accepted": 30,
+    "rate": 1.0,
+    "rejected": {
+      "unparseable": 1
+    }
+  },
+  "by_provider": {
+    "ollama/qwen2.5:3b-instruct-q4_K_M": {
+      "proposed": 30,
+      "accepted": 30,
+      "rate": 1.0,
+      "rejected": {}
+    }
+  },
+  "by_domain": [
+    {
+      "domain_id": "academic-publishing",
+      "rounds": 2,
+      "proposed": 0,
+      "accepted": 0,
+      "rate": 0.0,
+      "rejected": {},
+      "accepted_reverifies": null
+    },
+    {
+      "domain_id": "commercial-logistics",
+      "rounds": 2,
+      "proposed": 12,
+      "accepted": 12,
+      "rate": 1.0,
+      "rejected": {},
+      "accepted_reverifies": true
+    },
+    {
+      "domain_id": "field-biology",
+      "rounds": 2,
+      "proposed": 6,
+      "accepted": 6,
+      "rate": 1.0,
+      "rejected": {
+        "unparseable": 1
+      },
+      "accepted_reverifies": true
+    },
+    {
+      "domain_id": "municipal-policy",
+      "rounds": 2,
+      "proposed": 12,
+      "accepted": 12,
+      "rate": 1.0,
+      "rejected": {},
+      "accepted_reverifies": true
+    }
+  ]
+}

@@ -33,7 +33,7 @@ User argument (optional) may contain a branch name, a PR title, or both. If abse
    - Public API surface change (`backend/law_ai/{agentsapi,analysis,graph,lsat}/`) → update `docs/api-examples.md` (create if missing).
    - New env vars or services → update [.env.example](../../.env.example), [docker-compose.yml](../../docker-compose.yml) notes, and [README.md](../../README.md) quickstart.
    - New dependency → note rationale in the PR body and confirm OSS license compatibility (MIT/Apache/BSD/AGPL only).
-   - Frontend component or route change → update [frontend/README.md](../../frontend/README.md) if user-facing flow changed.
+   - Frontend component or route change → update [docs/ui-ux.md](../../docs/ui-ux.md) (the user-facing surface inventory) if the user-facing flow changed.
    - Public Python functions touched → ensure docstrings + examples per AGENTS.md Coding Standards.
    - If a change is purely internal refactor with no doc impact, state that explicitly in the PR body (`Docs: n/a — internal refactor`).
 

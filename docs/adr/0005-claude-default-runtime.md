@@ -28,7 +28,7 @@ Four rules survive the amendment unchanged, and a spec violating any of them is 
 - **Local-first stays reachable.** `ollama` remains a first-class provider and the chain's last tier; `LLM_PROVIDER_CHAIN=ollama` is a fully supported pin, and is **required** for matters under a confidentiality obligation that forbids third-party processing.
 - **Provenance is unchanged.** Every call is logged through `core.provenance`, naming the provider and model that actually served it and every tier that was skipped or failed.
 - **No silent fabrication.** Refusal and truncation raise rather than return as if they were answers.
-- **No third vendor.** Only Anthropic and Ollama are sanctioned; adding OpenAI, Gemini, or any other provider needs a further amendment to §1.
+- **No third vendor.** Only Anthropic and Ollama are sanctioned; adding OpenAI, Gemini, or any other provider needs a further amendment to §1. *(Superseded 2026-09-04 by [ADR 0007](0007-xai-runtime-provider.md), which took exactly that route and sanctioned xAI as a third vendor. The other three retained rules stand unchanged.)*
 
 The dev-orchestration layer (which AI edits this repo — Copilot / Claude Code) is explicitly independent of this decision and untouched by it; §1 says so directly to prevent the two from being conflated.
 
@@ -64,7 +64,7 @@ The LegalBench harness stays pinned to Ollama regardless of the default chain �
 ## Supersedes / Superseded by
 
 - **Supersedes**: the prior text of [docs/constitution.md](../constitution.md) §1 rejecting any closed-source model as product runtime. Revises — without editing — the local-only assumption stated as present fact in [ADR 0001](0001-adopt-django-backend.md) ("the product runtime LLM remains Ollama … per §1") and [ADR 0003](0003-autonomy-orchestrator.md)'s compliance-check row ("all LLM calls go through the existing local Ollama client, no closed-source fallback"); neither ADR's own decision is superseded, only that incidental sentence in each is now stale.
-- **Superseded by**: none.
+- **Superseded by**: [ADR 0007](0007-xai-runtime-provider.md), in part — only the "No third vendor" retained rule above. This ADR's own decision (the ordered chain, Claude as default runtime, Ollama as the last tier) is untouched.
 
 ## References
 

@@ -38,7 +38,7 @@ export function resolveEffective<T>(
     }
   }
 
-  const target = chain[chain.length - 1]
+  const target = writeTargetIn(def, chain) ?? chain[chain.length - 1]
   const rows = values.filter((row) => row.key === def.key)
   const byScope = new Map(rows.map((row) => [row.scopeId, row]))
 
@@ -88,6 +88,26 @@ export function resolveEffective<T>(
       : undefined,
     canOverride: canWrite && !locked && settableHere,
   }
+}
+
+/**
+ * The deepest node in `chain` that may hold `def`, or `null` when none may.
+ *
+ * Not the chain's leaf (BL-20260905-10). Once a signed-in caller's chain is
+ * `[instance, user]`, reading "can I edit this?" off the leaf made the two
+ * deliberately instance-only settings — the HITL threshold and the graph's
+ * citation counts — permanently read-only for anyone signed in, because a user
+ * scope may not hold them. They are still editable; the edit just lands on the
+ * instance, which is exactly where `settableAt` says it belongs.
+ */
+export function writeTargetIn(
+  def: SettingDefinition<unknown>,
+  chain: ScopeNode[],
+): ScopeNode | null {
+  for (let i = chain.length - 1; i >= 0; i -= 1) {
+    if (def.settableAt.includes(chain[i].type)) return chain[i]
+  }
+  return null
 }
 
 /**

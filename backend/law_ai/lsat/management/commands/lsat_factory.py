@@ -6,7 +6,11 @@ Subcommands::
     manage.py lsat_factory compile            # plan → manifest artifact
     manage.py lsat_factory run --executor …   # fulfill a manifest + ingest
     manage.py lsat_factory ingest --drafts …  # external drafts → HITL queue
+    manage.py lsat_factory export-manifest    # manifest → external-farm bundle
     manage.py lsat_factory status             # census / holes / queue depth
+
+``run --judge`` adds an adversarial review of every accepted draft, attaching
+the verdict to the proposal's meta before the HITL queue (BL-20260702-02).
 
 ``plan``, ``compile``, ``ingest``, and ``status`` are offline-safe (AC-1/AC-2).
 ``run`` needs a live provider for the model-backed executors: ``--executor
@@ -44,7 +48,7 @@ class Command(BaseCommand):
         p_run = sub.add_parser("run", help="fulfill a manifest and ingest")
         p_run.add_argument(
             "--executor",
-            choices=("ollama", "claude_code", "drafts", "synth"),
+            choices=("ollama", "claude_code", "xai", "drafts", "synth"),
             default="ollama",
         )
         p_run.add_argument(
@@ -57,12 +61,55 @@ class Command(BaseCommand):
             "--drafts", default=None, help="drafts JSONL (drafts executor)"
         )
         p_run.add_argument("--jobs", default=None, help="comma-separated job ids")
+        p_run.add_argument(
+            "--judge",
+            action="store_true",
+            default=None,
+            dest="judge",
+            help="adversarially review each accepted draft and attach the "
+            "verdict to its proposal meta (doubles model calls)",
+        )
+        p_run.add_argument(
+            "--guides",
+            action="store_true",
+            default=None,
+            dest="guides",
+            help="draft a solve guide beside each accepted item (default on)",
+        )
+        p_run.add_argument(
+            "--no-guides",
+            action="store_false",
+            dest="guides",
+            help="skip guide-at-authoring for this run (budget control)",
+        )
+        p_run.add_argument(
+            "--no-judge",
+            action="store_false",
+            dest="judge",
+            help="skip the judge tier even when LSAT_FACTORY_JUDGE is set",
+        )
         p_run.add_argument("--json", action="store_true", dest="as_json")
 
         p_ingest = sub.add_parser("ingest", help="external drafts → HITL queue")
         p_ingest.add_argument("--drafts", required=True, help="drafts JSONL path")
         p_ingest.add_argument("--manifest", default=None, help="path (default: latest)")
         p_ingest.add_argument("--json", action="store_true", dest="as_json")
+
+        p_export = sub.add_parser(
+            "export-manifest",
+            help="manifest → self-contained prompts-only bundle for an "
+            "external generation farm",
+        )
+        p_export.add_argument("--manifest", default=None, help="path (default: latest)")
+        p_export.add_argument(
+            "--out",
+            default=None,
+            help="destination directory (default: <factory dir>/bundles)",
+        )
+        p_export.add_argument(
+            "--zip", action="store_true", dest="as_zip", help="also archive the bundle"
+        )
+        p_export.add_argument("--json", action="store_true", dest="as_json")
 
         p_status = sub.add_parser("status", help="census / holes / queue depth")
         p_status.add_argument("--json", action="store_true", dest="as_json")
@@ -99,7 +146,18 @@ class Command(BaseCommand):
                 line += "  ⚠ " + r.balance_flag
             if r.pending_passage_path:
                 line += f"  (new passage parked: {r.pending_passage_path})"
+            if r.guides:
+                line += f"  +{len(r.guides)} guide draft(s)"
+            if r.judge:
+                counts: dict[str, int] = {}
+                for word in r.judge.values():
+                    counts[word] = counts.get(word, 0) + 1
+                line += "  judge: " + ", ".join(
+                    f"{n} {word}" for word, n in sorted(counts.items())
+                )
             self.stdout.write(line)
+            for warning in r.warnings:
+                self.stdout.write(f"      note: {warning}")
             for rej in r.rejected:
                 self.stdout.write(
                     f"      reject #{rej.draft_index} [{rej.reason}] {rej.detail}"
@@ -172,6 +230,8 @@ class Command(BaseCommand):
         try:
             if name == "claude_code":
                 return factory.ClaudeCodeExecutor(config)
+            if name == "xai":
+                return factory.XaiExecutor(config)
             if name == "synth":
                 # No provider gate: the synthesis engine calls nothing.
                 return factory.SynthExecutor(domain=opts.get("synth_domain"))
@@ -185,6 +245,12 @@ class Command(BaseCommand):
             raise CommandError(f"executor unavailable: {exc}") from exc
 
     def _handle_run(self, config: factory.FactoryConfig, opts: dict[str, Any]) -> None:
+        # --judge/--no-judge override the LSAT_FACTORY_JUDGE default for this
+        # run only; omitting both leaves the configured value alone.
+        if opts.get("judge") is not None:
+            config = config.model_copy(update={"judge_enabled": bool(opts["judge"])})
+        if opts.get("guides") is not None:
+            config = config.model_copy(update={"guides_enabled": bool(opts["guides"])})
         # Fail fast on the executor gate before touching manifests, so the
         # constitution §1 refusal (AC-5) is the first thing an operator sees.
         executor = self._build_executor(config, opts)
@@ -211,6 +277,36 @@ class Command(BaseCommand):
             raise CommandError(str(exc)) from exc
         self._report_results(results, bool(opts.get("as_json")))
 
+    def _handle_export_manifest(
+        self, config: factory.FactoryConfig, opts: dict[str, Any]
+    ) -> None:
+        manifest = self._manifest(opts)
+        raw_out = opts.get("out")
+        out_dir = Path(raw_out) if raw_out else config.resolved_output_dir() / "bundles"
+        path = factory.export_bundle(
+            manifest, out_dir, config, archive=bool(opts.get("as_zip"))
+        )
+        if opts.get("as_json"):
+            self._emit(
+                {
+                    "manifest_id": manifest.manifest_id,
+                    "jobs": len(manifest.jobs),
+                    "path": str(path),
+                },
+                True,
+            )
+            return
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"bundle for {manifest.manifest_id} "
+                f"({len(manifest.jobs)} job(s)) → {path}"
+            )
+        )
+        self.stdout.write(
+            "  return drafts as JSONL, then: manage.py lsat_factory ingest "
+            "--drafts <file>"
+        )
+
     def _handle_status(
         self, config: factory.FactoryConfig, opts: dict[str, Any]
     ) -> None:
@@ -221,6 +317,10 @@ class Command(BaseCommand):
         self.stdout.write(self.style.MIGRATE_HEADING("LSAT factory status"))
         self.stdout.write(
             f"  bank: {snapshot['bank_total']} items {snapshot['bank_by_section']}"
+        )
+        self.stdout.write(
+            f"  writing library: {snapshot['writing_prompts']} prompt(s) "
+            f"{snapshot['writing_by_difficulty']}"
         )
         self.stdout.write(
             f"  coverage: {snapshot['cells_with_deficit']}/"
@@ -244,6 +344,7 @@ class Command(BaseCommand):
         "compile": "_handle_compile",
         "run": "_handle_run",
         "ingest": "_handle_ingest",
+        "export-manifest": "_handle_export_manifest",
         "status": "_handle_status",
     }
 

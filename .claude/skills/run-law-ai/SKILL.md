@@ -6,7 +6,7 @@ description: Build, run, drive, and test the Law AI app (Django/daphne API + age
 Law AI is a Docker-first, multi-agent legal-intelligence platform: a Django 5 ASGI (daphne) **HTTP API** at `:8000` plus a Next.js frontend at `:3000`. The agent-driveable surface is the API. Drive it with the committed driver **`.claude/skills/run-law-ai/driver.sh`**, which launches daphne in a throwaway container (SQLite, no heavy deps) and curl-smokes the public endpoints. All paths below are relative to the repo root.
 
 > Everything runs inside Docker via `docker compose` / `make` — never `pytest`,
-> `pip`, `python manage.py`, etc. on the host (see [CLAUDE.md](CLAUDE.md)).
+> `pip`, `python manage.py`, etc. on the host (see [CLAUDE.md](../../../CLAUDE.md)).
 
 ## Prerequisites
 
@@ -48,14 +48,14 @@ curl -s http://localhost:8000/api/lsat/sections | python3 -m json.tool
 curl -s -X POST http://localhost:8000/api/analysis \
   -H 'Content-Type: application/json' \
   -d '{"text":"Is leaving a wet floor unmarked negligence?"}' | python3 -m json.tool
-docker rm -f law_ai-api                           # stop it
+docker rm -f law-ai-driver-api                           # stop it
 ```
 
 The API is **default-open** in dev (no `*_API_KEY` set), so curl needs no auth. `POST /api/analysis` runs the `LegalAnalyst` IRAC agent through the HTTP layer.
 
 ## Drive the agents with a real LLM (optional)
 
-These `make` targets run agents through their full pipeline. They call the product `LLM_PROVIDER_CHAIN` unconditionally (Claude OAuth → `ANTHROPIC_API_KEY` → Ollama, constitution §1) — set `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in `backend/.env` for a live Claude run (see [docs/claude-code-dev-llm.md](docs/claude-code-dev-llm.md)); with neither configured and no reachable Ollama they degrade to a deterministic offline draft, so they still run on a clean clone.
+These `make` targets run agents through their full pipeline. They call the product `LLM_PROVIDER_CHAIN` unconditionally (Claude OAuth → `ANTHROPIC_API_KEY` → xAI Grok → Ollama, constitution §1) — set `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in `backend/.env` for a live Claude run, or run `make xai-login` for the Grok tier (see [docs/llm-provider-chain.md](../../../docs/llm-provider-chain.md)); with neither configured and no reachable Ollama they degrade to a deterministic offline draft, so they still run on a clean clone.
 
 ```bash
 make legal-analyst-demo                      # LegalAnalyst → IRAC analysis
@@ -80,7 +80,55 @@ make dev      # frontend :3000, API :8000 (Swagger at :8000/docs)
 make down     # stop
 ```
 
-`make dev` brings up the **entire** stack (postgres, neo4j, redis, ollama, phoenix, backend, frontend) and serves the Next.js GUI. It is heavy and was **not** exercised by this headless harness — use the driver above to confirm the API boots; use `make dev` when you actually need the browser UI or the graph/ingestion features (which need Neo4j/Ollama).
+`make dev` brings up the **entire** stack (postgres, neo4j, redis, ollama, phoenix, backend, frontend). Use it when you need the graph/ingestion features, which really do need Neo4j and Ollama. For a GUI check alone it is more machine than you need — see below.
+
+## Run the GUI (headless) — `FRONTEND=1`
+
+```bash
+FRONTEND=1 bash .claude/skills/run-law-ai/driver.sh
+```
+
+The API-only driver never touched :3000, so a broken frontend passed silently. `FRONTEND=1` additionally starts the compose `frontend` service with `--no-deps`, points its server-side `BACKEND_INTERNAL_URL` at the driver's API container, and asserts on the rendered pages (BL-20260615-04). Verified output:
+
+```
+[driver] launching Next.js GUI (--no-deps) on :3000…
+[driver] GUI is up.
+[driver] GUI smoke (status + rendered marker):
+  PASS  /                        200, matched Law AI
+  PASS  /lsat                    200, matched LSAT
+  PASS  /analysis                200, matched analysis
+  PASS  /api/backend/…/sections  200 (Next → law-ai-driver-api)
+```
+
+The last line is the one that matters most: it exercises the browser → Next proxy → Django hop (`frontend/app/api/backend/[...path]/route.ts`), so a misrouted proxy shows up here rather than as a blank screen in a browser.
+
+Ports are overridable — `PORT=8010 FPORT=3010 FRONTEND=1 …` — which is how you run this beside a live `make dev` stack that already owns 8000/3000.
+
+**Looking at it in a browser.** There is no `chromium-cli` in this repo; the sanctioned agent browser is the **Playwright MCP plugin**. Run the driver with `KEEP=1 FRONTEND=1`, then drive the live page:
+
+```
+mcp__plugin_playwright_playwright__browser_navigate  → http://localhost:3000/lsat
+mcp__plugin_playwright_playwright__browser_snapshot  → accessibility tree
+mcp__plugin_playwright_playwright__browser_take_screenshot
+```
+
+Use the curl smoke as the mechanical gate and the browser only when you need to *see* something. For a real regression suite use `make test-e2e` (Playwright, see [docs/e2e-testing.md](../../../docs/e2e-testing.md)) — this driver is a boot check, not a test suite.
+
+### Should the launch logic move into `scripts/`?
+
+`BL-20260615-04` asked that to be considered "if the e2e suite wants to reuse it". It does not, and the answer is no. `make test-e2e` (Makefile) brings up its own stack with `docker compose --profile e2e up -d --wait frontend backend-e2e`, overriding `FRONTEND_BACKEND_URL` so the browser talks to the pinned-degraded `backend-e2e` sidecar. That is a different launch in every respect that matters:
+
+| | `driver.sh` | `make test-e2e` |
+|---|---|---|
+| Containers | two throwaway `docker compose run` containers, `--no-deps` | the compose services themselves, `up -d --wait` |
+| Databases | none — SQLite in the API container | real Postgres, Neo4j, Redis |
+| Backend | this driver's own API container, offline deterministic LLM | the `backend-e2e` sidecar, pinned to an unreachable Ollama |
+| Lifetime | torn down on exit unless `KEEP=1` | left up for `make test-e2e-down` |
+| Purpose | does the app boot and serve | does the app behave |
+
+Extracting a shared launcher would have to abstract over all five rows, and the only caller that would use the abstraction is the one it was extracted from. So the launch logic stays here, in the one script that needs it, and this paragraph is the record of the decision rather than a `scripts/` helper nobody imports. Revisit it if a second caller ever wants a throwaway no-deps stack — `tests/test_run_law_ai_driver.py` will hold the contract steady in the meantime.
+
+The other half of `BL-20260906-39` — "run the smoke in CI" — is answered by the e2e suite rather than by scheduling this script: `frontend/e2e/proxy-origin.spec.ts` asserts, in a real browser on the nightly stack, that four fetching routes reach the backend only through `/api/backend/...`, which is the same Next → Django hop the `FRONTEND=1` block checks with its `curl` of `/api/backend/api/lsat/sections`. What this driver keeps that the suite does not is the *throwaway* boot: two `--no-deps` containers, no databases, seconds instead of minutes — an agent's "does it boot" answer, not a gate.
 
 ## Test
 
@@ -114,7 +162,7 @@ isn't up. Set `-e PHOENIX_COLLECTOR_ENDPOINT=` (the driver does) to silence it �
 | Symptom | Fix |
 |---|---|
 | `failed to resolve host 'postgres'` | Add `-e DATABASE_URL=sqlite:///./run.sqlite3` (no Postgres needed for the API/LSAT routes). |
-| `Bind for 0.0.0.0:8000 failed: port is already allocated` | `docker rm -f law_ai-api`, or run the driver with `PORT=8001`. |
-| Driver hangs at "waiting for /health" | `docker logs law_ai-api` — usually a missing `-e DATABASE_URL` override or a migrate error. |
+| `Bind for 0.0.0.0:8000 failed: port is already allocated` | `docker rm -f law-ai-driver-api`, or run the driver with `PORT=8001`. |
+| Driver hangs at "waiting for /health" | `docker logs law-ai-driver-api` — usually a missing `-e DATABASE_URL` override or a migrate error. |
 | Endless `Failed to resolve 'phoenix'` lines | Set `-e PHOENIX_COLLECTOR_ENDPOINT=`. |
 | Agent demo says `via mock / fallback` | Expected when every `LLM_PROVIDER_CHAIN` tier is unreachable. For a live run, set `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in `backend/.env`, or have Ollama running. |

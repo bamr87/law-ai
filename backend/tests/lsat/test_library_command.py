@@ -11,6 +11,7 @@ from django.core.management import CommandError, call_command
 
 from django.conf import settings
 
+from law_ai.lsat.services.library import _library_dir as cmd_library_dir
 from law_ai.lsat.services.library import load_library
 
 
@@ -123,3 +124,63 @@ class TestPromote:
     def test_unknown_proposal_is_a_command_error(self) -> None:
         with pytest.raises(CommandError, match="unknown proposal"):
             _run("promote", "--proposal", "prop-doesnotexist")
+
+
+class TestPickerDrivenReview:
+    """BL-20260903-08 — review with no --article picks its own targets."""
+
+    def test_dry_run_names_the_audit_signal_behind_each_target(self) -> None:
+        text = _run("review", "--dry-run", "--limit", "1")
+        assert "would review:" in text
+        # The reason is what makes an unattended pick auditable.
+        assert "(" in text.split("would review:")[1]
+
+    def test_a_coverage_gap_is_filed_as_a_mergeable_article_draft(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from law_ai.core import llm
+        from law_ai.lsat.management.commands import lsat_library as cmd
+        from law_ai.lsat.services import proposals as proposals_store
+        from law_ai.lsat.services.bank import load_concepts
+        from law_ai.lsat.services.library import library_audit, parse_article
+
+        gap_concept = sorted(load_concepts())[0]
+        report = library_audit()
+        report["coverage"]["concepts_untaught"] = [gap_concept]
+        monkeypatch.setattr(cmd, "library_audit", lambda: report)
+
+        class _Result:
+            text = json.dumps(
+                {
+                    "summary": "Drafted the missing section.",
+                    "proposed_markdown": "## Newly Drafted\n\nOne paragraph.\n",
+                }
+            )
+            model_label = "test/model"
+
+        async def _agenerate(prompt, *, system=None, agent=None):
+            return _Result()
+
+        monkeypatch.setattr(llm, "agenerate", _agenerate)
+
+        before = {
+            p.name: p.read_text(encoding="utf-8")
+            for p in sorted(cmd_library_dir().glob("*.md"))
+        }
+        text = _run("review", "--limit", "1")
+        after = {
+            p.name: p.read_text(encoding="utf-8")
+            for p in sorted(cmd_library_dir().glob("*.md"))
+        }
+
+        assert before == after, "an expansion proposes; it never writes"
+        assert "expand" in text
+        pending = proposals_store.list_proposals("pending")
+        assert [p["proposal_kind"] for p in pending] == ["library_article"]
+        draft = pending[0]["draft"]
+        assert gap_concept in draft["gap"]
+        assert draft["reason"] == f"untaught concept {gap_concept}"
+        # The merged draft is the whole file, so promotion writes what a
+        # reviewer read — and it still parses.
+        assert "Newly Drafted" in draft["markdown"]
+        parse_article(draft["markdown"], article_id=draft["article_id"], where="draft")

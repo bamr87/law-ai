@@ -118,6 +118,73 @@ async def test_specs_endpoint_lists_known_specs(client: AsyncClient) -> None:
         assert spec["status"]  # parsed (may be "planned" / "shipped" / etc.)
 
 
+# --- BL-20260511-17: proposed-test review queue ---
+
+
+@pytest.mark.asyncio
+async def test_proposed_tests_lists_pending_files(
+    client: AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each ``*.proposed.py`` becomes a reviewable row with its module."""
+    proposed = tmp_path / "backend" / "tests" / "autonomy" / "proposed"
+    proposed.mkdir(parents=True)
+    (proposed / "law_ai_eval_scoring__autonomy.proposed.py").write_text(
+        '# autonomy-proposed\nimport pytest\n@pytest.mark.skip("autonomy-proposed")\n'
+        "def test_x() -> None:\n    pass\n",
+        encoding="utf-8",
+    )
+    # A proposal that lost its skip decorator is exactly what review is for,
+    # so it is listed and flagged rather than hidden.
+    (proposed / "law_ai_core_llm__autonomy.proposed.py").write_text(
+        "def test_y() -> None:\n    pass\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(settings, "REPO_ROOT", str(tmp_path))
+
+    res = await client.get("/api/agents/proposed-tests")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["available"] is True
+    assert body["count"] == 2
+    by_name = {f["name"]: f for f in body["files"]}
+    row = by_name["law_ai_eval_scoring__autonomy.proposed.py"]
+    assert row["module"] == "law_ai_eval_scoring"
+    assert row["path"] == (
+        "backend/tests/autonomy/proposed/law_ai_eval_scoring__autonomy.proposed.py"
+    )
+    assert row["skip_marked"] is True
+    assert row["size"] > 0
+    assert row["mtime"]
+    assert by_name["law_ai_core_llm__autonomy.proposed.py"]["skip_marked"] is False
+
+
+@pytest.mark.asyncio
+async def test_proposed_tests_reports_absence(
+    client: AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A checkout without the directory reports emptiness, never a 500."""
+    monkeypatch.setattr(settings, "REPO_ROOT", str(tmp_path))
+    res = await client.get("/api/agents/proposed-tests")
+    assert res.status_code == 200
+    assert res.json() == {"count": 0, "files": [], "available": False}
+
+
+@pytest.mark.asyncio
+async def test_proposed_tests_ignores_a_path_parameter(
+    client: AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The directory is fixed: no query parameter can redirect the listing."""
+    proposed = tmp_path / "backend" / "tests" / "autonomy" / "proposed"
+    proposed.mkdir(parents=True)
+    (proposed / "law_ai_x__autonomy.proposed.py").write_text("x\n", encoding="utf-8")
+    (tmp_path / "secret.proposed.py").write_text("secret\n", encoding="utf-8")
+    monkeypatch.setattr(settings, "REPO_ROOT", str(tmp_path))
+
+    res = await client.get("/api/agents/proposed-tests", params={"path": ".."})
+    assert res.status_code == 200
+    names = {f["name"] for f in res.json()["files"]}
+    assert names == {"law_ai_x__autonomy.proposed.py"}
+
+
 def test_provenance_failure_is_swallowed(monkeypatch: pytest.MonkeyPatch) -> None:
     # AC-5 — log_agent_call must not raise even if persistence blows up.
     from law_ai.core import provenance as prov_mod
@@ -204,3 +271,104 @@ def test_startup_warns_when_key_unset_outside_dev(
 
     matching = [r for r in caplog.records if "AGENT_API_KEY not set" in r.getMessage()]
     assert len(matching) == 1
+
+
+# --- BL-20260430-12: production refuses to start with an open gate ---
+
+
+def test_startup_raises_in_production_when_the_gate_is_open(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A warning nobody reads is not a control. Production must not boot."""
+    from django.core.exceptions import ImproperlyConfigured
+
+    from law_ai.core import apps as core_apps
+
+    monkeypatch.setattr(settings, "AGENT_API_KEY", None)
+    monkeypatch.setattr(settings, "ANALYSIS_API_KEY", None)
+    monkeypatch.setattr(settings, "GRAPH_API_KEY", None)
+    monkeypatch.setattr(settings, "LSAT_API_KEY", None)
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+
+    with pytest.raises(ImproperlyConfigured) as exc:
+        core_apps.warn_if_unprotected()
+    assert "agents" in str(exc.value)
+    assert "production" in str(exc.value)
+
+
+def test_startup_is_silent_in_production_with_a_key(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    from law_ai.core import apps as core_apps
+
+    monkeypatch.setattr(settings, "AGENT_API_KEY", "prod-secret")
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+
+    with caplog.at_level("WARNING", logger="law_ai"):
+        core_apps.warn_if_unprotected()
+    assert not [r for r in caplog.records if "AGENT_API_KEY" in r.getMessage()]
+
+
+def test_staging_still_only_warns(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Staging is often deliberately open — do not break it."""
+    from law_ai.core import apps as core_apps
+
+    monkeypatch.setattr(settings, "AGENT_API_KEY", None)
+    monkeypatch.setattr(settings, "ENVIRONMENT", "staging")
+
+    with caplog.at_level("WARNING", logger="law_ai"):
+        core_apps.warn_if_unprotected()  # must not raise
+    assert [r for r in caplog.records if "AGENT_API_KEY not set" in r.getMessage()]
+
+
+def test_development_is_untouched(monkeypatch: pytest.MonkeyPatch) -> None:
+    from law_ai.core import apps as core_apps
+
+    monkeypatch.setattr(settings, "AGENT_API_KEY", None)
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+    core_apps.warn_if_unprotected()  # no raise, no warning
+
+
+def test_deploy_check_flags_an_open_production_gate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`manage.py check --deploy` fails too, before anything is running."""
+    from law_ai.core import apps as core_apps
+
+    monkeypatch.setattr(settings, "AGENT_API_KEY", None)
+    monkeypatch.setattr(settings, "ANALYSIS_API_KEY", None)
+    monkeypatch.setattr(settings, "GRAPH_API_KEY", None)
+    monkeypatch.setattr(settings, "LSAT_API_KEY", None)
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+
+    messages = core_apps.check_api_keys_configured()
+    assert [m.id for m in messages] == ["law_ai.E001"]
+    assert messages[0].is_serious()
+
+    monkeypatch.setattr(settings, "AGENT_API_KEY", "prod-secret")
+    assert core_apps.check_api_keys_configured() == []
+
+
+def test_deploy_check_is_quiet_outside_production(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from law_ai.core import apps as core_apps
+
+    monkeypatch.setattr(settings, "AGENT_API_KEY", None)
+    monkeypatch.setattr(settings, "ENVIRONMENT", "test")
+    assert core_apps.check_api_keys_configured() == []
+
+
+def test_a_per_router_key_still_counts_as_protection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only `agents` needs AGENT_API_KEY; the rest accept their own key."""
+    from law_ai.core import apps as core_apps
+
+    monkeypatch.setattr(settings, "AGENT_API_KEY", None)
+    monkeypatch.setattr(settings, "ANALYSIS_API_KEY", "a")
+    monkeypatch.setattr(settings, "GRAPH_API_KEY", "g")
+    monkeypatch.setattr(settings, "LSAT_API_KEY", "l")
+    assert core_apps.unprotected_routers() == ["agents"]

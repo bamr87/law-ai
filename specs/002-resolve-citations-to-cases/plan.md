@@ -3,7 +3,7 @@
 ## Approach
 
 1. Extend `ExtractionResult` with an optional `aliases: list[str]` (default `[]`). Threaded through `MERGE_CASE_CYPHER` so freshly-ingested cases register their canonical citation forms.
-2. New module [backend/app/db/citation_resolver.py](../../backend/app/db/citation_resolver.py) with two pure-async functions and one batched Cypher query.
+2. New module `backend/app/db/citation_resolver.py` with two pure-async functions and one batched Cypher query.
 3. Wire `densify_extraction` into `IngestionScout.run_and_commit` between `extract` and `commit_extraction`.
 4. Add provenance hook so each resolution emits an audit record.
 

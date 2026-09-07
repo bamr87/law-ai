@@ -11,6 +11,8 @@
 #   - nomic-embed-text               (~ 270 MB) — embeddings for GraphRAG
 #
 # Override the set with $OLLAMA_BOOTSTRAP_MODELS (whitespace-separated).
+# Set OLLAMA_OFFLINE=1 on an air-gapped host to skip every pull
+# (scripts/offline-install.sh restores the models into the volume instead).
 
 set -eu
 
@@ -28,6 +30,24 @@ for _ in $(seq 1 60); do
   fi
   sleep 1
 done
+
+# Air-gapped hosts (BL-20260502-06): the models arrived in the volume via
+# scripts/offline-install.sh, and every `ollama pull` here would block on a
+# registry this host cannot reach. Skip the pulls and report what is actually
+# installed — the healthcheck still gates on the gate model being present, so a
+# short bundle fails loudly rather than degrading in silence.
+if [ "${OLLAMA_OFFLINE:-0}" = "1" ]; then
+  echo "[ollama-bootstrap] OLLAMA_OFFLINE=1 — skipping pulls"
+  for m in $MODELS; do
+    if /bin/ollama list 2>/dev/null | awk '{print $1}' | grep -qx -e "$m" -e "${m}:latest"; then
+      echo "[ollama-bootstrap] present: $m"
+    else
+      echo "[ollama-bootstrap] MISSING from the offline bundle: $m"
+    fi
+  done
+  wait "$SERVER_PID"
+  exit 0
+fi
 
 echo "[ollama-bootstrap] gating on first model: $GATE_MODEL"
 /bin/ollama pull "$GATE_MODEL" || echo "[ollama-bootstrap] gate pull failed (continuing)"

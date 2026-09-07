@@ -14,6 +14,13 @@
  * Deadline-based, not tick-accumulating: browsers throttle timers in
  * background tabs, so counting intervals drifts. Subtracting from a wall-clock
  * deadline does not.
+ *
+ * This file is the single source of truth for *both* front ends. The static
+ * export cannot import across app roots, so `make ui-sync` copies it verbatim
+ * to `lsat-static/lib/lsat/timerStore.ts` and ux_audit R12 fails the build on
+ * any drift (BL-20260830-04). Keep it framework-plain — one `react` import for
+ * nothing, no `@/lib/api`, no settings catalog — or the mirror stops compiling
+ * on the static side.
  */
 
 import { LSAT_SECTION_SECONDS } from '@/lib/lsatTimer'
@@ -26,6 +33,14 @@ export interface LsatTimerState {
    * cannot live in the LSAT page's component tree either. */
   answered: number
   answeredSeconds: number
+  /**
+   * Questions still to answer in the running section, or null when the drill
+   * cannot say. Drives the `N:NN left / q` readout, which is the number a
+   * student actually paces against. `null`, not 0: "no stack open" and "you
+   * have finished the stack" are different, and only the second one should
+   * blank the readout by way of `secondsPerQuestion`.
+   */
+  remainingQuestions: number | null
 }
 
 const INITIAL: LsatTimerState = {
@@ -34,6 +49,7 @@ const INITIAL: LsatTimerState = {
   running: false,
   answered: 0,
   answeredSeconds: 0,
+  remainingQuestions: null,
 }
 
 const PERSIST_KEY = 'law-ai.lsat.timer.v1'
@@ -85,6 +101,11 @@ function rehydrate(): void {
       answered: typeof p.answered === 'number' ? p.answered : 0,
       answeredSeconds:
         typeof p.answeredSeconds === 'number' ? p.answeredSeconds : 0,
+      // Deliberately not restored: the panel that knows how many questions are
+      // left has not mounted yet, and a stale count from the last page load
+      // would quote a pace for a stack that is no longer on screen. Whichever
+      // panel mounts sets it again within a frame.
+      remainingQuestions: null,
     }
 
     if (p.running && typeof p.deadline === 'number') {
@@ -172,11 +193,52 @@ export function resetTimer(): void {
   emit({ running: false, remainingSeconds: state.durationSeconds })
 }
 
+/**
+ * Start a fresh section: the clock back to full *and* the pace counters clear.
+ *
+ * Deliberately not the same thing as `resetTimer`, which is the Reset button —
+ * a learner who resets the clock part-way through a drill has still answered
+ * the questions they answered, and throwing their average away would be a
+ * surprise. Switching sections is the case where none of it carries over.
+ */
+export function resetSection(): void {
+  deadline = null
+  stopTicking()
+  emit({
+    running: false,
+    remainingSeconds: state.durationSeconds,
+    answered: 0,
+    answeredSeconds: 0,
+    remainingQuestions: null,
+  })
+}
+
 export function setTimerDuration(seconds: number): void {
   const d = Math.max(0, Math.floor(seconds))
   deadline = null
   stopTicking()
   emit({ durationSeconds: d, remainingSeconds: d, running: false })
+}
+
+/**
+ * How many questions the drill still has to answer — the denominator of the
+ * `N:NN left / q` readout (BL-20260829-01).
+ *
+ * The panel showing the questions is the only thing that knows this, and it is
+ * a different React subtree from the timer whenever the clock is docked in the
+ * sidebar or inspector, so it cannot be a prop. `null` clears it, which is
+ * what a panel does on unmount — a stack you have navigated away from must not
+ * keep quoting a pace.
+ *
+ * Deliberately *not* cleared by `resetTimer`: restarting the clock does not
+ * change how many questions are in front of you, and the panel would have no
+ * reason to re-announce the count. `resetSection` clears it, because that is
+ * the drill moving on.
+ */
+export function setRemainingQuestions(n: number | null): void {
+  const next = n === null ? null : Math.max(0, Math.floor(n))
+  if (next === state.remainingQuestions) return
+  emit({ remainingQuestions: next })
 }
 
 /** Called by the drill on each graded question, to drive the pace readouts. */

@@ -1,44 +1,62 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+/**
+ * The static drill's section clock.
+ *
+ * A *view* over `lib/lsat/timerStore` — the same module-level store the
+ * platform's `SectionTimerWidget` renders, mirrored here by `make ui-sync`
+ * and drift-gated by ux_audit R12 (BL-20260830-04). The two products used to
+ * carry two hand-written copies of the same deadline state machine, which had
+ * already forked: the static copy gained a `startAt` prop the platform's
+ * lacked, and nothing would have caught the next divergence.
+ *
+ * What is deliberately *not* shared is the markup. The static export ships no
+ * Tailwind (spec 039 NFR-PERF-1) and has no sidebar or inspector to dock
+ * into, so the clock keeps its `section-timer-*` classes and its fixed place
+ * in the drill head.
+ */
+
+import { useSyncExternalStore } from 'react'
 import {
   averageSecondsPerQuestion,
   formatClock,
-  LSAT_SECTION_SECONDS,
   secondsPerQuestion,
-} from '@/lib/timer'
+} from '@/lib/lsatTimer'
+import {
+  getTimerServerSnapshot,
+  getTimerSnapshot,
+  isSectionInProgress,
+  pauseTimer,
+  resetTimer,
+  setTimerDuration,
+  startTimer,
+  subscribeTimer,
+} from '@/lib/lsat/timerStore'
 
-export default function SectionTimer({
-  remainingQuestions,
-  answeredCount = 0,
-  answeredSeconds = 0,
-  durationSeconds = LSAT_SECTION_SECONDS,
-}: {
-  remainingQuestions?: number
-  answeredCount?: number
-  answeredSeconds?: number
-  durationSeconds?: number
-}) {
-  const [remaining, setRemaining] = useState(durationSeconds)
-  const [deadline, setDeadline] = useState<number | null>(null)
+/**
+ * Drill lengths in minutes (BL-20260829-02). 35 is a real section; 5 and 10
+ * are for homework, where pacing against a full section says nothing useful.
+ * The platform offers the same three from the timer's ⋯ menu.
+ */
+const PRESET_MINUTES = [5, 10, 35] as const
 
-  useEffect(() => {
-    if (deadline == null) return
-    const id = window.setInterval(() => {
-      const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
-      setRemaining(left)
-      if (left === 0) setDeadline(null)
-    }, 250)
-    return () => window.clearInterval(id)
-  }, [deadline])
-
-  const running = deadline != null
-  const expired = remaining === 0
-  const warn = remaining > 0 && remaining <= 5 * 60
-  const urgent = remaining > 0 && remaining <= 60
-  const pace = secondsPerQuestion(remaining, remainingQuestions ?? 0)
-  const avg = averageSecondsPerQuestion(answeredSeconds, answeredCount)
+export default function SectionTimer() {
+  const timer = useSyncExternalStore(
+    subscribeTimer,
+    getTimerSnapshot,
+    getTimerServerSnapshot,
+  )
+  const { remainingSeconds, running } = timer
+  const expired = remainingSeconds === 0
+  const warn = remainingSeconds > 0 && remainingSeconds <= 5 * 60
+  const urgent = remainingSeconds > 0 && remainingSeconds <= 60
+  const pace = secondsPerQuestion(
+    remainingSeconds,
+    timer.remainingQuestions ?? 0,
+  )
+  const avg = averageSecondsPerQuestion(timer.answeredSeconds, timer.answered)
   const tone = expired || urgent ? 'urgent' : warn ? 'warn' : ''
+  const inProgress = isSectionInProgress(timer)
 
   return (
     <div className="section-timer">
@@ -49,7 +67,7 @@ export default function SectionTimer({
           aria-label="Section time remaining"
           className={'section-timer-clock' + (tone ? ` section-timer-${tone}` : '')}
         >
-          {formatClock(remaining)}
+          {formatClock(remainingSeconds)}
         </span>
         {expired && (
           <span className="section-timer-expired" role="status">
@@ -67,72 +85,42 @@ export default function SectionTimer({
           </span>
         )}
       </div>
+      {/* Locked while a section is under way: changing the length mid-run
+          would throw away the time already spent, and a student who wants
+          that has Reset. */}
+      <div
+        className="section-timer-presets"
+        role="radiogroup"
+        aria-label="Drill length"
+      >
+        {PRESET_MINUTES.map((m) => (
+          <button
+            key={m}
+            type="button"
+            className="btn"
+            role="radio"
+            aria-checked={timer.durationSeconds === m * 60}
+            disabled={inProgress}
+            onClick={() => setTimerDuration(m * 60)}
+          >
+            {m} min
+          </button>
+        ))}
+      </div>
       <div className="section-timer-controls">
         {!expired && (
           <button
             type="button"
             className="btn"
-            onClick={() =>
-              setDeadline(running ? null : Date.now() + remaining * 1000)
-            }
+            onClick={() => (running ? pauseTimer() : startTimer())}
           >
             {running ? 'Pause' : 'Start'}
           </button>
         )}
-        <button
-          type="button"
-          className="btn"
-          onClick={() => {
-            setDeadline(null)
-            setRemaining(durationSeconds)
-          }}
-        >
+        <button type="button" className="btn" onClick={() => resetTimer()}>
           Reset
         </button>
       </div>
     </div>
-  )
-}
-
-export function QuestionElapsed({
-  frozen,
-  startAt = 0,
-  onTick,
-}: {
-  frozen: boolean
-  /**
-   * Seconds already banked against this question. The drill passes the time a
-   * revisited question was answered in, so paging back does not claim you
-   * solved it in 0:00.
-   */
-  startAt?: number
-  onTick?: (seconds: number) => void
-}) {
-  const [elapsed, setElapsed] = useState(startAt)
-  const elapsedRef = useRef(startAt)
-  const onTickRef = useRef(onTick)
-  useEffect(() => {
-    onTickRef.current = onTick
-  }, [onTick])
-
-  useEffect(() => {
-    if (frozen) {
-      onTickRef.current?.(elapsedRef.current)
-      return
-    }
-    const started = Date.now() - elapsedRef.current * 1000
-    const id = window.setInterval(() => {
-      const next = Math.floor((Date.now() - started) / 1000)
-      elapsedRef.current = next
-      setElapsed(next)
-      onTickRef.current?.(next)
-    }, 250)
-    return () => window.clearInterval(id)
-  }, [frozen])
-
-  return (
-    <span className="qcard-elapsed" aria-label="Time on this question">
-      {formatClock(elapsed)}
-    </span>
   )
 }

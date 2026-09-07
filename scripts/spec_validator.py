@@ -59,8 +59,44 @@ PRE_TASKS_STATUSES = {"draft", "clarified", "planned"}
 # when tasks.md still contains any `[ ]` or `[~]` task. Conversely, leaving
 # unchecked tasks while declaring a not-shipped status is fine — that's the
 # normal in-flight case.
-SHIPPED_STATUSES = {"shipped"}
+#
+# `superseded` is the retired-but-finished case (BL-20260906-47): a spec whose
+# work shipped and was then replaced by a later spec. Without it here, the
+# symmetric check below rejected every task-complete spec that said so, and
+# specs/025-lsat-static-site had to hide the word in prose after the status
+# ("shipped — **superseded**") to get past the gate.
+SHIPPED_STATUSES = {"shipped", "superseded"}
 TEMPLATE_PLACEHOLDER = "FR-1"  # appears in _template; ignored there
+
+# --- Constitution §13 review question (BL-20260803-05) -----------------------
+# §13 requires an answer in spec §2 ("who is the stronger here, and what does
+# this feature do for them?") for any feature that ranks, scores or summarizes
+# legal authority — at the spec gate, not at PR review. This is a WARNING, not
+# a failure: 34 specs predate the convention, and a keyword heuristic is not a
+# good enough judge to block a merge on. It fires only for specs still in the
+# pipeline (not `shipped`), where acting on it is cheap.
+RANKING_HINTS = (
+    "rank",
+    "ranking",
+    "ranked",
+    "score",
+    "scoring",
+    "centrality",
+    "leading case",
+    "most-cited",
+    "citation count",
+    "authority weight",
+)
+AUTHORITY_HINTS = (
+    "authority",
+    "citation",
+    "precedent",
+    "case law",
+    "opinion",
+    "holding",
+    "jurisdiction",
+)
+STRONGER_QUESTION = "who is the stronger"
 
 # Literal substrings that only ever appear in specs/_template/ files. If any of
 # these survive into a real spec dir, the implementer copied the template and
@@ -109,6 +145,73 @@ def _iter_spec_dirs(targets: list[str], bad_targets: list[str]) -> Iterable[Path
 
 def _extract_ids(text: str) -> set[str]:
     return set(ID_RE.findall(text))
+
+
+def stronger_question_warnings(spec_dir: Path) -> list[str]:
+    """Non-fatal §13 nudges for a spec still in the pipeline.
+
+    Returns a (possibly empty) list of warning strings. Never affects the
+    exit code — see the RANKING_HINTS comment above for why.
+    """
+    spec = spec_dir / "spec.md"
+    if not spec.is_file():
+        return []
+    text = spec.read_text(encoding="utf-8")
+    status_match = STATUS_RE.search(text)
+    status = status_match.group(1).lower() if status_match else ""
+    if status in SHIPPED_STATUSES:
+        return []
+    lowered = text.lower()
+    if STRONGER_QUESTION in lowered:
+        return []
+    # Require the two hint families in the *same line*: a spec that scores
+    # something unrelated and separately mentions case law is not what §13 is
+    # about, and a whole-document co-occurrence test says otherwise far too
+    # often.
+    hits = sorted(
+        {
+            h
+            for line in lowered.splitlines()
+            if any(a in line for a in AUTHORITY_HINTS)
+            for h in RANKING_HINTS
+            if h in line
+        }
+    )
+    if not hits:
+        return []
+    message = (
+        f"{_rel(spec)}: mentions {', '.join(hits[:3])} over legal "
+        "authority but §2 never answers the constitution §13 review question "
+        f"({STRONGER_QUESTION} here, and what does this feature do for them?). "
+        "Answer it in §2 — see specs/_template/spec.md."
+    )
+    return [message]
+
+
+def _duplicate_numbers(spec_dirs: list[Path]) -> list[str]:
+    """Spec numbers that more than one directory claims.
+
+    The NNN is the spec's identity: `tasks.md`, commit messages, and code
+    comments all cite "spec 050", and two directories answering to that
+    number make every one of those references ambiguous. It happens when two
+    branches allocate the next free number concurrently and only collide on
+    the second merge — which is exactly when nobody is looking. Checked over
+    the whole directory, so it fires even when the run targets one spec.
+    """
+    by_number: dict[str, list[str]] = {}
+    if not SPECS_DIR.is_dir():
+        return []
+    for child in sorted(SPECS_DIR.iterdir()):
+        if not child.is_dir() or child.name.startswith(("_", ".")):
+            continue
+        if SPEC_DIR_RE.match(child.name):
+            by_number.setdefault(child.name.split("-", 1)[0], []).append(child.name)
+    return [
+        f"spec number {number} is claimed by {len(names)} directories "
+        f"({', '.join(names)}) — renumber the one that merged second"
+        for number, names in sorted(by_number.items())
+        if len(names) > 1
+    ]
 
 
 def validate_spec(spec_dir: Path) -> list[str]:
@@ -161,7 +264,7 @@ def validate_spec(spec_dir: Path) -> list[str]:
     unfinished = [m for m in task_marks if m != "x"]
     if status in SHIPPED_STATUSES and unfinished:
         errors.append(
-            f"{_rel(spec)}: status='shipped' but "
+            f"{_rel(spec)}: status='{status}' but "
             f"{len(unfinished)} task(s) in tasks.md are not marked `[x]` — "
             "either finish the tasks or downgrade the status to 'in-progress'."
         )
@@ -204,8 +307,17 @@ def validate_spec(spec_dir: Path) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
+    # BL-20260906-48: --strict promotes the §13 WARN lines to failures. The
+    # warnings were advisory while the shipped back-catalogue predated the
+    # review question; they are skipped for SHIPPED_STATUSES, so what is left
+    # is only ever a spec still in the pipeline — which is exactly the spec
+    # whose author can still answer the question. The gate (`make lint-specs`
+    # and CI) passes it; a bare run stays advisory for local exploration.
+    strict = "--strict" in argv[1:]
+    targets = [a for a in argv[1:] if a != "--strict"]
+
     bad_targets: list[str] = []
-    spec_dirs = list(_iter_spec_dirs(argv[1:], bad_targets))
+    spec_dirs = list(_iter_spec_dirs(targets, bad_targets))
     for bad in bad_targets:
         print(f"FAIL {bad}: not a valid spec directory")
     if not spec_dirs:
@@ -215,6 +327,11 @@ def main(argv: list[str]) -> int:
         return 0
 
     failed = len(bad_targets)
+    warned = 0
+    for dup in _duplicate_numbers(spec_dirs):
+        failed += 1
+        print(f"FAIL specs/: {dup}")
+
     for d in spec_dirs:
         errs = validate_spec(d)
         rel = _rel(d)
@@ -225,9 +342,19 @@ def main(argv: list[str]) -> int:
                 print(f"  - {e}")
         else:
             print(f"PASS {rel}")
+        for warning in stronger_question_warnings(d):
+            warned += 1
+            print(f"WARN {warning}")
 
     if failed:
         print(f"\n{failed} spec(s) failed validation")
+        return 1
+    if warned and strict:
+        print(
+            f"\n{warned} spec(s) valid but carry a constitution §13 warning "
+            "(--strict). Answer the review question in §2, or drop --strict "
+            "to see the warning without failing."
+        )
         return 1
     print(f"\nAll {len(spec_dirs)} spec(s) valid")
     return 0

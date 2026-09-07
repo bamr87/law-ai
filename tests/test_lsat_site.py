@@ -3,19 +3,44 @@
 Stdlib-only, like the rest of the root suite. The committed site artifact
 (`lsat-static/content.json`, imported at build time by the Next.js static
 export) must stay in lockstep with the source bank under
-`backend/law_ai/lsat/services/data/`: when a bank file changes without
-`make lsat-export`, these tests fail CI so the published GitHub Pages app can
+`backend/law_ai/lsat/services/data/`, so the published GitHub Pages app can
 never silently lag the approved content.
+
+Who fixes the drift changed with BL-20260702-11. It used to be a person: the
+gate failed and the message said "run `make lsat-export`". Now
+`.github/workflows/refresh-lsat-content.yml` does the export — on pushes to
+main, and on same-repo pull requests, where it pushes the refreshed artifact
+onto the PR branch. Where that job is guaranteed to fix the same thing in the
+same run, ci.yml sets `LSAT_CONTENT_AUTOEXPORT=1` and the drift classes defer
+to it rather than red-building a PR over work a robot is already doing.
+
+Deferral is narrow on purpose. `LSAT_CONTENT_AUTOEXPORT` is set only for a
+same-repo pull request whose diff touches the bank. A fork PR (where the
+refresh job has no write token and skips), a push to main, and every local run
+enforce the gate exactly as before — which is why the assertions below still
+name `make lsat-export` as the fix.
 """
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
 import pytest
 
 pytestmark = pytest.mark.smoke
+
+#: Set by ci.yml's repo-structural job when — and only when —
+#: refresh-lsat-content.yml is re-exporting content.json onto this same branch
+#: (BL-20260702-11). See the module docstring.
+AUTOEXPORTED = os.getenv("LSAT_CONTENT_AUTOEXPORT") == "1"
+
+_DEFERRED = (
+    "refresh-lsat-content.yml re-exports content.json onto this branch in "
+    "this same run (BL-20260702-11); failing here too would put the manual "
+    "`make lsat-export` back in the developer's hands"
+)
 
 REPO = Path(__file__).resolve().parent.parent
 APP = REPO / "lsat-static"
@@ -80,6 +105,47 @@ class TestSiteStructure:
             "next.config must apply a Pages base path"
         )
 
+    def test_the_site_says_what_it_lacks(self) -> None:
+        """BL-20260831-25: the gap from the full lab is stated on the site.
+
+        It used to live only in this repo's README and in a code comment —
+        neither of which a learner on the published site can read — so the
+        three server-backed features were discovered by going looking for them
+        and failing.
+        """
+        overview = (APP / "components" / "Overview.tsx").read_text(encoding="utf-8")
+        assert "What this site does not have" in overview
+        for missing in ("AI tutor", "blind answer cross-check", "server-side stats"):
+            assert missing in overview, f"the note must name the missing {missing}"
+        # And again where the absence is actually felt.
+        solve = (APP / "components" / "solve" / "SolveAssist.tsx").read_text(
+            encoding="utf-8"
+        )
+        assert "no AI tutor" in solve, (
+            "the no-guide empty state must explain the missing tutor fallback"
+        )
+
+    def test_progress_can_leave_the_device(self) -> None:
+        """BL-20260702-10: localStorage is device-bound and silently lost.
+
+        Private browsing discards it, a new phone never had it, and this site
+        has no account to sync to — so the export file is the only way a
+        month of drilling survives. Behaviour is covered by
+        lsat-static/__tests__/backup.test.ts and Stats.test.tsx.
+        """
+        backup = (APP / "lib" / "backup.ts").read_text(encoding="utf-8")
+        for fn in ("exportSnapshot", "importSnapshot", "parseSnapshot"):
+            assert f"export function {fn}" in backup, f"backup.ts must export {fn}"
+        assert "SNAPSHOT_SCHEMA" in backup, (
+            "the file format must be versioned so an old export can be migrated"
+        )
+        # Everything per-device, not only the attempts.
+        for key in ("attempts", "library_read", "writing"):
+            assert f"{key}:" in backup, f"the snapshot must carry {key}"
+        stats = (APP / "components" / "Stats.tsx").read_text(encoding="utf-8")
+        assert "Export progress (JSON)" in stats
+        assert "Import and merge" in stats and "Import and replace" in stats
+
     def test_vanilla_site_retired(self) -> None:
         # The buildless vanilla app was replaced by the Next.js export; make
         # sure it doesn't creep back and fight over the single GitHub Pages site.
@@ -93,63 +159,134 @@ class TestSiteStructure:
 # ---------------------------------------------------------------------------
 
 
+class TestLintGate:
+    """BL-20260905-15: the static site is held to the platform's React rules.
+
+    `lsat-static/` had no eslint config, so `npx eslint` refused to start and
+    `npm run lint` was an unconfigured `next lint` — the CI job for this
+    package gated on `tsc --noEmit` and vitest alone, while the platform app
+    next to it was linted on every PR. The two share components by hand; a
+    rule that holds for one and not the other is how a hand mirror rots.
+    """
+
+    def test_flat_config_mirrors_the_platform_app(self) -> None:
+        config = APP / "eslint.config.mjs"
+        assert config.is_file(), "lsat-static needs an eslint flat config"
+        body = config.read_text(encoding="utf-8")
+        assert "eslint-config-next" in body, (
+            "the static site must lint against the same Next preset as frontend/"
+        )
+
+    def test_lint_script_and_devdeps_are_wired(self) -> None:
+        pkg = json.loads((APP / "package.json").read_text(encoding="utf-8"))
+        assert pkg["scripts"]["lint"] == "eslint .", (
+            "`npm run lint` must run eslint, not the unconfigured `next lint`"
+        )
+        for dep in ("eslint", "eslint-config-next"):
+            assert dep in pkg["devDependencies"], f"lsat-static must depend on {dep}"
+
+    def test_ci_runs_the_linter(self) -> None:
+        from tests.conftest import require_yaml
+        
+        yaml = require_yaml()
+
+        ci = yaml.safe_load(
+            (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        )
+        runs = [str(s.get("run", "")) for s in ci["jobs"]["lsat-static"]["steps"]]
+        assert any("npm run lint" in r for r in runs), (
+            "the lsat-static CI job must run the linter alongside tsc + vitest"
+        )
+
+
 class TestKeyboardContract:
     """The published drill has to be runnable end to end without a mouse.
 
-    `lsat-static/` ships no component-test harness, so these are source
-    assertions rather than behavioural ones: crude, but they pin the four
-    properties that a browser pass found broken and that nothing else in CI
-    would notice going missing again. Each is a rule about *focus*, which is
-    what actually failed — the key bindings themselves were fine.
+    This used to be four `.read_text()` source assertions, because
+    `lsat-static/` had no component-test harness: they checked that the code
+    *said* the right thing, not that focus *went* the right place. The harness
+    landed with BL-20260831-18, so the four focus rules moved to
+    `lsat-static/__tests__/focus-contract.test.tsx`, which presses the keys
+    (BL-20260901-11), and the key bindings themselves — including the two
+    defects a browser pass caught — to `__tests__/keyboard.test.tsx` and the
+    per-view suites (BL-20260901-07).
+
+    What is left here is what the root suite is actually for: the help sheet
+    (documentation drift, not behaviour) and a pin that the behavioural suites
+    still exist, so deleting one cannot quietly un-cover the contract.
     """
 
     def _read(self, name: str) -> str:
         return (APP / name).read_text(encoding="utf-8")
 
-    def test_graded_choices_stay_focusable(self) -> None:
-        # `disabled` drops the element out of the focus order, so checking an
-        # answer while the chosen choice had focus threw focus to <body>: no
-        # ring to see, no position for a screen reader, and Tab restarting at
-        # the skip link.
-        card = self._read("components/QuestionCard.tsx")
-        assert "aria-disabled={submitted}" in card, (
-            "graded choices must use aria-disabled, not disabled"
-        )
-        # Every occurrence has to be the aria- one: a bare `disabled={submitted}`
-        # anywhere in this card is the regression.
-        assert card.count("disabled={submitted}") == card.count(
-            "aria-disabled={submitted}"
-        ), "a disabled choice leaves the focus order — use aria-disabled"
+    def test_focus_and_binding_behaviour_is_covered_by_component_tests(self) -> None:
+        # One pointer per rule, so a deleted suite fails here rather than
+        # silently taking its coverage with it.
+        suites = {
+            "__tests__/focus-contract.test.tsx": (
+                "aria-disabled",  # graded choices stay in the focus order
+                "restores the choice you gave and the time you took",
+                "reads the position into the live region",
+                "puts the caret in the textarea",
+            ),
+            "__tests__/keyboard.test.tsx": (
+                "skips an event another handler already claimed",
+                "lets an explicitly allowed key out of a text field",
+            ),
+            "__tests__/pageShortcuts.test.tsx": (
+                "steps forward and back through the nav",
+                "closes with Escape",
+                "leaves Escape alone while it is closed",
+            ),
+            "__tests__/Drill.test.tsx": ("advances with Enter again",),
+            "__tests__/Writing.test.tsx": ("Escape blurs the editor first",),
+            "__tests__/SolveAssist.test.tsx": ("walks forward one step per press",),
+        }
+        for name, needles in suites.items():
+            path = APP / name
+            assert path.is_file(), f"{name} is the behavioural cover for these rules"
+            body = path.read_text(encoding="utf-8")
+            for needle in needles:
+                assert needle in body, f"{name} must still cover: {needle}"
 
-    def test_answers_survive_paging_back(self) -> None:
-        # The card is keyed on the question id, so anything the drill does not
-        # hold is destroyed on the way out and rebuilt blank on the way back —
-        # which made `P` a way to lose your work rather than review it.
-        drill = self._read("components/Drill.tsx")
-        card = self._read("components/QuestionCard.tsx")
-        assert "savedChoice" in drill and "savedChoice" in card, (
-            "Drill must hand the recorded choice back to a revisited question"
-        )
-        assert "savedSeconds" in drill and "savedSeconds" in card, (
-            "a revisited question must show the time it was answered in"
-        )
+    def test_the_header_can_be_pinned(self) -> None:
+        """BL-20260901-05: hide-on-scroll is a default, not a decision.
 
-    def test_question_changes_move_focus_and_announce(self) -> None:
-        drill = self._read("components/Drill.tsx")
-        assert "cardRef.current?.focus()" in drill, (
-            "N/P must land focus on the new question, not <body>"
+        The header condenses and hides on scroll direction, which answers
+        "should the chrome get out of the way?" implicitly. This is the
+        explicit control, remembered per device next to the attempts and
+        drafts. Behaviour lives in lsat-static/__tests__/headerPin.test.tsx.
+        """
+        page = self._read("app/page.tsx")
+        # The key and its accessors live with everything else this site stores
+        # (BL-20260905-16), which is also where it is written down that a
+        # preference is not progress and stays out of the export snapshot.
+        device_state = self._read("lib/deviceState.ts")
+        assert "lsat-practice.header-pinned.v1" in device_state, (
+            "the pin preference must be remembered on this device"
         )
-        assert "Question ${i + 1} of ${questions.length}" in drill, (
-            "N/P must announce the new position into the live region"
+        assert "readHeaderPinned" in page and "writeHeaderPinned" in page, (
+            "the page reads and writes the pin through the shared accessors"
         )
-
-    def test_opening_a_writing_prompt_reaches_the_editor(self) -> None:
-        # O is the only key into the section; opening a prompt but leaving
-        # focus six Tab stops from the textarea made it useless on its own.
-        writing = self._read("components/Writing.tsx")
-        assert "getElementById('writing-draft')?.focus()" in writing, (
-            "O must put the caret in the essay editor"
+        assert 'className="header-pin"' in page and "aria-pressed={pinned}" in page, (
+            "the pin needs a real toggle control, not just a shortcut"
         )
+        css = (APP / "app" / "globals.css").read_text(encoding="utf-8")
+        assert ".site-header-pinned" in css
+        # The control is display:none by default and shown again only under the
+        # narrow-viewport media query. A media query adds no specificity, so
+        # with equal selectors source order decides: the rule that shows it has
+        # to come AFTER the one that hides it, or the toggle is invisible at
+        # every width (which is exactly how it first shipped). jsdom loads no
+        # stylesheet, so the component test cannot catch this — assert order.
+        hide = css.index(".header-pin {\n  display: none;")
+        show = css.index("  .header-pin {\n    display: inline-flex;")
+        assert hide < show, (
+            "the media query that reveals .header-pin must come after the "
+            "display:none default, or the control never renders"
+        )
+        help_sheet = self._read("components/ShortcutHelp.tsx")
+        assert "['.'," in help_sheet, "? sheet must document the pin shortcut"
 
     def test_help_sheet_documents_the_drill_keys(self) -> None:
         # A shortcut nobody can discover is a shortcut nobody uses.
@@ -158,11 +295,125 @@ class TestKeyboardContract:
             assert f"['{keys}'," in help_sheet, f"? sheet must document {keys}"
 
 
+class TestSharedRovingFocus:
+    """BL-20260831-08: one keyboard contract for composite widgets, two products.
+
+    `frontend/lib/shell/rovingFocus.ts` is pure TS, so the static export carries
+    a byte-identical mirror (refreshed by `make ui-sync`, drift-gated by
+    ux_audit R12) instead of hand-rolling the arrow-key pattern a second time.
+    The behavioural half lives in lsat-static/__tests__/QuestionCard.test.tsx.
+    """
+
+    SOURCE = REPO / "frontend" / "lib" / "shell" / "rovingFocus.ts"
+    MIRROR = APP / "lib" / "rovingFocus.ts"
+
+    def test_mirror_is_byte_identical(self) -> None:
+        assert self.MIRROR.is_file(), "lsat-static/lib/rovingFocus.ts is missing"
+        assert self.SOURCE.read_bytes() == self.MIRROR.read_bytes(), (
+            "lsat-static/lib/rovingFocus.ts drifted — run `make ui-sync`"
+        )
+
+    def test_question_card_consumes_the_shared_helper(self) -> None:
+        card = (APP / "components" / "QuestionCard.tsx").read_text(encoding="utf-8")
+        assert "from '@/lib/rovingFocus'" in card, (
+            "QuestionCard must import nextRovingIndex, not hand-roll arrows"
+        )
+        assert "nextRovingIndex(" in card
+        # The old modulo-wrap helper is the thing the port retires.
+        assert "function move(" not in card
+
+    def test_ui_sync_refreshes_the_mirror(self) -> None:
+        makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+        assert "lsat-static/lib/rovingFocus.ts" in makefile.split("ui-sync:", 1)[1], (
+            "`make ui-sync` must copy rovingFocus.ts alongside base.css"
+        )
+
+
+class TestSharedSolveAssistContract:
+    """BL-20260831-22: one hint carousel, two products, one set of assertions.
+
+    ux_audit R13 checks only that both `SolveAssist.tsx` files exist, and
+    `TestRendererParity` below compares source structurally — neither says the
+    two behave alike. The behavioural contract is a mirrored test module both
+    vitest projects run against their own harness; this pins that neither side
+    can quietly stop running it.
+    """
+
+    SOURCE = REPO / "frontend" / "__tests__" / "contracts" / "solveAssist.contract.ts"
+    MIRROR = APP / "__tests__" / "contracts" / "solveAssist.contract.ts"
+    SUITES = (
+        REPO / "frontend" / "__tests__" / "components" / "lsat" / "SolveAssist.test.tsx",
+        APP / "__tests__" / "SolveAssist.test.tsx",
+    )
+
+    def test_mirror_is_byte_identical(self) -> None:
+        assert self.MIRROR.is_file(), "the static site's contract mirror is missing"
+        assert self.SOURCE.read_bytes() == self.MIRROR.read_bytes(), (
+            "solveAssist.contract.ts drifted — run `make ui-sync`"
+        )
+
+    def test_both_suites_run_the_contract(self) -> None:
+        for suite in self.SUITES:
+            body = suite.read_text(encoding="utf-8")
+            assert "describeSolveAssistContract(" in body, (
+                f"{suite.name} must run the shared carousel contract"
+            )
+            assert "solveAssist.contract" in body
+
+    def test_ui_sync_refreshes_the_contract(self) -> None:
+        makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+        assert "solveAssist.contract.ts" in makefile.split("ui-sync:", 1)[1], (
+            "`make ui-sync` must copy the contract alongside the other mirrors"
+        )
+
+
+class TestStickyStack:
+    """BL-20260831-19: a long passage has to stay beside its questions.
+
+    Top-stickiness alone does nothing for an element taller than the viewport —
+    a browser pins such a thing only once its bottom scrolls into view — so the
+    longest RC passages were exactly the ones that scrolled away. The fix is
+    the `.lib-rail` pattern: a height cap keyed off the same tokens as the
+    sticky offset, plus its own scroll region.
+    """
+
+    def test_the_offsets_measure_themselves(self) -> None:
+        """BL-20260831-20: the tokens follow the elements, not a memory of them."""
+        css = (APP / "app" / "globals.css").read_text(encoding="utf-8")
+        # The rem constants stay — a static export has no JS before hydration —
+        # but they are documented as the fallback, not the source of truth.
+        assert "--site-header-h: 3.75rem" in css
+        assert "First-paint fallback, not the source of truth" in css
+        page = (APP / "app" / "page.tsx").read_text(encoding="utf-8")
+        drill = (APP / "components" / "Drill.tsx").read_text(encoding="utf-8")
+        assert "useMeasuredCssVar(headerRef, '--site-header-h'" in page
+        assert "useMeasuredCssVar(headRef, '--drill-head-h'" in drill
+        hook = (APP / "lib" / "useMeasuredCssVar.ts").read_text(encoding="utf-8")
+        assert "ResizeObserver" in hook and "setProperty" in hook
+
+    def test_passage_column_is_its_own_scroll_region(self) -> None:
+        css = (APP / "app" / "globals.css").read_text(encoding="utf-8")
+        block = css.split(".drill-grid > .passage {", 1)
+        assert len(block) == 2, "the passage column has no wide-viewport rule"
+        rule = block[1].split("}", 1)[0]
+        assert "overflow-y: auto" in rule, (
+            "a passage taller than the viewport needs its own scroll region"
+        )
+        assert "overscroll-behavior: contain" in rule, (
+            "a wheel that reaches the end of the passage must not scroll the "
+            "page behind it"
+        )
+        # Same tokens as the sticky offset, so the two cannot disagree.
+        for token in ("--site-header-h", "--drill-head-h"):
+            assert token in rule, f"the height cap must be keyed off {token}"
+
+
 # ---------------------------------------------------------------------------
 # Drift gate: committed artifact ↔ source bank
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(AUTOEXPORTED, reason=_DEFERRED)
 class TestContentDrift:
     @pytest.fixture()
     def artifact(self) -> dict:
@@ -386,6 +637,15 @@ STATIC_RENDERER = APP / "components" / "library" / "BlockRenderer.tsx"
 #: that the published site is usable on a phone connection.
 BUNDLE_BUDGET_BYTES = 1_500_000
 
+#: The point at which "it keeps growing" stops being a judgement call
+#: (BL-20260831-24). Sharding costs the site its one genuinely unusual
+#: property — zero network calls for content — so it is not done early; but
+#: "we will split it if it keeps growing" is a promise nobody is holding
+#: unless something measures the growth. Two thirds of the budget is the
+#: point at which the next export could plausibly breach it, which is early
+#: enough to act deliberately rather than in a hurry.
+BUNDLE_WARN_BYTES = BUNDLE_BUDGET_BYTES * 2 // 3
+
 
 def _library_source_ids() -> set[str]:
     return {
@@ -393,6 +653,7 @@ def _library_source_ids() -> set[str]:
     }
 
 
+@pytest.mark.skipif(AUTOEXPORTED, reason=_DEFERRED)
 class TestLibraryDrift:
     """The exported library must stay in lockstep with `data/library/`."""
 
@@ -437,6 +698,38 @@ class TestLibraryDrift:
         assert size <= BUNDLE_BUDGET_BYTES, (
             f"content.json is {size:,} bytes, over the "
             f"{BUNDLE_BUDGET_BYTES:,} budget — shard the library (spec 048 R1)"
+        )
+
+    def test_the_shard_trigger_names_what_actually_grew(self, artifact: dict) -> None:
+        """BL-20260831-24: measure the growth before deciding what to split.
+
+        The item was filed when guides doubled the bundle, and proposed
+        splitting guides. They are no longer what is large: the library is.
+        Splitting the wrong key would cost the offline-first property and
+        recover almost nothing, so the trigger reports the actual breakdown
+        and names the biggest key, rather than repeating an assumption that
+        has already gone stale once.
+        """
+        size = CONTENT.stat().st_size
+        if size <= BUNDLE_WARN_BYTES:
+            return
+        by_key = sorted(
+            (
+                (len(json.dumps(value, separators=(",", ":"))), key)
+                for key, value in artifact.items()
+            ),
+            reverse=True,
+        )
+        breakdown = ", ".join(
+            f"{key} {n:,}B ({n * 100 // size}%)" for n, key in by_key[:4]
+        )
+        pytest.fail(
+            f"content.json is {size:,} bytes, past {BUNDLE_WARN_BYTES:,} "
+            f"({size * 100 // BUNDLE_BUDGET_BYTES}% of the "
+            f"{BUNDLE_BUDGET_BYTES:,} budget). Shard the largest key first — "
+            f"emit it per id under lsat-static/public/content/ and fetch on "
+            f"demand, leaving the index in content.json. Breakdown: "
+            f"{breakdown}."
         )
 
 
@@ -564,6 +857,35 @@ class TestLibraryNavigation:
         assert "fetch(" not in text
         assert "XMLHttpRequest" not in text
 
+    def test_a_single_concept_can_be_linked_to(self) -> None:
+        """BL-20260905-04: capability parity with the platform catalog.
+
+        The static catalog is a flat card list where the platform's is a rail
+        plus a reader — a deliberate layout divergence, recorded in
+        lsat-static/README.md. What could not stay divergent is the ability to
+        link to one concept: the cards carried `catalog-<id>` anchors, but
+        nothing read the fragment, so such a URL opened cold landed on the
+        article reader instead.
+        """
+        library = (APP / "components" / "Library.tsx").read_text(encoding="utf-8")
+        assert "hashTarget" in library, "Library must read the URL fragment"
+        for prefix in ("article-", "catalog-"):
+            assert f"'{prefix}'" in library, (
+                f"#{prefix}<id> must route, matching the platform's hashTarget()"
+            )
+        assert "hashchange" in library, (
+            "a permalink followed from inside the catalog changes only the "
+            "fragment — nothing remounts"
+        )
+        concepts = (APP / "components" / "Concepts.tsx").read_text(encoding="utf-8")
+        assert "concept-permalink" in concepts, (
+            "every concept card needs a copyable link to itself"
+        )
+        readme = (APP / "README.md").read_text(encoding="utf-8")
+        assert "Capability is the contract; layout is not" in readme, (
+            "the layout divergence has to be recorded as deliberate"
+        )
+
     def test_library_shortcuts_are_documented(self) -> None:
         help_text = (APP / "components" / "ShortcutHelp.tsx").read_text(
             encoding="utf-8"
@@ -571,3 +893,134 @@ class TestLibraryNavigation:
         assert "Knowledge library" in help_text, (
             "the library's bindings are undiscoverable in the ? sheet"
         )
+
+
+class TestContentRefreshAutomation:
+    """BL-20260702-11: the export should not depend on someone remembering.
+
+    The drift gate above turns a forgotten `make lsat-export` into a red build
+    on an unrelated PR. `.github/workflows/refresh-lsat-content.yml` closes the
+    loop by re-exporting whenever the source data lands on main; these tests
+    pin the three properties that make that safe.
+    """
+
+    WORKFLOW = REPO / ".github" / "workflows" / "refresh-lsat-content.yml"
+
+    def _workflow(self) -> dict:
+        from tests.conftest import require_yaml
+        
+        yaml = require_yaml()
+
+        return yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
+
+    def test_workflow_watches_the_source_bank(self) -> None:
+        data = self._workflow()
+        # `on` is parsed as the boolean True by YAML 1.1 — hence the lookup.
+        triggers = data.get("on") or data.get(True)
+        paths = triggers["push"]["paths"]
+        assert any("lsat/services/data" in p for p in paths), (
+            "the refresh must trigger on the source bank, not on lsat-static/ "
+            f"(which is the output); got {paths}"
+        )
+
+    def test_workflow_ignores_a_generated_at_only_diff(self) -> None:
+        """Every export stamps a new timestamp; committing that would churn."""
+        body = self.WORKFLOW.read_text(encoding="utf-8")
+        assert 'pop("generated_at"' in body, (
+            "content.json is byte-stable except generated_at — comparing raw "
+            "bytes would commit on every single run"
+        )
+        job = self._workflow()["jobs"]["refresh"]
+        commit = [s for s in job["steps"] if "Commit" in (s.get("name") or "")]
+        assert commit and "changed == 'true'" in commit[0]["if"], (
+            "the commit step must be gated on a real content change"
+        )
+
+    def test_workflow_kicks_the_pages_build(self) -> None:
+        """A GITHUB_TOKEN push raises no `push` event for other workflows."""
+        job = self._workflow()["jobs"]["refresh"]
+        steps = " ".join(str(s.get("run", "")) for s in job["steps"])
+        assert "gh workflow run deploy-lsat-pages.yml" in steps, (
+            "without an explicit dispatch the commit lands and the published "
+            "site stays stale — the exact failure this item is about"
+        )
+        assert self._workflow()["permissions"].get("actions") == "write", (
+            "dispatching another workflow needs actions: write"
+        )
+
+    def test_the_pull_request_leg_removes_the_manual_export(self) -> None:
+        """BL-20260702-11's second clause: the manual step must actually go.
+
+        While the refresh only ran on pushes to main, the drift gate above
+        still red-built any PR that edited the bank without `make lsat-export`,
+        so a developer had to run it anyway — and by the time the change
+        reached main the payload comparison was a guaranteed no-op. The PR leg
+        is what makes the automation load-bearing rather than decorative.
+        """
+        triggers = self._workflow().get("on") or self._workflow().get(True)
+        assert "pull_request" in triggers, (
+            "a push-to-main-only refresh cannot remove a step the PR gate "
+            "enforces"
+        )
+        paths = triggers["pull_request"]["paths"]
+        assert any("lsat/services/data" in p for p in paths)
+
+        job = self._workflow()["jobs"]["refresh"]
+        # A fork PR's token is read-only, so the job must stand aside rather
+        # than fail — and the gate is not deferred for forks either.
+        assert "head.repo.full_name == github.repository" in job["if"]
+
+        checkout = next(
+            step for step in job["steps"] if "checkout" in str(step.get("uses", ""))
+        )
+        assert "head.ref" in str(checkout["with"]["ref"]), (
+            "a pull_request checkout is the detached merge ref; the PR's own "
+            "branch has to be checked out for the push to have anywhere to go"
+        )
+
+        pages = [
+            step
+            for step in job["steps"]
+            if "deploy-lsat-pages" in str(step.get("run", ""))
+        ]
+        assert pages and "github.event_name != 'pull_request'" in pages[0]["if"], (
+            "a PR branch's refresh must never publish the site"
+        )
+
+    def test_the_drift_gate_defers_only_where_the_job_will_fix_it(self) -> None:
+        """The deferral and the refresh job must fire on the same conditions.
+
+        If the gate deferred more widely than the job runs, drift would land
+        unnoticed; if it deferred less, the manual step would still be
+        enforced. Both halves are pinned here so they cannot drift apart.
+        """
+        from tests.conftest import require_yaml
+        
+        yaml = require_yaml()
+
+        ci = yaml.safe_load(
+            (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        )
+        changes = ci["jobs"]["changes"]
+        assert "lsat-content" in changes["outputs"], (
+            "the deferral needs a paths filter for the bank"
+        )
+
+        structural = ci["jobs"]["repo-structural"]
+        assert "changes" in structural["needs"]
+        step = next(
+            s for s in structural["steps"] if "pytest tests/" in str(s.get("run", ""))
+        )
+        guard = str(step["env"]["LSAT_CONTENT_AUTOEXPORT"])
+        for condition in (
+            "pull_request",
+            "lsat-content",
+            "head.repo.full_name",
+        ):
+            assert condition in guard, (
+                f"the deferral guard must be scoped by {condition} — it is "
+                "narrower than 'always skip the drift gate'"
+            )
+
+        # And the module honours it.
+        assert AUTOEXPORTED is (os.getenv("LSAT_CONTENT_AUTOEXPORT") == "1")

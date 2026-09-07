@@ -7,6 +7,12 @@ import QuestionCard from './QuestionCard'
 import PassagePanel from './PassagePanel'
 import SectionTimer from './SectionTimer'
 import { useShortcuts } from '@/lib/keyboard'
+import { useMeasuredCssVar } from '@/lib/useMeasuredCssVar'
+import {
+  recordAnswer,
+  resetSection,
+  setRemainingQuestions,
+} from '@/lib/lsat/timerStore'
 
 /** What the drill remembers about a question you have already answered. */
 interface Answer {
@@ -30,21 +36,37 @@ export default function Drill({
   // you move off a question and rebuilt blank when you come back.
   const [answers, setAnswers] = useState<Map<string, Answer>>(() => new Map())
   const cardRef = useRef<HTMLElement | null>(null)
+  // Second rung of the sticky stack: the passage column hangs off
+  // `--drill-head-h`, so the token follows this element rather than a constant
+  // that has to be re-measured by hand (BL-20260831-20).
+  const headRef = useRef<HTMLDivElement | null>(null)
+  useMeasuredCssVar(headRef, '--drill-head-h', { onlyWhen: '(min-width: 820px)' })
   // Bumped by every navigation, and only by navigation, so the focus effect
   // below can tell "the user moved" from "this section just mounted" — the
   // latter must not steal focus out of the nav the user is still tabbing.
   const [moves, setMoves] = useState(0)
 
+  // Guarded on an actual change of section rather than on mount: the clock
+  // lives in a module store now (shared with the platform, BL-20260830-04) and
+  // persists a running section across a refresh. Resetting on mount would
+  // throw that away, which is the bug the store exists to fix. Switching
+  // sections is the one case where nothing carries over.
+  const lastSection = useRef(section)
   useEffect(() => {
+    if (lastSection.current === section) return
+    lastSection.current = section
     setI(0)
     setAnswers(new Map())
     setMoves(0)
+    resetSection()
   }, [section])
 
   // Read through a ref rather than a `setI` updater: the move counter has to
   // move with the index, and a state updater has to stay pure.
   const iRef = useRef(0)
-  iRef.current = i
+  useEffect(() => {
+    iRef.current = i
+  })
   const go = useCallback((next: (current: number) => number) => {
     const to = next(iRef.current)
     if (to === iRef.current) return
@@ -79,30 +101,31 @@ export default function Drill({
     },
   })
 
+  // The pace denominator, published to the shared timer store rather than
+  // passed down: the platform's clock docks into panels the drill cannot reach
+  // with a prop, and the two products render the same readout from the same
+  // number (BL-20260829-01).
+  useEffect(() => {
+    setRemainingQuestions(
+      questions.length === 0 ? null : questions.length - answers.size,
+    )
+  }, [questions, answers])
+  useEffect(() => () => setRemainingQuestions(null), [])
+
   if (questions.length === 0) {
     return <p className="empty">No questions in this section yet.</p>
   }
   const passage = passageById(q.passage_id)
-  const answeredCount = answers.size
-  const answeredSeconds = Array.from(answers.values()).reduce(
-    (sum, a) => sum + a.seconds,
-    0,
-  )
   const saved = answers.get(q.id)
 
   return (
     <section aria-label={`${meta?.name ?? section} drill`}>
-      <div className="drill-head">
+      <div className="drill-head" ref={headRef}>
         <div>
           <h2>{meta?.name ?? section}</h2>
           {meta?.timing && <p className="drill-timing">{meta.timing}</p>}
         </div>
-        <SectionTimer
-          key={section}
-          remainingQuestions={questions.length - answeredCount}
-          answeredCount={answeredCount}
-          answeredSeconds={answeredSeconds}
-        />
+        <SectionTimer />
       </div>
 
       <div className="drill-grid">
@@ -118,6 +141,10 @@ export default function Drill({
             savedSeconds={saved?.seconds ?? 0}
             onAnnounce={onAnnounce}
             onAnswered={(choice, elapsedSeconds) => {
+              // Pace counters live in the timer store, and only a *first*
+              // answer counts: paging back over a question you already
+              // answered must not bill the section for it twice.
+              if (!answers.has(q.id)) recordAnswer(elapsedSeconds)
               setAnswers((prev) => {
                 if (prev.has(q.id)) return prev
                 const next = new Map(prev)

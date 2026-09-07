@@ -5,6 +5,31 @@
 > cache locally. Do **not** commit `baseline.json` or any `items.jsonl` files
 > until the corresponding license entry is present here.
 
+## Pinned revisions, per-task review, and the vendoring decision (BL-20260811-09)
+
+The fetcher is [law_ai/eval/fetch.py](../../law_ai/eval/fetch.py) (`make legalbench-cache`). It downloads from two pinned commits, never from `main`:
+
+| What | Source | Pinned revision |
+|------|--------|-----------------|
+| Task data (`test.tsv`) | Hugging Face dataset `nguha/legalbench` | `daec8237410aa23e3faf4bc41ad8b3a7e1696826` |
+| Prompt templates + task READMEs | GitHub `HazyResearch/legalbench` | `b46bf4ffae90524b2b72aaa30e7745fe9db64481` |
+
+**Vendoring decision: CI downloads, we never vendor.** `backend/var/legalbench/*/items.jsonl` stays git-ignored. Reproducibility comes from the two pinned revisions plus `manifest.json` (tracked), which records the sha256 of every downloaded source file; a later fetch that sees a different digest fails loudly rather than quietly re-benchmarking. This keeps CC BY-SA obligations moot — we do not redistribute the data — and keeps the repo small.
+
+**Per-task licence review is mechanical, not a promise.** `fetch_task()` parses the `**License**:` line out of each task's README and refuses any task whose licence is not in `ALLOWED_LICENCES` (`cc-by-4.0`, `cc-by-sa-4.0`), before a single item is written. The licence it read is stamped into every cached item's `metadata.licence`.
+
+### Task-to-subset mapping (as fetched)
+
+| Law AI subset | LegalBench tasks | Licence |
+|---------------|------------------|---------|
+| `core_reasoning` | `hearsay`, `personal_jurisdiction`, `ucc_v_common_law`, `abercrombie` | CC BY 4.0 |
+| `precedent_retrieval` | `citation_prediction_classification`, `citation_prediction_open` | CC BY 4.0 |
+| `contract_nli` | `contract_nli_explicit_identification`, `contract_nli_confidentiality_of_agreement`, `contract_nli_sharing_with_third-parties` | CC BY 4.0 |
+| `definitions` | `definition_classification`, `definition_extraction` | CC BY-SA 4.0 |
+| `causation` | `legal_reasoning_causality` | CC BY 4.0 |
+
+Each subset takes the head of each task's test split, capped at `DEFAULT_MAX_ITEMS_PER_TASK` (50) and round-robined across tasks so `--limit` samples every task rather than only the first. Changing the mapping or the cap changes what "accuracy" means — re-record `baseline.json` when either moves.
+
 ## Tracked Subsets
 
 ### core_reasoning
@@ -41,7 +66,7 @@ reasoning exercises. Individual tasks may have their own sub-licenses documented
 - **Source**: LegalBench benchmark (HazyResearch / Stanford Law / contributors)
 - **Repository**: https://github.com/HazyResearch/legalbench
 - **Code license**: MIT License (covers the LegalBench harness and task wrapper code)
-- **Dataset license**: CC BY 4.0 (covers the task data/items used for evaluation)
+- **Dataset license**: CC BY-SA 4.0 — both mapped tasks (`definition_classification`, `definition_extraction`) declare share-alike in their task READMEs, unlike the rest of the tracked subsets. Verified 2026-09-05 against the pinned revision; admissible only because we never redistribute the cached items.
 - **Notes**: Legal definitions are derived from public-domain legal dictionaries
   and statutory text.
 
@@ -63,4 +88,6 @@ reasoning exercises. Individual tasks may have their own sub-licenses documented
 3. This file is checked by `make lint-specs` via `spec_validator.py` (the spec
    references this path in T-002).
 
-_Last updated: 2026-05-11 (spec 018 T-002 implementation)._
+4. The per-task licence check in `law_ai/eval/fetch.py` enforces rule 1 mechanically. Widening `ALLOWED_LICENCES` requires a licence review recorded above, not just a code change.
+
+_Last updated: 2026-09-05 (BL-20260811-09 — pinned revisions, per-task review, vendoring decision). Originally written 2026-05-11 (spec 018 T-002)._

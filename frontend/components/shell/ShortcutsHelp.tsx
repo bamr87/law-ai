@@ -1,17 +1,31 @@
 'use client'
 
-import { SHORTCUT_HELP } from '@/lib/shell/shortcuts'
+import {
+  mergeShortcutGroups,
+  type ShortcutGroup,
+} from '@/lib/shell/shortcuts'
 import { Scrim, useFocusTrap } from './Overlay'
 
-/** `?` sheet. A keyboard contract nobody can discover is not a contract. */
+/**
+ * `?` sheet. A keyboard contract nobody can discover is not a contract.
+ *
+ * The shell's own keys come first, then the groups the page on screen
+ * registered through `usePageShortcuts` (BL-20260901-10) — so the LSAT drill's
+ * A–E / Enter / N are findable from the same place as ⌘K, instead of only
+ * from the card's own hint line.
+ */
 export default function ShortcutsHelp({
   open,
   onClose,
+  pageGroups = [],
 }: {
   open: boolean
   onClose: () => void
+  /** Groups registered by the page currently on screen. */
+  pageGroups?: ReadonlyArray<ShortcutGroup>
 }) {
   const ref = useFocusTrap<HTMLDivElement>(open, onClose)
+  const groups = mergeShortcutGroups(pageGroups)
   if (!open) return null
 
   return (
@@ -41,26 +55,43 @@ export default function ShortcutsHelp({
             Close
           </button>
         </div>
-        <dl className="mt-4 space-y-2">
-          {SHORTCUT_HELP.map((s) => (
-            <div
-              key={s.keys}
-              className="flex items-center justify-between gap-4"
-            >
-              <dt className="text-sm text-slate-300">{s.label}</dt>
-              <dd>
-                <kbd className="rounded border border-slate-700 bg-slate-950 px-2 py-0.5 font-mono text-[11px] text-slate-300">
-                  {s.keys}
-                </kbd>
-              </dd>
-            </div>
+        <div className="shell-panel-scroll mt-4 max-h-[60vh] space-y-4">
+          {groups.map((group) => (
+            <section key={group.title} aria-labelledby={`shortcuts-${slug(group.title)}`}>
+              <h3
+                id={`shortcuts-${slug(group.title)}`}
+                className="pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"
+              >
+                {group.title}
+              </h3>
+              <dl className="space-y-2">
+                {group.rows.map((s) => (
+                  <div
+                    key={s.keys}
+                    className="flex items-center justify-between gap-4"
+                  >
+                    <dt className="text-sm text-slate-300">{s.label}</dt>
+                    <dd>
+                      <kbd className="rounded border border-slate-700 bg-slate-950 px-2 py-0.5 font-mono text-[11px] text-slate-300">
+                        {s.keys}
+                      </kbd>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
           ))}
-        </dl>
-        <p className="mt-4 text-[11px] leading-relaxed text-slate-500">
+        </div>
+        <p className="mt-4 text-[11px] leading-relaxed text-slate-400">
           Shortcuts stay out of the way while you are typing — a bare key never
           fires from inside a text field.
         </p>
       </div>
     </>
   )
+}
+
+/** Stable id fragment for a group heading. */
+function slug(title: string): string {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }

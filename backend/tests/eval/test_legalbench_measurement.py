@@ -22,6 +22,7 @@ from law_ai.eval import paths
 from law_ai.eval.legalbench import (
     EvalInfrastructureError,
     LegalBenchConfig,
+    baseline_comparability,
     check_regression,
     run_eval,
     update_baseline,
@@ -154,6 +155,61 @@ class TestBaselineAndHistory:
         assert check_regression(report) == []
 
 
+class TestBaselineComparability:
+    """BL-20260906-29: a delta across two different models is not a regression."""
+
+    REPORT = {
+        "model": "mistral:7b-instruct-q4_K_M",
+        "subsets": [
+            {"subset": "core_reasoning", "accuracy": 0.75, "scorer": "default_match"}
+        ],
+        "delta": {"core_reasoning": {"before": 0.80, "after": 0.75, "delta_pp": -5.0}},
+    }
+
+    @pytest.fixture()
+    def baseline(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        import law_ai.eval.legalbench as lb
+
+        path = tmp_path / "baseline.json"
+        monkeypatch.setattr(lb, "BASELINE_PATH", path)
+        return path
+
+    def _write(self, path: Path, **overrides: Any) -> None:
+        payload = {
+            "model": "mistral:7b-instruct-q4_K_M",
+            "accuracies": {"core_reasoning": 0.80},
+            "scorers": {"core_reasoning": "default_match"},
+        }
+        payload.update(overrides)
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+    def test_matching_model_and_scorers_still_flags_the_drop(
+        self, baseline: Path
+    ) -> None:
+        self._write(baseline)
+        problems = check_regression(dict(self.REPORT))
+        assert len(problems) == 1 and "core_reasoning" in problems[0]
+
+    def test_a_different_model_skips_the_comparison(self, baseline: Path) -> None:
+        self._write(baseline, model="llama3:8b")
+        reasons = baseline_comparability(dict(self.REPORT))
+        assert reasons and "llama3:8b" in reasons[0]
+        assert check_regression(dict(self.REPORT)) == []
+
+    def test_a_different_scorer_skips_the_comparison(self, baseline: Path) -> None:
+        self._write(baseline, scorers={"core_reasoning": "yes_no"})
+        reasons = baseline_comparability(dict(self.REPORT))
+        assert reasons and "yes_no" in reasons[0]
+        assert check_regression(dict(self.REPORT)) == []
+
+    def test_a_legacy_bare_baseline_claims_nothing_and_stays_comparable(
+        self, baseline: Path
+    ) -> None:
+        baseline.write_text(json.dumps({"core_reasoning": 0.80}), encoding="utf-8")
+        assert baseline_comparability(dict(self.REPORT)) == []
+        assert len(check_regression(dict(self.REPORT))) == 1
+
+
 # ---------------------------------------------------------------------------
 # 4. Scoring strength
 # ---------------------------------------------------------------------------
@@ -190,12 +246,25 @@ class TestScoring:
         ok, _ = score_response(response, expected, "core_reasoning")
         assert ok is False
 
-    def test_extraction_only_applies_to_closed_vocabulary(self) -> None:
-        # Free-text subsets keep strict matching — no label extraction.
+    def test_free_text_subsets_do_not_use_label_extraction(self) -> None:
+        """Closed-vocabulary extraction never fires on a case name.
+
+        Spec 031 asserted here that a prose-prefixed case name scored *wrong*.
+        BL-20260811-11 replaced that floor for `precedent_retrieval` with a
+        recall scorer — naming the right case in a sentence is a hit, naming
+        the wrong one is still a miss — so the assertion moved with it. What
+        has not changed is that `extract_label` stays out of free-text tasks.
+        """
         ok, _ = score_response(
             "The case is International Shoe Co. v. Washington",
             "International Shoe Co. v. Washington",
             "precedent_retrieval",
         )
-        assert ok is False  # strict: response has a prose prefix
+        assert ok is True
+        ok, _ = score_response(
+            "The case is Erie Railroad Co. v. Tompkins",
+            "International Shoe Co. v. Washington",
+            "precedent_retrieval",
+        )
+        assert ok is False
         assert extract_label("The case is International Shoe") is None

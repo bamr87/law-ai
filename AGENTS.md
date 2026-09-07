@@ -28,9 +28,9 @@ Repo-level instructions for Copilot live in [.github/copilot-instructions.md](.g
 | Layer | Tool | Why |
 |-------|------|-----|
 | Dev orchestration (writing/refactoring this repo) | GitHub Copilot or Claude Code | Sanctioned surfaces; shared custom instructions + prompt templates; CI integration |
-| Product runtime (what the deployed app uses to answer legal questions) | `LLM_PROVIDER_CHAIN` — Claude (OAuth), then Claude (API key), then Ollama | Constitution §1 as amended: highest-capability answers by default, local-first still reachable by pinning `ollama` |
+| Product runtime (what the deployed app uses to answer legal questions) | `LLM_PROVIDER_CHAIN` — Claude (OAuth), then Claude (API key), then xAI Grok (subscription OAuth, `make xai-login`), then Ollama | Constitution §1 as amended: highest-capability answers by default, a hosted fallback before the quality cliff, local-first still reachable by pinning `ollama` |
 
-**Privileged data caveat**: the Claude tiers send prompt text to a third party. Deployments handling data under a confidentiality obligation that forbids third-party processing must pin `LLM_PROVIDER_CHAIN=ollama` (constitution §1).
+**Privileged data caveat**: the Claude tiers — and the xAI tier, once it ships — send prompt text to a third party. `LLM_PROVIDER_CHAIN=ollama` is the only configuration that keeps prompt text on the host, and deployments handling data under a confidentiality obligation that forbids third-party processing must pin it (constitution §1).
 
 
 **Jurisprudential Stance** — *the premise underneath the principles*
@@ -43,7 +43,7 @@ Full argument in [docs/philosophy.md](docs/philosophy.md); enforced as [docs/con
 
 **Core Principles for All Code Changes**
 - **Open Source First**: Every *code* dependency must be MIT/AGPL compatible — no proprietary libraries in the codebase itself. This governs what we build with, not which model answers end users: the product-runtime LLM vendor is a separate, independently governed decision (see Development Orchestration above and constitution §1), and its default tier is the closed-source Claude API.
-- **Privacy by Choice**: local DBs always; the LLM tier is operator-selected via `LLM_PROVIDER_CHAIN`. Claude is the default for answer quality; a fully local run (`LLM_PROVIDER_CHAIN=ollama`) stays a first-class, supported configuration.
+- **Privacy by Choice**: local DBs always; the LLM tier is operator-selected via `LLM_PROVIDER_CHAIN`. Claude is the default for answer quality, with xAI Grok as a further hosted tier before the local fallback; a fully local run (`LLM_PROVIDER_CHAIN=ollama`) stays a first-class, supported configuration.
 - **Auditability**: Every agent decision, prompt, tool call, and retrieval must be logged with full provenance.
 - **Legal Accuracy**: All outputs must be grounded in retrieved sources + citations. Use LegalBench for regression testing.
 - **Power-Aware Output**: Attribute every legal proposition to its issuing authority (court, jurisdiction, date, binding/persuasive). Never present citation counts or centrality as a correctness score, and never let "no results in our corpus" read as "no such law." Label asymmetry; do not filter by it.
@@ -83,11 +83,13 @@ Use the [Makefile](Makefile) targets or VS Code tasks in [.vscode/tasks.json](.v
 | Frontend tests | `make test-frontend` | `Docker: Frontend Tests` |
 | Coverage | `make test-coverage` | `Docker: Coverage Report` |
 | Integration tests | `make test-integration` | `Docker: Integration Tests (real DBs)` |
+| Browser end-to-end | `make test-e2e` | — |
 | Lint + format | `make lint` | `Docker: Format & Lint All` |
 | Type-check | `make typecheck` | `Docker: Type Check (mypy + tsc)` |
 | LegalBench eval | `make test-legalbench` | `Docker: LegalBench Eval` |
 | Spec/backlog gates | `make lint-specs` | `Docker: Spec & Backlog Validators` |
 | Reset local DBs | `docker compose down -v && make dev` | `Docker: Reset Local DBs (Dangerous)` |
+| Reset **only** Postgres | `make reset-db && make dev && make migrate` | — |
 
 **Debugging.** Use `make debug` to expose `5678` (backend debugpy), `5679` (worker debugpy), and `9229` (frontend node --inspect). Then attach via [.vscode/launch.json](.vscode/launch.json) ("Docker: Attach to backend / worker / frontend").
 
@@ -100,7 +102,7 @@ Project status, tooling rationale, and onboarding live in [README.md](README.md)
 **Backend**
 - Python 3.12+
 - Django 5 (ASGI via daphne) + Django REST Framework + Channels + Celery + Pydantic v2 (domain layer)
-- **CrewAI** (role-based crews) + **LangChain** + **LangGraph** (stateful workflows) — core dependencies since spec 035, not extras. `ChatProviderChain` (`backend/law_ai/core/llm/langchain.py`) is a real LangChain `BaseChatModel` fronting the provider chain below and is `LegalWorkflow`'s default LLM factory (`agents_runtime/graphs/legal_workflow.py`); `langgraph-checkpoint-postgres`/`-redis` persist `StateGraph` state via `AsyncPostgresSaver` against `settings.POSTGRES_URL`, provisioned by `manage.py ensure_checkpointer` (wired into `make migrate`)
+- **CrewAI** (role-based crews) + **LangChain** + **LangGraph** (stateful workflows) — core dependencies since spec 035, not extras. `ChatProviderChain` (`backend/law_ai/core/llm/langchain.py`) is a real LangChain `BaseChatModel` fronting the provider chain below and is `LegalWorkflow`'s default LLM factory (`agents_runtime/graphs/legal_workflow.py`). The chain has two sanctioned entry points and both write the same `llm_call` event: `core.llm.agenerate`/`generate` for plain agent classes (they need `response_schema` and `LLMResult`), `ChatProviderChain` for LangGraph nodes and LCEL chains — see [docs/architecture.md](docs/architecture.md) § Technology Choices Rationale for why the two are not consolidated.  `langgraph-checkpoint-postgres`/`-redis` persist `StateGraph` state via `AsyncPostgresSaver` against `settings.POSTGRES_URL`, provisioned by `manage.py ensure_checkpointer` (wired into `make migrate`)
 - Neo4j Community + official Python driver
 - PostgreSQL + asyncpg
 - `chromadb` is a declared dependency but not yet wired into any retrieval path — the planned vector leg for GraphRAG is a native Neo4j vector index blended with the existing lexical retriever, not a separate vector store (open: BL-20260810-17)
@@ -111,8 +113,8 @@ Project status, tooling rationale, and onboarding live in [README.md](README.md)
 **Frontend**
 - Next.js App Router + TypeScript (apps are on Next 16; constitution §2 still says 15)
 - Tailwind v4. **shadcn/ui is constitution-listed and not installed** — current surfaces, tokens, and the replacement kit are documented in [docs/ui-ux.md](docs/ui-ux.md). Spec [039](specs/039-design-system/spec.md) + [ADR 0006](docs/adr/0006-first-party-design-system.md) propose a first-party system at `frontend/ui/`.
-- Cytoscape.js for graphs (`@xyflow/react` is declared unused)
-- WebSockets for real-time agent streaming (TanStack Query is declared unused)
+- Cytoscape.js for graphs (`@xyflow/react` was removed by BL-20260830-01; re-add it only in the commit that imports it)
+- WebSockets for real-time agent streaming; data fetching is plain `fetch` in `frontend/lib/api.ts` (TanStack Query was removed by BL-20260830-01)
 
 **Infrastructure**
 - Docker Compose (full local stack)
@@ -177,7 +179,8 @@ law-ai/                                 # workspace root (GitHub slug stays `law
 
 ### Python
 - Use `ruff` + `black` (line length 88)
-- Strict type hints + `mypy --strict`
+- `make lint` and `make format` cover **`backend/` and `frontend/` only** — they run inside those containers, so repo-root Python (`scripts/*.py`, `tests/*.py`) is deliberately out of scope (BL-20260906-36). Those trees are stdlib-only host tooling; `make lint-root` reports their ruff/black drift on demand and never gates.
+- Strict type hints + `mypy --strict`. The strict run is a real CI gate, ratcheted: `scripts/mypy_ratchet.py` compares per-file error counts against `backend/mypy-baseline.txt` and fails on any growth. **A file that is not already in that baseline must be strict-clean** — that includes every file you create. To clear a legacy file, fix it and re-bank with `make mypy-baseline` (the baseline may only shrink).
 - All public functions must have docstrings with examples
 - Agent prompts must be in `backend/law_ai/agents_runtime/prompts/` as `.md` or `.txt` files (versioned)
 
@@ -186,6 +189,10 @@ law-ai/                                 # workspace root (GitHub slug stays `law
 - Prefer server components + React Server Actions where possible
 - All graph interactions must go through typed API routes (no direct Neo4j from client)
 - UI tokens and primitives live under `frontend/ui/` once spec 039 lands. Until then, do not add shadcn or a second palette — read [docs/ui-ux.md](docs/ui-ux.md) first.
+
+### Markdown
+- **One paragraph per line.** Do not hard-wrap prose. The [markdown-oneline](.github/workflows/markdown-oneline.yml) workflow unwraps soft-wrapped paragraphs and pushes the repair back onto the PR branch, so a hard-wrapped paragraph costs a bot commit and a head SHA that CI did not run against. Tables, code fences, front-matter and HTML are left alone.
+- Fix locally before pushing with `python3 tools/unwrap-prose.py --write`.
 
 ### Neo4j / Graph
 - Use Cypher for all relationship-heavy queries
@@ -239,20 +246,24 @@ See `prompts/new-agent.md` for the exact prompt template.
 - Always add the corresponding API route in the matching backend module first (`backend/law_ai/{agentsapi,analysis,graph,lsat}/`)
 - Include loading states + error boundaries
 - Co-locate a Vitest test under `frontend/__tests__/`
+- Capture screenshots of the result and put them in the PR — see the visual-evidence gate below
 
 ---
 
 ## Evaluation & Quality Gates (Mandatory)
 
 Before any PR — every command runs in Docker:
-1. `make lint` (ruff + black + frontend eslint, all in containers) and `make typecheck` (mypy --strict + tsc --noEmit)
+1. `make lint` (ruff + black + frontend eslint, all in containers) and `make typecheck` (mypy --strict behind the `backend/mypy-baseline.txt` ratchet + tsc --noEmit)
 2. `make test` (backend pytest + frontend vitest in containers) — must clear the configured coverage floors: backend ≥75% (`backend/pyproject.toml` `--cov-fail-under=75`), frontend ≥65-70% by category (`frontend/vitest.config.ts` thresholds)
 3. `make test-legalbench` when reasoning logic changed
-4. Manual smoke test of Analysis Studio + Knowledge Graph in the browser (against `make dev`)
-5. **Continuous-evolution gate** ([docs/constitution.md](docs/constitution.md) §11):
+4. `make test-e2e` when you touch the app shell, the agent stream, the admin HITL flow, or the API surface — the browser suite is nightly, not part of `make test`, so a change to any of those needs one deliberate run. See [docs/e2e-testing.md](docs/e2e-testing.md). The API contract gate it depends on (`manage.py export_api_schema` → `frontend/__tests__/lib/apiContract.test.ts`) *is* in `make test`: regenerate the fixture with `make manage CMD=export_api_schema` whenever a request/response model changes.
+5. Manual smoke test of Analysis Studio + Knowledge Graph in the browser (against `make dev`)
+6. **Visual evidence gate** — any change to `frontend/` or `lsat-static/` that a user could
+*see* ships with screenshots. See [docs/ui-ux-review.md](docs/ui-ux-review.md) §"Visual evidence" for what to capture and how. A passing `ux_audit.py` is not evidence: it checks landmarks and contracts, not whether the screen reads correctly. **Enforced in CI**: the `Visual Evidence Gate` job fails a PR touching those paths unless the body carries an image or the diff adds a file under `docs/images/`; label the PR `no-visual-change` to opt out when there is genuinely nothing to see.
+7. **Continuous-evolution gate** ([docs/constitution.md](docs/constitution.md) §11):
    - `tasks.md` for the spec must end with a populated `## Follow-ups Discovered` section.
    - Each follow-up is mirrored into [BACKLOG.md](BACKLOG.md) with a `BL-YYYYMMDD-NN` id.
-   - `make lint-specs` (host stdlib — `python3 scripts/spec_validator.py && python3 scripts/backlog_lint.py`) exits 0.
+   - `make lint-specs` (host — `spec_validator.py`, `backlog_lint.py`, `ux_audit.py`, then `pytest tests/test_evolve_audit.py`) exits 0.
    - PR description copies the new BACKLOG bullets so reviewers can see what the next agent is set up to inherit.
 
 **LegalBench Integration**  
@@ -287,7 +298,7 @@ When responding to user requests:
 - End with **"Ready for review. LegalBench delta: +X% on relevant tasks"** when applicable
 
 **Never**:
-- Bypass `LLM_PROVIDER_CHAIN` to call a provider transport directly, or add a third-party model vendor (OpenAI, Gemini, …) to the product runtime without a constitution §1 amendment
+- Bypass `LLM_PROVIDER_CHAIN` to call a provider transport directly, or add a model vendor beyond Anthropic / xAI / Ollama (OpenAI, Gemini, …) to the product runtime without a constitution §1 amendment
 - Bypass the provenance/audit layer
 - Create nodes without `source` and `confidence` properties
 - Ignore HITL requirements for ingestion or high-stakes analysis

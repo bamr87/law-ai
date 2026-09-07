@@ -1,6 +1,6 @@
 # Retrieve Node Prompt — Spec 010 / LegalWorkflow
 
-**Version**: 1 **Model**: configurable via `OLLAMA_DEFAULT_MODEL`
+**Version**: 2 **Model**: configurable via `OLLAMA_DEFAULT_MODEL`
 **Inputs**: `question` (str), `jurisdiction` (str | None), `case_id` (str | None)
 **Output**: JSON `{"queries": [str, ...], "rationale": str}`
 

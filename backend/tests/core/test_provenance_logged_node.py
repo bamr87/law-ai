@@ -110,6 +110,57 @@ async def test_logged_node_hashes_state_not_self_for_bound_methods(
     assert events[0]["input_hash"] == _stable_hash(state)
 
 
+# --- BL-20260905-86: the audit row names the tier that actually answered ---
+
+
+@pytest.mark.asyncio
+async def test_a_returned_model_label_overrides_the_static_one(
+    audit_path: Path,
+) -> None:
+    """A chain-backed node knows its tier only after the call returns."""
+
+    @logged_node("analyze", model="(provider chain)", prompt_id="p")
+    async def node(state: dict) -> dict:
+        return {"answer": "…", "model_label": "xai/grok-4.6"}
+
+    await node({"question": "q"})
+
+    event = json.loads(audit_path.read_text().splitlines()[-1])
+    assert event["model"] == "xai/grok-4.6"
+    assert event["prompt_id"] == "p"
+
+
+def test_a_node_without_a_label_keeps_the_static_model(audit_path: Path) -> None:
+    @logged_node("cite_check", model="deterministic")
+    def node(state: dict) -> dict:
+        return {"citations": []}
+
+    node({"question": "q"})
+
+    event = json.loads(audit_path.read_text().splitlines()[-1])
+    assert event["model"] == "deterministic"
+
+
+@pytest.mark.asyncio
+async def test_a_blank_or_non_string_label_is_ignored(audit_path: Path) -> None:
+    @logged_node("analyze", model="(provider chain)")
+    async def blank(state: dict) -> dict:
+        return {"model_label": "   "}
+
+    @logged_node("analyze", model="(provider chain)")
+    async def wrong_type(state: dict) -> dict:
+        return {"model_label": 7}
+
+    await blank({"question": "q"})
+    await wrong_type({"question": "q"})
+
+    events = [json.loads(line) for line in audit_path.read_text().splitlines()]
+    assert [e["model"] for e in events[-2:]] == [
+        "(provider chain)",
+        "(provider chain)",
+    ]
+
+
 def test_log_agent_call_input_hash_is_stable(audit_path: Path) -> None:
     """agent_call input_hash uses _stable_hash, not Python's salted hash()."""
     from law_ai.core.provenance import provenance

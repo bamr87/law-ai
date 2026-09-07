@@ -1,0 +1,21 @@
+# Browser end-to-end runner (spec 051 / BL-20260811-16).
+#
+# The official Playwright image ships Chromium/Firefox/WebKit plus every OS
+# dependency they need, and its tag MUST match the @playwright/test version in
+# package-lock.json — the driver and the browsers are versioned together, and
+# a mismatch fails at runtime with a misleading "browser not found".
+# tests/test_e2e_harness.py enforces the pin.
+#
+# Dependencies come from the same lockfile as the app image so the e2e
+# runner can never drift from the frontend's own toolchain. The source tree
+# is bind-mounted at runtime (see the `e2e` service in docker-compose.yml).
+FROM mcr.microsoft.com/playwright:v1.59.1-noble
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci --no-audit --no-fund
+
+COPY . .
+
+CMD ["npx", "playwright", "test"]

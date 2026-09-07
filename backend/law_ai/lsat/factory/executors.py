@@ -1,12 +1,19 @@
 """Generation-plane executors — pluggable fulfillment of manifest jobs.
 
-Spec 024 FR-6. Three ways to turn a :class:`GenerationJob` into drafts:
+Spec 024 FR-6, extended by spec 050. Five ways to turn a
+:class:`GenerationJob` into drafts:
 
 * :class:`ClaudeCodeExecutor` — tier-routed Claude generation. Maps the job's
   tier onto a Claude model id (bulk→Haiku, standard→Sonnet, premium→Opus,
   judge→Fable by default) and authenticates with the OAuth subscription token
   when present, falling back to ``ANTHROPIC_API_KEY``. Construction raises
   :class:`ExecutorUnavailable` when neither credential is configured.
+* :class:`XaiExecutor` — xAI Grok over its subscription OAuth token.
+
+  Both hosted executors route through ``law_ai.core.llm`` with the chain
+  pinned to their single provider: reproducible tier→model routing (a pinned
+  chain cannot fall through) *and* an ``llm_call`` provenance event per batch
+  (constitution §4).
 * :class:`OllamaExecutor` — the local open-weights path; every tier maps to
   ``OLLAMA_DEFAULT_MODEL``.
 * :class:`SynthExecutor` — no network and no model: fulfills a job from the
@@ -27,13 +34,13 @@ import time
 from pathlib import Path
 from typing import Any, Protocol
 
-import httpx
 from pydantic import BaseModel
 
 from law_ai.agents_runtime.crews.lsat_content_author import (
     _DRAFTS_RESPONSE_SCHEMA,
 )
-from law_ai.core import claude_code
+from law_ai.core import claude_code, llm, xai_oauth
+from law_ai.core.llm.base import LLMRequest, LLMUnavailableError
 from law_ai.core.settings_proxy import settings_proxy as settings
 from law_ai.lsat.factory.config import FactoryConfig
 from law_ai.lsat.factory.manifest import GenerationJob
@@ -70,6 +77,10 @@ _SYSTEM = (
     "respond with a single JSON object only — no preamble, no markdown fences."
 )
 
+#: ``agent`` recorded on every ``llm_call`` provenance event the model-backed
+#: executors write, so a factory batch is attributable in the audit trail.
+FACTORY_AGENT = "lsat_factory"
+
 
 def _parse_payload(raw: str, job_id: str) -> dict[str, Any]:
     try:
@@ -84,10 +95,16 @@ def _parse_payload(raw: str, job_id: str) -> dict[str, Any]:
 class ClaudeCodeExecutor:
     """Tier-routed Claude generation (see module docstring).
 
-    The factory pins a provider explicitly rather than running the chain, so
-    that a manifest's tier→model routing is reproducible: a silent fallback to
-    a different tier — or to the local model — would make a generated bank
-    impossible to attribute. Use ``--executor ollama`` for the local path.
+    Reproducibility is preserved by pinning the chain to the one Claude tier
+    whose credential is configured — ``providers=("claude_code",)`` on the
+    subscription token, ``("anthropic_api",)`` on an API key — with the job's
+    tier model forced. A single-entry chain cannot silently fall through to
+    another provider, so a manifest is still attributable to the model that
+    wrote it; going through ``law_ai.core.llm`` rather than calling
+    :mod:`law_ai.core.claude_code` directly adds what the direct call was
+    missing: the ``llm_call`` provenance event every model call owes the audit
+    trail (constitution §4, BL-20260905-13). ``--executor ollama`` is the
+    local path.
     """
 
     name = "claude_code"
@@ -101,6 +118,11 @@ class ClaudeCodeExecutor:
                 "no Claude credential configured — set CLAUDE_CODE_OAUTH_TOKEN "
                 "(`claude setup-token`) or ANTHROPIC_API_KEY"
             )
+        # The credential decides the chain tier: the OAuth provider and the
+        # API-key provider are the same models behind different auth.
+        self._provider = (
+            llm.CLAUDE_OAUTH if self._auth == "oauth" else llm.ANTHROPIC_API
+        )
         self._config = config
 
     async def execute(self, job: GenerationJob) -> RawBatch:
@@ -110,25 +132,93 @@ class ClaudeCodeExecutor:
         # defensive JSON parse instead.
         schema = _DRAFTS_RESPONSE_SCHEMA if job.target.mode == "items" else None
         started = time.perf_counter()
-        raw = await claude_code.generate(
-            job.prompt,
-            system=_SYSTEM,
-            model_id=model_id,
-            max_tokens=int(getattr(settings, "LSAT_FACTORY_MAX_TOKENS", 8192)),
-            response_schema=schema,
-            auth=self._auth,
-        )
+        try:
+            result = await llm.aroute(
+                LLMRequest(
+                    prompt=job.prompt,
+                    system=_SYSTEM,
+                    response_schema=schema,
+                    max_tokens=int(getattr(settings, "LSAT_FACTORY_MAX_TOKENS", 8192)),
+                    models={self._provider: model_id},
+                    providers=(self._provider,),
+                ),
+                agent=FACTORY_AGENT,
+            )
+        except LLMUnavailableError as exc:
+            raise ExecutionError(
+                f"job {job.job_id}: Claude unavailable ({exc})"
+            ) from exc
         latency_ms = (time.perf_counter() - started) * 1000.0
         return RawBatch(
             job_id=job.job_id,
-            payload=_parse_payload(raw, job.job_id),
-            model_label=f"{claude_code.PROVIDER_NAME}/{model_id}",
+            payload=_parse_payload(result.text, job.job_id),
+            model_label=result.model_label,
+            latency_ms=round(latency_ms, 2),
+        )
+
+
+class XaiExecutor:
+    """xAI Grok generation, pinned to that one tier (spec 050).
+
+    Same reproducibility contract as :class:`ClaudeCodeExecutor` — a manifest
+    must be attributable to the provider that actually wrote it, so a silent
+    fall-through to another tier is unacceptable — but it gets there through
+    ``law_ai.core.llm`` with ``providers=("xai",)`` rather than by calling a
+    transport directly. Restricting the chain to a single provider pins the
+    routing just as hard while keeping the call inside the sanctioned choke
+    point, so the batch also lands in the ``llm_call`` audit trail
+    (constitution §4).
+
+    Grok is slow on this work (item authoring measured ~57-116s per job), so
+    expect factory runs on this executor to take substantially longer than the
+    Claude tiers.
+    """
+
+    name = "xai"
+
+    def __init__(self, config: FactoryConfig) -> None:
+        if not xai_oauth.is_configured():
+            raise ExecutorUnavailable(
+                xai_oauth.unconfigured_reason()
+                or "no xAI credential configured — run `make xai-login`"
+            )
+        self._config = config
+
+    async def execute(self, job: GenerationJob) -> RawBatch:
+        schema = _DRAFTS_RESPONSE_SCHEMA if job.target.mode == "items" else None
+        started = time.perf_counter()
+        try:
+            result = await llm.aroute(
+                LLMRequest(
+                    prompt=job.prompt,
+                    system=_SYSTEM,
+                    response_schema=schema,
+                    max_tokens=int(getattr(settings, "LSAT_FACTORY_MAX_TOKENS", 8192)),
+                    providers=(xai_oauth.PROVIDER_NAME,),
+                ),
+                agent=FACTORY_AGENT,
+            )
+        except LLMUnavailableError as exc:
+            raise ExecutionError(f"job {job.job_id}: xAI unavailable ({exc})") from exc
+        latency_ms = (time.perf_counter() - started) * 1000.0
+        return RawBatch(
+            job_id=job.job_id,
+            payload=_parse_payload(result.text, job.job_id),
+            model_label=result.model_label,
             latency_ms=round(latency_ms, 2),
         )
 
 
 class OllamaExecutor:
-    """Local product-runtime generation; every tier → the Ollama default model."""
+    """Local product-runtime generation; every tier → the Ollama default model.
+
+    Routed through ``law_ai.core.llm`` with the chain pinned to the Ollama
+    provider (BL-20260810-05): the transport, its timeout, and its bounded
+    retry/backoff live in :class:`~law_ai.core.llm.providers.OllamaProvider`,
+    and every batch writes an ``llm_call`` provenance event like the hosted
+    executors do (constitution §4). A pinned single-provider chain cannot fall
+    through to a hosted tier, so a nightly local run never bills anyone.
+    """
 
     name = "ollama"
 
@@ -137,29 +227,26 @@ class OllamaExecutor:
 
     async def execute(self, job: GenerationJob) -> RawBatch:
         model = str(settings.OLLAMA_DEFAULT_MODEL)
-        url = str(settings.OLLAMA_BASE_URL).rstrip("/") + "/api/generate"
-        payload = {
-            "model": model,
-            "prompt": job.prompt,
-            "stream": False,
-            "options": {"temperature": 0.4},
-            "format": "json",
-        }
-        timeout = httpx.Timeout(float(settings.OLLAMA_REQUEST_TIMEOUT_S))
         started = time.perf_counter()
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                resp = await client.post(url, json=payload)
-                resp.raise_for_status()
-                data = resp.json()
-        except httpx.HTTPError as exc:
+            result = await llm.aroute(
+                LLMRequest(
+                    prompt=job.prompt,
+                    system=_SYSTEM,
+                    json_mode=True,
+                    temperature=0.4,
+                    models={llm.OLLAMA: model},
+                    providers=(llm.OLLAMA,),
+                ),
+                agent=FACTORY_AGENT,
+            )
+        except LLMUnavailableError as exc:
             raise ExecutionError(f"job {job.job_id}: Ollama error ({exc})") from exc
         latency_ms = (time.perf_counter() - started) * 1000.0
-        raw = str(data.get("response") or "").strip()
         return RawBatch(
             job_id=job.job_id,
-            payload=_parse_payload(raw, job.job_id),
-            model_label=model,
+            payload=_parse_payload(result.text, job.job_id),
+            model_label=result.model_label,
             latency_ms=round(latency_ms, 2),
         )
 

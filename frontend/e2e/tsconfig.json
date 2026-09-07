@@ -1,0 +1,19 @@
+{
+  // Type-checked inside the e2e image (`make test-e2e-typecheck`), not by the
+  // app's `tsc --noEmit`: the specs import @playwright/test and
+  // @axe-core/playwright, which the app bundle never touches.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "types": ["node"]
+  },
+  "include": ["./**/*.ts", "../playwright.config.ts"]
+}

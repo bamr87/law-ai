@@ -23,6 +23,9 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      lsat-static: ${{ steps.filter.outputs.lsat-static }}
+      visual: ${{ steps.filter.outputs.visual }}
+      lsat-content: ${{ steps.filter.outputs.lsat-content }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -32,9 +35,28 @@ jobs:
             backend:
               - 'backend/**'
               - '.github/workflows/ci.yml'
+              # BL-20260429-04: backend-lint runs this, so a change to it has
+              # to re-run the job even when no backend/ file moved.
+              - 'scripts/mypy_ratchet.py'
             frontend:
               - 'frontend/**'
               - '.github/workflows/ci.yml'
+            lsat-static:
+              - 'lsat-static/**'
+              - '.github/workflows/ci.yml'
+            # BL-20260702-11: the LSAT source bank. refresh-lsat-content.yml
+            # re-exports lsat-static/content.json and pushes it onto the PR
+            # branch for exactly this diff, so the drift gate below defers
+            # instead of demanding a manual `make lsat-export`.
+            lsat-content:
+              - 'backend/law_ai/lsat/services/data/**'
+            # BL-20260905-05: anything a reviewer would need to *see*.
+            # Deliberately does NOT include ci.yml — a workflow edit is not a
+            # visual change, and including it would demand a screenshot of
+            # every CI tweak.
+            visual:
+              - 'frontend/**'
+              - 'lsat-static/**'
 
   spec-gate:
     name: Spec Drift Gate
@@ -52,7 +74,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Validate specs
-        run: python scripts/spec_validator.py
+        # --strict (BL-20260906-48): the constitution §13 review-question
+        # warnings fail the gate here rather than printing into a log nobody
+        # reads. Shipped specs are exempt inside the validator, so this only
+        # ever fires on a spec whose author can still answer the question.
+        run: python scripts/spec_validator.py --strict
       - name: Validate BACKLOG.md
         run: python scripts/backlog_lint.py
         env:
@@ -70,14 +96,34 @@ jobs:
     # frontend subprocess suites are excluded via markers.
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: spec-gate
+    needs: [spec-gate, changes]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: pip install pytest
+        # PyYAML beside pytest: the config gates parse .github/workflows/*.yml
+        # and docker-compose.yml, and regexing a workflow file asserts on
+        # indentation rather than on meaning. Both are pure Python, so the
+        # suite's "no Docker, no Neo4j, no node_modules" promise still holds;
+        # without PyYAML those tests skip rather than fail (tests/conftest.py
+        # require_yaml), which is why this line is load-bearing.
+      - run: pip install pytest pyyaml
       - name: Run root structural suite (smoke + specs)
+        env:
+          # BL-20260702-11: on a same-repo PR that edits the LSAT bank,
+          # refresh-lsat-content.yml re-exports content.json and pushes it onto
+          # this very branch. Failing here as well would mean the developer
+          # still has to run `make lsat-export` by hand to get a green run —
+          # which is the manual step the item asked to remove. So the drift
+          # assertions defer to that job, and ONLY there: a fork PR (where the
+          # job cannot push), a push to main, and every local run still
+          # enforce them.
+          LSAT_CONTENT_AUTOEXPORT: >-
+            ${{ (github.event_name == 'pull_request' &&
+                 needs.changes.outputs.lsat-content == 'true' &&
+                 github.event.pull_request.head.repo.full_name ==
+                 github.repository) && '1' || '' }}
         run: pytest tests/ -m "not backend and not frontend" -q
 
   clean-install-smoke:
@@ -161,16 +207,31 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev]"
+      # BL-20260815-02: keep these extras a superset of
+      # backend/Dockerfile's, or an extras-only import (core.telemetry's
+      # lazy Phoenix/OTel imports) passes in the container and dies here.
+      # tests/test_configs.py::test_ci_extras_match_dockerfile enforces it.
+      - run: pip install -e ".[dev,local-ai,future-auth]"
       - run: ruff check .
       - run: black --check .
-      - run: mypy law_ai --strict
-        continue-on-error: true # tighten once strict-clean
+      # BL-20260429-04: this used to be a bare `mypy law_ai --strict` with
+      # `continue-on-error: true`, i.e. no gate at all. It is now ratcheted
+      # against backend/mypy-baseline.txt: the run fails if any file's strict
+      # error count grows, or if a file the baseline calls clean stops being
+      # clean. New code has to be strict-clean; the legacy backlog is burned
+      # down file by file (`make mypy-baseline` re-banks it).
+      - name: mypy --strict (ratcheted against backend/mypy-baseline.txt)
+        run: python3 ../scripts/mypy_ratchet.py --run
 
   backend-test:
     name: Backend Tests + Coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 15 was the budget when this suite was ~1,000 tests; the backlog-zero
+    # sweep took backend coverage from 82% to 90% and the run now needs about
+    # 15m20s on a runner, so it was being cancelled at the deadline and
+    # reported as a failed check. 30 leaves headroom without letting a genuine
+    # hang sit for an hour.
+    timeout-minutes: 30
     needs: [spec-gate, changes]
     if: needs.changes.outputs.backend == 'true'
     services:
@@ -204,7 +265,16 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev]"
+      # BL-20260815-02: keep these extras a superset of
+      # backend/Dockerfile's, or an extras-only import (core.telemetry's
+      # lazy Phoenix/OTel imports) passes in the container and dies here.
+      # tests/test_configs.py::test_ci_extras_match_dockerfile enforces it.
+      # `nlp` (BL-20260429-03) is on top of that superset: backend/Dockerfile
+      # installs the same en_core_web_sm wheel in its own `--no-deps` layer, and
+      # the `nlp`-marked tests load the real pipeline rather than skipping when
+      # it is absent — a silently missing model is the failure they exist to
+      # catch. Extras beyond the Dockerfile's are allowed by that same test.
+      - run: pip install -e ".[dev,local-ai,nlp,future-auth]"
       - name: Run pytest with coverage
         # Integration tests require Docker fixtures that aren't available here;
         # they run in the dedicated 'Docker-backed Integration Tests' workflow.
@@ -236,6 +306,34 @@ jobs:
       - run: npx tsc --noEmit
       - run: npm test -- --run
 
+  lsat-static:
+    name: LSAT Static Site Type-check + Test
+    # The static export has no compose service and its own package.json
+    # (`make test-lsat-static` locally). Vitest + RTL landed with
+    # BL-20260831-18; before that the site was verified only by the root
+    # structural suite and by hand.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [spec-gate, changes]
+    if: needs.changes.outputs.lsat-static == 'true'
+    defaults:
+      run:
+        working-directory: lsat-static
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: lsat-static/package-lock.json
+      - run: npm ci
+      # BL-20260905-15: this package had no eslint config, so `npm run lint`
+      # was an unconfigured `next lint` and the job gated on types + vitest
+      # alone. It now runs the same flat config the platform app does.
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm test -- --run
+
   legalbench:
     name: LegalBench harness check (changed reasoning only)
     runs-on: ubuntu-latest
@@ -258,7 +356,11 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev]"
+      # BL-20260815-02: keep these extras a superset of
+      # backend/Dockerfile's, or an extras-only import (core.telemetry's
+      # lazy Phoenix/OTel imports) passes in the container and dies here.
+      # tests/test_configs.py::test_ci_extras_match_dockerfile enforces it.
+      - run: pip install -e ".[dev,local-ai,future-auth]"
       - name: Verify the eval harness (scoring, paths, regression gate)
         run: pytest tests/eval -q
       - name: Remind reviewers where the real measurement runs
@@ -266,3 +368,91 @@ jobs:
           echo "::notice::Harness verified. The scored LegalBench run with a" \
                "real model happens in the nightly workflow" \
                "(make test-legalbench), which gates on --check-regression."
+
+  # ---------------------------------------------------------------------------
+  # Accessibility gate (BL-20260831-09). `scripts/ux_audit.py` in spec-gate is
+  # a stdlib grep: it cannot compute a contrast ratio, resolve an accessible
+  # name through ARIA, or watch focus move. axe-core in a real browser can, and
+  # the item asked for that on every PR — not once a week in a nightly nobody
+  # reads. It runs only when the diff touches frontend/, and it runs the same
+  # `make test-e2e` path a developer runs locally, against the same pinned
+  # `backend-e2e` sidecar (unreachable Ollama ⇒ no model is ever called).
+  #
+  # The disk-reclaim step is not superstition: the nightly workflow had to drop
+  # from daily to weekly after 37 consecutive runs died with 0 MB free while
+  # building both app images. Deleting the preinstalled toolchains the runner
+  # image ships buys ~25 GB, which is the difference between this gate working
+  # and this gate being switched off.
+  # ---------------------------------------------------------------------------
+  a11y:
+    name: Accessibility Smoke (axe-core, catalog routes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [spec-gate, changes]
+    if: needs.changes.outputs.frontend == 'true'
+    steps:
+      - uses: actions/checkout@v7
+      - name: Reclaim runner disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          docker image prune -af || true
+          df -h /
+      - name: Run the axe-core smoke over every catalog route
+        run: make test-e2e E2E_ARGS='e2e/a11y.spec.ts'
+      - name: Dump container logs
+        # `compose up --wait` reports "container X exited (1)" and nothing
+        # else, so a stack that dies on boot is undiagnosable from the run
+        # log alone — which cost a full round trip the first time it happened.
+        if: failure()
+        run: docker compose --profile e2e logs --no-color --tail=120 || true
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: a11y-report-${{ github.run_id }}
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # Visual-evidence gate (BL-20260905-05). The screenshot convention was prose
+  # in AGENTS.md plus a PR-template section, so a PR could rewrite every screen
+  # and attach nothing. Pull-request only: a push to main has no body to read.
+  #
+  # Opt out with the `no-visual-change` label for changes that genuinely have
+  # no visual effect. Fork contributors cannot label their own PR, so the
+  # gate's second branch — a new or changed file under docs/images/ — stays as
+  # the label-free escape hatch.
+  # ---------------------------------------------------------------------------
+  visual-evidence:
+    name: Visual Evidence Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: changes
+    if: >-
+      github.event_name == 'pull_request' &&
+      needs.changes.outputs.visual == 'true' &&
+      !contains(github.event.pull_request.labels.*.name, 'no-visual-change')
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The gate diffs against the PR base, so the merge-base must exist.
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Collect the changed files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --name-only "$BASE_SHA...$HEAD_SHA" | tee changed.txt
+      - name: Require a screenshot or a docs/images change
+        env:
+          # Body text is untrusted input; passing it through the environment
+          # rather than interpolating it into the shell keeps a PR title/body
+          # from becoming a script injection.
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: python3 scripts/visual_evidence_gate.py --changed-files changed.txt

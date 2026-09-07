@@ -28,7 +28,7 @@ def get_neo4j_driver() -> AsyncDriver:
 
 
 async def close_neo4j_driver() -> None:
-    """Close the singleton driver (call from FastAPI lifespan)."""
+    """Close the singleton driver (call on ASGI shutdown)."""
     global _driver
     if _driver is not None:
         await _driver.close()

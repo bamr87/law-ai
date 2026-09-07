@@ -94,12 +94,45 @@ class FactoryConfig(BaseModel):
         description="Token-Jaccard stem similarity at/above which a draft is "
         "rejected as a near-duplicate.",
     )
+    dedup_strip_context: bool = Field(
+        default=True,
+        description="Before the dedup comparison, drop stem sentences that "
+        "restate the shared passage/game setup so batch-mates written against "
+        "one context are judged on their question text, not the setup they "
+        "all repeat (BL-20260702-08). Items with no passage are unaffected.",
+    )
+    embed_dedup_enabled: bool = Field(
+        default=True,
+        description="Ask the local Ollama embedding model for a second, "
+        "semantic opinion on near-duplicates (BL-20260702-01): token-Jaccard "
+        "misses paraphrases. Fails open onto Jaccard alone when Ollama is "
+        "unreachable, so an offline run behaves exactly as before.",
+    )
+    embed_dedup_threshold: float = Field(
+        default=0.93,
+        ge=0.0,
+        le=1.0,
+        description="Cosine similarity of the question-specific text at/above "
+        "which a draft is rejected as a paraphrase of an existing item.",
+    )
     balance_tolerance: float = Field(
         default=0.40,
         gt=0.0,
         le=1.0,
         description="Max share of one answer key within an ingested batch "
         "before the batch is flagged for key skew.",
+    )
+    judge_enabled: bool = Field(
+        default=False,
+        description="Run the judge tier over each accepted draft and attach "
+        "an advisory verdict to its proposal meta before the HITL queue "
+        "(BL-20260702-02). Off by default: it doubles model calls per batch.",
+    )
+    guides_enabled: bool = Field(
+        default=True,
+        description="Draft a solve guide beside each accepted question draft "
+        "so guide coverage stops falling behind the bank (BL-20260901-04). "
+        "Both drafts stay pending; --no-guides turns it off for budget.",
     )
     gap_boost: float = Field(
         default=2.0,
@@ -164,9 +197,20 @@ class FactoryConfig(BaseModel):
             dedup_threshold=float(
                 getattr(settings, "LSAT_FACTORY_DEDUP_THRESHOLD", 0.60)
             ),
+            dedup_strip_context=bool(
+                getattr(settings, "LSAT_FACTORY_DEDUP_STRIP_CONTEXT", True)
+            ),
+            embed_dedup_enabled=bool(
+                getattr(settings, "LSAT_FACTORY_EMBED_DEDUP", True)
+            ),
+            embed_dedup_threshold=float(
+                getattr(settings, "LSAT_FACTORY_EMBED_THRESHOLD", 0.93)
+            ),
             balance_tolerance=float(
                 getattr(settings, "LSAT_FACTORY_BALANCE_TOLERANCE", 0.40)
             ),
+            judge_enabled=bool(getattr(settings, "LSAT_FACTORY_JUDGE", False)),
+            guides_enabled=bool(getattr(settings, "LSAT_FACTORY_GUIDES", True)),
             gap_boost=float(getattr(settings, "LSAT_FACTORY_GAP_BOOST", 2.0)),
             claude_tier_models=tier_models,
             output_dir=Path(

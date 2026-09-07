@@ -40,12 +40,15 @@ from law_ai.lsat.factory.executors import (
     OllamaExecutor,
     SynthExecutor,
     RawBatch,
+    XaiExecutor,
 )
 from law_ai.lsat.factory.intake import (
     GateRejection,
     IngestResult,
     ingest_batch,
 )
+from law_ai.lsat.factory.guides import draft_guides
+from law_ai.lsat.factory.judge import judge_result
 from law_ai.lsat.factory.manifest import (
     GenerationJob,
     GenerationManifest,
@@ -56,6 +59,7 @@ from law_ai.lsat.factory.manifest import (
 from law_ai.lsat.factory.pipeline import (
     compile_plan,
     execute_manifest,
+    export_bundle,
     ingest_drafts_file,
     load_manifest,
     plan,
@@ -65,6 +69,8 @@ from law_ai.lsat.factory.taxonomy import (
     Archetype,
     all_archetypes,
     archetypes_for,
+    every_archetype,
+    writing_archetypes,
     get_archetype,
     validate_taxonomy,
 )
@@ -89,16 +95,21 @@ __all__ = [
     "OllamaExecutor",
     "RawBatch",
     "SynthExecutor",
+    "XaiExecutor",
     "all_archetypes",
     "archetypes_for",
     "build_manifest",
     "compile_plan",
     "compile_prompt",
     "coverage_matrix",
+    "draft_guides",
+    "every_archetype",
     "execute_manifest",
+    "export_bundle",
     "get_archetype",
     "ingest_batch",
     "ingest_drafts_file",
+    "judge_result",
     "load_manifest",
     "plan",
     "plan_targets",
@@ -107,4 +118,5 @@ __all__ = [
     "status",
     "validate_taxonomy",
     "write_manifest",
+    "writing_archetypes",
 ]

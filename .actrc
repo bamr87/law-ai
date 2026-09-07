@@ -1,0 +1,27 @@
+# nektos/act defaults for this repo — BL-20260511-18.
+#
+# Purpose: smoke-test `.github/workflows/nightly-tests.yml` with
+# `dry_run=true` locally instead of burning a real dispatch. Run it with
+# `make nightly-dry-run` (which supplies the event, the input, and a token).
+#
+# Only the dry_run path is meant to work under act. The docker-compose steps
+# need a Docker socket inside the job container and the disk-cleanup step is
+# specific to GitHub's hosted runner image; both are already guarded by
+# `if: ${{ !inputs.dry_run }}`. The "Open draft PR" step is guarded by
+# `!env.ACT` so a local run can never push a branch.
+#
+# Requires act on the host (`brew install act`) and a running Docker daemon.
+# act is the one sanctioned exception to the Docker-first `make` rule because
+# it *is* the Docker runner — it never installs a host toolchain.
+
+# Pin the runner image. act's default `-P ubuntu-latest=node:16-buster-slim`
+# is too thin (no python3, no gh), and its `medium`/`large` catthehacker
+# images pull many GB. `act-22.04` carries python3 + gh and is ~1.5 GB.
+-P ubuntu-latest=catthehacker/ubuntu:act-22.04
+
+# Apple silicon: the runner images are amd64-only, so ask for emulation
+# explicitly rather than letting act warn and guess.
+--container-architecture linux/amd64
+
+# Keep upload-artifact steps from failing the run; the path is gitignored.
+--artifact-server-path .act-artifacts

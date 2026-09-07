@@ -1,32 +1,30 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { SectionCode } from '@/lib/types'
 import { content, SECTIONS, sectionMeta } from '@/lib/data'
 import Overview from '@/components/Overview'
 import Drill from '@/components/Drill'
 import Writing from '@/components/Writing'
-import Concepts from '@/components/Concepts'
 import Library from '@/components/Library'
 import Stats from '@/components/Stats'
 import ShortcutHelp from '@/components/ShortcutHelp'
 import { useShortcuts } from '@/lib/keyboard'
+import { useMeasuredCssVar } from '@/lib/useMeasuredCssVar'
+import { readHeaderPinned, writeHeaderPinned } from '@/lib/deviceState'
 
-type View =
-  | 'overview'
-  | SectionCode
-  | 'writing'
-  | 'library'
-  | 'concepts'
-  | 'stats'
+type View = 'overview' | SectionCode | 'writing' | 'library' | 'stats'
 
 /**
- * Eight destinations at full length do not fit one row at ANY width: even at
+ * Seven destinations at full length do not fit one row at ANY width: even at
  * 1280px "Logical Reasoning · Reading Comprehension · Logic Games ·
- * Argumentative Writing" plus the brand exceeds the 960px content column, and
- * the row wrapped — which pushed the header to 101px on desktop and 136px on
- * a phone, and desynchronised the `--site-header-h` sticky offset the drill
+ * Argumentative Writing" plus the brand exceeds the content column, and the
+ * row wrapped — which pushed the header to 101px on desktop and 136px on a
+ * phone, and desynchronised the `--site-header-h` sticky offset the drill
  * head and passage column hang from.
+ *
+ * (Eight before the concept catalog moved inside the library, which is where
+ * the vocabulary belongs anyway — next to the articles that teach it.)
  *
  * So the bar is compact everywhere and the section codes carry the sections,
  * which is how test-takers refer to them anyway. `full` is the accessible
@@ -40,8 +38,7 @@ const NAV: { id: View; label: string; full: string }[] = [
   { id: 'RC', label: 'RC', full: 'Reading Comprehension' },
   { id: 'LG', label: 'LG', full: 'Logic Games' },
   { id: 'writing', label: 'Writing', full: 'Argumentative Writing' },
-  { id: 'library', label: 'Library', full: 'Knowledge library' },
-  { id: 'concepts', label: 'Concepts', full: 'Concepts' },
+  { id: 'library', label: 'Library', full: 'Library & concepts' },
   { id: 'stats', label: 'Stats', full: 'Stats' },
 ]
 
@@ -62,7 +59,15 @@ type HeaderState = 'top' | 'condensed' | 'hidden'
 
 /** Below this the page counts as "at the top" and the header is never hidden. */
 const AT_TOP_PX = 8
-/** Don't hide until the reader is past roughly a screenful of content. */
+/**
+ * Don't hide until the reader is past roughly a screenful of content.
+ *
+ * A view whose whole document fits inside this therefore never reaches
+ * `hidden` — Overview on a 390px phone is the case that raised it
+ * (BL-20260906-61). That is deliberate: there is nothing further down to make
+ * room for, so taking the nav away would cost the reader something and buy
+ * them nothing. `__tests__/headerScroll.test.tsx` pins both halves.
+ */
 const HIDE_AFTER_PX = 220
 /** Ignore scrolls smaller than this: momentum and rubber-banding both jitter. */
 const DIRECTION_DELTA_PX = 6
@@ -76,9 +81,37 @@ export default function Page() {
   const [view, setView] = useState<View>('overview')
   const [announcement, setAnnouncement] = useState('')
   const navRef = useRef<HTMLElement | null>(null)
+  const headerRef = useRef<HTMLElement | null>(null)
   const [navScrollable, setNavScrollable] = useState(false)
   const [headerState, setHeaderState] = useState<HeaderState>('top')
   const [helpOpen, setHelpOpen] = useState(false)
+  // The reader's answer to "should the header get out of the way?". Hiding on
+  // scroll direction is the right default — a phone spends 136px of a short
+  // viewport on chrome — but it is an answer to a question, not a fact, so the
+  // behaviour is toggleable and the choice is remembered per device
+  // (BL-20260901-05). The key and its accessors live in `lib/deviceState.ts`
+  // with the rest of what this site stores, which is also where the decision
+  // to keep preferences out of the export snapshot is written down
+  // (BL-20260905-16).
+  //
+  // Read after mount, never during render: the export prerenders this page
+  // where there is no localStorage, and a first paint that disagreed with the
+  // stored preference would be a hydration mismatch.
+  const [pinned, setPinned] = useState(false)
+  useEffect(() => {
+    setPinned(readHeaderPinned())
+  }, [])
+
+  // The sticky stack hangs off `--site-header-h`. Measure it rather than
+  // trusting the constant in globals.css, which had to be re-measured by hand
+  // every time the header's content changed (BL-20260831-20). Wide viewports
+  // only: below 820px the header condenses and hides on a transform, and
+  // writing an animating height into a sticky offset makes the rungs below it
+  // jitter for the length of the transition.
+  useMeasuredCssVar(headerRef, '--site-header-h', {
+    tuckPx: 1,
+    onlyWhen: '(min-width: 820px)',
+  })
 
   // The two bindings that operate the help dialog keep working while it is
   // open — everything else on the page is suspended behind it.
@@ -100,21 +133,53 @@ export default function Page() {
     ']': () => setView((v) => NAV[Math.min(NAV.length - 1, indexOfView(v) + 1)].id),
   })
 
+  const togglePinned = useCallback(() => {
+    setPinned((was) => {
+      const next = !was
+      writeHeaderPinned(next)
+      // Pinning while the bar is away has to bring it back, or the control
+      // appears to do nothing until the next scroll.
+      if (next) setHeaderState((s) => (s === 'hidden' ? 'condensed' : s))
+      return next
+    })
+  }, [])
+
+  useShortcuts({ '.': togglePinned })
+
+  // Read through a ref so pinning does not tear down and rebuild the scroll
+  // listener — and so the listener always sees the current answer.
+  const pinnedRef = useRef(pinned)
+  useEffect(() => {
+    pinnedRef.current = pinned
+  })
+
   // Direction-aware header. A plain "hide past N pixels" rule strands the nav
   // behind a long scroll back; keying on direction means a flick upward brings
   // it straight back, which is the behaviour every reader already expects.
   useEffect(() => {
     let lastY = window.scrollY
+    let lastHeight = document.documentElement.scrollHeight
     let queued = false
 
     const update = () => {
       queued = false
       const y = window.scrollY
       const dy = y - lastY
+      // A page barely taller than the viewport shortens as the header
+      // condenses, and the browser then clamps scrollY down to fit. That
+      // looks exactly like a scroll back up, which used to restore the bar
+      // the reader had just scrolled away — so on a short page `hidden` was
+      // unreachable (BL-20260905-20). A backwards delta that arrives with a
+      // document-height change is reflow, not intent.
+      const height = document.documentElement.scrollHeight
+      const reflowed = height !== lastHeight
+      lastHeight = height
       if (y > AT_TOP_PX && Math.abs(dy) < DIRECTION_DELTA_PX) return
       lastY = y
       if (y <= AT_TOP_PX) setHeaderState('top')
-      else if (dy > 0 && y > HIDE_AFTER_PX) setHeaderState('hidden')
+      else if (reflowed && dy < 0) return
+      else if (dy > 0 && y > HIDE_AFTER_PX && !pinnedRef.current)
+        setHeaderState('hidden')
       else setHeaderState('condensed')
     }
 
@@ -167,7 +232,11 @@ export default function Page() {
   return (
     <>
       <header
-        className={`site-header site-header-${headerState}`}
+        ref={headerRef}
+        className={
+          `site-header site-header-${headerState}` +
+          (pinned ? ' site-header-pinned' : '')
+        }
         // A hidden header is still in the tab order, and a browser will not
         // always scroll a transformed sticky element into view — so any focus
         // landing inside brings it back rather than leaving a keyboard user
@@ -198,6 +267,20 @@ export default function Page() {
               </button>
             ))}
           </nav>
+          {/* Narrow viewports only — the hide-on-scroll behaviour this undoes
+              lives inside a `max-width: 819px` query, so above that the
+              control would promise something it cannot deliver. */}
+          <button
+            type="button"
+            className="header-pin"
+            aria-pressed={pinned}
+            aria-label={pinned ? 'Unpin the header' : 'Keep the header visible'}
+            title={pinned ? 'Unpin the header' : 'Keep the header visible'}
+            aria-keyshortcuts="."
+            onClick={togglePinned}
+          >
+            <span aria-hidden="true">{pinned ? '📌' : '📍'}</span>
+          </button>
         </div>
       </header>
 
@@ -212,7 +295,6 @@ export default function Page() {
           )}
           {view === 'writing' && <Writing onAnnounce={setAnnouncement} />}
           {view === 'library' && <Library onAnnounce={setAnnouncement} />}
-          {view === 'concepts' && <Concepts />}
           {view === 'stats' && <Stats />}
         </div>
       </main>

@@ -1,7 +1,9 @@
 # Analyze Node Prompt — Spec 010 / LegalWorkflow
 
-**Version**: 1 **Model**: configurable via `OLLAMA_DEFAULT_MODEL` **Inputs**: `question` (str), `retrieved` (list of {title, snippet, source_url})
+**Version**: 2 **Model**: configurable via `OLLAMA_DEFAULT_MODEL` **Inputs**: `question` (str), `retrieved` (list of {title, snippet, source_url})
 **Output**: JSON `{"answer": str, "citations": [{"text": str, "source_url": str | null}], "confidence": float}`
+
+**v2 (BL-20260803-04)**: the node prepends a `CORPUS COVERAGE (restate this verbatim …)` block when the retriever published a coverage note, and backfills each citation's `attribution` (court, jurisdiction, decided_at, binding/persuasive) from the retrieved passage it matches — the model is never asked to restate the issuing authority, because a restated court is one more thing that can be hallucinated. A citation that cannot be matched to a passage keeps an empty attribution and `cite_check` forces human review.
 
 System message:
 

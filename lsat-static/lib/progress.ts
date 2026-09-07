@@ -37,6 +37,21 @@ export function recordAttempt(a: Attempt): void {
   }
 }
 
+/**
+ * Replace the whole attempt history.
+ *
+ * Only `backup.ts` uses this: a restore is not a sequence of new attempts, it
+ * is the history the reader chose to have (BL-20260702-10).
+ */
+export function writeAttempts(attempts: Attempt[]): void {
+  if (!canStore()) return
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(attempts))
+  } catch {
+    /* storage full / disabled */
+  }
+}
+
 export function clearAttempts(): void {
   if (!canStore()) return
   try {

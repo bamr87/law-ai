@@ -38,7 +38,6 @@ services:
     # only the CLI binary (`node --inspect .bin/next dev`) left server-side
     # breakpoints unbound.
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
       - NODE_OPTIONS=--inspect=0.0.0.0:9229
     command: npm run dev
     ports:

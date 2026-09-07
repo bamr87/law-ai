@@ -1,7 +1,24 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { breadcrumbsForPath, MODULE_CATALOG } from '@/lib/modules/catalog'
 import { buildCommands, filterCommands } from '@/lib/shell/commands'
-import { panelHref, panelOpen, withPanel } from '@/lib/shell/panels'
+import { INSTANCE_SCOPE } from '@/lib/scope/instance'
+import { listSettingValues, upsertSettingValue } from '@/lib/scope/store'
+import {
+  railVisible,
+  SETTING_CATALOG,
+  sidebarSide,
+} from '@/lib/settings/catalog'
+import {
+  LAYOUT_SETTINGS,
+  resetLayout,
+  resolvePanelSides,
+} from '@/lib/shell/layout'
+import {
+  panelHref,
+  panelOpen,
+  withoutPanels,
+  withPanel,
+} from '@/lib/shell/panels'
 import {
   clearScrollMemory,
   recallScroll,
@@ -10,6 +27,8 @@ import {
 import {
   isTypingTarget,
   matchShortcut,
+  mergeShortcutGroups,
+  SHELL_SHORTCUTS,
   SHORTCUT_HELP,
 } from '@/lib/shell/shortcuts'
 
@@ -90,6 +109,40 @@ describe('keyboard contract', () => {
   it('documents every action it can produce', () => {
     expect(SHORTCUT_HELP.length).toBeGreaterThanOrEqual(5)
   })
+
+  // BL-20260901-10: a page contributes rows to the `?` sheet.
+  it('puts the shell group first and the page groups after it', () => {
+    const page = { title: 'Question drill', rows: [{ keys: 'N', label: 'Next' }] }
+    const merged = mergeShortcutGroups([page])
+    expect(merged.map((g) => g.title)).toEqual([
+      SHELL_SHORTCUTS.title,
+      'Question drill',
+    ])
+    expect(merged[0].rows).toEqual(SHORTCUT_HELP)
+  })
+
+  it('is just the shell group when no page registered one', () => {
+    expect(mergeShortcutGroups([])).toEqual([SHELL_SHORTCUTS])
+  })
+
+  it('lists a title once, however many components registered it', () => {
+    const page = { title: 'Question drill', rows: [{ keys: 'N', label: 'Next' }] }
+    expect(mergeShortcutGroups([page, page, page])).toHaveLength(2)
+  })
+
+  it('drops an empty group rather than printing a heading over nothing', () => {
+    expect(mergeShortcutGroups([{ title: 'Nothing', rows: [] }])).toEqual([
+      SHELL_SHORTCUTS,
+    ])
+  })
+
+  it('never lets a page shadow the shell group', () => {
+    const impostor = {
+      title: SHELL_SHORTCUTS.title,
+      rows: [{ keys: '?', label: 'Something else entirely' }],
+    }
+    expect(mergeShortcutGroups([impostor])).toEqual([SHELL_SHORTCUTS])
+  })
 })
 
 describe('scroll memory', () => {
@@ -135,6 +188,9 @@ describe('command palette model', () => {
     const actions = commands.filter((c) => c.action).map((c) => c.action)
     expect(actions).toContain('toggle-sidebar')
     expect(actions).toContain('toggle-inspector')
+    expect(actions).toContain('toggle-rail')
+    expect(actions).toContain('toggle-breadcrumbs')
+    expect(actions).toContain('reset-layout')
     expect(actions).toContain('back-to-top')
   })
 
@@ -180,5 +236,56 @@ describe('breadcrumbs', () => {
       label: 'LSAT Lab',
       current: true,
     })
+  })
+})
+
+describe('layout preferences (spec 051)', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+  })
+
+  it('keeps the sidebar outermost and the inspector innermost on either edge', () => {
+    expect(resolvePanelSides({ sidebar: 'left', inspector: 'right' })).toEqual({
+      left: ['sidebar'],
+      right: ['inspector'],
+    })
+    expect(resolvePanelSides({ sidebar: 'right', inspector: 'right' })).toEqual({
+      left: [],
+      right: ['inspector', 'sidebar'],
+    })
+    expect(resolvePanelSides({ sidebar: 'left', inspector: 'left' })).toEqual({
+      left: ['sidebar', 'inspector'],
+      right: [],
+    })
+    expect(resolvePanelSides({ sidebar: 'right', inspector: 'left' })).toEqual({
+      left: ['inspector'],
+      right: ['sidebar'],
+    })
+  })
+
+  it('resets by deleting rows, and only layout rows', () => {
+    const write = (key: string, value: unknown) =>
+      upsertSettingValue({ scopeId: INSTANCE_SCOPE.id, key, value, locked: false })
+    write(railVisible.key, false)
+    write(sidebarSide.key, 'right')
+    write('analysis.hitl_threshold', 0.9)
+    resetLayout()
+    expect(listSettingValues().map((r) => r.key)).toEqual([
+      'analysis.hitl_threshold',
+    ])
+  })
+
+  it('owns every ui.* setting in the catalog', () => {
+    const owned = LAYOUT_SETTINGS.map((d) => d.key)
+    for (const def of SETTING_CATALOG) {
+      if (def.key.startsWith('ui.')) expect(owned).toContain(def.key)
+    }
+  })
+
+  it('drops both panel params from a URL and nothing else', () => {
+    expect(
+      withoutPanels(new URLSearchParams('sidebar=0&inspector=1&concept=x')),
+    ).toBe('concept=x')
+    expect(withoutPanels(new URLSearchParams('sidebar=0'))).toBe('')
   })
 })

@@ -2,12 +2,13 @@
 //
 // The real module requires an App Router runtime and reads `process.env.__NEXT_*`
 // at module scope, so importing it poisons the whole bundle (see ../process-shim.ts).
-// NavBar is the only consumer, and it uses `usePathname()` purely to decide which
-// nav item is active.
+// No synced component consumes it today: `NavBar`, the original consumer, was
+// deleted under BL-20260831-01 (the spec 040 shell replaced it). The shim stays
+// so the next route-aware export does not re-derive the fix.
 //
 // `usePathname()` reads `window.__LAWAI_PATHNAME` when set, so a preview can
-// render the nav's active state for any route by assigning that global before
-// mount; it falls back to '/' — the same value NavBar's own `|| '/'` guard uses.
+// render a component's active state for any route by assigning that global
+// before mount; it falls back to '/'.
 //
 // Wired in via `compilerOptions.paths` in ../tsconfig.json.
 

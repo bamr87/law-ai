@@ -143,3 +143,16 @@ async def test_densify_extraction_no_citations_short_circuits() -> None:
     out = await densify_extraction(session, _make_result([]))
     assert out.citations == []
     assert session.calls == []
+
+
+def test_resolve_cypher_orders_before_collect_for_determinism() -> None:
+    """BL-20260429-12: ``head(collect(c.id))`` must be fed a sorted stream.
+
+    Without the ``ORDER BY`` two Cases sharing an alias resolve to whichever
+    node Neo4j scanned first. The live-graph proof is the integration test
+    ``test_resolve_citations_overlapping_alias_is_deterministic``.
+    """
+    assert "ORDER BY n, c.id" in RESOLVE_CITATIONS_CYPHER
+    order_at = RESOLVE_CITATIONS_CYPHER.index("ORDER BY n, c.id")
+    collect_at = RESOLVE_CITATIONS_CYPHER.index("head(collect(c.id))")
+    assert order_at < collect_at

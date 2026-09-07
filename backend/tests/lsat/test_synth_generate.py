@@ -296,6 +296,133 @@ class TestGeneration:
         assert len(keys) >= 3
 
 
+#: Schemas whose premise arrangement is drawn per item (BL-20260903-15). The
+#: assumption and structural schemas keep a fixed skeleton on purpose: their
+#: credited answer is defined by the gap in the argument, not by the shape.
+_DRAWN_SCHEMAS = (
+    "lr-conditional-chain-forward",
+    "lr-conditional-chain-contrapositive",
+    "lr-conditional-cannot-be-true",
+    "lr-quantifier-most-overlap",
+    "lr-quantifier-all-some",
+    "lg-sequencing-acceptability",
+    "lg-sequencing-must-be-true",
+    "lg-grouping-acceptability",
+)
+
+
+class TestArrangements:
+    """One schema, many premise shapes — under the same proof."""
+
+    @pytest.mark.parametrize("schema_id", _DRAWN_SCHEMAS)
+    def test_seeds_draw_at_least_two_premise_shapes(self, schema_id: str) -> None:
+        items = [generate(schema_id, "municipal-policy", seed=s) for s in range(16)]
+        shapes = {tuple(sorted(i.provenance.arrangement.items())) for i in items}
+        assert len(shapes) >= 2, shapes
+        assert all(i.report.ok for i in items)
+        # Every drawn schema records what it drew, so provenance carries the
+        # shape and not only the seed that produced it.
+        assert all(i.provenance.arrangement for i in items)
+
+    @pytest.mark.parametrize(
+        "schema_id",
+        (
+            "lr-conditional-chain-forward",
+            "lr-conditional-chain-contrapositive",
+            # BL-20260903-15: this one shipped with a hard-coded 5-premise
+            # literal long after its siblings drew, so it is pinned by name.
+            "lr-conditional-cannot-be-true",
+        ),
+    )
+    def test_chain_length_trigger_and_rule_count_all_vary(self, schema_id: str) -> None:
+        seen: dict[str, set[int | str]] = {
+            "chain_length": set(),
+            "trigger_index": set(),
+            "rule_count": set(),
+        }
+        for seed in range(24):
+            arrangement = generate(
+                schema_id, "field-biology", seed=seed
+            ).provenance.arrangement
+            for key, bucket in seen.items():
+                bucket.add(arrangement[key])
+        for key, values in seen.items():
+            assert len(values) >= 2, f"{schema_id}: {key} never varied"
+
+    def test_game_rule_counts_vary(self) -> None:
+        counts = {
+            generate(
+                "lg-sequencing-must-be-true", "field-biology", seed=s
+            ).provenance.arrangement["rule_count"]
+            for s in range(16)
+        }
+        assert len(counts) >= 2
+
+    def test_same_seed_draws_the_same_arrangement_in_every_domain(self) -> None:
+        """The skeleton is keyed on the seed alone, so a domain swap cannot
+        change the proof — that is the spec's central claim made literal."""
+        arrangements = {
+            tuple(
+                sorted(
+                    generate(
+                        "lg-sequencing-must-be-true", d.id, seed=7
+                    ).provenance.arrangement.items()
+                )
+            )
+            for d in load_domains().values()
+        }
+        assert len(arrangements) == 1
+
+    def test_a_sequencing_key_never_restates_a_rule(self) -> None:
+        schema = get_schema("lg-sequencing-must-be-true")
+        for seed in range(12):
+            blueprint = schema.build(
+                random.Random(seed), load_domains()["municipal-policy"]
+            )
+            credited = blueprint.choices[0].statement
+            assert credited not in blueprint.premises
+
+    def test_redraw_gives_up_after_the_cap(self) -> None:
+        from law_ai.lsat.synth import schemas as mod
+
+        calls = 0
+
+        def _never(rng: random.Random) -> Blueprint:
+            nonlocal calls
+            calls += 1
+            raise mod.SchemaError("no good")
+
+        with pytest.raises(mod.SchemaError, match="no arrangement verified"):
+            mod._draw_until(random.Random(0), _never, what="test")
+        assert calls == mod.MAX_ARRANGEMENT_DRAWS
+
+    def test_fixed_schemas_report_an_empty_arrangement(self) -> None:
+        """And the fixed set is exactly these five (BL-20260903-15).
+
+        The exception used to be stated in prose and was wrong about the tree:
+        a `cannot_be_true` LR schema sat in it with no justification. Pinning
+        the whole set means a schema that quietly stops drawing fails here
+        instead of joining an unstated exception.
+        """
+        item = generate("lr-necessary-assumption", "municipal-policy", seed=1)
+        assert item.provenance.arrangement == {}
+
+        fixed = {
+            schema.meta.id
+            for schema in all_schemas()
+            if not generate(
+                schema.meta.id, "municipal-policy", seed=3
+            ).provenance.arrangement
+        }
+        assert fixed == {
+            "lr-sufficient-assumption",
+            "lr-necessary-assumption",
+            "lr-causal-weaken",
+            "lr-causal-strengthen",
+            "lr-percent-vs-number",
+        }
+
+
 class TestVerificationCatchesDefects:
     def _blueprint_with_broken_key(self) -> tuple[Blueprint, list[LabelledChoice]]:
         """Take a real skeleton and promote a distractor to credited."""
@@ -375,3 +502,425 @@ class TestSweep:
         assert result.combinations >= len(all_schemas())
         assert result.generated > 0
         assert result.ok, [f.model_dump() for f in result.failures[:5]]
+
+
+class TestFourTermQuantifierChain:
+    """BL-20260903-16: the schema enumeration could not afford."""
+
+    def test_it_is_proved_symbolically(self) -> None:
+        item = generate("lr-quantifier-chain-four-term", "municipal-policy", seed=0)
+        assert item.report.ok
+        assert item.report.proof_kind == "logical"
+        assert item.report.decision == "symbolic"
+        # Four predicates: the space is reported, never walked.
+        assert item.report.space_models == 3 ** (2**4)
+        assert "symbolically" in item.report.summary()
+
+    def test_it_uses_four_distinct_properties(self) -> None:
+        item = generate("lr-quantifier-chain-four-term", "field-biology", seed=2)
+        schema = get_schema("lr-quantifier-chain-four-term")
+        assert len(schema.meta.concepts) >= 2
+        # Three premises plus the question sentence.
+        assert item.question.stem.count(".") >= 3
+        assert len(item.question.choices) == 5
+
+    def test_the_chain_shape_is_recorded(self) -> None:
+        shapes = {
+            generate(
+                "lr-quantifier-chain-four-term", "municipal-policy", seed=s
+            ).provenance.arrangement["chain"]
+            for s in range(8)
+        }
+        assert len(shapes) > 1
+
+    def test_every_domain_that_supports_region_content_works(self) -> None:
+        from law_ai.lsat.synth.lexicon import load_domains
+
+        for domain in load_domains().values():
+            if not domain.supports("region"):
+                continue
+            item = generate("lr-quantifier-chain-four-term", domain.id, seed=1)
+            assert item.report.ok, (domain.id, item.report.failures)
+
+    def test_an_assumption_family_cannot_be_proved_symbolically(self) -> None:
+        """The one thing the solver is not allowed to certify, refused loudly."""
+        from law_ai.lsat.synth.logic import (
+            All,
+            Most,
+            No,
+            Some,
+            SymbolicRegionSpace,
+            SynthLogicError,
+        )
+        from law_ai.lsat.synth.schemas import BindingSpec, Blueprint, FormalChoice
+        from law_ai.lsat.synth.verify import LabelledChoice, verify
+
+        slots = ("P", "Q", "R", "S")
+        space = SymbolicRegionSpace(predicates=slots)
+        blueprint = Blueprint(
+            family="sufficient_assumption",
+            proof_kind="logical",
+            binding_spec=BindingSpec(property_slots=slots),
+            premises=(All("P", "Q"), Most("Q", "R")),
+            conclusion=Some("P", "S"),
+            choices=(FormalChoice(role="credited", statement=All("Q", "S")),),
+            space=space,
+        )
+        choices = [
+            LabelledChoice(
+                label=label,
+                role="credited" if i == 0 else "distractor",
+                text=f"choice {label} text here",
+                statement=statement,
+            )
+            for i, (label, statement) in enumerate(
+                zip(
+                    ("A", "B", "C", "D", "E"),
+                    (
+                        All("Q", "S"),
+                        All("R", "S"),
+                        Some("Q", "S"),
+                        Most("Q", "S"),
+                        No("Q", "S"),
+                    ),
+                    strict=True,
+                )
+            )
+        ]
+        with pytest.raises(SynthLogicError, match="enumerated space"):
+            verify(blueprint, choices, schema_id="test-symbolic-assumption")
+
+
+#: Every archetype the engine can *prove* today. BL-20260903-13 grew this from
+#: twelve and BL-20260905-62 added the last two games families — max/min and
+#: rule substitution; it is written out rather than derived so that adding or
+#: losing a schema is a visible change to a test, not a silent change to
+#: coverage.
+PROVABLE_ARCHETYPES = {
+    "lg-acceptability",
+    "lg-could-be-true-except",
+    "lg-grouping",
+    "lg-in-out-selection",
+    "lg-local-conditional",
+    "lg-max-min",
+    "lg-must-be-true",
+    "lg-numeric-distribution",
+    "lg-rule-substitution",
+    "lr-cannot-be-true",
+    "lr-conditional-inference",
+    "lr-contrapositive-inference",
+    "lr-most-strongly-supported",
+    "lr-must-be-true",
+    "lr-necessary-assumption",
+    "lr-percent-vs-number",
+    "lr-strengthen",
+    "lr-sufficient-assumption",
+    "lr-weaken",
+}
+
+
+class TestArchetypeCoverage:
+    """BL-20260903-13: which of the taxonomy's 45 archetypes are provable."""
+
+    def test_the_covered_set_is_exactly_the_documented_one(self) -> None:
+        covered = {s.meta.archetype_id for s in all_schemas()}
+        assert covered == PROVABLE_ARCHETYPES
+
+    def test_coverage_is_a_third_of_the_taxonomy(self) -> None:
+        from law_ai.lsat.factory import taxonomy
+
+        total = len(list(taxonomy.all_archetypes()))
+        assert total == 45
+        assert len(PROVABLE_ARCHETYPES) >= 19
+
+    def test_an_uncovered_archetype_is_still_refused(self) -> None:
+        """The engine must not substitute something else for a miss."""
+        covered = {s.meta.archetype_id for s in all_schemas()}
+        assert "rc-main-point" not in covered
+        assert "lr-parallel-reasoning" not in covered
+
+
+class TestGamesFamilies:
+    """The LG schemas added in BL-20260903-13, each proved by enumeration."""
+
+    def test_cannot_be_true_has_exactly_one_impossible_choice(self) -> None:
+        item = generate("lg-sequencing-cannot-be-true", "municipal-policy", seed=1)
+        statuses = [c.status for c in item.report.choices]
+        assert statuses.count("contradicted") == 1
+        credited = next(
+            c for c in item.report.choices if c.label == item.question.correct
+        )
+        assert credited.status == "contradicted"
+        # Every other choice is realizable in some surviving arrangement.
+        assert all(
+            c.status == "contingent"
+            for c in item.report.choices
+            if c.label != item.question.correct
+        )
+
+    def test_a_local_supposition_lives_in_the_question(self) -> None:
+        item = generate("lg-sequencing-local-conditional", "municipal-policy", seed=3)
+        stimulus, question = item.question.stem.split("\n\n")
+        assert question.startswith("If ")
+        assert "must be true" in question
+        # The supposition is a premise for the proof but not a rule on the board.
+        rules = [s for s in stimulus.split(". ") if s]
+        assert len(rules) >= 2
+        assert question.rstrip("?").split(", which")[0][3:] not in stimulus
+
+    def test_the_selection_item_needs_more_than_one_rule(self) -> None:
+        from law_ai.lsat.synth.logic import entails
+
+        schema = get_schema("lg-conditional-selection")
+        blueprint = schema.build(
+            random.Random("selection"), load_domains()["field-biology"]
+        )
+        credited = next(c for c in blueprint.choices if c.role.startswith("credited"))
+        assert credited.statement is not None
+        assert blueprint.space is not None
+        for rule in blueprint.premises:
+            assert not entails(blueprint.space, [rule], credited.statement)
+
+    def test_the_numeric_item_always_draws_a_counting_rule(self) -> None:
+        from law_ai.lsat.synth.logic import GroupSize
+
+        schema = get_schema("lg-numeric-distribution")
+        for seed in range(4):
+            blueprint = schema.build(
+                random.Random(f"numeric-{seed}"), load_domains()["municipal-policy"]
+            )
+            assert any(isinstance(p, GroupSize) for p in blueprint.premises)
+
+    def test_the_supported_inference_answer_is_actually_entailed(self) -> None:
+        item = generate("lr-supported-inference", "academic-publishing", seed=2)
+        credited = next(
+            c for c in item.report.choices if c.label == item.question.correct
+        )
+        assert credited.status == "entailed"
+        assert "most strongly support" in item.question.stem
+
+
+class TestIntroBand:
+    """BL-20260905-50: the low band is generable, not only hand-authored.
+
+    ``backend/tests/lsat/test_bank_bands.py`` holds a floor under every band,
+    and until these two schemas existed the engine could not help hold it: the
+    registry declared easy through hard only, so ``lsat_synth generate`` could
+    never emit an intro item however simple the draw happened to be.
+    """
+
+    def test_the_registry_declares_the_intro_band_in_both_sections(self) -> None:
+        intro = {
+            s.meta.id: s.meta.section
+            for s in all_schemas()
+            if s.meta.difficulty == "intro"
+        }
+        assert set(intro.values()) == {"LR", "LG"}, intro
+
+    def test_the_one_step_item_states_one_conditional_and_one_fact(self) -> None:
+        from law_ai.lsat.synth.logic import Atom, Implies
+
+        schema = get_schema("lr-conditional-one-step")
+        for seed in range(6):
+            blueprint = schema.build(
+                random.Random(f"one-step-{seed}"), load_domains()["municipal-policy"]
+            )
+            assert len(blueprint.premises) == 2, blueprint.premises
+            conditionals = [p for p in blueprint.premises if isinstance(p, Implies)]
+            facts = [p for p in blueprint.premises if isinstance(p, Atom)]
+            assert len(conditionals) == 1 and len(facts) == 1
+            # The one inference is the conditional's own consequent.
+            assert blueprint.choices[0].statement == conditionals[0].consequent
+
+    def test_the_one_rule_game_states_exactly_one_rule(self) -> None:
+        schema = get_schema("lg-sequencing-one-rule")
+        for seed in range(6):
+            blueprint = schema.build(
+                random.Random(f"one-rule-{seed}"),
+                load_domains()["commercial-logistics"],
+            )
+            assert len(blueprint.premises) == 1, blueprint.premises
+            assert blueprint.arrangement["rule_count"] == 1
+
+    @pytest.mark.parametrize(
+        "schema_id", ("lr-conditional-one-step", "lg-sequencing-one-rule")
+    )
+    def test_intro_schemas_actually_ship_intro_items(self, schema_id: str) -> None:
+        """The band has to survive the difficulty proxy, not only be declared.
+
+        The proxy's scale stops at ``easy`` (:data:`PROXY_BANDS`), so before
+        the floor rule in ``difficulty.blend`` every one of these shipped as
+        ``easy`` and the generator still could not fill the band.
+        """
+        schema = get_schema(schema_id)
+        for domain in load_domains().values():
+            if not domain.supports(schema.meta.capability):
+                continue
+            for seed in range(3):
+                item = generate(schema_id, domain.id, seed=seed)
+                assert item.report.ok, item.report.failures
+                assert item.question.difficulty == "intro", (
+                    domain.id,
+                    seed,
+                    item.provenance.complexity,
+                )
+
+
+class TestRuleSubstitution:
+    """BL-20260905-62: the games question whose criterion is a model *set*.
+
+    "The same effect" cannot be read off any single choice's entailment
+    status — every choice here holds in every premise model — so the family
+    has its own rule in ``verify.py`` and these tests state what it proves.
+    """
+
+    def test_the_credited_substitute_leaves_the_board_unchanged(self) -> None:
+        schema = get_schema("lg-rule-substitution")
+        for seed in range(8):
+            blueprint = schema.build(
+                random.Random(f"substitution-{seed}"),
+                load_domains()["municipal-policy"],
+            )
+            space = blueprint.space
+            assert space is not None
+            target = blueprint.substituted
+            assert target is not None and target in blueprint.premises
+            kept = [p for p in blueprint.premises if p is not target]
+            board = [m for m in space.models() if all(r.holds(m) for r in kept)]
+            original = {i for i, m in enumerate(board) if target.holds(m)}
+            # The rule being replaced actually forbids something.
+            assert original != set(range(len(board)))
+            credited = blueprint.choices[0].statement
+            assert credited is not None
+            assert {i for i, m in enumerate(board) if credited.holds(m)} == original
+
+    def test_every_distractor_moves_the_board_in_a_nameable_direction(self) -> None:
+        schema = get_schema("lg-rule-substitution")
+        blueprint = schema.build(
+            random.Random("substitution-directions"), load_domains()["field-biology"]
+        )
+        space = blueprint.space
+        target = blueprint.substituted
+        assert space is not None and target is not None
+        kept = [p for p in blueprint.premises if p is not target]
+        board = [m for m in space.models() if all(r.holds(m) for r in kept)]
+        original = {i for i, m in enumerate(board) if target.holds(m)}
+        for choice in blueprint.choices[1:]:
+            assert choice.statement is not None
+            keeps = {i for i, m in enumerate(board) if choice.statement.holds(m)}
+            assert keeps != original
+            # Too weak (permits more) or too strong (forbids more) — not a
+            # choice that is simply about something else.
+            assert original < keeps or keeps < original
+
+    def test_a_substitute_that_changes_the_board_fails_verification(self) -> None:
+        """The check is real: swap the key for a distractor and the report says so."""
+        schema = get_schema("lg-rule-substitution")
+        blueprint = schema.build(
+            random.Random("substitution-broken"), load_domains()["municipal-policy"]
+        )
+        swapped = (
+            FormalChoice(role="credited", statement=blueprint.choices[1].statement),
+            FormalChoice(role="distractor", statement=blueprint.choices[0].statement),
+            *blueprint.choices[2:],
+        )
+        broken = Blueprint(
+            family=blueprint.family,
+            proof_kind=blueprint.proof_kind,
+            binding_spec=blueprint.binding_spec,
+            premises=blueprint.premises,
+            substituted=blueprint.substituted,
+            choices=swapped,
+            space=blueprint.space,
+        )
+        labelled = [
+            LabelledChoice(
+                label=label,
+                role=choice.role,
+                text=f"choice {label} text goes here",
+                statement=choice.statement,
+            )
+            for label, choice in zip("ABCDE", swapped, strict=True)
+        ]
+        report = verify(broken, labelled, schema_id="lg-rule-substitution")
+        assert not report.ok
+        failed = {c.name for c in report.failures}
+        assert "credited_substitute_has_the_same_effect" in failed
+        assert "no_distractor_has_the_same_effect" in failed
+
+    def test_the_choices_are_parallel_in_form(self) -> None:
+        """All five substitutes come from one menu kind, so none stands out."""
+        item = generate("lg-rule-substitution", "commercial-logistics", seed=2)
+        lengths = [len(c.text) for c in item.question.choices]
+        assert max(lengths) / min(lengths) < 2
+
+
+class TestMaxMin:
+    """BL-20260905-62: a bound nothing exceeds, and a witness that reaches it."""
+
+    def test_the_credited_bound_is_entailed_and_tight(self) -> None:
+        from law_ai.lsat.synth.logic import (
+            AssignModel,
+            GroupAtLeast,
+            GroupAtMost,
+            entails,
+        )
+
+        schema = get_schema("lg-max-min")
+        for seed in range(8):
+            blueprint = schema.build(
+                random.Random(f"max-min-{seed}"), load_domains()["municipal-policy"]
+            )
+            space = blueprint.space
+            credited = blueprint.choices[0].statement
+            assert space is not None
+            assert isinstance(credited, GroupAtMost | GroupAtLeast)
+            assert entails(space, blueprint.premises, credited)
+            # Tight: some permitted assignment reaches the bound exactly, so it
+            # answers "how many can" and not merely "how many cannot".
+            reached = [
+                m
+                for m in space.models()
+                if isinstance(m, AssignModel)
+                and all(r.holds(m) for r in blueprint.premises)
+                and m.size_of(credited.group) == credited.count
+            ]
+            assert reached, credited
+
+    def test_no_choice_repeats_the_credited_group_and_direction(self) -> None:
+        """The arithmetic tell: every looser bound the same way is entailed too."""
+        from law_ai.lsat.synth.logic import GroupAtLeast, GroupAtMost
+
+        schema = get_schema("lg-max-min")
+        for seed in range(8):
+            blueprint = schema.build(
+                random.Random(f"max-min-tell-{seed}"),
+                load_domains()["academic-publishing"],
+            )
+            credited = blueprint.choices[0].statement
+            assert isinstance(credited, GroupAtMost | GroupAtLeast)
+            for choice in blueprint.choices[1:]:
+                other = choice.statement
+                assert isinstance(other, GroupAtMost | GroupAtLeast)
+                assert not (
+                    type(other) is type(credited) and other.group == credited.group
+                )
+
+    def test_the_explanation_exhibits_the_witness(self) -> None:
+        """The archetype asks for both halves, so the guide has to show both."""
+        item = generate("lg-max-min", "municipal-policy", seed=1)
+        explanation = item.question.explanation
+        assert "the limit is reached" in explanation
+        # The witness is a rendered assignment, so it names the groups.
+        assert ":" in explanation
+
+    def test_a_bound_renders_as_a_bound(self) -> None:
+        from law_ai.lsat.synth.logic import GroupAtLeast, GroupAtMost
+        from law_ai.lsat.synth.realize import symbolize
+
+        assert symbolize(GroupAtMost("g1", 3)) == "|g1| ≤ 3"
+        assert symbolize(GroupAtLeast("g1", 2)) == "|g1| ≥ 2"
+        item = generate("lg-max-min", "field-biology", seed=0)
+        assert all(
+            c.text.startswith(("At most", "At least")) for c in item.question.choices
+        )

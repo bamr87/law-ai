@@ -57,6 +57,8 @@ export interface Concept {
   examples?: string[]
   see_also?: string[]
   sections?: string[]
+  /** External sources. Present in the export; the card renders them now. */
+  references?: Reference[]
 }
 
 export interface Section {

@@ -1,0 +1,28 @@
+# LangGraph Studio host for LegalWorkflow (BL-20260502-01).
+#
+# This mirrors what `langgraph build` generates from backend/langgraph.json:
+# the official server image plus our package installed under /deps, with
+# LANGSERVE_GRAPHS naming the module-level factory the server should serve.
+# We keep the Dockerfile in-tree rather than shelling out to langgraph-cli so
+# the studio profile builds with plain `docker compose` like every other
+# service here.
+#
+# DEV TOOL ONLY. Nothing in the product runtime imports this image, and the
+# API/worker keep building their graphs through LegalWorkflow directly.
+FROM langchain/langgraph-api:3.12
+
+# Same source layout as backend/Dockerfile so the editable install resolves.
+COPY pyproject.toml README.md /deps/law-ai/
+COPY law_ai /deps/law-ai/law_ai
+COPY manage.py /deps/law-ai/
+
+# -c /api/constraints.txt is the base image's pin set: it stops our
+# requirements from dragging the server's own langgraph/langchain versions
+# out from under it.
+RUN PYTHONDONTWRITEBYTECODE=1 pip install --no-cache-dir \
+    -c /api/constraints.txt -e /deps/law-ai
+
+ENV LANGSERVE_GRAPHS='{"legal_workflow": "/deps/law-ai/law_ai/agents_runtime/graphs/studio.py:make_graph"}'
+ENV DJANGO_SETTINGS_MODULE=law_ai.settings.dev
+
+WORKDIR /deps/law-ai

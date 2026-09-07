@@ -8,29 +8,37 @@
 
 Every feature must trace to the mission in [AGENTS.md](../AGENTS.md): privacy-aware, auditable, graph-native legal intelligence with HITL on high-stakes paths.
 
-**Product-runtime LLM policy (amended 2026-08-11, spec 034).** The runtime is a single **ordered provider chain**, configured in `LLM_PROVIDER_CHAIN` and implemented in `law_ai.core.llm`:
+**Product-runtime LLM policy (amended 2026-08-11, spec 034; amended 2026-09-04, [ADR 0007](adr/0007-xai-runtime-provider.md)).** The runtime is a single **ordered provider chain**, configured in `LLM_PROVIDER_CHAIN` and implemented in `law_ai.core.llm`:
 
 1. `claude_code` — Anthropic Claude over a subscription OAuth token.
 2. `anthropic_api` — Anthropic Claude over `ANTHROPIC_API_KEY`.
-3. `ollama` — the local open-weights model.
+3. `xai` — xAI Grok over a subscription OAuth token (sanctioned 2026-09-04, implemented in spec 050).
+4. `ollama` — the local open-weights model.
 
 Claude is the **default product runtime**. This repeals the prior rule that rejected any spec wiring a closed-source model into the runtime; that rule is superseded, not merely unenforced. The trade is deliberate and its costs are named here so no spec can pretend otherwise:
 
 - **Legal text leaves the machine.** Prompts on the Claude tiers are sent to a third party. Any matter under a confidentiality obligation that forbids third-party processing MUST pin the chain to `ollama` (`LLM_PROVIDER_CHAIN=ollama`). Deployments handling privileged client data SHOULD default to that pin.
 - **Reproducibility is provider-dependent.** Benchmarks and evals MUST pin a single provider so results stay comparable; the LegalBench harness is pinned to Ollama for exactly this reason.
 
+**xAI amendment (2026-09-04, [ADR 0007](adr/0007-xai-runtime-provider.md)).** xAI is a sanctioned product-runtime vendor. `xai` is the **third default tier** — below both Anthropic tiers, above `ollama` — so once implemented, a deployment that has not pinned `LLM_PROVIDER_CHAIN` tries xAI before falling to the local model. The terms of the amendment:
+
+- **Auth is OAuth-first, and there is no API-key tier.** The `xai` tier authenticates with a SuperGrok / X Premium+ subscription OAuth token, mirroring `claude_code`. xAI publishes no such flow — its documented API takes a bearer `XAI_API_KEY` — so spec 050 implements the OAuth 2.0 grant against `auth.x.ai` that Kilo Code ships in the open, reusing the public Grok-CLI desktop client. A spec adding an `XAI_API_KEY` tier is **not** covered by this amendment. The shipped default is `claude_code,anthropic_api,xai,ollama`; the tier is inert until an operator runs `make xai-login`, so an unauthorised deployment behaves exactly as it did before.
+- **A second egress path, not a second privacy story.** Two third parties now sit in the default chain. `LLM_PROVIDER_CHAIN=ollama` remains the **only** configuration that keeps prompt text on the host, and it is still required for any matter under a confidentiality obligation forbidding third-party processing.
+- **No transport exemption.** `xai` is a provider class behind `law_ai.core.llm` like every other tier. It routes through the §4 choke point and writes the same `llm_call` provenance event, naming the provider and model that actually served the call.
+- **Evals stay pinned.** LegalBench does not route through the chain and does not gain an xAI mode; adding a tier changes nothing about §6.
+
 What this amendment does **not** relax — a spec violating any of these is still rejected:
 
 - **Local-first must remain reachable.** `ollama` stays a first-class provider and the chain's last tier. A change that makes the product unable to run wholly locally **must be rejected**.
 - **Provenance is unchanged.** Every model call is logged through `core.provenance` with the provider and model that actually served it, including which tiers were skipped or failed (§4).
 - **No silent fabrication.** When every provider fails, the caller degrades to an honest refusal — never a fabricated answer (§13).
-- **No third vendor.** Only Anthropic and Ollama are sanctioned runtime providers. A spec adding OpenAI, Gemini, or any other vendor to the chain **must be rejected** without a further amendment to this section.
+- **No further vendor.** Anthropic, xAI, and Ollama are the sanctioned runtime providers. A spec adding OpenAI, Gemini, or any other vendor to the chain **must be rejected** without a further amendment to this section.
 
 **Development orchestration remains a separate layer.** GitHub Copilot and Claude Code are the sanctioned AI dev surfaces (Copilot Chat in VS Code + the GitHub Copilot coding agent in the cloud; the Claude Code CLI / IDE extensions + the Claude Agent SDK). The dev surface and the runtime provider are configured independently: which model edits this code is not the same decision as which model serves users. Specs proposing other coding agents (Cursor, Continue.dev, Aider, Codex, Gemini CLI, etc.) or their config files **must be rejected**. See [AGENTS.md](../AGENTS.md) § "Development Orchestration".
 
 ## 2. Tech Stack (Locked)
 
-- Backend: Python 3.12+, Django 5 (ASGI via daphne), Django REST Framework, Channels, Celery (Redis broker), Pydantic v2 (domain layer), CrewAI + LangGraph, Neo4j, Postgres (Django ORM async + raw asyncpg where required), Chroma; runtime LLM providers are Anthropic Claude (default) and Ollama (local fallback) — see §1.
+- Backend: Python 3.12+, Django 5 (ASGI via daphne), Django REST Framework, Channels, Celery (Redis broker), Pydantic v2 (domain layer), CrewAI + LangGraph, Neo4j, Postgres (Django ORM async + raw asyncpg where required), Chroma; runtime LLM providers are Anthropic Claude (default), xAI Grok (sanctioned 2026-09-04, spec 050), and Ollama (local fallback) — see §1.
 - Frontend: Next.js 15 App Router, TypeScript strict, Tailwind, shadcn/ui, Cytoscape.js, TanStack Query.
 - Infra: Docker Compose for local; GitHub Actions for CI.
 
@@ -41,7 +49,7 @@ No new top-level frameworks (e.g. Vue, LlamaIndex as primary) without an ADR in 
 A spec **must** declare and a PR **must** pass:
 
 - `ruff check` + `black --check` clean (line length 88).
-- `mypy law_ai --strict` clean for any touched module.
+- `mypy law_ai --strict` clean for any touched module, and never worse anywhere. `make typecheck` runs the strict check through the ratchet in [scripts/mypy_ratchet.py](../scripts/mypy_ratchet.py), which compares per-file strict-error counts against `backend/mypy-baseline.txt` and fails when a count grows or a file the baseline calls clean stops being clean. A file with no baseline entry — every new module — must be strict-clean. Burning a file down is a diff to that baseline (`make mypy-baseline`); the baseline may only shrink, and when it reaches zero it is deleted so plain `mypy law_ai --strict` becomes the gate (BL-20260429-04).
 - Frontend: `npm run lint` + `npx tsc --noEmit` clean.
 - Pytest + Vitest green; combined coverage **≥ 75%** on changed files.
 - LegalBench regression run (`Run LegalBench Eval` task) when reasoning logic changes — score must not regress more than 1 pp on listed tasks.
@@ -140,7 +148,7 @@ Recorded by [docs/adr/0003-autonomy-orchestrator.md](adr/0003-autonomy-orchestra
 - **I1 — No auto-merge.** Every loop ends in either a draft PR (code) or a `PendingReview` row (data). No GitHub Actions workflow may be granted permissions sufficient to merge a PR; no Celery task may write to a `:Case`/`:Statute` node outside `IngestionScout.run_and_commit`.
 - **I2 — Closed source registry.** Recursion expands within `law_ai.ingestionapp.sources.SOURCE_REGISTRY` whose member name appears in `AUTONOMY_ALLOWED_SOURCES`. Adding a new adapter is its own `/specify` cycle (preserves §5).
 - **I3 — Kill-switch.** A single settings flag (`AUTONOMY_ENABLED`, default `False`) short-circuits every loop with one provenance event (`event_type='autonomy_disabled'`). Operators must explicitly opt-in per environment.
-- **I4 — One audited entry point.** Every cycle is invoked through `law_ai.core.autonomy.run_cycle()` and emits paired `autonomy_cycle.start` + `autonomy_cycle.end` provenance events. The daily digest under `AUTONOMY_DIGEST_DIR` is the canonical human-review surface.
+- **I4 — One audited entry point.** Every cycle is invoked through `law_ai.core.autonomy.run_cycle()` and emits paired `autonomy_cycle.start` + `autonomy_cycle.end` provenance events, and is additionally projected into the queryable `audit.AutonomyRun` row that the digest and the ops surfaces read ([docs/data-model.md](data-model.md)). Passing `--cycle-id` makes the entry point idempotent: a cycle whose id has already ended is *replayed* — the recorded result is returned with `replayed: true` and one `autonomy_cycle.replayed` event, and the runner is not invoked a second time ([docs/local-ai.md](local-ai.md)). The daily digest under `AUTONOMY_DIGEST_DIR` is the canonical human-review surface.
 - **I5 — Propose-only test synthesis.** Autonomy-generated tests land as `*.proposed.py` decorated with `@pytest.mark.skip("autonomy-proposed")`. Reviewers must explicitly un-skip.
 - **I6 — Provenance preserved.** Every adapter dispatch records `{adapter_name, query, items_returned, items_quarantined}`; every LLM call goes through `law_ai.core.provenance` (preserves §4).
 

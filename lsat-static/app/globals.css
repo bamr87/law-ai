@@ -6,9 +6,15 @@
    * the same three-rung idea as the platform shell, keyed off tokens so a
    * header height change moves everything with it instead of desynchronising
    * a hand-written `top: 5rem`. */
-  /* Measured, not guessed: the site header is 61px and the drill head 78px in
-   * the two-column layout. `--site-header-h` is deliberately a hair under the
-   * real height so the rung below tucks by a pixel rather than leaving a gap
+  /* First-paint fallback, not the source of truth (BL-20260831-20). These are
+   * the measured heights of the site header (61px) and the drill head (78px)
+   * in the two-column layout, and the static export has no JavaScript until
+   * hydration, so the first frame is drawn against them. From hydration on,
+   * `useMeasuredCssVar` observes the real elements and overwrites both — so a
+   * change to the header's content moves the whole sticky stack with it
+   * instead of silently desynchronising a number nobody remembers to
+   * re-measure. `--site-header-h` stays a hair under the real height (the
+   * hook subtracts a pixel) so the rung below tucks rather than leaving a gap
    * for content to scroll through. */
   --site-header-h: 3.75rem;
   --drill-head-h: 4.875rem;
@@ -56,6 +62,23 @@ a {
   padding: 0 1.25rem;
 }
 
+/* Large monitors. 960px of a 2560px screen is a third of the viewport doing
+   the work and 800px of dead gutter down each side; the steps below start
+   well above every other breakpoint in this file (900px and down), so nothing
+   about the phone, tablet or laptop layout moves. Prose keeps its own measure
+   inside the column — this widens the container, not the line length. */
+@media (min-width: 1440px) {
+  .wrap {
+    max-width: 1200px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .wrap {
+    max-width: 1440px;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -76,9 +99,16 @@ a {
   outline-offset: 2px;
 }
 
-/* Keyboard users land here first; it is invisible until focused. */
+/* Keyboard users land here first; it is invisible until focused.
+ *
+ * `inline-flex` so the 44px touch-target floor below has something to apply
+ * to: a bare inline box ignores `min-height`, which is how this control sat at
+ * 40.8px on a phone while every other target cleared the bar (BL-20260901-03).
+ */
 .skip-link {
   position: absolute;
+  display: inline-flex;
+  align-items: center;
   left: 0.5rem;
   top: -3rem;
   z-index: var(--z-drawer);
@@ -235,6 +265,25 @@ main#view {
   color: var(--text-muted);
   max-width: 60ch;
 }
+/* The honest note about what the published site lacks (BL-20260831-25).
+   Collapsed by default and quiet: it has to be findable before someone goes
+   looking for a missing feature, without competing with the section cards. */
+.intro-limits {
+  margin-top: 0.75rem;
+  max-width: 60ch;
+}
+.intro-limits > summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.intro-limits > summary:hover {
+  color: var(--text);
+}
+.intro-limits p {
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+}
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -365,6 +414,25 @@ main#view {
   padding: 0.3rem 0.7rem;
   font-size: 0.75rem;
 }
+/* Drill-length presets (BL-20260829-02): 5 / 10 for homework, 35 for the real
+   thing. A radiogroup, not a select, so a thumb reaches all three at once. */
+.section-timer-presets {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.section-timer-presets .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.72rem;
+}
+.section-timer-presets .btn[aria-checked='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.section-timer-presets .btn[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 .qcard-elapsed {
   margin-left: 0.4rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -425,6 +493,23 @@ main#view {
      * it exactly as tall as its row and leaves sticky nowhere to travel. The
      * platform's graph case picker had the same latent bug. */
     align-self: start;
+  }
+  /* The passage column gets its own scroll region, the way `.lib-rail` already
+   * does. Without a height cap, a passage taller than the viewport gets no
+   * benefit from top stickiness at all — a browser only pins such an element
+   * once its *bottom* has scrolled into view, so the longest RC passages, the
+   * ones that most need to stay beside their questions, were exactly the ones
+   * that scrolled away. Keyed off the same tokens as `top` above, so the
+   * offset and the height can never disagree (and ux_audit R9 keeps seeing a
+   * token-derived sticky offset). Scoped to the drill grid: the Writing
+   * prompt is also a `.passage`, but it sits above the editor rather than
+   * beside it, and boxing it would be a change to a different screen.
+   * `overscroll-behavior: contain` keeps a wheel that reaches the end of the
+   * passage from carrying on down the page behind it. */
+  .drill-grid > .passage {
+    max-height: calc(100vh - var(--site-header-h) - var(--drill-head-h) - 1.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 .passage-title {
@@ -628,6 +713,80 @@ main#view {
   margin-top: 0.6rem;
 }
 
+/* The inverse link that living inside the library buys: from a reasoning
+   pattern to the article that teaches it. */
+.concept-teaches {
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.concept-teaches-list {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.9rem;
+}
+.concept-teaches-none,
+.concept-drills {
+  color: var(--text-muted);
+}
+.concept-drills {
+  display: block;
+  margin: 0.4rem 0 0.75rem;
+  font-size: 0.8rem;
+}
+
+/* A card follows the same entry template as the article reader: header,
+   actions, body, then the cross-references in a fixed order. Each block is a
+   titled step of that order. */
+.concept-block {
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.concept-block > .lib-eyebrow {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+.concept-block .concept-examples {
+  margin-top: 0.25rem;
+}
+.concept-block .lib-refs {
+  margin: 0.25rem 0 0;
+}
+.concept-dangling {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--text-muted);
+}
+.concept .lib-meta {
+  margin-bottom: 0.35rem;
+}
+/* A URL for one concept (BL-20260905-04). Quiet until the card is hovered or
+   something inside it has focus, the way a heading anchor usually is — but
+   never `display: none`, because a keyboard user has to be able to reach it. */
+.concept-permalink {
+  margin-left: auto;
+  color: var(--text-muted);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.concept:hover .concept-permalink,
+.concept:focus-within .concept-permalink,
+.concept-permalink:focus-visible {
+  opacity: 1;
+}
+/* The deep-link landing target: focused programmatically, so it needs a ring
+   of its own — the card is not otherwise in the tab order. */
+.concept:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* ---- Stats ---- */
 .stat-hero {
   background: var(--bg-elev);
@@ -652,6 +811,33 @@ main#view {
   border-collapse: collapse;
   margin-bottom: 1.25rem;
   font-size: 0.9rem;
+}
+/* Export / import (BL-20260702-10). Below the stats and set off by a rule:
+   it is about the data rather than the numbers, and it is shown even with no
+   attempts — a reader with an empty device is exactly the one with a file to
+   restore. */
+.stat-transfer {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+.stat-transfer h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+.stat-transfer p {
+  max-width: 60ch;
+}
+.stat-transfer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.5rem;
+}
+.stat-transfer-problem {
+  color: var(--no);
+  font-size: 0.85rem;
+  margin: 0;
 }
 .stat-table th,
 .stat-table td {
@@ -1274,7 +1460,8 @@ main#view {
    * media query alone. (BL-20260831-11.) */
   .btn,
   .nav-link,
-  .choice {
+  .choice,
+  .skip-link {
     min-height: 44px;
   }
   .site-header .wrap {
@@ -1331,7 +1518,10 @@ main#view {
 @media (pointer: coarse) {
   .btn,
   .nav-link,
-  .choice {
+  .choice,
+  /* The skip link is the first thing a keyboard or switch user reaches, so it
+     is held to the same floor as every other target (BL-20260901-03). */
+  .skip-link {
     min-height: 44px;
   }
   .solve-dot {
@@ -1414,6 +1604,50 @@ main#view {
    * rounding seam cannot leave a hairline of header on screen. */
   .site-header-hidden {
     transform: translateY(-101%);
+  }
+
+  /* Pinned: the reader has said they would rather keep the nav (BL-20260901-05).
+     The scroll handler already stops producing `hidden`; this is the belt to
+     that pair of braces, so a stale class from before the toggle cannot leave
+     the bar off screen. The brand row still condenses — pinning is about
+     keeping the destinations reachable, not about spending 136px of a phone
+     on chrome. */
+  .site-header-pinned {
+    transform: none;
+  }
+}
+
+/* The pin control itself. Hidden by default: above 819px nothing hides, so a
+   control offering to stop it would promise something it cannot deliver. */
+.header-pin {
+  display: none;
+  align-items: center;
+  flex: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.header-pin:hover {
+  background: var(--bg-elev);
+}
+.header-pin[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Shown only where the header actually hides on scroll — the same breakpoint
+   as that behaviour. This block MUST come after the `display: none` default
+   above: a media query adds no specificity, so with equal selectors it is
+   source order that decides, and the reverse order left the control hidden at
+   every width. */
+@media (max-width: 819px) {
+  .header-pin {
+    display: inline-flex;
   }
 }
 
@@ -1544,6 +1778,42 @@ kbd {
    reader arriving on a phone should see what the library contains.
    ========================================================================== */
 
+/* ---- view switcher ----
+   Articles and Concepts are two views of one shelf. The catalog used to be
+   its own header destination; the switcher lives here instead so the
+   vocabulary sits next to the material that teaches it. */
+
+.lib-views {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0 0 1.25rem;
+}
+
+.lib-view {
+  flex: 0 0 auto;
+  min-width: 7rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lib-view:hover {
+  color: var(--text);
+}
+
+.lib-view-active,
+.lib-view-active:hover {
+  background: var(--accent-dim);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: var(--accent);
+}
+
 .lib-grid {
   display: grid;
   gap: 1.5rem;
@@ -1564,6 +1834,16 @@ kbd {
     max-height: calc(100vh - var(--site-header-h) - 2rem);
     overflow-y: auto;
     padding-right: 0.5rem;
+  }
+}
+
+/* The extra container width goes to the rail and the gutter between the
+   columns. The article measure grows too, but far less — see `.lib-article`,
+   where the override has to live to come after the base rule. */
+@media (min-width: 1440px) {
+  .lib-grid {
+    grid-template-columns: 19rem minmax(0, 1fr);
+    gap: 2.5rem;
   }
 }
 
@@ -1716,6 +1996,16 @@ kbd {
   max-width: 68ch;
 }
 
+/* A little wider where the container is, and no more: a 90ch line is harder
+   to read than a 68ch one however much room there is for it. Placed after the
+   base rule rather than beside the `.lib-grid` override — a media query adds
+   no specificity, so source order is what decides this. */
+@media (min-width: 1440px) {
+  .lib-article {
+    max-width: 76ch;
+  }
+}
+
 .lib-article:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 4px;
@@ -1732,6 +2022,46 @@ kbd {
 
 .lib-meta-section {
   color: var(--accent);
+}
+
+/* Tags and archetypes under the summary, on both entry types. */
+.lib-tags {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.lib-tag-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 500;
+}
+
+/* Reading-track chips: one click makes the track the rail's curriculum. */
+.lib-tracks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.lib-track {
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.lib-track:hover {
+  border-color: var(--accent);
+}
+.lib-track-meta {
+  color: var(--text-muted);
 }
 
 .lib-title {

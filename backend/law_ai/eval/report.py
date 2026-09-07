@@ -74,6 +74,12 @@ def _append_history(report: dict[str, Any]) -> None:
         "synthetic": {
             r["subset"]: r.get("synthetic", False) for r in report.get("subsets", [])
         },
+        # Which scoring rule produced each number (BL-20260811-11) — two rows
+        # are only comparable when their scorers match.
+        "scorer": {
+            r["subset"]: r.get("scorer", "default_match")
+            for r in report.get("subsets", [])
+        },
     }
     try:
         HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -81,6 +87,47 @@ def _append_history(report: dict[str, Any]) -> None:
             fh.write(json.dumps(row, default=str) + "\n")
     except Exception as exc:  # pragma: no cover - history is best-effort
         logger.warning("could not append eval history: %s", exc)
+
+
+def _emit_delta_events(report: dict[str, Any]) -> None:
+    """Record one ``autonomy_legalbench_delta`` audit event per subset.
+
+    The autonomy digest has always rendered a "LegalBench Delta" section
+    (``compose_digest()`` in :mod:`law_ai.core.autonomy`) but nothing ever
+    emitted the event it reads, so the section printed ``*(none)*`` forever
+    and the score history lived only in a CI artifact (BL-20260811-12).
+
+    Best-effort by design: an audit outage must not fail an eval run, and the
+    row is still in ``history.jsonl`` either way.
+    """
+    delta = report.get("delta") or {}
+    for row in report.get("subsets", []):
+        subset = row["subset"]
+        movement = delta.get(subset) or {}
+        event: dict[str, Any] = {
+            "type": "autonomy_legalbench_delta",
+            "task": subset,
+            "accuracy": row.get("accuracy"),
+            "baseline": movement.get("before"),
+            # The digest renders this with a sign; keep it in percentage
+            # points so "core_reasoning: +1.5" reads as pp, not fraction.
+            "delta": movement.get("delta_pp", 0.0),
+            "scorer": row.get("scorer", "default_match"),
+            # A stub-backed row must never read as a measurement, not even
+            # in a digest a human skims.
+            "synthetic": bool(row.get("synthetic")),
+            "model": report.get("model"),
+            "run_id": report.get("run_id"),
+            "agent_version": "law_ai.eval.legalbench.v1",
+            "source": "legalbench",
+            "confidence": 0.0 if row.get("synthetic") else 1.0,
+        }
+        try:
+            from law_ai.core.provenance import _persist
+
+            _persist(event)
+        except Exception as exc:  # pragma: no cover - audit is best-effort
+            logger.debug("legalbench delta event skipped: %s", exc)
 
 
 def write_report(
@@ -128,6 +175,7 @@ def write_report(
         report["delta"] = delta
 
     _append_history(report)
+    _emit_delta_events(report)
 
     if config.report_path:
         config.report_path.parent.mkdir(parents=True, exist_ok=True)

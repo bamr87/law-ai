@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > Orchestration policy: GitHub Copilot and Claude Code are both sanctioned dev surfaces ([AGENTS.md](AGENTS.md) § "Development Orchestration", [docs/constitution.md](docs/constitution.md) §1). Cursor, Continue.dev, Aider, Codex, and Gemini CLI remain forbidden.
 >
-> Runtime LLM policy (constitution §1, amended 2026-08-11): the product runtime is the ordered chain in `LLM_PROVIDER_CHAIN` — Claude over OAuth, then Claude over `ANTHROPIC_API_KEY`, then local Ollama — implemented in `law_ai.core.llm`. Claude is the default. Local-first remains supported by pinning `LLM_PROVIDER_CHAIN=ollama`, which is **required** for data under a confidentiality obligation that forbids third-party processing. Adding any third vendor (OpenAI, Gemini, …) needs a further constitution amendment.
+> Runtime LLM policy (constitution §1, amended 2026-08-11 and 2026-09-04): the product runtime is the ordered chain in `LLM_PROVIDER_CHAIN` — Claude over OAuth, then Claude over `ANTHROPIC_API_KEY`, then xAI Grok over a subscription OAuth token, then local Ollama — implemented in `law_ai.core.llm`. Claude is the default. Local-first remains supported by pinning `LLM_PROVIDER_CHAIN=ollama`, which is **required** for data under a confidentiality obligation that forbids third-party processing — note the default chain now has **two** third-party tiers. The xAI tier ([ADR 0007](docs/adr/0007-xai-runtime-provider.md), spec 050) is inert until an operator runs `make xai-login`; it has no API-key mode. Adding any further vendor (OpenAI, Gemini, …) needs a further constitution amendment.
 
 ## Docker-first (the rule you will trip on)
 
@@ -31,7 +31,7 @@ Every dev/test/lint/typecheck/eval command runs **inside Docker via `make`** (wh
 | LegalBench eval | `make test-legalbench` |
 | Coverage | `make test-coverage` → `htmlcov/`, `frontend/coverage/` |
 | Lint / format / types | `make lint` · `make format` · `make typecheck` (mypy --strict + tsc) |
-| Spec/backlog gates | `make lint-specs` (host stdlib, no container) |
+| Spec/backlog gates | `make lint-specs` (host, no container; needs `pytest` on the host interpreter) |
 
 **Run a single backend test** (the make targets run the whole suite):
 ```bash
@@ -51,6 +51,8 @@ Multi-agent legal-intelligence platform. Django 5 (ASGI/daphne) + DRF + Channels
 Backend lives in `backend/law_ai/` (the Django project package). Each Django app owns one `/api/*` router:
 - `agents_runtime/` — all agent logic: `crews/` (CrewAI), `graphs/` (LangGraph workflows, incl. `ChatProviderChain`-backed `LegalWorkflow`), `tools/` (`GraphRAGRetriever` in `graph_rag.py` — hybrid lexical fulltext + `CITES` graph-expansion retrieval), `prompts/` (versioned `*.v<N>.md`). `core/neo4j/` holds the lower-level citation resolver + raw Cypher queries the tools build on.
 - `agentsapi/` — DRF routers + Channels consumers at `/api/agents/*` (real-time agent streaming over WebSockets).
+- **Scanned-page intake** (`lsat/services/ocr_intake.py`, `POST /api/lsat/intake/ocr`): the door for
+  [ocrmd](https://github.com/bamr87/ocrmd), a webcam scanner that reads a book page twice (local OCR + a vision model) and reconciles the two. It posts the reconciled *text* plus the page's provenance; `LSATSourceExtractor` transcribes questions out of it, and they go through the **same** factory gates and into the same HITL queue as generated ones — no shortcut to the bank. Two rules make it safe to trust a draft that walked in off a camera: the extractor is told to leave a field empty rather than write the part that was not captured, and every draft is scored for **grounding** (share of its content words present in the page text, taken as the minimum over stem and all five choices, so one invented choice cannot be averaged away by four real ones) — below 0.75 it is dropped before a reviewer sees it. Every proposal carries `meta.source.page_id`, the sha256 of the processed image, so a reviewer can always get back to the photograph.
 - `analysis/` `/api/analysis`, `graph/` `/api/graph/*`, `lsat/` `/api/lsat/*` — feature backends.
 - `ingestionapp/` — quarantine ORM models + Celery ingestion tasks + source clients.
 - `core/` — config, security, Neo4j driver, `provenance`, telemetry. `audit/` — `AuditEvent` model + provenance writers. `eval/` — LegalBench harness. `settings/` — split base/dev/test/prod.

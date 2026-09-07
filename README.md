@@ -2,7 +2,7 @@
 
 **AI-Native Development Environment for Building the Open Legal Intelligence Platform**
 
-This workspace is configured for **GitHub Copilot and Claude Code** as the sanctioned AI development orchestrators (Copilot Chat / Copilot Edits / the GitHub Copilot coding agent, and the Claude Code CLI / IDE extensions). That dev-orchestration layer is independent of the **product runtime** — the LLM that actually answers end users. The runtime is an ordered provider chain (`LLM_PROVIDER_CHAIN`), implemented in `backend/law_ai/core/llm/`: Anthropic Claude is the default (subscription OAuth token, then `ANTHROPIC_API_KEY`), with local Ollama as the last-tier fallback. Pin `LLM_PROVIDER_CHAIN=ollama` for local-only operation — required for any data under a confidentiality obligation that forbids third-party processing. See [docs/constitution.md](docs/constitution.md) §1 for the full policy.
+This workspace is configured for **GitHub Copilot and Claude Code** as the sanctioned AI development orchestrators (Copilot Chat / Copilot Edits / the GitHub Copilot coding agent, and the Claude Code CLI / IDE extensions). That dev-orchestration layer is independent of the **product runtime** — the LLM that actually answers end users. The runtime is an ordered provider chain (`LLM_PROVIDER_CHAIN`), implemented in `backend/law_ai/core/llm/`: Anthropic Claude is the default (subscription OAuth token, then `ANTHROPIC_API_KEY`), then xAI Grok (subscription OAuth, authorise with `make xai-login`), with local Ollama as the last-tier fallback. Pin `LLM_PROVIDER_CHAIN=ollama` for local-only operation — required for any data under a confidentiality obligation that forbids third-party processing. See [docs/constitution.md](docs/constitution.md) §1 for the full policy.
 
 ## Stack
 
@@ -34,7 +34,7 @@ Without Claude credentials in `.env`, the provider chain falls through to the lo
 
 There's no interactive API schema/docs UI yet — `http://localhost:8000/` returns a root status JSON, and the real routes are under `/api/agents`, `/api/analysis`, `/api/graph`, `/api/lsat` (see `backend/law_ai/urls.py`).
 
-**Editing without a local Python/Node toolchain**: every dev/test/lint command is sanctioned only via `make …` / `docker compose …` (see [AGENTS.md](AGENTS.md)'s Docker-First Workflow) — there is no supported host-native alternative. If you want your editor's language server wired to the same environment CI uses, open this repo in the provided [Dev Container](.devcontainer/devcontainer.json) ("Dev Containers: Reopen in Container").
+**Editing without a local Python/Node toolchain**: every dev/test/lint command is sanctioned only via `make …` / `docker compose …` (see [AGENTS.md](AGENTS.md)'s Docker-First Workflow) — there is no supported host-native alternative. If you want your editor's language server wired to the same environment CI uses, open this repo in one of the provided Dev Containers ("Dev Containers: Reopen in Container", then pick one): **Law AI (backend)** ([.devcontainer/devcontainer.json](.devcontainer/devcontainer.json)) attaches to the compose `backend` service for Python — interpreter, pytest discovery, ruff/mypy; **Law AI (frontend)** ([.devcontainer/frontend/devcontainer.json](.devcontainer/frontend/devcontainer.json)) attaches to the compose `frontend` service so ESLint and the TypeScript server use the container's `node_modules` instead of a host one the Docker-first rule forbids. One window sees one tree; reopen in the other container to switch.
 
 ## How to Work with AI Agents Here (Copilot or Claude Code)
 

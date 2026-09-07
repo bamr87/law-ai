@@ -145,6 +145,6 @@ function Control<T>({
     )
   }
   return (
-    <span className="text-xs text-slate-500">{String(value)}</span>
+    <span className="text-xs text-slate-400">{String(value)}</span>
   )
 }

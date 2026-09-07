@@ -140,3 +140,42 @@ def test_derived_document_kind_is_validated() -> None:
 def test_provenance_required_fields_missing_raises() -> None:
     with pytest.raises(ValidationError):
         Jurisdiction(code="us-co", name="Colorado", level="state")  # type: ignore[call-arg]
+
+
+# --- BL-20260905-87: the graph cannot hold this line, so the model must ---
+#
+# `006_derived_document.cypher` declares `kind IS NOT NULL` and
+# `agent_version IS NOT NULL`, but property-existence constraints are Neo4j
+# Enterprise-only: the pinned `neo4j:5-community` image rejects them and
+# `migrate_neo4j` defers the file, so no dev or CI database enforces them. The
+# assertions below are the enforcement that actually runs everywhere — every
+# write path builds this model first.
+
+
+@pytest.mark.parametrize("missing", ["kind", "agent_version"])
+def test_derived_document_rejects_a_missing_provenance_field(missing: str) -> None:
+    payload = {
+        "id": "analysis/abc-123",
+        "kind": "analysis",
+        "trace_id": "trace-xyz",
+        "body": "...",
+        **PROV,
+    }
+    payload.pop(missing)
+    with pytest.raises(ValidationError):
+        DerivedDocument(**payload)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("nulled", ["kind", "agent_version"])
+def test_derived_document_rejects_an_explicit_null(nulled: str) -> None:
+    """`IS NOT NULL` means null too, not just absent."""
+    payload = {
+        "id": "analysis/abc-123",
+        "kind": "analysis",
+        "trace_id": "trace-xyz",
+        "body": "...",
+        **PROV,
+    }
+    payload[nulled] = None
+    with pytest.raises(ValidationError):
+        DerivedDocument(**payload)  # type: ignore[arg-type]

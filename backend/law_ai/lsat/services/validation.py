@@ -22,6 +22,7 @@ from law_ai.lsat.services.bank import (
     load_passages,
 )
 from law_ai.lsat.services.guides import load_guides, validate_guide_quality
+from law_ai.lsat.services.regression import regression_report
 
 _CHOICE_LABELS = ("A", "B", "C", "D", "E")
 
@@ -89,9 +90,28 @@ def _distribution(section: str | None) -> dict[str, dict[str, int]]:
     return out
 
 
+def _queued_crosscheck_reviews() -> dict[str, str]:
+    """Question id → pending ``crosscheck`` proposal id (BL-20260831-21).
+
+    The sweep files each disagreement into the HITL queue; naming that row
+    here tells a reviewer reading the report where to act on it.
+    """
+    from law_ai.lsat.services.proposals import list_proposals
+
+    queued: dict[str, str] = {}
+    for row in list_proposals("pending", limit=1000):
+        if row.get("proposal_kind") != "crosscheck":
+            continue
+        qid = (row.get("draft") or {}).get("question_id")
+        if isinstance(qid, str):
+            queued.setdefault(qid, str(row.get("id")))
+    return queued
+
+
 def _cross_check_summary(section: str | None) -> dict[str, Any]:
     """Roll up stored FR-14 verdicts: counts + every flagged disagreement."""
     bank = load_bank()
+    queued = _queued_crosscheck_reviews()
     rows = llm_cache.entries("crosscheck")
     agreements = 0
     disagreements: list[dict[str, Any]] = []
@@ -111,12 +131,18 @@ def _cross_check_summary(section: str | None) -> dict[str, Any]:
                     "bank_choice": row.get("bank_choice"),
                     "model_choice": row.get("model_choice"),
                     "model": row.get("model"),
+                    # None when the sweep has not filed (or a reviewer has
+                    # already closed) a HITL row for this disagreement.
+                    "review_proposal_id": queued.get(str(qid)),
                 }
             )
     return {
         "checked": checked,
         "agreements": agreements,
         "disagreements": disagreements,
+        "queued_reviews": len(
+            [d for d in disagreements if d["review_proposal_id"] is not None]
+        ),
     }
 
 
@@ -139,4 +165,6 @@ def validate_question_set(section: str | None = None) -> dict[str, Any]:
         "issues": issues,
         "answer_distribution": _distribution(section),
         "cross_checks": _cross_check_summary(section),
+        # BL-20260527-06: per-item verdict flips over the audit window.
+        "regressions": regression_report(section=section),
     }
