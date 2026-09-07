@@ -1,3 +1,4 @@
+import NotFoundReportLink from '@/components/shell/NotFoundReportLink'
 import Link from 'next/link'
 
 export const metadata = {
@@ -17,12 +18,17 @@ export default function NotFound() {
         The route you followed is not part of Law AI. It may have moved with a
         spec, or the link may be mistyped.
       </p>
-      <Link
-        href="/"
-        className="mt-6 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-blue-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
-      >
-        Back to the dashboard
-      </Link>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <Link
+          href="/"
+          className="rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-blue-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+        >
+          Back to the dashboard
+        </Link>
+        {/* A 404 that a reader can report is a broken link that gets fixed. The
+         * route they asked for is context only this page has. */}
+        <NotFoundReportLink />
+      </div>
     </main>
   )
 }

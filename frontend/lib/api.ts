@@ -1,6 +1,27 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
 
 /**
+ * Record a failed request in the feedback widget's capture buffer.
+ *
+ * A user reporting "the analysis page is broken" cannot tell you that
+ * `/api/analysis` returned 502 after 1.2s — the UI shows them a toast, not a
+ * status code. This puts the call that actually failed into the same buffer the
+ * report attaches, so the issue arrives with the evidence instead of a request
+ * for it. No-ops when the widget is not loaded (SSR, tests).
+ *
+ * Only the method, path, status and duration are recorded: never headers, never
+ * bodies, never the API key. The buffer redacts credentials on the way in as a
+ * second line of defence, but the first is not putting them there.
+ */
+function recordFailure(method: string, path: string, detail: string): void {
+  if (typeof window === 'undefined') return
+  const w = window as unknown as {
+    __fleetFeedback?: { breadcrumb?: (level: string, message: string) => void }
+  }
+  w.__fleetFeedback?.breadcrumb?.('net', `${method} ${path} → ${detail}`)
+}
+
+/**
  * Centralised fetch wrapper (specs 008 + 009).
  *
  * - Always prepends `API_BASE` to the path.
@@ -11,6 +32,9 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
  *   because the same value is sent on every request.
  * - When the env var is empty/unset (local dev), no header is added — keeps
  *   the local-first posture from constitution §1.
+ * - Failures (non-2xx, and network errors) leave a breadcrumb for the feedback
+ *   widget. Success is not recorded: a 40-entry ring filled with 200s is a ring
+ *   with no room for the one line that explains the failure.
  */
 export async function apiFetch(
   path: string,
@@ -21,7 +45,25 @@ export async function apiFetch(
   if (apiKey) {
     headers.set('X-API-Key', apiKey)
   }
-  return fetch(`${API_BASE}${path}`, { ...init, headers })
+  const method = (init.method || 'GET').toUpperCase()
+  const started = Date.now()
+  try {
+    const res = await fetch(`${API_BASE}${path}`, { ...init, headers })
+    if (!res.ok) {
+      recordFailure(method, path, `${res.status} (${Date.now() - started}ms)`)
+    }
+    return res
+  } catch (err) {
+    // The rejection still propagates; this only observes it on the way past.
+    recordFailure(
+      method,
+      path,
+      `network error after ${Date.now() - started}ms: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    )
+    throw err
+  }
 }
 
 // Spec 008 alias kept for source-compat with earlier call sites.
