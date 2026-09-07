@@ -19,6 +19,17 @@ Do not add colours to `layout.css` beyond the two scrollbar hooks and the two fo
 
 Keep `base.css` plain CSS — no `@apply`, no `@theme`, no utilities. The static export is Tailwind-free (spec 039 NFR-PERF-1) and anything needing a build step would break it. Shell metrics and `.shell-*` classes stay in `layout.css`, because a site with no shell should not inherit tokens describing one.
 
+The same rule now covers behaviour, not just styling. Every mirrored file is listed in `SHARED_MIRRORS` in `scripts/ux_audit.py`, and R12 byte-compares each pair:
+
+| Source (edit this) | Mirror | Shares |
+|--------------------|--------|--------|
+| `frontend/ui/base.css` | `lsat-static/app/base.css` | z-scale, focus ring, motion opt-out |
+| `frontend/lib/shell/rovingFocus.ts` | `lsat-static/lib/rovingFocus.ts` | what an arrow key does in a composite widget (BL-20260831-08) |
+| `frontend/lib/lsatTimer.ts` | `lsat-static/lib/lsatTimer.ts` | clock formatting and pace arithmetic |
+| `frontend/lib/lsat/timerStore.ts` | `lsat-static/lib/lsat/timerStore.ts` | the section-clock state machine both timers view (BL-20260830-04) |
+
+A mirrored module has to compile in **both** roots, which constrains what it may import: only `@/lib/…` paths that exist on both sides, and no Tailwind, no settings catalog, no API client. That is why the platform's `SectionTimerWidget` and the static `SectionTimer` are separate files — the store is shared, the markup is not, because docking and Tailwind exist on only one side.
+
 ## Tokens
 
 ### Shell metrics

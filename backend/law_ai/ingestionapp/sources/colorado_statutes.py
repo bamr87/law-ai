@@ -10,9 +10,7 @@ The ``query`` argument to ``fetch`` is interpreted as a CRS title number
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from collections.abc import Iterable
 
 from law_ai.ingestionapp.sources.base import RawDoc, SourceAdapter
 
@@ -31,13 +29,11 @@ class ColoradoStatutesAdapter(SourceAdapter):
     requires_human_approval = False
     rate_limit_rps = 0.5  # Respect Justia robots.txt / crawl-delay
 
-    def fetch(self, query: str, *, limit: int = 10) -> Iterable[RawDoc]:
-        """Yield statute sections for CRS title *query*.
+    async def afetch(self, query: str, *, limit: int = 10) -> list[RawDoc]:
+        """Return statute sections for CRS title *query*.
 
-        ``query`` is treated as a CRS title id (e.g. ``"1"``). For
-        title-scanning callers may pass ``"all"`` to iterate every
-        title, but that makes hundreds of HTTP requests — not suitable
-        for interactive use; prefer explicit title ids in production.
+        ``query`` is treated as a CRS title id (e.g. ``"1"``). Synchronous
+        callers use the inherited :meth:`SourceAdapter.fetch`.
 
         Example
         -------
@@ -46,19 +42,22 @@ class ColoradoStatutesAdapter(SourceAdapter):
         >>> all(d.source_name == "colorado_statutes" for d in docs)
         True
         """
-        return list(asyncio.run(self._afetch(query, limit=limit)))
-
-    async def _afetch(self, query: str, *, limit: int) -> list[RawDoc]:
         from law_ai.ingestionapp.services.colorado_statutes import (
             ColoradoStatutesClient,
             parse_title_html,
+            parse_title_pdf,
         )
 
         docs: list[RawDoc] = []
         try:
             async with ColoradoStatutesClient() as client:
-                html = await client.fetch_title(query)
-                extraction = parse_title_html(query, html)
+                # BL-20260509-06: when the HTML page is unavailable and a PDF
+                # source is configured, parse the LexisNexis CRS PDF instead.
+                fmt, document = await client.fetch_title_document(query)
+                if fmt == "pdf":
+                    extraction = parse_title_pdf(query, bytes(document))  # type: ignore[arg-type]
+                else:
+                    extraction = parse_title_html(query, str(document))
                 for section in extraction.sections[:limit]:
                     docs.append(
                         RawDoc(

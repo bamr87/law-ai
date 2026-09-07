@@ -739,7 +739,98 @@ _LG: tuple[Archetype, ...] = (
     ),
 )
 
-_ALL: tuple[Archetype, ...] = _LR + _RC + _LG
+# ---------------------------------------------------------------------------
+# Registry — Argumentative Writing (BL-20260831-28)
+#
+# The writing section produces an essay, not a keyed choice, so a WS archetype
+# describes the *shape of the issue* a prompt sets up rather than a question
+# form. Coverage counts writing prompts (not bank questions) against these,
+# and a WS target compiles the writing blueprint instead of the item one.
+# ---------------------------------------------------------------------------
+
+_WS: tuple[Archetype, ...] = (
+    Archetype(
+        id="ws-resource-tradeoff",
+        section="WS",
+        name="Resource Tradeoff (one budget, two goods)",
+        concepts=[
+            "argument-organization",
+            "thesis-position",
+            "warrant",
+            "counterargument-response",
+            "concession-and-scope",
+        ],
+        difficulty_weights={"intro": 0.1, "easy": 0.3, "med": 0.4, "hard": 0.2},
+        tier_hint="premium",
+        guidance=(
+            "Set up a decision where one indivisible resource can fund exactly "
+            "one of two defensible goods, so neither position is obviously "
+            "right. Name the two positions plainly, then supply four "
+            "perspectives that pull in different directions — at least one "
+            "that cuts against each position and one that reframes the "
+            "criterion of success. Constraints must be explicit (the money "
+            "cannot be split, deferred, or matched) so a writer cannot dissolve "
+            "the tradeoff instead of arguing it. The model response argues one "
+            "position, states the strongest case against it, and answers that "
+            "case rather than restating its own thesis."
+        ),
+    ),
+    Archetype(
+        id="ws-principle-application",
+        section="WS",
+        name="Principle Application (a rule meets a hard case)",
+        concepts=[
+            "principle-application",
+            "thesis-position",
+            "warrant",
+            "concession-and-scope",
+        ],
+        difficulty_weights={"easy": 0.2, "med": 0.4, "hard": 0.3, "elite": 0.1},
+        tier_hint="premium",
+        guidance=(
+            "State a policy, rule, or commitment an institution has already "
+            "adopted, then a case at its edge where applying it faithfully and "
+            "honouring its purpose come apart. Positions: apply the rule as "
+            "written, or carve the exception. Perspectives should include the "
+            "rule's stated rationale, a precedent the decision would set, and "
+            "a cost borne by someone with no say. The essay must define the "
+            "scope of its own concession — writers who grant everything lose "
+            "on concession-and-scope."
+        ),
+    ),
+    Archetype(
+        id="ws-causal-policy",
+        section="WS",
+        name="Causal Policy Claim (does the remedy address the cause?)",
+        concepts=[
+            "causation-vs-correlation",
+            "thesis-position",
+            "warrant",
+            "counterargument-response",
+        ],
+        difficulty_weights={"med": 0.4, "hard": 0.4, "elite": 0.2},
+        tier_hint="premium",
+        guidance=(
+            "Present a measured outcome and a proposed intervention whose case "
+            "rests on a causal story the evidence under-determines. Positions: "
+            "adopt the intervention now, or hold until the cause is isolated. "
+            "Perspectives must include at least one confound and one cost of "
+            "waiting, so both sides carry real weight. Reward writers who name "
+            "what evidence would change their mind; the model response should "
+            "do exactly that."
+        ),
+    ),
+)
+
+
+#: Question archetypes — the bank-backed taxonomy every MCQ consumer means by
+#: "archetype" (coverage of the bank, few-shot exemplars, library articles,
+#: synthesis domains). WS lives beside it rather than inside it because a
+#: writing archetype has no bank items and no keyed answer.
+_QUESTION: tuple[Archetype, ...] = _LR + _RC + _LG
+
+#: Every archetype the factory can plan for, question and writing alike.
+_ALL: tuple[Archetype, ...] = _QUESTION + _WS
 
 
 # ---------------------------------------------------------------------------
@@ -748,7 +839,25 @@ _ALL: tuple[Archetype, ...] = _LR + _RC + _LG
 
 
 def all_archetypes() -> tuple[Archetype, ...]:
-    """Every registered archetype, LR then RC then LG."""
+    """Every **question** archetype, LR then RC then LG.
+
+    Question archetypes are the bank-backed ones: they are counted against
+    ``*_bank.json``, illustrated by bank exemplars, and covered by library
+    articles. Writing archetypes (BL-20260831-28) answer to none of that, so
+    they are reached through :func:`writing_archetypes` /
+    :func:`every_archetype` instead of silently widening what every MCQ
+    consumer already means by "all".
+    """
+    return _QUESTION
+
+
+def writing_archetypes() -> tuple[Archetype, ...]:
+    """The WS archetypes — issue shapes for the writing library."""
+    return _WS
+
+
+def every_archetype() -> tuple[Archetype, ...]:
+    """Question archetypes then writing archetypes: the whole registry."""
     return _ALL
 
 
@@ -758,12 +867,18 @@ def archetypes_for(section: Section) -> tuple[Archetype, ...]:
 
 @lru_cache(maxsize=1)
 def by_id() -> dict[str, Archetype]:
+    """Question archetypes by id (see :func:`every_archetype_by_id`)."""
+    return {a.id: a for a in _QUESTION}
+
+
+@lru_cache(maxsize=1)
+def every_archetype_by_id() -> dict[str, Archetype]:
     return {a.id: a for a in _ALL}
 
 
 def get_archetype(archetype_id: str) -> Archetype:
     try:
-        return by_id()[archetype_id]
+        return every_archetype_by_id()[archetype_id]
     except KeyError as exc:
         raise KeyError(f"unknown archetype {archetype_id!r}") from exc
 

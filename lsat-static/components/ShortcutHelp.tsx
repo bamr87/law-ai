@@ -21,6 +21,7 @@ const GROUPS: Group[] = [
     rows: [
       ['?', 'Show or hide this reference'],
       ['[  /  ]', 'Previous / next section'],
+      ['.', 'Keep the header visible, or let it hide on scroll'],
       ['Esc', 'Close this reference'],
     ],
   },
@@ -29,6 +30,7 @@ const GROUPS: Group[] = [
     rows: [
       ['A – E', 'Select that answer choice'],
       ['↑ ↓ ← →', 'Move between choices (when a choice has focus)'],
+      ['Home  /  End', 'First / last choice (when a choice has focus)'],
       ['Enter', 'Check the answer — then again to advance'],
       ['N  /  P', 'Next / previous question (answers you gave are kept)'],
       ['H', 'Reveal the next hint'],
@@ -127,8 +129,12 @@ export default function ShortcutHelp({ onClose }: { onClose: () => void }) {
           <section key={g.title} className="shortcut-group">
             <h3>{g.title}</h3>
             <dl className="shortcut-list">
-              {g.rows.map(([keys, what]) => (
-                <div key={keys} className="shortcut-row">
+              {/* Keyed by position, not by the key cap: a group may legitimately
+                  document the same cap twice (O opens a prompt and returns to
+                  the editor), and `key={keys}` made React collide the two rows
+                  (BL-20260906-62). */}
+              {g.rows.map(([keys, what], i) => (
+                <div key={`${g.title}-${i}`} className="shortcut-row">
                   <dt>
                     <kbd>{keys}</kbd>
                   </dt>

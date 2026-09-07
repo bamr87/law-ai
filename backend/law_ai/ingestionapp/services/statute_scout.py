@@ -29,12 +29,53 @@ from law_ai.core.schemas.statute_extraction import (
     StatuteSectionPayload,
 )
 from law_ai.ingestionapp.quarantine_kinds import KIND_STATUTE_SECTION
-from law_ai.ingestionapp.services.colorado_statutes import parse_title_html
+from law_ai.ingestionapp.services.colorado_statutes import (
+    parse_title_html,
+    rescore_section,
+)
 
 logger = logging.getLogger("law_ai.ingestion.statute_scout")
 
 CONFIDENCE_THRESHOLD = 0.7
 PENDING_REVIEW_DIR = Path("backend/var/pending_review")
+
+#: Administrative metadata a quarantined section needs before it can be
+#: rehydrated into a committable :class:`StatuteExtraction` (BL-20260811-03).
+#: Rows written before this enrichment lack these keys and fail loudly.
+REQUIRED_COMMIT_METADATA = (
+    "jurisdiction_code",
+    "jurisdiction_name",
+    "code_id",
+    "code_title",
+    "statute_id",
+    "statute_title",
+)
+
+
+def _section_envelope(
+    extraction: StatuteExtraction, section: StatuteSectionPayload
+) -> dict[str, Any]:
+    """Self-describing quarantine payload for one section (BL-20260811-03).
+
+    The row used to store only ``{section, statute_id, source_url}``, which
+    is not enough to rebuild a :class:`StatuteExtraction` — so an approved
+    statute row could never be committed. Carrying the administrative
+    metadata makes the queue row self-contained.
+    """
+    return {
+        "section": json.loads(section.model_dump_json()),
+        "statute_id": extraction.statute_id,
+        "statute_title": extraction.statute_title,
+        "statute_citation": extraction.statute_citation,
+        "jurisdiction_code": extraction.jurisdiction_code,
+        "jurisdiction_name": extraction.jurisdiction_name,
+        "jurisdiction_level": extraction.jurisdiction_level,
+        "code_id": extraction.code_id,
+        "code_title": extraction.code_title,
+        "source": extraction.source,
+        "source_url": extraction.source_url,
+        "agent_version": extraction.agent_version,
+    }
 
 
 class StatuteScout:
@@ -92,6 +133,44 @@ class StatuteScout:
         )
         return extraction
 
+    def rescore(self, payload: dict[str, Any]) -> StatuteSectionPayload:
+        """Re-score one quarantined section payload (BL-20260905-96).
+
+        The statute-side entry point for ``approval.reextract_review``:
+        ``extract`` needs title HTML, which a quarantine row does not carry,
+        so re-extraction re-runs today's scorer over the stored section and
+        returns a copy of it with a fresh ``confidence``. Like the case path
+        it only informs a reviewer — nothing is committed here.
+        """
+        start = time.time()
+        section_data = payload.get("section")
+        if not isinstance(section_data, dict):
+            raise ValueError("statute quarantine payload has no 'section'")
+
+        section = StatuteSectionPayload.model_validate(section_data)
+        rescored = section.model_copy(
+            update={
+                "confidence": round(
+                    rescore_section(heading=section.heading, text=section.text), 4
+                )
+            }
+        )
+        provenance.log_agent_call(
+            agent_name=self.name,
+            input_data={"section_id": section.id, "mode": "rescore"},
+            output_data={
+                "previous_confidence": section.confidence,
+                "confidence": rescored.confidence,
+            },
+            model="rule-based+bs4",
+            latency_ms=(time.time() - start) * 1000,
+            confidence=rescored.confidence,
+            sources=(
+                [{"url": payload["source_url"]}] if payload.get("source_url") else []
+            ),
+        )
+        return rescored
+
     # ------------------------------------------------------------------
     # Commit
     # ------------------------------------------------------------------
@@ -138,6 +217,72 @@ class StatuteScout:
             "edges": edges,
         }
 
+    async def commit_section(
+        self, payload: dict[str, Any], *, force_commit: bool = True
+    ) -> dict[str, Any]:
+        """Commit ONE quarantined statute section after human approval.
+
+        BL-20260811-03: ``commit_approved_review`` used to route every kind
+        through ``IngestionScout`` (a ``:Case`` extractor), so approving a
+        ``kind="statute_section"`` row could never reach the graph. This is
+        the statute-side counterpart: it rehydrates a single-section
+        :class:`StatuteExtraction` from the quarantine envelope written by
+        :meth:`_quarantine_via_celery` and commits it with ``threshold=0.0``
+        — the human approval *is* the gate, so the confidence score that
+        quarantined the row must not re-fire.
+
+        Raises ``ValueError`` when the row predates the metadata enrichment;
+        the caller records that as an explicit, audited ``commit_error``
+        rather than a silent skip.
+        """
+        section_data = payload.get("section")
+        if not isinstance(section_data, dict):
+            raise ValueError("statute quarantine payload has no 'section'")
+        missing = [key for key in REQUIRED_COMMIT_METADATA if not payload.get(key)]
+        if missing:
+            raise ValueError(
+                "statute row lacks jurisdiction/code metadata "
+                f"({', '.join(missing)}); re-ingest the title to commit it"
+            )
+
+        section = StatuteSectionPayload.model_validate(section_data)
+        extraction = StatuteExtraction(
+            jurisdiction_code=str(payload["jurisdiction_code"]),
+            jurisdiction_name=str(payload["jurisdiction_name"]),
+            jurisdiction_level=payload.get("jurisdiction_level") or "state",
+            code_id=str(payload["code_id"]),
+            code_title=str(payload["code_title"]),
+            statute_id=str(payload["statute_id"]),
+            statute_title=str(payload["statute_title"]),
+            statute_citation=payload.get("statute_citation"),
+            sections=[section],
+            confidence=section.confidence,
+            source=str(payload.get("source") or "colorado_statutes"),
+            source_url=payload.get("source_url"),
+            agent_version=str(payload.get("agent_version") or self.agent_version),
+        )
+
+        threshold = 0.0 if force_commit else self._threshold
+        driver = get_neo4j_driver()
+        async with driver.session() as session:
+            edges = await commit_statute_extraction(
+                session, extraction, threshold=threshold
+            )
+        provenance.log_graph_query(
+            cypher="ingestion.commit_statute_section",
+            params={"section_id": section.id, "statute_id": extraction.statute_id},
+            result_count=1 + edges,
+            latency_ms=0.0,
+        )
+        return {
+            "section_id": section.id,
+            "case_id": section.id,  # keyed the same way as the case path
+            "committed": True,
+            "pending": False,
+            "confidence": section.confidence,
+            "edges": edges,
+        }
+
     # ------------------------------------------------------------------
     # HITL quarantine
     # ------------------------------------------------------------------
@@ -179,11 +324,7 @@ class StatuteScout:
             "kind": KIND_STATUTE_SECTION,
             "confidence": section.confidence,
             "reason": "low_confidence",
-            "payload": {
-                "section": json.loads(section.model_dump_json()),
-                "statute_id": extraction.statute_id,
-                "source_url": extraction.source_url,
-            },
+            "payload": _section_envelope(extraction, section),
         }
         quarantine_extraction.delay(task_payload)
 
@@ -202,11 +343,7 @@ class StatuteScout:
                         "kind": KIND_STATUTE_SECTION,
                         "confidence": section.confidence,
                         "reason": "low_confidence",
-                        "payload": {
-                            "section": json.loads(section.model_dump_json()),
-                            "statute_id": extraction.statute_id,
-                            "source_url": extraction.source_url,
-                        },
+                        "payload": _section_envelope(extraction, section),
                     },
                     default=str,
                 )

@@ -49,9 +49,15 @@ _LLM_SYSTEM = (
 
 
 class GenerateGuideInput(BaseModel):
-    """Caller-supplied target: one existing bank question."""
+    """Caller-supplied target: a bank question, or an inline draft of one."""
 
     question_id: str
+    question: dict[str, Any] | None = Field(
+        default=None,
+        description="Inline question to guide when it is not in the bank yet "
+        "— a factory draft awaiting review (BL-20260901-04). The id always "
+        "comes from ``question_id``; when omitted the bank is consulted.",
+    )
 
 
 class GenerateGuideOutput(BaseModel):
@@ -64,6 +70,26 @@ class GenerateGuideOutput(BaseModel):
         description="True when every provider failed and the fallback was used.",
     )
     trace_id: str | None = None
+
+
+def _resolve_question(inp: GenerateGuideInput) -> Question:
+    """The question to guide: an inline draft when given, else the bank row.
+
+    Guiding a draft is what lets the factory author a guide *with* an item
+    instead of sweeping for it later; the draft is not in the bank (and must
+    not be — it is still pending review), so the caller passes it inline.
+    """
+    from law_ai.lsat.services.bank import load_bank
+
+    if inp.question is not None:
+        data = dict(inp.question)
+        data["id"] = inp.question_id
+        data.setdefault("source", "draft (pending review)")
+        return Question.model_validate(data)
+    q = load_bank().get(inp.question_id)
+    if q is None:
+        raise KeyError(f"unknown question {inp.question_id!r}")
+    return q
 
 
 def _load_prompt_template() -> str:
@@ -162,12 +188,8 @@ class LSATSolveGuideAuthor:
     human_approval_required = True
 
     async def run(self, input_data: dict[str, Any]) -> GenerateGuideOutput:
-        from law_ai.lsat.services.bank import load_bank
-
         inp = GenerateGuideInput.model_validate(input_data)
-        q = load_bank().get(inp.question_id)
-        if q is None:
-            raise KeyError(f"unknown question {inp.question_id!r}")
+        q = _resolve_question(inp)
         started = time.perf_counter()
 
         passage: PassageContext | None = None

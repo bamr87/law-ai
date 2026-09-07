@@ -373,7 +373,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-003"
+      "passage_id": "rc-passage-003",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-011",
@@ -411,7 +417,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-004"
+      "passage_id": "rc-passage-004",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-012",
@@ -448,7 +460,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-005"
+      "passage_id": "rc-passage-005",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-013",
@@ -485,7 +503,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-003"
+      "passage_id": "rc-passage-003",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-014",
@@ -522,7 +546,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-006"
+      "passage_id": "rc-passage-006",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-015",
@@ -559,7 +589,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-005"
+      "passage_id": "rc-passage-005",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-016",
@@ -596,7 +632,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-005"
+      "passage_id": "rc-passage-005",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-017",
@@ -634,7 +676,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-005"
+      "passage_id": "rc-passage-005",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-018",
@@ -671,7 +719,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-003"
+      "passage_id": "rc-passage-003",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-019",
@@ -708,7 +762,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-003"
+      "passage_id": "rc-passage-003",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-020",
@@ -746,7 +806,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-006"
+      "passage_id": "rc-passage-006",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-021",
@@ -784,7 +850,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-004"
+      "passage_id": "rc-passage-004",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-022",
@@ -821,7 +893,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-004"
+      "passage_id": "rc-passage-004",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-023",
@@ -859,7 +937,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-007"
+      "passage_id": "rc-passage-007",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-024",
@@ -896,7 +980,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-005"
+      "passage_id": "rc-passage-005",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-025",
@@ -933,7 +1023,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-005"
+      "passage_id": "rc-passage-005",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-026",
@@ -970,7 +1066,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-003"
+      "passage_id": "rc-passage-003",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-027",
@@ -1007,7 +1109,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-003"
+      "passage_id": "rc-passage-003",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-028",
@@ -1044,7 +1152,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-006"
+      "passage_id": "rc-passage-006",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-029",
@@ -1082,7 +1196,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-004"
+      "passage_id": "rc-passage-004",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-030",
@@ -1119,7 +1239,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-004"
+      "passage_id": "rc-passage-004",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-031",
@@ -1157,7 +1283,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-004"
+      "passage_id": "rc-passage-004",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-032",
@@ -1194,7 +1326,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-007"
+      "passage_id": "rc-passage-007",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-033",
@@ -1231,7 +1369,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-006"
+      "passage_id": "rc-passage-006",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-034",
@@ -1269,7 +1413,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-006"
+      "passage_id": "rc-passage-006",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-035",
@@ -1306,7 +1456,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-007"
+      "passage_id": "rc-passage-007",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-036",
@@ -1343,7 +1499,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-007"
+      "passage_id": "rc-passage-007",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-037",
@@ -1381,7 +1543,13 @@
       ],
       "references": [],
       "source": "LSATContentFactory build100 (2026-07-16)",
-      "passage_id": "rc-passage-007"
+      "passage_id": "rc-passage-007",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "rc-038",
@@ -1607,6 +1775,652 @@
       "concepts": [
         "author-attitude",
         "rc-tone"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-044",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "passage_id": "rc-passage-002",
+      "stem": "Which one of the following situations is most analogous to the change in the law that MacPherson effected, as that change is described in the passage?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "A city stops requiring restaurants to pass periodic inspections and relies instead on complaints from customers to identify unsafe kitchens."
+        },
+        {
+          "label": "B",
+          "text": "A lending library that had lent books only to residents of its own town begins lending to anyone and, at the same time, drops its rule that books be returned within two weeks."
+        },
+        {
+          "label": "C",
+          "text": "A hospital that had treated only patients enrolled in its own health plan begins treating any patient, but only on condition that the patient pay the full charge in advance."
+        },
+        {
+          "label": "D",
+          "text": "A journal that had considered submissions only from members of its own faculty begins considering submissions from anyone and no longer sends them out for peer review."
+        },
+        {
+          "label": "E",
+          "text": "A university that had admitted only the children of its graduates begins admitting any applicant, while continuing to require that every applicant meet the same academic standards it has always applied."
+        }
+      ],
+      "correct": "E",
+      "explanation": "MacPherson changed who could sue without changing what a plaintiff had to prove: duty stopped depending on the contractual relationship and started depending on foreseeable use, but negligence still had to be shown. E has both halves — the relationship requirement drops, the substantive test stays. A abolishes the substantive test rather than the relationship. B and D drop both, which is precisely what the passage says Cardozo did not do. C opens the class of claimants but adds a new requirement, where MacPherson added none.",
+      "concepts": [
+        "analogous-situation",
+        "rc-inference"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-045",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "passage_id": "rc-passage-006",
+      "stem": "In using the phrase \"laundering old inequities through the authority of a number\" (third paragraph), the author most likely means to convey that",
+      "choices": [
+        {
+          "label": "A",
+          "text": "the developers of risk-assessment instruments deliberately conceal the role that race plays in their formulas"
+        },
+        {
+          "label": "B",
+          "text": "a score can lend the appearance of an objective judgment about an individual to factors that in fact reflect pre-existing social disadvantage"
+        },
+        {
+          "label": "C",
+          "text": "numerical risk scores predict rearrest less accurately than the intuitive judgments of experienced judges do"
+        },
+        {
+          "label": "D",
+          "text": "courts have adopted risk-assessment instruments faster than they have subjected them to independent validation"
+        },
+        {
+          "label": "E",
+          "text": "the proprietary status of most instruments prevents a defendant from contesting the score he is assigned"
+        }
+      ],
+      "correct": "B",
+      "explanation": "The sentence describes a score that 'may in fact encode the circumstances of the neighborhood he was born into' while appearing to 'describe an individual's dangerousness' — disadvantage entering as though it were an objective finding about the person. B says that. A reads deliberate concealment into a paragraph that attributes the proxies to a scarcity of direct predictors. C compares accuracy, which this paragraph does not; the author's complaint is about what is measured. D belongs to the fourth paragraph's point about pace of adoption. E restates the transparency objection made two sentences earlier, not the metaphor asked about.",
+      "concepts": [
+        "phrase-in-context",
+        "author-attitude"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-046",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "intro",
+      "passage_id": "rc-passage-009",
+      "stem": "Which one of the following most accurately expresses the main point of the passage?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Tree-ring chronologies in Europe and the American Southwest now extend more than eight thousand years into the past."
+        },
+        {
+          "label": "B",
+          "text": "The divergence problem shows that ring widths cannot be used to reconstruct past temperature."
+        },
+        {
+          "label": "C",
+          "text": "Tree rings can record climate quantitatively, but the conditions that make them do so also limit what a reconstruction can claim, so uncertainty and independent proxies are essential to the method."
+        },
+        {
+          "label": "D",
+          "text": "Climate reconstruction should rely on ice cores and corals rather than on tree rings, whose weaknesses are now well documented."
+        },
+        {
+          "label": "E",
+          "text": "Trees growing at the margins of their range are more useful to climate science than trees growing in favourable conditions."
+        }
+      ],
+      "correct": "C",
+      "explanation": "The passage builds a case and then qualifies it: rings carry a real climate signal (paragraph two), the very principle behind that signal creates the difficulties (paragraph three), and the response is to report uncertainty and cross-check other proxies (paragraph four). C carries all three movements. A and E are details from the first and third paragraphs. B overstates the divergence problem, which the passage treats as a limit rather than a refutation. D recommends abandoning tree rings, which the last paragraph explicitly refuses.",
+      "concepts": [
+        "main-point",
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-047",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "passage_id": "rc-passage-009",
+      "stem": "According to the passage, a chronology can be extended beyond the lifetime of any single tree because",
+      "choices": [
+        {
+          "label": "A",
+          "text": "trees at the margins of a species' range live longer than trees in favourable conditions"
+        },
+        {
+          "label": "B",
+          "text": "the sequence of wide and narrow rings in a region is distinctive enough to match samples that overlap in time"
+        },
+        {
+          "label": "C",
+          "text": "a transfer function can be fitted wherever a chronology overlaps the instrumental record"
+        },
+        {
+          "label": "D",
+          "text": "ice cores and corals supply dates for the portions of a chronology that wood cannot cover"
+        },
+        {
+          "label": "E",
+          "text": "the factor limiting a tree's growth stays constant over the life of a stand"
+        }
+      ],
+      "correct": "B",
+      "explanation": "The first paragraph gives the reason directly: the pattern is a 'signature' of a particular run of years, so a pattern in living wood can be matched to the outer rings of older timber, and so on backward — B. C describes how a chronology is calibrated to climate, not how it is lengthened. D misuses the other proxies, which paragraph four offers as independent checks rather than as sources of dates. A is never claimed. E is contradicted by paragraph three, which turns on the limiting factor changing.",
+      "concepts": [
+        "detail-question",
+        "rc-inference"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-048",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "passage_id": "rc-passage-009",
+      "stem": "Which one of the following most accurately describes the function of the third paragraph?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "It supplies the historical background needed to understand the technique introduced in the first paragraph."
+        },
+        {
+          "label": "B",
+          "text": "It presents evidence that the transfer functions described in the second paragraph have been fitted incorrectly."
+        },
+        {
+          "label": "C",
+          "text": "It shows that the feature of tree growth that makes the technique work is also the source of its principal difficulties."
+        },
+        {
+          "label": "D",
+          "text": "It concedes an objection to the technique before dismissing the objection as unfounded."
+        },
+        {
+          "label": "E",
+          "text": "It compares tree-ring chronologies with the independent proxies discussed in the final paragraph."
+        }
+      ],
+      "correct": "C",
+      "explanation": "The paragraph opens by saying so: 'The method's difficulties follow from the same principle that gives it power,' and then works that out through the divergence problem and site selection — C. B misstates the divergence problem, which concerns a relationship that changed rather than arithmetic done wrongly. D has the paragraph dismissing the difficulties, which the passage never does. A offers background the paragraph does not contain, and E describes the comparison the fourth paragraph makes.",
+      "concepts": [
+        "rc-structure",
+        "argument-organization"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-049",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "hard",
+      "passage_id": "rc-passage-009",
+      "stem": "The passage most strongly supports which one of the following statements about site selection?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Sites chosen for the strength of their climate signal may for that very reason be unrepresentative of the surrounding landscape."
+        },
+        {
+          "label": "B",
+          "text": "Sites at the arid margin of a species' range yield more reliable chronologies than sites at treeline."
+        },
+        {
+          "label": "C",
+          "text": "A site whose limiting factor has changed since 1960 should be excluded from a reconstruction."
+        },
+        {
+          "label": "D",
+          "text": "The longest chronologies have been assembled at sites where growth is limited by temperature rather than by moisture."
+        },
+        {
+          "label": "E",
+          "text": "Researchers select stressed sites primarily because timber from such sites survives longer in old buildings."
+        }
+      ],
+      "correct": "A",
+      "explanation": "The last sentence of paragraph three makes exactly this point: the stands with the cleanest signal are the marginal ones, and what limits growth at the margin need not limit it more widely — A. B ranks the two kinds of marginal site, which the passage never does; it describes both as signal-bearing. C prescribes an exclusion rule the passage does not offer, and its remedy is reported uncertainty and independent proxies. D connects chronology length to limiting factor, a link the passage never draws. E invents a reason for site selection in place of the one the passage gives.",
+      "concepts": [
+        "most-strongly-supported",
+        "rc-inference"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-050",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "elite",
+      "passage_id": "rc-passage-009",
+      "stem": "The author would be most likely to regard which one of the following reconstructions as meeting the standard set out in the final paragraph?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "A reconstruction of regional rainfall from a single treeline chronology, presented as a single line and described as provisional in its introduction."
+        },
+        {
+          "label": "B",
+          "text": "A reconstruction of summer temperature that reports a confidence envelope widening with age and is compared against an ice-core record covering the same centuries."
+        },
+        {
+          "label": "C",
+          "text": "A reconstruction that discards all post-1960 ring data on the ground that the divergence problem makes it unreliable."
+        },
+        {
+          "label": "D",
+          "text": "A reconstruction built from trees growing in unstressed conditions, so that no single factor dominates the growth signal."
+        },
+        {
+          "label": "E",
+          "text": "A reconstruction that averages several tree-ring chronologies from one region and reports the mean without an estimate of error."
+        }
+      ],
+      "correct": "B",
+      "explanation": "The paragraph asks for two things — an uncertainty envelope that widens as the calibration recedes, and a check against proxies whose weaknesses differ — and B is the only option with both, which is why it is correct. A calls itself provisional but still publishes the bare line the author says claims too much, and takes its signal from a single chronology. E fails the same test and its several chronologies are not independent in the required sense: they share a region and a proxy. C answers the divergence problem by deleting data rather than by reporting uncertainty. D removes the very stress that produces a readable signal, which paragraph three identifies as the reason marginal sites are chosen.",
+      "concepts": [
+        "rc-inference",
+        "author-attitude"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-051",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "intro",
+      "passage_id": "rc-passage-010",
+      "stem": "Which one of the following most accurately states the main point of Passage A?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Translations of poetry are less faithful than translations of statutes."
+        },
+        {
+          "label": "B",
+          "text": "Pope's Homer is a better poem than any literal translation of Homer."
+        },
+        {
+          "label": "C",
+          "text": "Because a translation is a report about a text the reader cannot read, it should be faithful to what the original says rather than to the effect it produces."
+        },
+        {
+          "label": "D",
+          "text": "The effect a poem produces is the same for every reader who encounters it in the original language."
+        },
+        {
+          "label": "E",
+          "text": "A translator should not attempt to render poetry at all, since its words are part of what the reader is meant to experience."
+        }
+      ],
+      "correct": "C",
+      "explanation": "Passage A states its thesis in the first paragraph — 'I take the opposite view' — and defends it in the second: a translation reports, and a report that changes what was said to reproduce a feeling is not one. C. D reverses A's argument, which turns on readers differing. B misreads the Pope example, granted as a fine poem and denied as a translation. A compares statutes and poems only to introduce the problem, and E recommends an abstention Passage A never counsels.",
+      "concepts": [
+        "main-point",
+        "rc-comparative"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-052",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "passage_id": "rc-passage-010",
+      "stem": "Which one of the following most accurately describes the relationship between the two passages?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Passage B rejects a premise that Passage A's argument depends on and then limits its own position with a further constraint."
+        },
+        {
+          "label": "B",
+          "text": "Passage B provides historical evidence for a claim that Passage A advances without support."
+        },
+        {
+          "label": "C",
+          "text": "Passage B applies Passage A's principle to a case Passage A does not consider."
+        },
+        {
+          "label": "D",
+          "text": "Passage B and Passage A reach the same conclusion by different routes."
+        },
+        {
+          "label": "E",
+          "text": "Passage B concedes Passage A's central claim and disputes only its application to verse."
+        }
+      ],
+      "correct": "A",
+      "explanation": "Passage B opens on the assumption behind A — that what a poem says can be separated from how it says it — and calls it 'close to false' in verse; its second paragraph then constrains its own view with the answerability test. That is A. E is the near miss: B does not concede A's central claim, it denies the separation the claim rests on. B and C describe cooperative moves the second passage never makes, and D is wrong because the two reach opposed conclusions.",
+      "concepts": [
+        "rc-comparative",
+        "argument-organization"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-053",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "med",
+      "passage_id": "rc-passage-010",
+      "stem": "It can most reasonably be inferred that the author of Passage B would regard a translation that renders every word by its dictionary sense and preserves nothing of the original's rhythm as",
+      "choices": [
+        {
+          "label": "A",
+          "text": "faithful in the only sense in which fidelity can be demanded"
+        },
+        {
+          "label": "B",
+          "text": "a summary of the original rather than a preservation of its meaning"
+        },
+        {
+          "label": "C",
+          "text": "an original poem occasioned by the source text"
+        },
+        {
+          "label": "D",
+          "text": "acceptable in prose but impossible to produce in verse"
+        },
+        {
+          "label": "E",
+          "text": "answerable to the original in the way Passage B's test requires"
+        }
+      ],
+      "correct": "B",
+      "explanation": "Passage B says it in terms: such a rendering 'has not preserved the meaning while sacrificing the form, it has preserved a summary' — B. A states the literalist position B is arguing against. C borrows Passage A's description of effect-chasing translation, which is the opposite failing. D contradicts B, whose complaint is that the thing is entirely possible and inadequate. E inverts the answerability test, which licenses departures that carry over an effect the source has.",
+      "concepts": [
+        "rc-inference",
+        "rc-comparative"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-054",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "hard",
+      "passage_id": "rc-passage-010",
+      "stem": "Both passages are committed to which one of the following?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "A translator's departures from the literal sense of the original require justification."
+        },
+        {
+          "label": "B",
+          "text": "The effect a poem produces varies from reader to reader."
+        },
+        {
+          "label": "C",
+          "text": "Verse and prose place the same demands on a translator."
+        },
+        {
+          "label": "D",
+          "text": "A translation that reads well as a poem in its own language has probably departed too far from its original."
+        },
+        {
+          "label": "E",
+          "text": "The meaning of a line of verse includes the expectation set up by its rhyme."
+        }
+      ],
+      "correct": "A",
+      "explanation": "Passage A holds that altering what was said is not reporting at all; Passage B allows departures but only where each one is 'answerable to something in the original'. Both therefore treat a departure as needing a warrant, which is A — they disagree about what can supply it. B is Passage A's premise and no part of B's argument. E is Passage B's claim about meaning, which Passage A denies. C is denied by both, each of which distinguishes verse from prose or statute. D is asserted by neither: Passage A calls Pope's Homer a fine thing and objects only to calling it a translation.",
+      "concepts": [
+        "rc-comparative",
+        "rc-inference"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-055",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "elite",
+      "passage_id": "rc-passage-010",
+      "stem": "Suppose a translator renders a source poem's short, hammering line as a longer English line, on the ground that the English line's stresses fall where the original's do. The author of Passage A and the author of Passage B would be most likely to disagree about whether",
+      "choices": [
+        {
+          "label": "A",
+          "text": "the translator has produced a poem worth reading in English"
+        },
+        {
+          "label": "B",
+          "text": "the stresses of the original fall where the translator says they do"
+        },
+        {
+          "label": "C",
+          "text": "carrying over the original's stress pattern can justify departing from its literal sense"
+        },
+        {
+          "label": "D",
+          "text": "translating verse is more difficult than translating prose"
+        },
+        {
+          "label": "E",
+          "text": "the translator should have consulted a bilingual dictionary"
+        }
+      ],
+      "correct": "C",
+      "explanation": "The example is designed to isolate one question: an effect of the original has been carried over at the cost of the words. Passage B's answerability test licenses exactly that; Passage A holds that a rendering which alters what was said to reproduce how it felt is not a report — so C is the point of disagreement. A is a judgement Passage A would grant a good effect-driven translation, as it grants Pope. B is a factual question about the source neither author addresses. D is common ground: both distinguish verse from other kinds of text. E concerns method rather than the standard by which a rendering is judged.",
+      "concepts": [
+        "rc-comparative",
+        "author-attitude"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-056",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "intro",
+      "passage_id": "rc-passage-002",
+      "stem": "Which one of the following most accurately expresses the main point of the passage?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "MacPherson v. Buick Motor Co. relieved injured plaintiffs of the burden of proving that a manufacturer had been negligent."
+        },
+        {
+          "label": "B",
+          "text": "Nineteenth-century courts defended the privity requirement as protection for a young industrial economy."
+        },
+        {
+          "label": "C",
+          "text": "Section 402A of the Restatement (Second) of Torts codified strict liability for defective products in 1965."
+        },
+        {
+          "label": "D",
+          "text": "Justice Traynor's concurrence in Escola was the single most important opinion in the development of products-liability law."
+        },
+        {
+          "label": "E",
+          "text": "American products-liability law moved from a privity bar through negligence to strict liability, but negligence reasoning survives within the modern regime."
+        }
+      ],
+      "correct": "E",
+      "explanation": "The passage traces three stages and then argues in its last paragraph that the third is less clean a break than its label suggests — E. A misstates MacPherson, which the second paragraph says left the negligence requirement standing. B and C are true details from the first and third paragraphs, not the point they serve. D ranks Escola against every other opinion, a comparison the passage never makes.",
+      "concepts": [
+        "main-point",
+        "rc-structure"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-057",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "elite",
+      "passage_id": "rc-passage-002",
+      "stem": "Which one of the following, if it occurred, would best illustrate the passage's claim that strict liability's label \"can obscure how much negligence reasoning survives within it\"?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "A court deciding a design-defect claim asks whether the danger the design created was justified by what the design achieved, and rules for the manufacturer because it was."
+        },
+        {
+          "label": "B",
+          "text": "A court holds a bottler liable for a bottle that shattered in a customer's hand without inquiring what care the bottler took."
+        },
+        {
+          "label": "C",
+          "text": "A court dismisses a claim because the injured plaintiff bought the product from a retailer rather than from the manufacturer."
+        },
+        {
+          "label": "D",
+          "text": "A court allows a bystander injured by a defective machine to sue the manufacturer although he never bought or used it."
+        },
+        {
+          "label": "E",
+          "text": "A legislature requires manufacturers to carry insurance so that the cost of product injuries is spread across all purchasers."
+        }
+      ],
+      "correct": "A",
+      "explanation": "The claim is that a doctrine labelled strict still runs on the risk-versus-utility balancing that negligence performs. A is that balancing, done under a strict-liability heading — the passage names design-defect cases as where it happens. B is strict liability working as advertised, with fault dropped rather than smuggled in. C applies the privity rule the passage says fell, and D is MacPherson's foreseeability principle. E enacts the risk-distribution rationale, which the passage distinguishes from negligence reasoning rather than identifying with it.",
+      "concepts": [
+        "analogous-situation",
+        "rc-inference"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-058",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "intro",
+      "passage_id": "rc-passage-009",
+      "stem": "According to the passage, ring width at a site near the cold upper limit of a species' range varies chiefly with",
+      "choices": [
+        {
+          "label": "A",
+          "text": "the precipitation the site receives"
+        },
+        {
+          "label": "B",
+          "text": "the age of the oldest tree in the stand"
+        },
+        {
+          "label": "C",
+          "text": "the number of overlapping samples available for cross-dating"
+        },
+        {
+          "label": "D",
+          "text": "summer temperature"
+        },
+        {
+          "label": "E",
+          "text": "the width of the rings recorded at nearby arid sites"
+        }
+      ],
+      "correct": "D",
+      "explanation": "The second paragraph divides the two kinds of marginal site: at the arid lower limit growth is limited by water, and at the cold upper limit near treeline it is limited by warmth, so ring width there varies with summer temperature — D. A gives the answer for the other kind of site. B, C and E name things the passage discusses — stand age, cross-dating, other chronologies — but never connects to what a treeline ring's width tracks.",
+      "concepts": [
+        "detail-question",
+        "rc-inference"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-059",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "elite",
+      "passage_id": "rc-passage-006",
+      "stem": "Which one of the following most accurately describes the author's attitude toward actuarial risk-assessment instruments?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "unqualified opposition, grounded in the instruments' reliance on proxies that track race"
+        },
+        {
+          "label": "B",
+          "text": "enthusiasm tempered only by concern that some instruments are proprietary"
+        },
+        {
+          "label": "C",
+          "text": "acceptance in principle, joined to the objection that the safeguards their use requires have not kept pace with their adoption"
+        },
+        {
+          "label": "D",
+          "text": "indifference as to whether the instruments displace judicial discretion, so long as disparities are documented"
+        },
+        {
+          "label": "E",
+          "text": "confidence that independent validation has already answered the criticisms the instruments have attracted"
+        }
+      ],
+      "correct": "C",
+      "explanation": "The fourth paragraph states the position outright: the instruments are not worthless, they might yet deliver what was promised if validated and stripped of the worst proxies, and the reservation is 'narrower but firm' — adoption has outrun the safeguards. C. A is the answer for a writer who condemned them wholesale, which this author explicitly declines to do. B reduces the objection to proprietary status and misses the proxies. D attributes an indifference the second paragraph contradicts. E reverses the complaint: validation is what the author says is missing.",
+      "concepts": [
+        "author-attitude",
+        "rc-tone"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-060",
+      "section": "RC",
+      "type": "RC",
+      "difficulty": "elite",
+      "passage_id": "rc-passage-010",
+      "stem": "Which one of the following is a claim made in Passage B that the author of Passage A would be most likely to reject?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Translating verse makes demands that translating prose does not."
+        },
+        {
+          "label": "B",
+          "text": "A translator's departures from the literal sense require justification."
+        },
+        {
+          "label": "C",
+          "text": "A translation that reproduces the effect of its original may be a fine poem."
+        },
+        {
+          "label": "D",
+          "text": "Some renderings are better understood as original poems occasioned by their sources."
+        },
+        {
+          "label": "E",
+          "text": "A rendering that keeps the dictionary sense of every word while discarding the original's movement has not preserved its meaning."
+        }
+      ],
+      "correct": "E",
+      "explanation": "Passage A's whole case rests on meaning being what a report carries over, so a faithful-to-sense rendering preserves it; Passage B's claim in E denies exactly that, calling such a rendering a summary. The two cannot both hold, which is why E is the point of rejection. A is common ground — Passage A opens by distinguishing verse from statute. B is shared as well: A allows no departures without warrant and B demands answerability. C and D are Passage A's own claims about Pope, not Passage B's.",
+      "concepts": [
+        "rc-comparative",
+        "author-attitude"
       ],
       "references": [],
       "source": "original (CC0)"

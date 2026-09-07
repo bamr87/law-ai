@@ -24,7 +24,9 @@ spec 041 shell rework removed and must not get back:
   R11 control names      — a form control whose only name is a placeholder
   R12 shared-CSS drift   — the two copies of base.css have diverged
   R13 LSAT parity drift  — a platform LSAT component with no static
-                           counterpart and no stated reason
+                           counterpart (same filename, or one it names) and
+                           no stated reason
+  R14 tap targets        — a masthead control or LSAT tab under 44px
 
 **Two surfaces, one contract.** `frontend/` is the platform shell;
 `lsat-static/` is a Tailwind-free static export with no shell at all. The
@@ -408,6 +410,13 @@ PLATFORM_LSAT = FRONTEND / "components" / "lsat"
 #: one blessed directory", so search the whole component tree.
 STATIC_COMPONENTS = LSAT_STATIC / "components"
 STATIC_PARITY_RE = re.compile(r"static-parity:\s*none\s*[—-]\s*\S")
+#: A component that *is* ported but under a different filename names its
+#: counterpart instead — `static-parity: lsat-static/components/Writing.tsx`.
+#: The path is checked, so this is a stronger claim than an exemption, not a
+#: weaker one: rename or delete the counterpart and the gate fails.
+STATIC_PARITY_PATH_RE = re.compile(
+    r"static-parity:\s*(lsat-static/[\w./-]+\.tsx)"
+)
 
 
 def rule_lsat_parity(audit: Audit) -> None:
@@ -418,11 +427,13 @@ def rule_lsat_parity(audit: Audit) -> None:
     static export is the surface a prospective student reaches first, so a
     feature landing on only one side has to be a decision, not an oversight.
 
-    A platform component under `frontend/components/lsat/` passes when either a
-    same-named file exists anywhere under `lsat-static/components/`, or it carries
-    `static-parity: none — <reason>`. Plenty of them legitimately cannot port —
-    anything needing the provider chain or an API cannot run serverless — and
-    saying so in one line is the whole ask.
+    A platform component under `frontend/components/lsat/` passes when a
+    same-named file exists anywhere under `lsat-static/components/`, or it names
+    its differently-named counterpart with `static-parity:
+    lsat-static/components/<file>.tsx` (the path is resolved, so a stale claim
+    fails), or it carries `static-parity: none — <reason>`. Plenty of them
+    legitimately cannot port — anything needing the provider chain or an API
+    cannot run serverless — and saying so in one line is the whole ask.
     """
     if not PLATFORM_LSAT.is_dir():
         return
@@ -435,6 +446,18 @@ def rule_lsat_parity(audit: Audit) -> None:
         if path.name in ported:
             continue
         text = path.read_text(encoding="utf-8")
+        named = STATIC_PARITY_PATH_RE.search(text)
+        if named:
+            counterpart = REPO_ROOT / named.group(1)
+            if counterpart.is_file():
+                continue
+            audit.add(
+                path,
+                1,
+                "R13",
+                f"names a static counterpart that does not exist: {named.group(1)}",
+            )
+            continue
         if STATIC_PARITY_RE.search(text):
             audit.exempted.append((path, "static-parity: none (declared)"))
             continue
@@ -449,6 +472,40 @@ def rule_lsat_parity(audit: Audit) -> None:
 BASE_CSS = FRONTEND / "ui" / "base.css"
 BASE_CSS_MIRROR = LSAT_STATIC / "app" / "base.css"
 
+#: Every (source, mirror) pair the two front ends share by copy rather than by
+#: import. `make ui-sync` refreshes all of them; R12 fails on any drift.
+#: rovingFocus.ts is the pure keyboard contract for composite widgets
+#: (BL-20260831-08): the static QuestionCard consumes the same function the
+#: platform's useRovingTabIndex does, so an arrow key means one thing in both
+#: products.
+#: lsatTimer.ts (the pace arithmetic) and lsat/timerStore.ts (the deadline
+#: state machine behind every section clock) are the shared Timer primitive
+#: from BL-20260830-04: `SectionTimerWidget` and the static `SectionTimer` are
+#: both views over the same store, so a 35-minute section means the same thing
+#: in both products and only the presentation layer forks.
+SHARED_MIRRORS: list[tuple[Path, Path]] = [
+    (BASE_CSS, BASE_CSS_MIRROR),
+    (
+        FRONTEND / "lib" / "shell" / "rovingFocus.ts",
+        LSAT_STATIC / "lib" / "rovingFocus.ts",
+    ),
+    (
+        FRONTEND / "lib" / "lsatTimer.ts",
+        LSAT_STATIC / "lib" / "lsatTimer.ts",
+    ),
+    (
+        FRONTEND / "lib" / "lsat" / "timerStore.ts",
+        LSAT_STATIC / "lib" / "lsat" / "timerStore.ts",
+    ),
+    # BL-20260831-22: one behavioural contract for the hint carousel, run
+    # against both products. Neither vitest project can import across the repo
+    # root, so the contract is mirrored like the rest of the shared surface.
+    (
+        FRONTEND / "__tests__" / "contracts" / "solveAssist.contract.ts",
+        LSAT_STATIC / "__tests__" / "contracts" / "solveAssist.contract.ts",
+    ),
+]
+
 
 def rule_shared_css_mirror(audit: Audit) -> None:
     """R12 — the two front ends really do share one set of primitives.
@@ -459,16 +516,17 @@ def rule_shared_css_mirror(audit: Audit) -> None:
     and a mirror nobody checks is just a fork with extra steps — so this fails
     the build the moment they differ.
     """
-    if not BASE_CSS.is_file() or not BASE_CSS_MIRROR.is_file():
-        audit.add(BASE_CSS_MIRROR, 1, "R12", "shared base.css mirror is missing")
-        return
-    if BASE_CSS.read_bytes() != BASE_CSS_MIRROR.read_bytes():
-        audit.add(
-            BASE_CSS_MIRROR,
-            1,
-            "R12",
-            "drifted from frontend/ui/base.css — run `make ui-sync`",
-        )
+    for source, mirror in SHARED_MIRRORS:
+        if not source.is_file() or not mirror.is_file():
+            audit.add(mirror, 1, "R12", f"shared {source.name} mirror is missing")
+            continue
+        if source.read_bytes() != mirror.read_bytes():
+            audit.add(
+                mirror,
+                1,
+                "R12",
+                f"drifted from {_rel(source)} — run `make ui-sync`",
+            )
 
 
 def rule_page_frame(audit: Audit) -> None:
@@ -497,6 +555,64 @@ def rule_route_states(audit: Audit) -> None:
         audit.add(APP / "not-found.tsx", 1, "R8", "missing — 404s render unstyled")
 
 
+# The controls a thumb has to hit first at a 390px viewport: the masthead
+# cluster, which is on screen on every route, and the LSAT section tabs, which
+# are the switcher a student reaches for most. WCAG 2.5.8 AA sets a 24px floor;
+# HIG, Material, and WCAG 2.5.5 AAA ask for 44px, which `.tap-target` in
+# `frontend/ui/layout.css` supplies. Buttons only — a breadcrumb link is a
+# reading aid in a text trail, not a thumb target, and holding it to 44px would
+# teach everyone to ignore the rule. (BL-20260831-11.)
+TAP_TARGET_FILES = [SHELL / "Masthead.tsx", COMPONENTS / "LsatLab.tsx"]
+
+# `.tap-target`, an explicit `min-h-` of 44px or more, or a control sized off a
+# shell height token (`--shell-tabbar-h` is already 56px) all satisfy the rule.
+TAP_SIZED_RE = re.compile(
+    r"tap-target|min-h-(?:1[1-9]|[2-9]\d)\b|min-h-\[|h-\[var\(--shell-"
+)
+
+
+def rule_tap_targets(audit: Audit) -> None:
+    """R14 — the persistent chrome clears 44px, not just the 24px floor."""
+    sheet = FRONTEND / "ui" / "layout.css"
+    if sheet.is_file():
+        css = sheet.read_text(encoding="utf-8")
+        if not re.search(r"\.tap-target\s*\{[^}]*min-height:\s*44px", css, re.S):
+            audit.add(sheet, 1, "R14", ".tap-target must set min-height: 44px")
+
+    for path in TAP_TARGET_FILES:
+        if not path.is_file():
+            audit.add(path, 1, "R14", "missing — thumb-first control surface")
+            continue
+        text = _strip_comments(path.read_text(encoding="utf-8"))
+        for offset, attrs in _jsx_tags(text, ("button",)):
+            if "className" not in attrs or TAP_SIZED_RE.search(attrs):
+                continue
+            line = text.count("\n", 0, offset) + 1
+            audit.add(path, line, "R14", "control under 44px — add tap-target")
+
+
+# A Tailwind `animate-*` utility with nothing gating it runs for every viewer,
+# including the one whose OS says "reduce motion". Five sampled components in
+# `HomeMotion.test.tsx` proved the components they import; nothing stopped the
+# sixth file from re-introducing the regression (BL-20260906-72), which is what
+# a mechanical rule is for. Satisfied by `motion-reduce:animate-none` beside the
+# utility, or by writing it as `motion-safe:animate-*` in the first place.
+ANIMATE_RE = re.compile(r"(?<!motion-reduce:)(?<!motion-safe:)\banimate-[a-z0-9-]+")
+
+
+def rule_reduced_motion(path: Path, lines: list[str], audit: Audit) -> None:
+    """R15 — every animation opts out under prefers-reduced-motion."""
+    for i, line in enumerate(lines, 1):
+        matches = [m.group(0) for m in ANIMATE_RE.finditer(line)]
+        if not matches or all(m == "animate-none" for m in matches):
+            continue
+        if "motion-reduce:animate-none" in line or "motion-safe:animate-" in line:
+            continue
+        audit.add(
+            path, i, "R15", f"{matches[0]} with no reduced-motion opt-out"
+        )
+
+
 RULES = [
     ("R1", "one scroller: no ad-hoc overflow-auto"),
     ("R2", "viewport height: only the shell claims it"),
@@ -509,8 +625,10 @@ RULES = [
     ("R9", "sticky offsets use the shell stack"),
     ("R10", "composite widgets are named and tabs point at panels"),
     ("R11", "no form control is named only by its placeholder"),
-    ("R12", "the mirrored base.css copies are identical"),
+    ("R12", "the mirrored base.css / rovingFocus.ts copies are identical"),
     ("R13", "every platform LSAT component is ported or explains why not"),
+    ("R14", "masthead controls and LSAT tabs are 44px tap targets"),
+    ("R15", "every animate-* utility opts out of reduced motion"),
 ]
 
 
@@ -547,6 +665,7 @@ def main(argv: list[str]) -> int:
         rule_sticky_offsets(path, lines, audit)
         rule_composite_widgets(path, text, audit)
         rule_control_names(path, text, audit)
+        rule_reduced_motion(path, lines, audit)
 
         # Shell-only — the static export has no `.shell-scroll` and no shell
         # that owns the viewport.
@@ -566,6 +685,7 @@ def main(argv: list[str]) -> int:
     rule_static_single_main([p for p, _ in static], audit)
     rule_page_frame(audit)
     rule_route_states(audit)
+    rule_tap_targets(audit)
 
     for path, reason in audit.exempted:
         print(f"note: {_rel(path)} exempt ({reason.splitlines()[0]})")

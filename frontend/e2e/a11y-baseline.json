@@ -1,0 +1,12 @@
+{
+  "/agents": {
+    "color-contrast": [
+      "#a46b73 on #1b182b @ 7.5pt (10px) normal"
+    ]
+  },
+  "/matters": {
+    "scrollable-region-focusable": [
+      "#main"
+    ]
+  }
+}

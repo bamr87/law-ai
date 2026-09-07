@@ -33,6 +33,9 @@ import {
   inboundArticles,
   tracks,
 } from '@/lib/data'
+// Read marks live with the rest of this device's state, so export/restore
+// can enumerate them (BL-20260702-10).
+import { readLibraryRead, writeLibraryRead } from '@/lib/deviceState'
 import { useShortcuts } from '@/lib/keyboard'
 import { searchLibrary, type SearchHit } from '@/lib/search'
 import type { Article, ArticleKind, SectionCode } from '@/lib/types'
@@ -72,28 +75,6 @@ const SECTION_FILTERS: { id: 'all' | SectionCode; label: string; full: string }[
   { id: 'WS', label: 'WS', full: 'Argumentative Writing' },
 ]
 
-const READ_KEY = 'lsat-library-read'
-
-function loadRead(): Set<string> {
-  try {
-    const raw = window.localStorage.getItem(READ_KEY)
-    const parsed: unknown = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? new Set(parsed.map(String)) : new Set()
-  } catch {
-    // Private mode, blocked site data, or no storage at all. Progress is a
-    // convenience; the library reads fine without it.
-    return new Set()
-  }
-}
-
-function saveRead(ids: Set<string>): void {
-  try {
-    window.localStorage.setItem(READ_KEY, JSON.stringify([...ids].sort()))
-  } catch {
-    /* non-fatal */
-  }
-}
-
 /**
  * Where a first-time reader lands.
  *
@@ -110,6 +91,33 @@ const VIEWS: { id: View; label: string; full: string }[] = [
   { id: 'concepts', label: 'Concepts', full: 'Concept catalog' },
 ]
 
+/**
+ * Read the deep-link target out of the URL fragment (BL-20260905-04).
+ *
+ * The catalog's cards have carried `id="catalog-<id>"` since the merge, but
+ * the fragment only worked once you were already in the Concepts view — a
+ * `#catalog-<id>` URL opened cold landed on the article reader, because
+ * nothing here read the hash. So a single concept could be linked to on the
+ * platform and not on the published site.
+ *
+ * `catalog-<id>`, not `concept-<id>`, and the same prefixes as the platform's
+ * `hashTarget()` (frontend/components/LsatLibrary.tsx): `concept-<id>` already
+ * names the glossary entry *inside* an article, which `BlockRenderer`'s
+ * concept spans link to, and reusing it would mean following an inline
+ * definition navigated away from the article you were reading.
+ */
+function hashTarget(): { view: View; id: string } | null {
+  if (typeof window === 'undefined') return null
+  const raw = window.location.hash.replace(/^#/, '')
+  if (raw.startsWith('article-')) {
+    return { view: 'articles', id: raw.slice('article-'.length) }
+  }
+  if (raw.startsWith('catalog-')) {
+    return { view: 'concepts', id: raw.slice('catalog-'.length) }
+  }
+  return null
+}
+
 export default function Library({
   onAnnounce,
 }: {
@@ -125,12 +133,48 @@ export default function Library({
   // `max-width: 899px` query): 35 contents rows above the article is a long
   // scroll to reach the thing you came to read.
   const [railOpen, setRailOpen] = useState(false)
+  // The concept a `#catalog-<id>` link asked for, handed to the catalog so it
+  // can bring that card into view. Null whenever the catalog was opened by the
+  // switcher rather than by a link.
+  const [conceptTarget, setConceptTarget] = useState<string | null>(null)
   const searchRef = useRef<HTMLInputElement | null>(null)
   const articleRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
-    setReadIds(loadRead())
+    setReadIds(readLibraryRead())
   }, [])
+
+  // Deep links, both directions. Read in an effect, never during render: the
+  // export prerenders this component where there is no `window`, and a first
+  // paint that disagreed with the fragment would be a hydration mismatch.
+  useEffect(() => {
+    const apply = () => {
+      const target = hashTarget()
+      if (!target) return
+      if (target.view === 'concepts') {
+        setView('concepts')
+        setConceptTarget(target.id)
+        return
+      }
+      if (!articleById(target.id)) return
+      setView('articles')
+      setConceptTarget(null)
+      setSelectedId(target.id)
+    }
+    apply()
+    // Following a permalink from inside the catalog, or using the back
+    // button, changes the fragment without remounting anything.
+    window.addEventListener('hashchange', apply)
+    return () => window.removeEventListener('hashchange', apply)
+  }, [])
+
+  // Keep the address bar honest while reading: the URL you copy is the URL
+  // that reopens what you are looking at. The catalog's own permalinks write
+  // `#catalog-<id>`, so this only owns the article half.
+  useEffect(() => {
+    if (view !== 'articles' || !selectedId) return
+    window.history.replaceState(null, '', `#article-${selectedId}`)
+  }, [view, selectedId])
 
   const activeTrack = tracks.find((t) => t.id === trackFilter) ?? null
 
@@ -227,7 +271,7 @@ export default function Library({
         const next = new Set(prev)
         if (next.has(id)) next.delete(id)
         else next.add(id)
-        saveRead(next)
+        writeLibraryRead(next)
         onAnnounce?.(next.has(id) ? 'Marked as read' : 'Marked as unread')
         return next
       })
@@ -307,7 +351,11 @@ export default function Library({
           id="lib-panel-concepts"
           aria-labelledby="lib-view-concepts"
         >
-          <Concepts onOpenArticle={open} onOpenTrack={openTrack} />
+          <Concepts
+            focusId={conceptTarget}
+            onOpenArticle={open}
+            onOpenTrack={openTrack}
+          />
         </div>
       ) : !article ? (
         <div

@@ -31,7 +31,7 @@ from law_ai.core.settings_proxy import settings_proxy as settings
 from law_ai.eval.loaders import is_synthetic, load_task
 from law_ai.eval.paths import BASELINE_PATH, CACHE_ROOT
 from law_ai.eval.report import write_report
-from law_ai.eval.scoring import score_response
+from law_ai.eval.scoring import score_response, scorer_name
 
 logger = logging.getLogger("law_ai.eval.legalbench")
 
@@ -154,7 +154,19 @@ def run_eval(config: LegalBenchConfig) -> dict[str, Any]:
 
     for subset in config.subsets:
         items = load_task(subset, limit=config.limit)
-        logger.info("subset=%s items=%d model=%s", subset, len(items), config.model)
+        # The candidate pool a ranking scorer needs (BL-20260811-11): for
+        # retrieval subsets "correct" means the model's answer ranks the true
+        # case first *out of this subset's answers*, not that its prose
+        # happens to start with the case name.
+        corpus = [str(item.get("answer", "")) for item in items]
+        scorer = scorer_name(subset)
+        logger.info(
+            "subset=%s items=%d model=%s scorer=%s",
+            subset,
+            len(items),
+            config.model,
+            scorer,
+        )
 
         correct = 0
         errored = 0
@@ -184,7 +196,9 @@ def run_eval(config: LegalBenchConfig) -> dict[str, Any]:
             is_correct = False
             norm_response = ""
             if error is None:
-                is_correct, norm_response = score_response(response, expected, subset)
+                is_correct, norm_response = score_response(
+                    response, expected, subset, corpus=corpus
+                )
                 if is_correct:
                     correct += 1
 
@@ -232,6 +246,9 @@ def run_eval(config: LegalBenchConfig) -> dict[str, Any]:
                 "errored": errored,
                 "correct": correct,
                 "accuracy": accuracy,
+                # Which rule produced this number (BL-20260811-11). A scorer
+                # change moves scores, so the report must say which one ran.
+                "scorer": scorer,
                 "synthetic": is_synthetic(subset),
                 "items": subset_results,
             }
@@ -249,6 +266,46 @@ def run_eval(config: LegalBenchConfig) -> dict[str, Any]:
     return report
 
 
+def baseline_comparability(report: dict[str, Any]) -> list[str]:
+    """Reasons this run's numbers cannot be compared to ``baseline.json``.
+
+    A percentage-point delta is only meaningful between two runs of the *same*
+    model scored by the *same* rules. ``update_baseline`` has recorded both
+    since BL-20260811-11, but the comparison never looked at them, so a
+    baseline taken on one model produced confident "regressions" against
+    another (BL-20260906-29). Empty list = comparable, which is also what a
+    legacy bare ``{subset: accuracy}`` baseline yields, since it claims
+    nothing about how it was produced.
+    """
+    if not (report.get("delta") or {}) or not BASELINE_PATH.exists():
+        return []
+    try:
+        raw = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"baseline.json could not be read: {exc}"]
+    if not isinstance(raw, dict):
+        return []
+    reasons: list[str] = []
+    base_model, run_model = raw.get("model"), report.get("model")
+    if base_model and run_model and base_model != run_model:
+        reasons.append(
+            f"baseline was recorded with model {base_model!r}, "
+            f"this run used {run_model!r}"
+        )
+    base_scorers = raw.get("scorers")
+    if isinstance(base_scorers, dict):
+        for row in report.get("subsets", []):
+            subset = row.get("subset")
+            scorer = row.get("scorer", "default_match")
+            recorded = base_scorers.get(subset)
+            if recorded is not None and recorded != scorer:
+                reasons.append(
+                    f"{subset}: baseline scored with {recorded!r}, "
+                    f"this run with {scorer!r}"
+                )
+    return reasons
+
+
 def check_regression(
     report: dict[str, Any], *, tolerance_pp: float = REGRESSION_TOLERANCE_PP
 ) -> list[str]:
@@ -256,8 +313,17 @@ def check_regression(
 
     Compares each subset against ``baseline.json`` (constitution §3: no
     listed subset may drop more than 1 pp).
+
+    The comparison is *skipped* — loudly, at WARNING — when the baseline was
+    not produced by this model and these scorers (BL-20260906-29): a false
+    regression that blocks a PR teaches people to ignore the gate.
     """
     problems: list[str] = []
+    incomparable = baseline_comparability(report)
+    if incomparable:
+        for reason in incomparable:
+            logger.warning("baseline comparison skipped — %s", reason)
+        return problems
     delta = report.get("delta") or {}
     for subset, row in delta.items():
         drop_pp = -float(row.get("delta_pp", 0.0))
@@ -288,6 +354,10 @@ def update_baseline(report: dict[str, Any]) -> Path:
         "timestamp": report.get("timestamp"),
         "run_id": report.get("run_id"),
         "accuracies": {r["subset"]: r["accuracy"] for r in rows},
+        # A baseline is only comparable against runs scored the same way
+        # (BL-20260811-11): changing a scorer is a baseline reset, and this
+        # records which rules the recorded numbers came from.
+        "scorers": {r["subset"]: r.get("scorer", "default_match") for r in rows},
     }
     BASELINE_PATH.parent.mkdir(parents=True, exist_ok=True)
     BASELINE_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -427,6 +497,8 @@ def _apply_gates(report: dict[str, Any], args: argparse.Namespace) -> int:
             exit_code = 1
 
     if args.check_regression:
+        for reason in baseline_comparability(report):
+            print(f"note: baseline comparison skipped — {reason}", file=sys.stderr)
         problems = check_regression(report)
         if problems:
             for line in problems:

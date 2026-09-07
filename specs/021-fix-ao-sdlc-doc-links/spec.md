@@ -85,5 +85,5 @@ None.
 
 ## 13. Out of Scope / Follow-ups
 
-- BL-20260602-01 — fix non-case broken links in current docs (e.g. `docs/constitution.md` → `AGENTS.md` should be `../AGENTS.md`).
-- BL-20260602-02 — update or historically-annotate the ~120 `backend/app/*` references in specs 011 / ADR 0001, then promote FR-3 to a full relative-link existence check.
+- BL-20260602-03 — fix non-case broken links in current docs (e.g. `docs/constitution.md` → `AGENTS.md` should be `../AGENTS.md`).
+- BL-20260602-04 — update or historically-annotate the ~120 `backend/app/*` references in specs 011 / ADR 0001, then promote FR-3 to a full relative-link existence check.

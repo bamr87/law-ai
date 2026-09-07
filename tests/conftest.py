@@ -70,3 +70,19 @@ def run_subprocess(
         timeout=timeout,
         check=False,
     )
+
+
+def require_yaml():  # type: ignore[no-untyped-def]
+    """Return the ``yaml`` module, or skip.
+
+    Several structural tests parse `.github/workflows/*.yml` and
+    `docker-compose.yml`, which needs a real YAML parser — regexing a workflow
+    file is how you end up asserting on indentation. PyYAML is pure Python and
+    tiny, so CI installs it beside pytest; but this suite also promises to run
+    "in any environment that has a Python 3.11+ interpreter and the repo
+    checked out", so on a bare interpreter these tests skip with a reason
+    instead of erroring with ModuleNotFoundError.
+    """
+    return pytest.importorskip(
+        "yaml", reason="PyYAML not installed; `pip install pyyaml` to run the config gates"
+    )

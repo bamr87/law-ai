@@ -150,6 +150,98 @@
         "At least one of H and M is selected."
       ],
       "source": "original (CC0)"
+    },
+    {
+      "id": "lg-game-006",
+      "section": "LG",
+      "title": "Five Presentations, Two Rooms",
+      "summary": "A hybrid game: five presentations are both ordered across five slots and assigned to one of two rooms, with rules that cross the two dimensions.",
+      "setup": "A symposium schedules exactly five presentations — Q, R, S, T, and W — one at a time, in five consecutive slots numbered 1 through 5 (1 is earliest, 5 is latest). Each presentation is given in exactly one of two rooms, the Atrium or the Belfry. The schedule must conform to the following conditions:",
+      "rules": [
+        "1. Q is presented at some time before R.",
+        "2. T is presented in the Belfry.",
+        "3. S and T are not presented in the same room.",
+        "4. The presentation given third is in the Atrium.",
+        "5. W is presented immediately after a presentation given in the Belfry.",
+        "6. R and W are presented in the same room."
+      ],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-passage-009",
+      "section": "RC",
+      "title": "Reading the Rings: Dendroclimatology and Its Limits",
+      "summary": "A 4-paragraph natural-science passage on tree-ring climate reconstruction: how cross-dating and site selection produce a climate signal, why the same principle produces the divergence problem, and what honest reporting of the uncertainty requires.",
+      "passage": "Trees in temperate and boreal forests lay down one layer of wood each growing season, and the width of that layer records how favourable the season was. Because the sequence of wide and narrow rings in a given region is idiosyncratic — a signature of the particular run of wet and dry, warm and cold years the trees lived through — a chronology can be extended backward far beyond the life of any single tree. A pattern measured in a living trunk is matched against the outer rings of a beam salvaged from an old building, whose inner rings are matched in turn against still older timber. Chains assembled this way now reach back more than eight thousand years in parts of Europe and the American Southwest.\n\nWhat makes these chronologies useful to climate science is that ring width is not merely a record of good and bad years but, at well-chosen sites, a quantitative record of one climate variable. Near the arid lower limit of a species' range, growth is limited chiefly by water, and ring width varies with precipitation; near the cold upper limit at treeline, growth is limited chiefly by warmth, and ring width varies with summer temperature. Where a chronology overlaps the instrumental record, a researcher can fit a transfer function relating the two and then apply it to the centuries before thermometers and rain gauges existed.\n\nThe method's difficulties follow from the same principle that gives it power. A tree records whichever factor is limiting its growth, and that factor need not stay the same: a warming that lifts a treeline stand out of cold limitation may leave its rings responding to moisture instead, and a transfer function calibrated on the earlier relationship will then misdescribe the later one. Something of this kind appears to lie behind the divergence problem, the observation that ring widths at many northern sites have tracked measured temperature less closely since about 1960 than they did before. Site selection introduces a subtler difficulty: the stands that yield the cleanest climate signal are the stressed, marginal ones, which is precisely why they are chosen, and there is no guarantee that what limits growth at the margin is what limits it across the wider landscape.\n\nNone of this argues for setting the rings aside. It argues for reporting what they can and cannot say. A reconstruction that presents a single line through a thousand years, without the widening envelope of uncertainty that should accompany it as the calibration recedes, claims more than the wood can support; one that publishes the envelope, and that is checked against independent proxies such as ice cores and corals whose weaknesses are different, is doing what a proxy science can honestly do. The discipline's credibility rests less on the precision of any one chronology than on the convergence of several imperfect ones.",
+      "source": "original (CC0)"
+    },
+    {
+      "id": "rc-passage-010",
+      "section": "RC",
+      "title": "Translating Verse: Sense and Effect",
+      "summary": "A comparative (Passage A / Passage B) humanities set on translating poetry: A argues that a translation is a report and owes fidelity to sense; B argues that in verse the effect is part of the meaning, under a discipline of answerability.",
+      "title_a": "Passage A",
+      "title_b": "Passage B",
+      "passage": "A translator of poetry works under a constraint the translator of a statute does not: the words of the original are not merely a vehicle for its content, they are part of what the reader is meant to experience. From this it is often concluded that a translation should reproduce the effect of the original — its music, its speed, its shock — even at the cost of what the words denote. I take the opposite view. A translation is first of all a report about a text the reader cannot read, and a report that alters what was said in order to reproduce how it felt is not a report at all.\n\nThe practical case for fidelity to sense is that effect is not a property of the poem but of a meeting between the poem and a reader, and readers differ across centuries as much as across languages. The translator who chases effect is therefore chasing his own reaction, and what he delivers is an original poem occasioned by another one. That may be a fine thing; Pope's Homer is a fine thing. But the reader who wanted to know what Homer said has not been served, and typically has not been told.",
+      "passage_b": "The argument that a translation should above all preserve what the original says assumes that what a poem says can be separated from how it says it. In prose that assumption is usually harmless. In verse it is close to false. A line's meaning includes its speed, the weight its stresses fall on, the expectation set up by a rhyme and then met or refused; a rendering that keeps the dictionary sense of every word and discards all of this has not preserved the meaning while sacrificing the form, it has preserved a summary.\n\nNone of which licenses the translator to write whatever poem he pleases. The discipline is that every departure from the literal must be answerable to something in the original — a departure earns its place by carrying over an effect the source demonstrably has, not by improving on it. That test is harder to apply than a bilingual dictionary and easier to fail, which is why the literalist's rule is attractive. It is not, however, a reason to think the rule right.",
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-game-007",
+      "section": "LG",
+      "title": "Six Clients, Three Supervisors",
+      "summary": "A distribution game: six clients are divided among three supervising attorneys in group sizes the rules leave open.",
+      "setup": "A legal-aid clinic assigns exactly six new clients — F, G, H, J, K, and L — to exactly three supervising attorneys: Perez, Rao, and Suzuki. Each client is assigned to exactly one attorney, and each attorney is assigned at least one client. The assignment must conform to the following conditions:",
+      "rules": [
+        "1. Perez is assigned more clients than Suzuki.",
+        "2. F and G are not assigned to the same attorney.",
+        "3. If H is assigned to Rao, then J is assigned to Perez.",
+        "4. K and L are assigned to the same attorney."
+      ],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-game-008",
+      "section": "LG",
+      "title": "Seven Depositions, Seven Days",
+      "summary": "A sequencing game: seven witnesses are deposed on seven consecutive days under a block, a fixed gap and an anchor rule.",
+      "setup": "Exactly seven witnesses — L, M, N, P, R, S, and T — are deposed, each on a different one of seven consecutive days, numbered 1 through 7. The schedule must conform to the following conditions:",
+      "rules": [
+        "1. N is deposed at some time before P.",
+        "2. Exactly two depositions take place on the days between the deposition of M and the deposition of R.",
+        "3. S is deposed either first or last.",
+        "4. T is deposed on the day immediately after the day L is deposed."
+      ],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-game-009",
+      "section": "LG",
+      "title": "Selecting Essays for an Anthology",
+      "summary": "A selection game with no fixed group size: at least three of six essays are chosen under conditional and exclusion rules.",
+      "setup": "An editor will select at least three of six essays — Q, R, S, T, V, and W — for an anthology. The selection must conform to the following conditions:",
+      "rules": [
+        "1. If Q is selected, R is not selected.",
+        "2. At least one of T and V is selected.",
+        "3. W is selected only if R is selected.",
+        "4. S and V are not both selected."
+      ],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lg-game-010",
+      "section": "LG",
+      "title": "Six Volunteers, Three Clinic Days",
+      "summary": "A two-tier matching game: six volunteers fill the morning and afternoon shift of each of three clinic days.",
+      "setup": "Six volunteers — B, C, D, E, F, and G — each work exactly one shift at a legal-aid clinic. The clinic runs on Monday, Tuesday and Wednesday, and each day has exactly one morning shift and exactly one afternoon shift, each worked by exactly one volunteer. The schedule must conform to the following conditions:",
+      "rules": [
+        "1. B works on Monday.",
+        "2. C works a morning shift.",
+        "3. D and E work on the same day.",
+        "4. F works an afternoon shift.",
+        "5. F and C do not work on the same day."
+      ],
+      "source": "original (CC0)"
     }
   ]
 }

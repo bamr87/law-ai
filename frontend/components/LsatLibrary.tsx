@@ -57,10 +57,12 @@ import {
   LEVEL_LABEL,
   SECTION_LABEL,
   loadLastArticleId,
+  hydrateReadIds,
   loadReadIds,
   prefersReducedMotion,
   readingLabel,
   saveLastArticleId,
+  publishReadState,
   saveReadIds,
 } from '@/lib/lsat/library'
 import Link from 'next/link'
@@ -196,6 +198,12 @@ export default function LsatLibrary() {
         if (live) setLoadError('Could not reach the library API.')
       })
     setReadIds(loadReadIds())
+    // …then reconcile with the server, so a second device starts where the
+    // first one stopped (BL-20260903-05). Local first and unconditionally: the
+    // rail must not wait on a round trip to show what this browser knows.
+    void hydrateReadIds().then((merged) => {
+      if (live) setReadIds(merged)
+    })
     return () => {
       live = false
     }
@@ -340,14 +348,25 @@ export default function LsatLibrary() {
     if (next === 'concepts') setSectionFilter((s) => (s === 'WS' ? 'all' : s))
   }, [])
 
+  // The read set, readable from an event handler. Toggling has three effects
+  // — state, `localStorage`, and the server — and a state updater has to stay
+  // pure, so the handler reads the current set here rather than inside one.
+  const readIdsRef = useRef(readIds)
+  useEffect(() => {
+    readIdsRef.current = readIds
+  })
+
   const toggleRead = useCallback((key: string) => {
-    setReadIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      saveReadIds(next)
-      return next
-    })
+    const read = !readIdsRef.current.has(key)
+    const next = new Set(readIdsRef.current)
+    if (read) next.add(key)
+    else next.delete(key)
+    readIdsRef.current = next
+    setReadIds(next)
+    saveReadIds(next)
+    // Fire-and-forget: the browser's copy is already updated, so a failed sync
+    // costs this article's cross-device state and nothing else.
+    publishReadState(key, read)
   }, [])
 
   // A track chip on either entry type: switch to the reader with that track
@@ -728,7 +747,7 @@ function ViewTabs({
               title={v.hint}
               onClick={() => onChange(v.id)}
               className={
-                'min-w-[8rem] rounded-lg px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 ' +
+                'tap-target min-w-[8rem] rounded-lg px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 ' +
                 (active
                   ? 'bg-amber-500/20 text-amber-100 ring-1 ring-inset ring-amber-500/40'
                   : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200')
@@ -797,7 +816,7 @@ function RailRow({
 function RailProgress({ read, total }: { read: number; total: number }) {
   const pct = total ? Math.round((read / total) * 100) : 0
   return (
-    <div className="mt-3 text-[11px] text-slate-500">
+    <div className="mt-3 text-[11px] text-slate-400">
       {read} of {total} read · {pct}%
     </div>
   )
@@ -835,7 +854,7 @@ function ArticleRail({
   return (
     <>
       <label className="mt-3 block">
-        <span className="text-[11px] uppercase tracking-wider text-slate-500">
+        <span className="text-[11px] uppercase tracking-wider text-slate-400">
           Reading track
         </span>
         <select
@@ -862,7 +881,7 @@ function ArticleRail({
 
       {hits ? (
         <div className="mt-4">
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">
+          <div className="text-[11px] uppercase tracking-wider text-slate-400">
             {hits.length} result{hits.length === 1 ? '' : 's'}
           </div>
           <ul className="mt-2 space-y-2">
@@ -876,7 +895,7 @@ function ArticleRail({
                   <div className="text-sm font-medium text-slate-200">
                     {hit.title}
                   </div>
-                  <div className="mt-1 line-clamp-3 text-xs leading-relaxed text-slate-500">
+                  <div className="mt-1 line-clamp-3 text-xs leading-relaxed text-slate-400">
                     {hit.snippet}
                   </div>
                   <div className="mt-1 text-[10px] uppercase tracking-wider text-slate-600">
@@ -886,7 +905,7 @@ function ArticleRail({
               </li>
             ))}
             {hits.length === 0 && (
-              <li className="text-xs text-slate-500">
+              <li className="text-xs text-slate-400">
                 Nothing matched “{query.trim()}”.
               </li>
             )}
@@ -897,7 +916,7 @@ function ArticleRail({
           {(grouped ?? [{ kind: null, articles: visible }]).map((group) => (
             <div key={group.kind ?? 'track'}>
               {group.kind && (
-                <div className="text-[11px] uppercase tracking-wider text-slate-500">
+                <div className="text-[11px] uppercase tracking-wider text-slate-400">
                   {KIND_LABEL[group.kind]}
                 </div>
               )}
@@ -950,7 +969,7 @@ function ConceptRail({
 
   return (
     <>
-      <div className="mt-3 text-[11px] uppercase tracking-wider text-slate-500">
+      <div className="mt-3 text-[11px] uppercase tracking-wider text-slate-400">
         {shown === total
           ? `${total} concept${total === 1 ? '' : 's'}`
           : `${shown} of ${total} concepts`}
@@ -964,10 +983,10 @@ function ConceptRail({
         </p>
       )}
       {!loaded && !error && (
-        <p className="mt-4 text-xs text-slate-500">Loading concepts…</p>
+        <p className="mt-4 text-xs text-slate-400">Loading concepts…</p>
       )}
       {loaded && shown === 0 && (
-        <p className="mt-4 text-xs text-slate-500">
+        <p className="mt-4 text-xs text-slate-400">
           {query.trim()
             ? `Nothing matched “${query.trim()}”.`
             : 'No concepts match this filter.'}
@@ -977,7 +996,7 @@ function ConceptRail({
       <div className="mt-4 space-y-4">
         {groups.map(([section, items]) => (
           <div key={section}>
-            <div className="text-[11px] uppercase tracking-wider text-slate-500">
+            <div className="text-[11px] uppercase tracking-wider text-slate-400">
               {section === 'misc' ? 'Cross-section' : SECTION_LABEL[section]}
             </div>
             <ul className="mt-1.5 space-y-0.5">
@@ -1086,7 +1105,7 @@ function EntryHeader({
 }) {
   return (
     <header>
-      <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-500">
+      <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-400">
         <span className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-300">
           {pill}
         </span>
@@ -1129,14 +1148,28 @@ function EntryHeader({
 
 function EntryActions({
   drillCount,
-  drillCapped = false,
+  drillHref = '/lsat',
   onToggleRead,
   read,
 }: {
-  /** Bank questions this entry leads to; undefined while still loading. */
+  /**
+   * Bank questions this entry leads to; undefined while still loading.
+   *
+   * Always the true total. It used to be `used_in_questions.length` for a
+   * concept — a list the API caps at ten — so a popular concept could only say
+   * "10+ questions" while an article beside it named the exact number. The
+   * concept endpoint returns `used_in_count` now, and both entry types render
+   * the identical label (BL-20260905-06).
+   */
   drillCount?: number
-  /** The API caps `used_in_questions` at 10, so 10 means "at least 10". */
-  drillCapped?: boolean
+  /**
+   * Where "drill this" goes (BL-20260905-01). A concept names itself in the
+   * query string so the lab opens on the drill already filtered; the bare
+   * `/lsat` this used to be dropped the learner on Overview to re-find the
+   * section and re-filter by hand, which is the whole path the catalog's
+   * "drill them in the lab" was supposed to complete.
+   */
+  drillHref?: string
   onToggleRead: () => void
   read: boolean
 }) {
@@ -1156,11 +1189,10 @@ function EntryActions({
       </button>
       {drillCount !== undefined && drillCount > 0 && (
         <Link
-          href="/lsat"
+          href={drillHref}
           className="rounded-lg bg-amber-500/15 px-3 py-1.5 text-xs font-medium text-amber-200 ring-1 ring-inset ring-amber-500/30 hover:bg-amber-500/25"
         >
-          Drill this ({drillCapped ? `${drillCount}+` : drillCount}{' '}
-          question{drillCount === 1 && !drillCapped ? '' : 's'})
+          Drill this ({drillCount} question{drillCount === 1 ? '' : 's'})
         </Link>
       )}
     </div>
@@ -1183,7 +1215,7 @@ function EntrySection({
     <section id={id} className="mt-10 scroll-mt-24 border-t border-slate-800 pt-6">
       <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
       {subtitle && (
-        <p className="mt-0.5 text-[11px] uppercase tracking-wider text-slate-500">
+        <p className="mt-0.5 text-[11px] uppercase tracking-wider text-slate-400">
           {subtitle}
         </p>
       )}
@@ -1223,7 +1255,7 @@ function RefCards({
             <span className="block text-sm font-medium text-slate-200">
               {item.title}
             </span>
-            <span className="mt-1 block text-xs leading-relaxed text-slate-500">
+            <span className="mt-1 block text-xs leading-relaxed text-slate-400">
               {item.summary}
             </span>
             {item.meta && (
@@ -1284,7 +1316,7 @@ function TrackChips({
             className="rounded-full bg-slate-800/60 px-3 py-1 text-xs text-slate-300 transition hover:bg-slate-700 hover:text-slate-100"
           >
             {t.name}
-            <span className="text-slate-500">
+            <span className="text-slate-400">
               {' '}
               · {t.article_count} articles · {t.estimated_minutes} min
             </span>
@@ -1344,7 +1376,7 @@ function ArticleReader({
 }) {
   if (!detail) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-8 text-sm text-slate-500">
+      <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-8 text-sm text-slate-400">
         Loading article…
       </div>
     )
@@ -1382,7 +1414,7 @@ function ArticleReader({
 
       {detail.prerequisites.length > 0 && (
         <div className="mt-5 rounded-lg border border-slate-800 bg-slate-900/40 p-3">
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">
+          <div className="text-[11px] uppercase tracking-wider text-slate-400">
             Read first
           </div>
           <ul className="mt-1 space-y-1">
@@ -1537,7 +1569,7 @@ function ConceptReader({
 
   if (!concept) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-8 text-sm text-slate-500">
+      <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-8 text-sm text-slate-400">
         Loading concept…
       </div>
     )
@@ -1563,8 +1595,8 @@ function ConceptReader({
       <EntryActions
         read={read}
         onToggleRead={onToggleRead}
-        drillCount={detail?.used_in_questions.length}
-        drillCapped={(detail?.used_in_questions.length ?? 0) >= 10}
+        drillCount={detail?.used_in_count}
+        drillHref={`/lsat?concept=${encodeURIComponent(concept.id)}`}
       />
 
       {concept.detail && (
@@ -1597,11 +1629,11 @@ function ConceptReader({
         subtitle="the material that teaches it"
       >
         {!detail ? (
-          <p className="mt-2 text-sm text-slate-500">Looking up articles…</p>
+          <p className="mt-2 text-sm text-slate-400">Looking up articles…</p>
         ) : links.taughtIn.length > 0 ? (
           <RefCards items={links.taughtIn} onOpen={onOpenArticle} />
         ) : (
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-400">
             No article covers this concept yet — it is still only a tag on the
             question bank.
           </p>
@@ -1741,7 +1773,7 @@ function OutlineNav({ outline }: { outline: LsatOutlineEntry[] }) {
     >
       {outline.length > 0 && (
         <>
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">
+          <div className="text-[11px] uppercase tracking-wider text-slate-400">
             On this page
           </div>
           <ul className="mt-2 space-y-1 border-l border-slate-800">
@@ -1750,7 +1782,7 @@ function OutlineNav({ outline }: { outline: LsatOutlineEntry[] }) {
                 <a
                   href={`#${entry.anchor}`}
                   className={
-                    'block border-l-2 border-transparent py-0.5 text-xs leading-relaxed text-slate-500 hover:border-amber-500 hover:text-slate-300 ' +
+                    'block border-l-2 border-transparent py-0.5 text-xs leading-relaxed text-slate-400 hover:border-amber-500 hover:text-slate-300 ' +
                     (entry.level === 3 ? 'pl-6' : 'pl-3')
                   }
                 >

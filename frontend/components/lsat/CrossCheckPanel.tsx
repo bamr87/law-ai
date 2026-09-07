@@ -112,7 +112,7 @@ export default function CrossCheckPanel({ questionId }: { questionId: string }) 
               {result.rationale}
             </p>
           )}
-          <p className="mt-2 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-wider text-slate-500">
+          <p className="mt-2 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-wider text-slate-400">
             <span>{result.used_llm ? result.model : 'offline'}</span>
             <button
               type="button"

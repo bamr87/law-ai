@@ -17,13 +17,19 @@ still runs autonomy cycles.
 ``prioritize``   calls Ollama with the versioned prompt template and
                  returns up to 3 ranked fetch targets.
 
-``dispatch``     iterates the targets, calls ``SOURCE_REGISTRY[name].fetch``
+``dispatch``     iterates the targets, awaits ``SOURCE_REGISTRY[name].afetch``
                  for each, then routes every :class:`RawDoc` through
                  ``IngestionScout.run_and_commit``.  **Never** writes Neo4j
                  directly (constitution §12 invariant I1).
 
 ``summarize``    logs the full cycle summary via ``core.provenance`` and
                  returns a :class:`TopicFrontierOutput`.
+
+``prioritize`` branches: an empty ranking routes straight to ``summarize``
+rather than walking ``dispatch`` over nothing. ``prioritize`` and ``dispatch``
+carry a ``RetryPolicy`` (3 attempts) because both are network-bound, and the
+graph compiles with an injected checkpointer when the caller supplies one
+(BL-20260511-31).
 
 Design notes:
 - Every LLM call is logged; every Neo4j write goes through
@@ -35,6 +41,8 @@ Design notes:
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
 import logging
 import secrets
@@ -192,6 +200,23 @@ def _pick_adapter(
     return None
 
 
+async def _adapter_docs(adapter: Any, query: str, *, limit: int) -> list[Any]:
+    """Fetch documents from *adapter* without nesting event loops.
+
+    BL-20260511-08: this function runs inside the autonomy loop, and the
+    adapters' old sync ``fetch`` called ``asyncio.run`` internally — which
+    raises ``RuntimeError`` from a running loop. The bare ``except`` below
+    logged that as "fetch failed", so every real ``corpus_growth`` dispatch
+    silently fetched nothing. Prefer the adapter's ``afetch`` coroutine;
+    fall back to running a duck-typed adapter's sync ``fetch`` in a worker
+    thread (test doubles, third-party adapters).
+    """
+    afetch = getattr(adapter, "afetch", None)
+    if afetch is not None and inspect.iscoroutinefunction(afetch):
+        return list(await afetch(query, limit=limit))
+    return list(await asyncio.to_thread(adapter.fetch, query, limit=limit))
+
+
 async def _dispatch_target(
     scout: Any,
     adapter: Any,
@@ -209,7 +234,7 @@ async def _dispatch_target(
     Returns the (potentially extended) *dispatched* list.
     """
     try:
-        docs = list(adapter.fetch(query, limit=5))
+        docs = list(await _adapter_docs(adapter, query, limit=5))
     except Exception as exc:
         logger.warning("topic_frontier.dispatch: fetch failed: %s", exc)
         return dispatched
@@ -221,6 +246,18 @@ async def _dispatch_target(
                     "case_name": doc.title,
                     "plain_text": doc.text,
                     "absolute_url": doc.source_url,
+                    # BL-20260602-07: keep the originating adapter on the
+                    # payload so PendingReview.source and the audit trail name
+                    # the real source instead of a hardcoded "courtlistener".
+                    "source_name": getattr(doc, "source_name", None),
+                    # BL-20260803-01: adapters that know the record's own
+                    # outcome text put it on RawDoc.metadata; forward it so
+                    # the scout's deterministic mapper can see it. Adapters
+                    # that do not simply leave both keys None.
+                    "disposition": (getattr(doc, "metadata", None) or {}).get(
+                        "disposition"
+                    ),
+                    "posture": (getattr(doc, "metadata", None) or {}).get("posture"),
                 },
                 force_quarantine=force_quarantine,
             )
@@ -369,7 +406,14 @@ async def _node_dispatch(
         if getattr(adapter, "requires_human_approval", False):
             human_approval_required = True
 
-        scout = scout_factory()
+        # BL-20260602-07: an adapter may declare its own extractor; the
+        # default IngestionScout stays the fallback.
+        adapter_extractor = getattr(adapter, "extractor", None)
+        scout = (
+            adapter_extractor()
+            if isinstance(adapter_extractor, type)
+            else scout_factory()
+        )
         dispatched = await _dispatch_target(
             scout,
             adapter,
@@ -383,6 +427,16 @@ async def _node_dispatch(
         "dispatched": dispatched,
         "human_approval_required": human_approval_required,
     }
+
+
+def _route_after_prioritize(state: TopicFrontierState) -> str:
+    """Conditional edge: skip ``dispatch`` when there is nothing to fetch.
+
+    ``prioritize`` legitimately returns an empty ranking when the graph has no
+    gaps (or the model refused). Walking ``dispatch`` in that case burns an
+    adapter loop for nothing, so the graph branches straight to ``summarize``.
+    """
+    return "dispatch" if state.get("targets") else "summarize"
 
 
 async def _node_summarize(state: TopicFrontierState) -> TopicFrontierState:
@@ -419,6 +473,10 @@ class TopicFrontier:
         ``(prompt, *, model, base_url) -> str``.  ``None`` → real Ollama.
     :param registry: source adapter dict override.  ``None`` → ``SOURCE_REGISTRY``.
     :param scout_factory: callable that returns an ``IngestionScout``.
+    :param checkpointer: LangGraph ``BaseCheckpointSaver`` to compile the graph
+        with (BL-20260511-31).  ``None`` → no persistence, same as before.
+        Callers own the saver's lifecycle — see
+        ``law_ai.agents_runtime.graphs.runtime.build_checkpointer``.
     """
 
     human_approval_required: bool = False
@@ -430,11 +488,13 @@ class TopicFrontier:
         llm_caller: Any = None,
         registry: dict[str, Any] | None = None,
         scout_factory: Any = None,
+        checkpointer: Any = None,
     ) -> None:
         self._neo4j_session_factory = neo4j_session_factory
         self._llm_caller = llm_caller
         self._registry = registry
         self._scout_factory = scout_factory
+        self._checkpointer = checkpointer
 
     def _build_graph(self) -> Any:
         """Compile the real LangGraph ``StateGraph`` (spec 027).
@@ -443,11 +503,19 @@ class TopicFrontier:
         testing; thin async closures bind the injected collaborators so each
         graph node takes only ``state``.
 
+        BL-20260511-31 realized the three gains the migration was meant to
+        buy: the graph compiles with the injected ``checkpointer`` when one is
+        supplied, the two I/O-bound nodes (``prioritize``, ``dispatch``) carry
+        a :class:`~langgraph.types.RetryPolicy`, and a conditional edge after
+        ``prioritize`` short-circuits to ``summarize`` when the ranking is
+        empty.
+
         Raises:
             ImportError: when the ``local-ai`` extra (langgraph) is missing —
                 ``run`` falls back to sequential execution.
         """
         from langgraph.graph import END, StateGraph
+        from langgraph.types import RetryPolicy
 
         async def scan_graph(state: TopicFrontierState) -> TopicFrontierState:
             return await _node_scan_graph(
@@ -462,34 +530,56 @@ class TopicFrontier:
                 state, registry=self._registry, scout_factory=self._scout_factory
             )
 
+        # Network-bound nodes: an LLM hiccup or a flaky source adapter should
+        # not lose a whole autonomy cycle.  scan_graph/summarize stay
+        # un-retried (a Cypher failure is deterministic; summarize is a log).
+        retry = RetryPolicy(max_attempts=3)
+
         builder: Any = StateGraph(TopicFrontierState)
         builder.add_node("scan_graph", scan_graph)
-        builder.add_node("prioritize", prioritize)
-        builder.add_node("dispatch", dispatch)
+        builder.add_node("prioritize", prioritize, retry_policy=retry)
+        builder.add_node("dispatch", dispatch, retry_policy=retry)
         builder.add_node("summarize", _node_summarize)
         builder.set_entry_point("scan_graph")
         builder.add_edge("scan_graph", "prioritize")
-        builder.add_edge("prioritize", "dispatch")
+        builder.add_conditional_edges(
+            "prioritize",
+            _route_after_prioritize,
+            {"dispatch": "dispatch", "summarize": "summarize"},
+        )
         builder.add_edge("dispatch", "summarize")
         builder.add_edge("summarize", END)
+        if self._checkpointer is not None:
+            return builder.compile(checkpointer=self._checkpointer)
         return builder.compile()
 
     async def _run_sequential(self, state: TopicFrontierState) -> TopicFrontierState:
-        """Fallback path for bare installs without the ``local-ai`` extra."""
+        """Fallback path for bare installs without the ``local-ai`` extra.
+
+        Mirrors the compiled graph exactly, conditional edge included, so the
+        two paths cannot drift.
+        """
         state = await _node_scan_graph(
             state, neo4j_session_factory=self._neo4j_session_factory
         )
         state = await _node_prioritize(state, llm_caller=self._llm_caller)
-        state = await _node_dispatch(
-            state, registry=self._registry, scout_factory=self._scout_factory
-        )
+        if _route_after_prioritize(state) == "dispatch":
+            state = await _node_dispatch(
+                state, registry=self._registry, scout_factory=self._scout_factory
+            )
         return await _node_summarize(state)
 
-    async def run(self, *, trace_id: str | None = None) -> TopicFrontierOutput:
+    async def run(
+        self, *, trace_id: str | None = None, thread_id: str | None = None
+    ) -> TopicFrontierOutput:
         """Execute the 4-node graph and return :class:`TopicFrontierOutput`.
 
         Uses the compiled LangGraph ``StateGraph`` when available; degrades
         to sequential execution of the same nodes on bare installs.
+
+        :param thread_id: checkpointer thread to resume/record under. Only
+            meaningful when the instance was built with a ``checkpointer``;
+            defaults to ``trace_id`` so every cycle gets its own thread.
 
         Example::
 
@@ -516,7 +606,10 @@ class TopicFrontier:
             logger.info("topic_frontier: langgraph unavailable, running sequentially")
             state = await self._run_sequential(state)
         else:
-            state = await graph.ainvoke(state)
+            config: dict[str, Any] | None = None
+            if self._checkpointer is not None:
+                config = {"configurable": {"thread_id": thread_id or trace_id}}
+            state = await graph.ainvoke(state, config)
 
         latency_ms = (time.monotonic() - t0) * 1000.0
         return TopicFrontierOutput(

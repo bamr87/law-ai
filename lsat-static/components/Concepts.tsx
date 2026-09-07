@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   articlesTeaching,
   conceptById,
@@ -31,9 +31,16 @@ const SECTION_FILTERS: { id: 'all' | SectionCode; label: string; full: string }[
 ]
 
 export default function Concepts({
+  focusId,
   onOpenArticle,
   onOpenTrack,
 }: {
+  /**
+   * The concept a `#catalog-<id>` link asked for (BL-20260905-04). The card
+   * is brought into view and focused, so a link to one concept lands on that
+   * concept rather than at the top of the catalog.
+   */
+  focusId?: string | null
   /** Hands the reader back to the Articles view on the chosen article. */
   onOpenArticle?: (id: string) => void
   /** Hands the reader back to the Articles view with a track as the rail. */
@@ -41,6 +48,18 @@ export default function Concepts({
 }) {
   const [q, setQ] = useState('')
   const [section, setSection] = useState<'all' | SectionCode>('all')
+
+  // After the list has committed, so the card exists whether the catalog just
+  // opened on a deep link or was already up when the fragment changed.
+  useEffect(() => {
+    if (!focusId) return
+    const card = document.getElementById(`catalog-${focusId}`)
+    if (!card) return
+    const reduced =
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    card.focus?.({ preventScroll: true })
+    card.scrollIntoView?.({ block: 'start', behavior: reduced ? 'auto' : 'smooth' })
+  }, [focusId])
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -56,6 +75,42 @@ export default function Concepts({
         .includes(needle)
     })
   }, [q, section])
+
+  // Keep the catalog's URL as copyable as the reader's (BL-20260905-17). The
+  // article view rewrites `#article-<id>` on every change, but the catalog
+  // used to leave whatever fragment was written last in place until a
+  // permalink was clicked — so a reader who scrolled to a concept and copied
+  // the address bar shared the wrong entry. The concept nearest the top of
+  // the viewport owns the fragment, written with `replaceState` so it neither
+  // adds history entries nor fires the `hashchange` the library listens on.
+  const listRef = useRef<HTMLUListElement | null>(null)
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return
+    const cards = Array.from(
+      listRef.current?.querySelectorAll<HTMLElement>('li.concept') ?? [],
+    )
+    if (cards.length === 0) return
+    const onScreen = new Map<string, number>()
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          const id = (e.target as HTMLElement).id
+          if (!id) continue
+          if (e.isIntersecting) onScreen.set(id, e.boundingClientRect.top)
+          else onScreen.delete(id)
+        }
+        let best: [string, number] | null = null
+        for (const entry of onScreen) {
+          if (!best || Math.abs(entry[1]) < Math.abs(best[1])) best = entry
+        }
+        if (best) window.history.replaceState(null, '', `#${best[0]}`)
+      },
+      { threshold: 0 },
+    )
+    for (const card of cards) observer.observe(card)
+    return () => observer.disconnect()
+    // Re-observed whenever the filters change the cards on the page.
+  }, [filtered])
 
   return (
     <section aria-label="Concepts">
@@ -94,7 +149,7 @@ export default function Concepts({
       {filtered.length === 0 ? (
         <p className="empty">No concept matches that filter.</p>
       ) : (
-        <ul className="concept-list">
+        <ul className="concept-list" ref={listRef}>
           {filtered.map((c) => {
             const taughtIn = articlesTeaching(c.id)
             const drills = questionsForConcept(c.id)
@@ -108,7 +163,15 @@ export default function Concepts({
             }))
             const examples = c.examples ?? []
             return (
-              <li key={c.id} className="concept" id={`catalog-${c.id}`}>
+              <li
+                key={c.id}
+                className="concept"
+                id={`catalog-${c.id}`}
+                // Programmatic focus target only: a `#catalog-<id>` link has
+                // to land the reader *on* the concept, not merely scroll it
+                // past. Not in the tab order — the card's own controls are.
+                tabIndex={-1}
+              >
                 {/* header: the same facts an article's header carries */}
                 <div className="lib-meta">
                   <span className="pill pill-muted">Concept</span>
@@ -126,6 +189,19 @@ export default function Concepts({
                       {s}
                     </span>
                   ))}
+                  {/* The capability the platform had and this site did not: a
+                      URL for one concept (BL-20260905-04). A plain anchor, so
+                      it copies, opens in a new tab, and works with no script
+                      at all — and it sits beside the heading rather than
+                      inside it, so it does not end up in the heading's
+                      accessible name. */}
+                  <a
+                    href={`#catalog-${c.id}`}
+                    className="concept-permalink"
+                    aria-label={`Link to ${c.name}`}
+                  >
+                    #
+                  </a>
                 </div>
                 <h3>{c.name}</h3>
                 {c.summary && <p className="concept-summary">{c.summary}</p>}

@@ -102,12 +102,14 @@ function Stat({
   }
   return (
     <div className="bg-slate-950/60 px-4 py-3">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-slate-500">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-slate-400">
         <span
           className={
             'inline-block h-1.5 w-1.5 rounded-full ' +
             dot[accent] +
-            (pulse ? ' animate-pulse' : '')
+            // BL-20260831-03: a "live" dot is decoration, so it stops for
+            // anyone who asked the OS for reduced motion.
+            (pulse ? ' animate-pulse motion-reduce:animate-none' : '')
           }
         />
         {label}
@@ -115,7 +117,7 @@ function Stat({
       <div className="mt-1 text-2xl font-semibold tabular-nums text-slate-100">
         {value}
       </div>
-      {sub && <div className="text-xs text-slate-500">{sub}</div>}
+      {sub && <div className="text-xs text-slate-400">{sub}</div>}
     </div>
   )
 }

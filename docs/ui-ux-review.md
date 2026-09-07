@@ -123,6 +123,14 @@ Three things that make a screenshot honest rather than decorative:
 
 **Look at what you captured before you attach it.** A screenshot you did not open is not evidence, and reading them is where the misses turn up.
 
+**What enforces this.** `Visual Evidence Gate` in [ci.yml](../.github/workflows/ci.yml) runs on every pull request whose diff touches `frontend/**` or `lsat-static/**`. It passes when the PR body references an image (a markdown `![...]`, an `<img>`, a GitHub `user-attachments` upload, or a path/URL under `docs/images/` that names an actual image file) **or** when the diff adds or changes a file under `docs/images/`. Otherwise it fails with a pointer back to this section. The logic lives in [scripts/visual_evidence_gate.py](../scripts/visual_evidence_gate.py) and is covered by `tests/test_visual_evidence_gate.py` (`BL-20260905-05`).
+
+**The body is read the way GitHub renders it: HTML comments stripped.** This is not a detail. GitHub prefills every PR body with [pull_request_template.md](../.github/pull_request_template.md) verbatim, comments included, and that template's own instructions mention `docs/images/` twice. For the first weeks of this gate's life the raw body was matched, so the repo's *default* body satisfied it — a PR could rewrite every screen, attach nothing, leave the template untouched, and pass. Comments are now stripped before matching (an unclosed `<!--` drops everything after it, as GitHub does), and the `docs/images/` pattern requires a filename with an image extension rather than the bare directory. `tests/test_visual_evidence_gate.py` runs the verbatim template through the gate and asserts it fails, so that hole cannot re-open quietly.
+
+**The opt-out** is the `no-visual-change` label: apply it to a PR that touches those paths with no visible surface — a pure refactor, a test-only change, a dependency bump. Use the label rather than pasting a token image; the label is reviewable, a fake screenshot is not.
+
+Limits worth knowing, stated so nobody over-reads the gate. The body check is a heuristic: it proves something was *attached*, not that the picture is current, of the right screen, or that the link resolves — a broken image link still passes, and so does a hand-written `<img>` in prose, because telling that from a real upload needs a network fetch. A fork contributor cannot label their own PR, which is why the `docs/images/` branch exists as a label-free path: commit the screenshot instead. And the `no-visual-change` label bypasses the gate entirely, by design — it is reviewable, which a token screenshot is not.
+
 ---
 
 ## The mechanical contract
@@ -145,9 +153,11 @@ Three things that make a screenshot honest rather than decorative:
 | R10 | A `tablist`/`radiogroup` with no accessible name, or a `role="tab"` that names no panel. |
 | R11 | A form control whose only name is its placeholder — it vanishes on the first keystroke. |
 | R12 | The two copies of `frontend/ui/base.css` have drifted. Run `make ui-sync`. |
-| R13 | A platform LSAT component with no `lsat-static` counterpart and no `static-parity: none — <reason>`. |
+| R13 | A platform LSAT component with no `lsat-static` counterpart and no `static-parity: none — <reason>`. A component ported under a different filename names its counterpart instead — `static-parity: lsat-static/components/Writing.tsx` — and the path is resolved, so a stale claim fails. |
+| R14 | A `<button>` in the masthead or the LSAT section tab bar without `.tap-target` — the 44px HIG/AAA guideline, not the 24px WCAG 2.5.8 floor. |
+| R15 | An `animate-*` utility with no reduced-motion opt-out. Write `motion-safe:animate-*`, or pair the utility with `motion-reduce:animate-none` on the same element — otherwise the animation runs for a viewer whose OS asked it not to (BL-20260906-72). |
 
-**Opting out.** Put `ux-audit: exempt — <reason>` in a comment to exempt a whole file, or `ux-audit: bare-page — <reason>` to exempt one route from R7. A reason is required on the same line, so every exemption explains itself to the next reader. Two exist today: `components/NavBar.tsx` (superseded dead code) and the dashboard route (full-bleed hero).
+**Opting out.** Put `ux-audit: exempt — <reason>` in a comment to exempt a whole file, or `ux-audit: bare-page — <reason>` to exempt one route from R7. A reason is required on the same line, so every exemption explains itself to the next reader. One exists today: the dashboard route (full-bleed hero). The other, `components/NavBar.tsx` (superseded dead code), was deleted under BL-20260831-01.
 
 The keyboard half of a composite widget (one tab stop, arrows move within it) is behavioural and cannot be seen statically — `frontend/__tests__/shell/rovingFocus.test.tsx` covers that half.
 

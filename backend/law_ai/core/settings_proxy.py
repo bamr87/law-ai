@@ -13,13 +13,15 @@ Usage::
 
 from __future__ import annotations
 
+from typing import Any
+
 from django.conf import settings as _django_settings
 
 
 class _SettingsProxy:
     """Attribute-access wrapper around ``django.conf.settings``."""
 
-    def __getattr__(self, item: str):
+    def __getattr__(self, item: str) -> Any:
         return getattr(_django_settings, item)
 
 

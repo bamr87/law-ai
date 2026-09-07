@@ -48,11 +48,15 @@ const WIDTH: Record<PageWidth, string> = {
 export type PageAccent = 'blue' | 'indigo' | 'emerald' | 'amber' | 'slate'
 
 const ACCENT: Record<PageAccent, { dot: string; text: string }> = {
-  blue: { dot: 'bg-blue-400', text: 'text-slate-500' },
-  indigo: { dot: 'bg-indigo-400', text: 'text-indigo-400/80' },
+  blue: { dot: 'bg-blue-400', text: 'text-slate-400' },
+  // 300, not 400 (BL-20260905-18): indigo is the darkest of these accents and
+  // the eyebrow is 11px, so `indigo-400/80` on the shell's near-black ground
+  // measured 4.38:1 — the only accent that missed AA. One step lighter clears
+  // it at 6.5:1 while keeping the soft `/80` the others use.
+  indigo: { dot: 'bg-indigo-400', text: 'text-indigo-300/80' },
   emerald: { dot: 'bg-emerald-400', text: 'text-emerald-400/80' },
   amber: { dot: 'bg-amber-400', text: 'text-amber-400/80' },
-  slate: { dot: 'bg-slate-400', text: 'text-slate-500' },
+  slate: { dot: 'bg-slate-400', text: 'text-slate-400' },
 }
 
 export default function PageLayout({

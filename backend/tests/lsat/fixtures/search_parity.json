@@ -1,0 +1,120 @@
+{
+  "_comment": "Pins library search parity between backend/law_ai/lsat/services/library.py and lsat-static/lib/search.ts (BL-20260903-06). Both test suites load this file; change the rules in both places or neither. `scores` pins the ranker's arithmetic, not just its order (BL-20260905-52): a weight, cap or typo-fallback changed on one side alone moves a score or a matched_in vector while the ranking still looks right.",
+  "stems": {
+    "assumptions": "assumption",
+    "assumption": "assumption",
+    "fallacies": "fallacy",
+    "fallacy": "fallacy",
+    "sequencing": "sequenc",
+    "sequence": "sequenc",
+    "diagramming": "diagram",
+    "diagram": "diagram",
+    "weakened": "weaken",
+    "weaken": "weaken",
+    "strongly": "strong",
+    "weakness": "weak",
+    "premises": "premis",
+    "premise": "premis",
+    "games": "gam",
+    "game": "gam",
+    "timed": "tim",
+    "time": "tim",
+    "pacing": "pac",
+    "pace": "pac",
+    "analysis": "analysis",
+    "bus": "bus",
+    "ring": "ring",
+    "the": "the",
+    "passes": "pass",
+    "pass": "pass",
+    "studies": "study",
+    "percentages": "percentag",
+    "inferences": "inferenc",
+    "matched": "match",
+    "tries": "try",
+    "grouping": "group",
+    "contrapositive": "contrapositiv",
+    "LSAT": "lsat"
+  },
+  "query_tokens": {
+    "the Assumption family": ["assumption", "family"],
+    "LG in/out": ["lg", "out"],
+    "a": [],
+    "must be true": ["must", "true"],
+    "  Point-at-Issue ": ["point", "issue"]
+  },
+  "typo_pairs": [
+    {"a": "assumption", "b": "assumtion", "typo": true},
+    {"a": "assumption", "b": "assumption", "typo": true},
+    {"a": "sequenc", "b": "seqenc", "typo": true},
+    {"a": "fallacy", "b": "falalcy", "typo": true},
+    {"a": "notation", "b": "rotation", "typo": true},
+    {"a": "conditional", "b": "conditionall", "typo": true},
+    {"a": "premis", "b": "premium", "typo": false},
+    {"a": "parallel", "b": "parralel", "typo": false},
+    {"a": "assumption", "b": "assumptions", "typo": true},
+    {"a": "weaken", "b": "strengthen", "typo": false}
+  ],
+  "corpus_typos": [
+    {"query": "assumtion", "top": "lr-assumption-family"},
+    {"query": "condtional", "top": "conditional-logic-foundations"},
+    {"query": "notaton", "top": "lg-setup-and-notation"},
+    {"query": "seqencing", "top": "lg-game-types"},
+    {"query": "strengthn", "top": "lr-strengthen-and-weaken"},
+    {"query": "pacng", "top": null},
+    {"query": "parralel", "top": null}
+  ],
+  "scores": [
+    {
+      "query": "assumptions",
+      "hits": [
+        {"id": "lr-assumption-family", "score": 23, "matched_in": ["title", "summary", "tag", "heading", "body"]},
+        {"id": "error-log-and-diagnosis", "score": 5, "matched_in": ["body"]},
+        {"id": "lr-section-guide", "score": 4, "matched_in": ["body"]}
+      ]
+    },
+    {
+      "query": "fallacies",
+      "hits": [
+        {"id": "formal-fallacies-catalog", "score": 13, "matched_in": ["title", "tag", "body"]},
+        {"id": "lr-flaw-family", "score": 12, "matched_in": ["title", "tag", "body"]},
+        {"id": "lr-parallel-family", "score": 12, "matched_in": ["title", "heading", "body"]}
+      ]
+    },
+    {
+      "query": "games sequencing",
+      "hits": [
+        {"id": "lg-game-types", "score": 32, "matched_in": ["title", "summary", "tag", "heading", "body"]}
+      ]
+    },
+    {
+      "query": "pacing",
+      "hits": [
+        {"id": "pacing-and-time-management", "score": 26, "matched_in": ["title", "summary", "tag", "heading", "body"]},
+        {"id": "lr-parallel-family", "score": 10, "matched_in": ["summary", "tag", "body"]},
+        {"id": "blind-review-method", "score": 8, "matched_in": ["heading", "body"]}
+      ]
+    },
+    {
+      "query": "must be true",
+      "hits": [
+        {"id": "lr-inference-family", "score": 32, "matched_in": ["title", "tag", "body"]},
+        {"id": "lr-flaw-family", "score": 12, "matched_in": ["body", "summary", "heading"]},
+        {"id": "lg-game-types", "score": 10, "matched_in": ["body"]}
+      ]
+    }
+  ],
+  "corpus": [
+    {"query": "assumptions", "top": "lr-assumption-family"},
+    {"query": "assu", "top": "lr-assumption-family"},
+    {"query": "LG", "top": "lg-section-guide"},
+    {"query": "flaw", "ids": ["formal-fallacies-catalog", "lr-flaw-family", "lr-parallel-family"]},
+    {"query": "fallacies", "top": "formal-fallacies-catalog"},
+    {"query": "games sequencing", "top": "lg-game-types"},
+    {"query": "pacing", "top": "pacing-and-time-management"},
+    {"query": "contrapositives", "top": "conditional-logic-foundations"},
+    {"query": "must be true", "top": "lr-inference-family"},
+    {"query": "writing sample", "top": "writing-section-guide"},
+    {"query": "xyzzy", "top": null}
+  ]
+}

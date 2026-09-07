@@ -18,8 +18,25 @@ updates:
       # 7.0", raised by the typescript-eslint that eslint-config-next nests
       # under itself. Until that transitive pin ships TS 7 support, a major
       # typescript bump can only break the frontend lint job, so hold at 5.x.
-      # Drop this entry once eslint-config-next resolves a TS 7-capable
-      # typescript-eslint.
+      #
+      # THE UNBLOCK SIGNAL (BL-20260815-04): typescript-eslint's
+      # `peerDependencies.typescript` upper bound must admit 7.x. Check it
+      # against the tree the lint job actually resolves — not the registry:
+      #
+      #   docker compose run --rm --no-deps frontend node -e \
+      #     "console.log(require('fs').readFileSync(
+      #       'node_modules/typescript-eslint/package.json','utf8'))" \
+      #     | grep -A3 peerDependencies
+      #
+      # Last checked 2026-09-05: typescript-eslint 8.59.1 peers
+      # `typescript >=4.8.4 <6.1.0`, and eslint-config-next 16.2.4 still
+      # depends on `typescript-eslint ^8.46.0` — so 7.x is still excluded and
+      # this entry must stay.
+      #
+      # When the bound moves: delete this comment block and the two lines
+      # below, let the next grouped PR bump typescript, then confirm
+      # `make lint` and `make typecheck` pass in Docker (TS 7 also changes
+      # tsc strictness, so typecheck is not a formality here).
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5

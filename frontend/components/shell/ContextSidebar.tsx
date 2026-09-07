@@ -16,11 +16,11 @@ export default function ContextSidebar() {
 
   return (
     <div className="shell-panel-scroll flex h-full flex-col px-3 py-4">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
         {mod.nav.label}
       </p>
       {links.length === 0 ? (
-        <p className="mt-3 text-xs text-slate-500">No contextual links.</p>
+        <p className="mt-3 text-xs text-slate-400">No contextual links.</p>
       ) : (
         <ul className="mt-3 space-y-1">
           {links.map((link) => {

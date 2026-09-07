@@ -1,0 +1,61 @@
+{
+  // Dev Container for the Law AI frontend (BL-20260811-17).
+  //
+  // Why a second configuration: the backend container
+  // (../devcontainer.json) gives the Python extensions a real interpreter,
+  // but it has no `node_modules`, so ESLint and the TypeScript server had
+  // nothing to attach to and fell back to a *host* `frontend/node_modules`
+  // — exactly the host toolchain the Docker-first rule forbids
+  // (AGENTS.md § Docker-First Workflow). Attaching to the compose
+  // `frontend` service uses the node_modules the image built, so `tsc`,
+  // ESLint and Prettier in-editor are the same versions `make lint` and
+  // `make typecheck` run.
+  //
+  // Usage: "Dev Containers: Reopen in Container" and pick
+  // "Law AI (frontend)". VS Code lists every .devcontainer/*/devcontainer.json
+  // alongside the root one.
+  //
+  // One window sees one tree: this container has /app = ./frontend only.
+  // For Python work reopen in "Law AI (backend)", which mounts ./backend at
+  // /app and the repo root at /repo.
+  "name": "Law AI (frontend)",
+  "dockerComposeFile": ["../../docker-compose.yml"],
+  "service": "frontend",
+  "workspaceFolder": "/app",
+  // The compose command is `npm run dev`; the editor should own the
+  // container's lifecycle instead of the Next dev server.
+  "overrideCommand": true,
+  "shutdownAction": "stopCompose",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "vitest.explorer",
+        "redhat.vscode-yaml",
+        "github.copilot",
+        "github.copilot-chat",
+        "anthropic.claude-code"
+      ],
+      "settings": {
+        // Relative to workspaceFolder (/app), i.e. the container's
+        // node_modules — not the host's.
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "typescript.enablePromptUseWorkspaceTsdk": true,
+        // /app IS the frontend package root in here, unlike the host
+        // workspace where ESLint has to be pointed at frontend/.
+        "eslint.workingDirectories": ["."],
+        "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+        "[typescriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" }
+      }
+    }
+  },
+
+  "remoteEnv": {
+    // Vitest and any editor-run test must never reach the tracing collector
+    // or a real model.
+    "PHOENIX_COLLECTOR_ENDPOINT": ""
+  }
+}

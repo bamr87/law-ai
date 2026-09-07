@@ -10,9 +10,17 @@ Spec 048 FR-17. Three subcommands, all Docker-first via ``make``:
 ``review``
     Runs :class:`LSATLibrarian` over one or more articles and files every
     result as a **pending proposal**. Writes nothing under ``data/library/``
-    (spec 048 AC-10). With no explicit target it picks from the audit: the
-    stalest articles first, which is the closest thing to a picker until
-    BL-20260903-08 lands.
+    (spec 048 AC-10). With no explicit target it picks its own from the audit
+    — :func:`pick_librarian_targets`: unreviewed and stale articles first,
+    then thin ones, then articles nothing links to, then a capped tail of
+    gap-driven expansions, then a routine sweep.
+
+``scaffold``
+    Creates a new article file with valid frontmatter and a stub body
+    (BL-20260905-53). ``expand`` drafts a body and cannot write frontmatter,
+    so a section with no article at all was unreachable by the autonomous
+    cycle; this gives that section a host for the next ``review`` run to
+    expand into.
 
 ``promote``
     The only path that mutates library content, and it takes an explicit
@@ -33,9 +41,16 @@ from asgiref.sync import async_to_sync
 from django.core.management.base import BaseCommand, CommandError
 
 from law_ai.lsat.services import proposals as proposals_store
-from law_ai.lsat.services.library import library_audit, load_library
+from law_ai.lsat.services.library import (
+    LibrarianRequest,
+    library_audit,
+    load_library,
+    merge_expansion,
+    pick_librarian_targets,
+    scaffold_article,
+)
 
-_ACTIONS = ("audit", "review", "promote")
+_ACTIONS = ("audit", "review", "promote", "scaffold")
 
 
 class Command(BaseCommand):
@@ -81,6 +96,33 @@ class Command(BaseCommand):
             "--json",
             action="store_true",
             help="Emit the audit report as JSON rather than a summary.",
+        )
+        # -- scaffold ------------------------------------------------------
+        parser.add_argument("--title", help="Article title (scaffold).")
+        parser.add_argument("--summary", help="One-sentence index summary (scaffold).")
+        parser.add_argument(
+            "--kind", default="technique", help="Article kind (scaffold)."
+        )
+        parser.add_argument(
+            "--level", default="core", help="Reading-order tier (scaffold)."
+        )
+        parser.add_argument(
+            "--section",
+            action="append",
+            default=[],
+            help="Exam section the new article serves. Repeatable (scaffold).",
+        )
+        parser.add_argument(
+            "--concept",
+            action="append",
+            default=[],
+            help="Concept id the new article will teach. Repeatable (scaffold).",
+        )
+        parser.add_argument(
+            "--archetype",
+            action="append",
+            default=[],
+            help="Archetype id the new article will cover. Repeatable (scaffold).",
         )
 
     # -- audit --------------------------------------------------------------
@@ -134,41 +176,70 @@ class Command(BaseCommand):
 
     # -- review -------------------------------------------------------------
 
-    def _targets(self, opts: dict[str, Any]) -> list[str]:
+    def _targets(self, opts: dict[str, Any]) -> list[LibrarianRequest]:
         articles = load_library()
+        limit = max(1, opts["limit"])
         if opts["article"]:
             unknown = [a for a in opts["article"] if a not in articles]
             if unknown:
                 raise CommandError(f"unknown article(s): {', '.join(unknown)}")
-            return list(opts["article"])
-        # No explicit target: stalest first. `stale_articles` is already
-        # ordered by days-since-review descending, and falling back to the
-        # whole corpus keeps the scheduled cycle useful on a fresh library.
-        report = library_audit()
-        stale = [row["id"] for row in report["freshness"]["stale_articles"]]
-        return stale or sorted(articles)
+            return [
+                LibrarianRequest(article_id=a, reason="named on the command line")
+                for a in opts["article"]
+            ][:limit]
+        # No explicit target: the picker reads the audit and ranks it
+        # (BL-20260903-08). It always returns something on a healthy corpus,
+        # so the scheduled cycle stays useful rather than idling.
+        return pick_librarian_targets(library_audit(), limit=limit)
+
+    def _file(self, request: LibrarianRequest, output: Any) -> str:
+        """Persist one librarian result as a pending proposal; return its id."""
+        draft: dict[str, Any] = {
+            "article_id": request.article_id,
+            "summary": output.summary,
+            "reason": request.reason,
+        }
+        if request.action == "expand" and output.proposed_markdown:
+            draft["gap"] = request.gap
+            draft["markdown"] = merge_expansion(
+                request.article_id, output.proposed_markdown
+            )
+            kind = "library_article"
+        else:
+            draft["findings"] = [f.model_dump() for f in output.findings]
+            kind = "library_finding"
+        return proposals_store.record_proposal(
+            draft,
+            agent_trace_id=output.trace_id or "",
+            model=output.model,
+            confidence=output.confidence,
+            proposal_kind=kind,
+        )
 
     def _review(self, opts: dict[str, Any]) -> None:
-        targets = self._targets(opts)[: max(1, opts["limit"])]
+        targets = self._targets(opts)
         self.stdout.write(
             self.style.MIGRATE_HEADING(
-                f"Reviewing {len(targets)} article(s): {', '.join(targets)}"
+                f"Reviewing {len(targets)} article(s): "
+                + ", ".join(t.article_id for t in targets)
             )
         )
         if opts["dry_run"]:
-            for article_id in targets:
-                self.stdout.write(f"  would review: {article_id}")
+            for request in targets:
+                self.stdout.write(
+                    f"  would {request.action}: {request.article_id} "
+                    f"({request.reason})"
+                )
             return
 
         from law_ai.agents_runtime.crews.lsat_librarian import LSATLibrarian
 
         agent = LSATLibrarian()
         filed = skipped = failed = 0
-        for article_id in targets:
+        for request in targets:
+            article_id = request.article_id
             try:
-                output = async_to_sync(agent.run)(
-                    {"action": "review", "article_id": article_id}
-                )
+                output = async_to_sync(agent.run)(request.to_input())
             except Exception as exc:
                 failed += 1
                 self.stdout.write(self.style.ERROR(f"  {article_id}: failed ({exc})"))
@@ -181,22 +252,12 @@ class Command(BaseCommand):
                     )
                 )
                 continue
-            proposal_id = proposals_store.record_proposal(
-                {
-                    "article_id": article_id,
-                    "summary": output.summary,
-                    "findings": [f.model_dump() for f in output.findings],
-                },
-                agent_trace_id=output.trace_id or "",
-                model=output.model,
-                confidence=output.confidence,
-                proposal_kind="library_finding",
-            )
+            proposal_id = self._file(request, output)
             filed += 1
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"  {article_id}: {len(output.findings)} finding(s) → "
-                    f"{proposal_id} (model={output.model})"
+                    f"  {article_id}: {request.action} — {len(output.findings)} "
+                    f"finding(s) → {proposal_id} (model={output.model})"
                 )
             )
 
@@ -204,6 +265,36 @@ class Command(BaseCommand):
             self.style.MIGRATE_HEADING(
                 f"\nDone: {filed} filed for review, {skipped} degraded skipped, "
                 f"{failed} failed. Nothing under data/library/ was modified."
+            )
+        )
+
+    # -- scaffold -----------------------------------------------------------
+
+    def _scaffold(self, opts: dict[str, Any]) -> None:
+        """Write a new article's frontmatter so the cycle can expand into it."""
+        targets = opts["article"]
+        if len(targets) != 1:
+            raise CommandError("scaffold takes exactly one --article <id>")
+        if not opts["title"] or not opts["summary"]:
+            raise CommandError("scaffold requires --title and --summary")
+        try:
+            path = scaffold_article(
+                targets[0],
+                title=opts["title"],
+                summary=opts["summary"],
+                kind=opts["kind"],
+                level=opts["level"],
+                sections=opts["section"],
+                concepts=opts["concept"],
+                archetypes=opts["archetype"],
+            )
+        except Exception as exc:
+            raise CommandError(f"scaffold failed: {exc}") from exc
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"scaffolded {targets[0]} → {path}\n"
+                "  The body is a stub: run `lsat_library review --article "
+                f"{targets[0]}` to have the librarian draft into it."
             )
         )
 
@@ -232,5 +323,7 @@ class Command(BaseCommand):
             self._audit(opts)
         elif action == "review":
             self._review(opts)
+        elif action == "scaffold":
+            self._scaffold(opts)
         else:
             self._promote(opts)

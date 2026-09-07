@@ -26,6 +26,27 @@ export default function Overview({
           and an annotated model response. Everything runs in your browser; your progress is stored
           only on this device.
         </p>
+        {/* Say what is missing rather than letting it be discovered. The full
+            lab has three things this site cannot: they all need a server, and
+            a learner who goes looking for them deserves to be told once, up
+            front, instead of finding a gap and wondering whether it is a bug
+            (BL-20260831-25). */}
+        <details className="intro-limits">
+          <summary>What this site does not have</summary>
+          <p>
+            Three things in the full Law AI lab need a server, so they are not here: an{' '}
+            <strong>AI tutor</strong> to talk a question through when the written guide is not
+            enough, a <strong>blind answer cross-check</strong> that re-solves an item
+            independently, and <strong>server-side stats</strong> and the human review queue used
+            to author new questions. Everything else — the bank, the explanations, the
+            step-by-step solve guides, the writing rubric and model responses, the knowledge
+            library and the concept catalog — is here in full and works offline. The lab itself is{' '}
+            <a href="https://github.com/bamr87/law-ai" target="_blank" rel="noreferrer">
+              open source
+            </a>
+            .
+          </p>
+        </details>
       </div>
 
       <div className="cards">

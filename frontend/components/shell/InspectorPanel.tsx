@@ -16,7 +16,7 @@ export default function InspectorPanel() {
   return (
     <div className="shell-panel-scroll flex h-full flex-col gap-4 p-4">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
           Inspector
         </p>
         <h2 className="mt-1 text-sm font-semibold text-slate-100">

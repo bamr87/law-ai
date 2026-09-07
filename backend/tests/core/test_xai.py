@@ -7,16 +7,25 @@ guarantee that the suite cannot reach xAI at all.
 
 from __future__ import annotations
 
+import json
 import time
+from io import StringIO
 from typing import Any
 from unittest.mock import patch
 
 import httpx
 import pytest
+from django.core.management import call_command
 
 from law_ai.core import xai, xai_oauth
 from law_ai.core.llm import providers as llm_providers
-from law_ai.core.llm.base import LLMRequest, LLMUnavailableError
+from law_ai.core.llm.base import (
+    LLMPermanentError,
+    LLMRequest,
+    LLMResult,
+    LLMUnavailableError,
+)
+from law_ai.core.usage import LLMUsage, usage_of
 
 
 @pytest.fixture
@@ -284,3 +293,362 @@ class TestSuiteCannotReachXai:
         assert not django_settings.XAI_CREDENTIALS_PATH.startswith(".xai")
         assert "127.0.0.1:1" in django_settings.XAI_BASE_URL
         assert "127.0.0.1:1" in django_settings.XAI_AUTH_BASE_URL
+
+
+# ---------------------------------------------------------------------------
+# Token usage (BL-20260811-21)
+# ---------------------------------------------------------------------------
+
+
+class TestUsageExtraction:
+    """xAI's OpenAI-shaped ``usage`` block must reach the router."""
+
+    async def test_generate_returns_the_reported_token_counts(self, authorised) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {
+                            "finish_reason": "stop",
+                            "message": {"role": "assistant", "content": "hello"},
+                        }
+                    ],
+                    "usage": {"prompt_tokens": 88, "completion_tokens": 9},
+                },
+            )
+
+        with _mock_transport(handler):
+            reply = await xai.generate("hi")
+
+        assert reply == "hello"
+        assert usage_of(reply) == LLMUsage(input_tokens=88, output_tokens=9)
+
+    async def test_a_response_without_usage_is_not_an_error(self, authorised) -> None:
+        with _mock_transport(lambda request: _ok()):
+            reply = await xai.generate("hi")
+
+        assert reply == "hello"
+        assert usage_of(reply) is None
+
+
+# ---------------------------------------------------------------------------
+# Model discovery (BL-20260904-05)
+# ---------------------------------------------------------------------------
+
+
+def _models_response(*ids: str) -> httpx.Response:
+    return httpx.Response(
+        200, json={"data": [{"id": i, "object": "model"} for i in ids]}
+    )
+
+
+class TestListModels:
+    async def test_returns_sorted_ids(self, authorised) -> None:
+        seen: dict[str, Any] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen["url"] = str(request.url)
+            seen["auth"] = request.headers.get("authorization")
+            return _models_response("grok-4.6", "grok-3-mini", "grok-4.6")
+
+        with _mock_transport(handler):
+            models = await xai.list_models()
+
+        assert models == ["grok-3-mini", "grok-4.6"]
+        assert seen["url"] == "https://api.x.ai/v1/models"
+        assert seen["auth"] == "Bearer live-token"
+
+    async def test_a_malformed_listing_is_empty_not_an_error(self, authorised) -> None:
+        with _mock_transport(lambda request: httpx.Response(200, json={"data": None})):
+            assert await xai.list_models() == []
+
+    async def test_http_errors_propagate(self, authorised) -> None:
+        with (
+            _mock_transport(lambda request: httpx.Response(403, json={})),
+            pytest.raises(httpx.HTTPStatusError),
+        ):
+            await xai.list_models()
+
+
+class TestProbeNamesReachableModels:
+    """A 404 on the configured id must say which ids *would* work."""
+
+    async def test_404_completion_carries_available_models(self, authorised) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path.endswith("/models"):
+                return _models_response("grok-3-mini", "grok-4-fast")
+            return httpx.Response(404, json={"error": "model not found"})
+
+        with _mock_transport(handler):
+            probe = await xai.probe()
+
+        assert probe["reachable"] is False
+        assert "404" in probe["error"]
+        assert probe["available_models"] == ["grok-3-mini", "grok-4-fast"]
+
+    async def test_a_forbidden_listing_leaves_the_probe_intact(
+        self, authorised
+    ) -> None:
+        """Some accounts have /v1/models outside their allowlist."""
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(404 if "chat" in request.url.path else 403, json={})
+
+        with _mock_transport(handler):
+            probe = await xai.probe()
+
+        assert probe["reachable"] is False
+        assert "available_models" not in probe
+
+    async def test_other_failures_do_not_list_models(self, authorised) -> None:
+        calls: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(request.url.path)
+            return httpx.Response(500, json={})
+
+        with _mock_transport(handler):
+            probe = await xai.probe()
+
+        assert probe["reachable"] is False
+        assert "available_models" not in probe
+        assert not [p for p in calls if p.endswith("/models")]
+
+
+class TestValidateXaiCommand:
+    """The operator command turns a 404 into an actionable model id."""
+
+    def test_warns_when_the_configured_model_is_not_served(self, authorised) -> None:
+        authorised.XAI_MODEL = "grok-9-imaginary"
+        out = StringIO()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path.endswith("/models"):
+                return _models_response("grok-4-fast", "grok-4.6")
+            return _ok("pong")
+
+        with _mock_transport(handler):
+            call_command("validate_xai", "--skip-generate", stdout=out)
+
+        printed = out.getvalue()
+        assert "grok-9-imaginary is not in the list above" in printed
+        assert "XAI_MODEL=grok-4-fast" in printed
+
+    def test_no_warning_when_the_model_is_served(self, authorised) -> None:
+        authorised.XAI_MODEL = "grok-4.6"
+        out = StringIO()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path.endswith("/models"):
+                return _models_response("grok-4.6")
+            return _ok("pong")
+
+        with _mock_transport(handler):
+            call_command("validate_xai", "--skip-generate", stdout=out)
+
+        assert "is not in the list above" not in out.getvalue()
+
+    def test_an_unavailable_listing_does_not_stop_the_probe(self, authorised) -> None:
+        out = StringIO()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path.endswith("/models"):
+                return httpx.Response(403, json={})
+            return _ok("pong")
+
+        with _mock_transport(handler):
+            call_command("validate_xai", "--skip-generate", stdout=out)
+
+        printed = out.getvalue()
+        assert "listing         : unavailable" in printed
+        assert "OAuth connection validated" in printed
+
+
+# ---------------------------------------------------------------------------
+# Interactive model override (BL-20260905-11)
+# ---------------------------------------------------------------------------
+
+
+class TestInteractiveModel:
+    """A faster Grok for user-facing calls, without touching batch paths."""
+
+    def test_blank_setting_is_a_no_op(self, settings) -> None:
+        settings.XAI_MODEL = "grok-4.6"
+        settings.XAI_INTERACTIVE_MODEL = ""
+        assert xai.interactive_model() == "grok-4.6"
+        assert xai.interactive_overrides() == {}
+
+    def test_override_pins_only_the_xai_tier(self, settings) -> None:
+        settings.XAI_MODEL = "grok-4.6"
+        settings.XAI_INTERACTIVE_MODEL = "grok-4-fast"
+        assert xai.interactive_model() == "grok-4-fast"
+        assert xai.interactive_overrides() == {"xai": "grok-4-fast"}
+        # Nothing else in the chain is renamed.
+        assert set(xai.interactive_overrides()) == {llm_providers.XAI}
+
+    def test_the_override_reaches_the_provider(self, settings) -> None:
+        settings.XAI_INTERACTIVE_MODEL = "grok-4-fast"
+        request = LLMRequest(prompt="q", models=xai.interactive_overrides())
+        assert llm_providers.XaiProvider().model_for(request) == "grok-4-fast"
+
+    async def test_the_tutor_sends_it(self, settings) -> None:
+        """The interactive surface that most needs it actually passes it."""
+        from law_ai.lsat.services import tutor as tutor_mod
+
+        settings.XAI_INTERACTIVE_MODEL = "grok-4-fast"
+        captured: dict[str, Any] = {}
+
+        async def fake_agenerate(prompt: str, **kwargs: Any) -> Any:
+            captured.update(kwargs)
+            return LLMResult(
+                text="{}", provider="ollama", model="mistral", latency_ms=1.0
+            )
+
+        with patch.object(tutor_mod.llm, "agenerate", fake_agenerate):
+            await tutor_mod._generate_coaching("prompt")
+
+        assert captured["models"] == {"xai": "grok-4-fast"}
+
+    async def test_the_tutor_sends_nothing_when_unset(self, settings) -> None:
+        from law_ai.lsat.services import tutor as tutor_mod
+
+        settings.XAI_INTERACTIVE_MODEL = ""
+        captured: dict[str, Any] = {}
+
+        async def fake_agenerate(prompt: str, **kwargs: Any) -> Any:
+            captured.update(kwargs)
+            return LLMResult(
+                text="{}", provider="ollama", model="mistral", latency_ms=1.0
+            )
+
+        with patch.object(tutor_mod.llm, "agenerate", fake_agenerate):
+            await tutor_mod._generate_coaching("prompt")
+
+        assert captured["models"] == {}
+
+    async def test_the_authoring_path_sends_it(self, settings) -> None:
+        """LSAT authoring measured 68s on this tier and was skipping the knob."""
+        from law_ai.agents_runtime.crews import lsat_content_author
+
+        settings.XAI_INTERACTIVE_MODEL = "grok-4-fast"
+        captured: dict[str, Any] = {}
+
+        async def fake_agenerate(prompt: str, **kwargs: Any) -> Any:
+            captured.update(kwargs)
+            return LLMResult(
+                text="{}", provider="ollama", model="mistral", latency_ms=1.0
+            )
+
+        with patch.object(lsat_content_author.llm, "agenerate", fake_agenerate):
+            await lsat_content_author._generate("prompt")
+
+        assert captured["models"] == {"xai": "grok-4-fast"}
+
+    def test_no_user_facing_caller_is_left_out(self) -> None:
+        """Every call a person waits on passes the override.
+
+        Source-level on purpose: driving cross-check and the writing evaluator
+        end to end needs a question bank and a graded essay, and the thing
+        worth pinning is that none of these call sites silently loses the
+        argument again (BL-20260905-11).
+        """
+        import inspect
+
+        from law_ai.agents_runtime.crews.legal_analyst import LegalAnalyst
+        from law_ai.agents_runtime.crews.lsat_writing_evaluator import (
+            LSATWritingEvaluator,
+        )
+        from law_ai.lsat.services.crosscheck import cross_check
+
+        for func in (
+            cross_check,
+            LSATWritingEvaluator.run,
+            LegalAnalyst._irac_text,
+        ):
+            assert "xai.interactive_overrides()" in inspect.getsource(func), func
+
+
+# ---------------------------------------------------------------------------
+# Streaming (BL-20260811-20)
+# ---------------------------------------------------------------------------
+
+
+def _sse(*frames: dict[str, Any]) -> httpx.Response:
+    """An OpenAI-shaped SSE body, terminated the way xAI terminates one."""
+    body = "".join(f"data: {json.dumps(frame)}\n\n" for frame in frames)
+    return httpx.Response(
+        200,
+        content=(body + "data: [DONE]\n\n").encode(),
+        headers={"content-type": "text/event-stream"},
+    )
+
+
+def _delta(text: str, finish: str | None = None) -> dict[str, Any]:
+    return {"choices": [{"delta": {"content": text}, "finish_reason": finish}]}
+
+
+async def _drain(stream: Any) -> list[str]:
+    return [chunk async for chunk in stream]
+
+
+class TestAstream:
+    async def test_yields_deltas_and_asks_for_usage(self, authorised) -> None:
+        seen: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request)
+            return _sse(
+                _delta("Gro"),
+                _delta("k", finish="stop"),
+                {"choices": [], "usage": {"prompt_tokens": 9, "completion_tokens": 2}},
+            )
+
+        with _mock_transport(handler):
+            chunks = await _drain(xai.astream("q"))
+
+        assert [str(c) for c in chunks] == ["Gro", "k", ""]
+        body = json.loads(seen[-1].content)
+        assert body["stream"] is True
+        # Without include_usage the terminal frame carries no counts and the
+        # tier would bill invisibly.
+        assert body["stream_options"] == {"include_usage": True}
+        assert usage_of(chunks[-1]) == LLMUsage(input_tokens=9, output_tokens=2)
+
+    async def test_content_filter_raises_instead_of_returning_blank(
+        self, authorised
+    ) -> None:
+        with (
+            _mock_transport(lambda request: _sse(_delta("", finish="content_filter"))),
+            pytest.raises(xai.XaiRefusalError),
+        ):
+            await _drain(xai.astream("q"))
+
+    async def test_truncation_raises_unless_allowed(self, authorised) -> None:
+        with (
+            _mock_transport(lambda request: _sse(_delta("half", finish="length"))),
+            pytest.raises(xai.XaiUnavailableError),
+        ):
+            await _drain(xai.astream("q"))
+
+    async def test_truncation_is_tolerated_when_the_caller_allows_it(
+        self, authorised
+    ) -> None:
+        with _mock_transport(lambda request: _sse(_delta("half", finish="length"))):
+            chunks = await _drain(xai.astream("q", allow_truncation=True))
+
+        assert [str(c) for c in chunks] == ["half", ""]
+
+    async def test_a_dead_credential_is_a_permanent_tier_failure(
+        self, authorised, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The provider adapter translates it, exactly as agenerate does."""
+
+        async def _boom(**kwargs: Any) -> str:
+            raise xai_oauth.XaiAuthError("token revoked")
+
+        monkeypatch.setattr(xai_oauth, "access_token", _boom)
+        provider = llm_providers.XaiProvider()
+
+        with pytest.raises(LLMPermanentError):
+            await _drain(provider.astream(LLMRequest(prompt="q")))

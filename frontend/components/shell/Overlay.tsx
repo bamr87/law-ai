@@ -63,7 +63,12 @@ export function useFocusTrap<T extends HTMLElement>(
       node?.removeEventListener('keydown', onKeyDown)
       // Only pull focus back if it is still inside the layer we are closing —
       // otherwise we would yank it away from whatever the user just clicked.
-      if (!node || node.contains(document.activeElement)) {
+      // A layer that unmounts (rather than flipping `active` to false) has
+      // already been detached by the time this passive cleanup runs, which
+      // leaves focus on <body>: that is the "focus fell on the floor" case,
+      // and it needs restoring too (BL-20260831-07).
+      const focused = document.activeElement
+      if (!node || node.contains(focused) || !focused || focused === document.body) {
         restoreTo.current?.focus?.()
       }
     }
@@ -123,7 +128,7 @@ export default function Drawer({
         style={{ zIndex: 'var(--z-drawer)' }}
       >
         <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
             {label}
           </p>
           <button

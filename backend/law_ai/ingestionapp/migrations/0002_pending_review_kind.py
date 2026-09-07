@@ -16,7 +16,9 @@ to the historical kind, satisfying spec 015 AC-3.
 
 from __future__ import annotations
 
+from django.apps.registry import Apps
 from django.db import migrations, models
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 
 PG_FORWARD = """
 ALTER TABLE pending_review
@@ -53,7 +55,7 @@ def _split(sql: str) -> list[str]:
     return [stmt.strip() for stmt in sql.split(";") if stmt.strip()]
 
 
-def _add_kind(apps, schema_editor):
+def _add_kind(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
     sql = (
         PG_FORWARD
         if schema_editor.connection.vendor == "postgresql"
@@ -63,7 +65,7 @@ def _add_kind(apps, schema_editor):
         schema_editor.execute(stmt)
 
 
-def _drop_kind(apps, schema_editor):
+def _drop_kind(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
     sql = (
         PG_REVERSE
         if schema_editor.connection.vendor == "postgresql"

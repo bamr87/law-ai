@@ -19,6 +19,21 @@ permissions:
 
 jobs:
   audit:
+    # Kill switch (BL-20260818-02). gitorio's `*_ENABLED` convention is
+    # default-OFF, and specs/038-framework-hardening deliberately did not
+    # backport it here (NG1): a default-OFF gate would have silently idled a
+    # live weekly automation, and a workflow that quietly does nothing is
+    # worse than one that has no switch at all — you cannot tell the two
+    # apart from the runs list.
+    #
+    # So this is an opt-OUT gate. `vars.EVOLVE_ENABLED` unset evaluates to the
+    # empty string, which is `!= 'false'`, so existing scheduled runs are
+    # unaffected. Set the repository variable EVOLVE_ENABLED=false
+    # (Settings → Secrets and variables → Actions → Variables) to idle the
+    # weekly autopilot without deleting the workflow; unset or set it to
+    # anything else to resume. Flipping to default-OFF later is a one-word
+    # change and is the part that needs the maintainer's call.
+    if: ${{ vars.EVOLVE_ENABLED != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

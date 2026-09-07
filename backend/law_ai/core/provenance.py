@@ -4,19 +4,23 @@ Public surface preserved from the legacy ``app.core.provenance``:
 ``ProvenanceLogger.log_request``, ``log_agent_call``, ``log_graph_query``,
 ``logged_node`` decorator, and the module-level ``provenance`` instance.
 
-Storage: every event also calls ``AuditEvent.objects.create`` (sync) to
-keep the JSONL writer + a queryable Postgres row in sync. On DB failure,
-the JSONL fallback is invoked synchronously *and* a Celery task is
-enqueued so the row eventually lands in Postgres.
+Storage (spec 030, BL-20260810-10, BL-20260811-07): JSONL is the durable
+append-only record and is always written first, so an audit event is never
+lost because the database blinked. The Postgres ``AuditEvent`` row is then
+written by whichever strategy the execution context allows — see
+:func:`_persist`. Repeated DB-leg failures are surfaced at warning level;
+a single transient one is not, because JSONL already holds the event.
 """
 
 from __future__ import annotations
 
+import atexit
 import functools
 import hashlib
 import inspect
 import json
 import logging
+import threading
 import time
 from datetime import UTC, datetime
 from typing import Any, TypeVar
@@ -58,6 +62,92 @@ def _write_audit_row(event: dict[str, Any]) -> None:
     )
 
 
+#: Consecutive DB-leg failures. A single failure is noise (JSONL has the
+#: event and Celery will retry); a *run* of them means audit rows are
+#: silently not landing, which is exactly what BL-20260810-10 asked to see.
+_DB_FAILURE_STREAK = 0
+_PERSISTENT_FAILURE_THRESHOLD = 3
+_FAILURE_LOCK = threading.Lock()
+
+_AUDIT_EXECUTOR: Any = None
+_EXECUTOR_LOCK = threading.Lock()
+
+
+def _thread_offload_enabled() -> bool:
+    """Whether the async+eager path may reach the ORM from a worker thread."""
+    try:
+        from django.conf import settings
+
+        return bool(getattr(settings, "AUDIT_DB_THREAD_OFFLOAD", False))
+    except Exception:  # pragma: no cover - settings always configured
+        return False
+
+
+def _note_db_result(ok: bool, context: str) -> None:
+    """Track the DB leg's health and warn once a failure becomes persistent."""
+    global _DB_FAILURE_STREAK
+    with _FAILURE_LOCK:
+        if ok:
+            _DB_FAILURE_STREAK = 0
+            return
+        _DB_FAILURE_STREAK += 1
+        streak = _DB_FAILURE_STREAK
+    if streak >= _PERSISTENT_FAILURE_THRESHOLD:
+        logger.warning(
+            "audit DB persistence has failed %d times in a row (%s); "
+            "JSONL is currently the only record",
+            streak,
+            context,
+        )
+
+
+def _audit_executor() -> Any:
+    """Single-worker executor for offloaded audit inserts.
+
+    One worker, so inserts stay ordered and a burst cannot open a connection
+    per event. Daemon threads plus an atexit shutdown mean a pending insert
+    never keeps the interpreter alive.
+    """
+    global _AUDIT_EXECUTOR
+    with _EXECUTOR_LOCK:
+        if _AUDIT_EXECUTOR is None:
+            from concurrent.futures import ThreadPoolExecutor
+
+            _AUDIT_EXECUTOR = ThreadPoolExecutor(
+                max_workers=1, thread_name_prefix="law-ai-audit-db"
+            )
+            atexit.register(_shutdown_audit_executor)
+    return _AUDIT_EXECUTOR
+
+
+def _shutdown_audit_executor() -> None:  # pragma: no cover - interpreter exit
+    global _AUDIT_EXECUTOR
+    executor, _AUDIT_EXECUTOR = _AUDIT_EXECUTOR, None
+    if executor is not None:
+        executor.shutdown(wait=False)
+
+
+def _write_audit_row_offloaded(event: dict[str, Any], jsonl_ok: bool) -> None:
+    """Insert one audit row from a worker thread.
+
+    ``close_old_connections()`` on both sides is not optional: this thread
+    gets its own DB connection, and without the bracket a connection that the
+    server closed underneath us would be reused and fail on the next event.
+    """
+    from django.db import close_old_connections
+
+    close_old_connections()
+    try:
+        _write_audit_row(event)
+        _note_db_result(True, "thread offload")
+    except Exception as exc:
+        _note_db_result(False, "thread offload")
+        level = logger.warning if not jsonl_ok else logger.debug
+        level("audit DB write failed in worker thread: %s", exc)
+    finally:
+        close_old_connections()
+
+
 def _persist(event: dict[str, Any]) -> None:
     """Persist ``event`` to JSONL (always) and Postgres (context-dependent).
 
@@ -71,8 +161,12 @@ def _persist(event: dict[str, Any]) -> None:
       so hand the row to the ``persist_audit_event`` Celery task, which
       executes it in a worker's sync context.
     * **async + eager Celery** (tests/dev) — the eager task would run inline
-      in this same async context and fail identically, so skip the DB leg
-      and let JSONL be the record.
+      in this same async context and fail identically. With
+      ``AUDIT_DB_THREAD_OFFLOAD`` on (the dev default, BL-20260811-07) the
+      insert is handed to a worker thread that brackets it with
+      ``close_old_connections()``, so dev matches prod; with it off (the test
+      default, because pytest-django wraps each test in a transaction a second
+      connection cannot see) the DB leg is skipped and JSONL is the record.
     """
     jsonl_ok = True
     try:
@@ -84,8 +178,10 @@ def _persist(event: dict[str, Any]) -> None:
     if not _in_async_context():
         try:
             _write_audit_row(event)
+            _note_db_result(True, "sync write")
             return
         except Exception as exc:
+            _note_db_result(False, "sync write")
             logger.debug("audit DB write failed, deferring to Celery: %s", exc)
 
     try:
@@ -96,7 +192,14 @@ def _persist(event: dict[str, Any]) -> None:
         eager = False
 
     if eager and _in_async_context():
-        # Nothing to gain from dispatching: eager execution is inline.
+        # Nothing to gain from dispatching: eager execution is inline. A
+        # worker thread is the only way to reach the ORM from here.
+        if _thread_offload_enabled():
+            try:
+                _audit_executor().submit(_write_audit_row_offloaded, event, jsonl_ok)
+                return
+            except Exception as exc:  # pragma: no cover - executor exhausted
+                logger.warning("audit thread offload failed: %s", exc)
         if not jsonl_ok:
             logger.warning(
                 "audit event %s has NO durable record: JSONL failed and the "
@@ -109,11 +212,31 @@ def _persist(event: dict[str, Any]) -> None:
         from law_ai.core.tasks import persist_audit_event
 
         persist_audit_event.delay(event)
+        _note_db_result(True, "celery dispatch")
     except Exception as exc:
+        _note_db_result(False, "celery dispatch")
         # Only a genuine data-loss risk deserves a warning: JSONL already
         # holds the event in the normal case.
         level = logger.warning if not jsonl_ok else logger.debug
         level("audit Celery dispatch failed (%s): %s", type(exc).__name__, exc)
+
+
+def _notify_ops_of_run(agent_name: str, trace_id: str) -> None:
+    """Tell open ops dashboards a run landed (BL-20260429-16).
+
+    An agent call is exactly the event the dashboard's five-second poll was
+    looking for, so this is where the push belongs. Import is local and the
+    call is best-effort in every direction: the notifier itself swallows
+    channel-layer failures, and this guard covers the import (a management
+    command with no channels app loaded) — the audit write above has already
+    happened either way.
+    """
+    try:
+        from law_ai.agentsapi.streaming import RUNS_CHANGED, notify_ops_nowait
+
+        notify_ops_nowait(RUNS_CHANGED, agent=agent_name, trace_id=trace_id)
+    except Exception:  # pragma: no cover - defensive
+        logger.debug("ops dashboard notify unavailable", exc_info=True)
 
 
 class ProvenanceLogger:
@@ -123,8 +246,9 @@ class ProvenanceLogger:
     def log_request(request: Any, response: Any) -> None:
         """Log incoming HTTP request with basic metadata.
 
-        Accepts both Django ``HttpRequest`` and FastAPI/Starlette ``Request``
-        for spec-011 cutover continuity.
+        Accepts a Django ``HttpRequest``, or any object exposing the same
+        ``method``/``path``/``META`` surface — the ASGI scope wrappers the
+        agent paths hand in do.
         """
         method = getattr(request, "method", "?")
         path = getattr(request, "path", None)
@@ -210,6 +334,7 @@ class ProvenanceLogger:
             log_entry["input"] = input_view
         logger.info(json.dumps(log_entry))
         _persist(log_entry)
+        _notify_ops_of_run(agent_name, trace_id)
         return trace_id
 
     @staticmethod
@@ -293,9 +418,33 @@ def _record_node_event(
     }
     if extra:
         event.update(extra)
+    served_by = _node_model_label(output)
+    if served_by is not None:
+        event["model"] = served_by
     logger.info(json.dumps(event, default=str))
     _persist(event)
     return trace_id
+
+
+def _node_model_label(output: Any) -> str | None:
+    """The tier that actually served this node's call, when the node says.
+
+    :func:`logged_node` binds ``model`` at decoration time, so a node running
+    on the provider chain could only ever record the static ``(provider
+    chain)`` placeholder while the tier that answered was known elsewhere —
+    in graph state and on the OTel span, but not on the audit row itself.
+    LegalWorkflow's LLM nodes already return the serving tier as
+    ``model_label``; preferring it makes the per-node audit trail name the
+    real provider (BL-20260905-86). A node that returns none — the
+    deterministic ones, and the refusal paths that never called a model —
+    keeps the decorator's static label.
+    """
+    if not isinstance(output, dict):
+        return None
+    label = output.get("model_label")
+    if not isinstance(label, str):
+        return None
+    return label.strip() or None
 
 
 def _pick_state(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:

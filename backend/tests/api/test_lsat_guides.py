@@ -214,3 +214,84 @@ async def test_generate_guide_conflict_when_guide_exists(client: AsyncClient) ->
     qid = _guided_question_id()
     res = await client.post("/api/lsat/guides/generate", json={"question_id": qid})
     assert res.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# BL-20260830-15 — the judge-tier verdict rides with the pending draft
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_generate_guide_attaches_the_reviewer_verdict(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import json as _json
+    from unittest.mock import AsyncMock, patch
+
+    from law_ai.agents_runtime.crews import lsat_guide_reviewer as reviewer_mod
+    from law_ai.agents_runtime.crews import lsat_solve_guide_author as mod
+    from law_ai.core.llm.base import LLMResult
+
+    qid = _guideless_question_id()
+    correct = load_bank()[qid].correct
+    guide_payload = _json.dumps(
+        {
+            "guide": {
+                "question_id": qid,
+                "method": "Symbolize then eliminate",
+                "steps": [
+                    {"kind": "orient", "title": "Read", "text": "Read the stem."},
+                    {
+                        "kind": "answer",
+                        "title": "Answer",
+                        "text": f"It is {correct}.",
+                        "spoiler": True,
+                    },
+                ],
+            }
+        }
+    )
+    review_payload = _json.dumps(
+        {
+            "verdict": "revise",
+            "symbolization_faithful": False,
+            "step_findings": [
+                {"index": 1, "follows": True, "note": ""},
+                {"index": 2, "follows": False, "note": "the chain never reaches it"},
+            ],
+            "summary": "Step 2 asserts more than step 1 licenses.",
+            "confidence": 0.7,
+        }
+    )
+
+    def _result(text: str) -> LLMResult:
+        return LLMResult(
+            text=text, provider="claude_code", model="claude-opus-5", latency_ms=1.0
+        )
+
+    # The author and the reviewer share `law_ai.core.llm`, so the reviewer is
+    # stubbed at its own entry point rather than through the shared module.
+    # A plain async def (not AsyncMock) because the view calls it through
+    # `async_to_sync`, which wants a real coroutine function.
+    async def fake_review(guide, *, question=None):  # type: ignore[no-untyped-def]
+        return _json.loads(review_payload)
+
+    with (
+        patch.object(
+            mod.llm, "agenerate", new=AsyncMock(return_value=_result(guide_payload))
+        ),
+        patch.object(reviewer_mod, "review_guide", new=fake_review),
+    ):
+        res = await client.post("/api/lsat/guides/generate", json={"question_id": qid})
+
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["review"]["verdict"] == "revise"
+    # The verdict is persisted on the pending row, not just echoed.
+    review = body["proposal"]["meta"]["review"]
+    assert review["symbolization_faithful"] is False
+    assert review["step_findings"][1]["follows"] is False
+    # Advisory only: the draft is still pending and still not served.
+    assert body["proposal"]["status"] == "pending"
+    served = await client.get(f"/api/lsat/questions/{qid}/guide")
+    assert served.status_code == 404

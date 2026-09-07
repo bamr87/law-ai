@@ -5,10 +5,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   fetchLsatGuide,
   LsatGuideNotFoundError,
+  recordLsatHintReveal,
   type LsatSolveGuide,
   type LsatSolveStep,
 } from '@/lib/api'
 import Representation from '@/components/lsat/diagrams/Representation'
+import { useShortcuts } from '@/lib/lsat/keyboard'
 
 /**
  * Progressive solve-guide reveal, rendered as a carousel (spec 045 FR-6,
@@ -57,7 +59,7 @@ function StepSlide({
       aria-label={`Step ${index + 1} of ${total}: ${step.title}`}
       className="rounded-lg border border-slate-800 bg-slate-900/40 p-3"
     >
-      <p className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-500">
+      <p className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider text-slate-400">
         <span className="font-mono text-slate-600">{index + 1}</span>
         <span className="rounded bg-slate-800/80 px-1.5 py-0.5 text-sky-300">
           {KIND_LABEL[step.kind]}
@@ -65,7 +67,7 @@ function StepSlide({
         <span className="normal-case text-slate-300">{step.title}</span>
       </p>
       {step.locked ? (
-        <p className="mt-2 text-xs italic text-slate-500">
+        <p className="mt-2 text-xs italic text-slate-400">
           🔒 Locked — submit an answer first, then reveal the final step.
         </p>
       ) : (
@@ -91,11 +93,14 @@ export default function SolveAssist({
   graded,
   onHintsUsedChange,
   onAskTutor,
+  remap,
 }: {
   questionId: string
   graded: boolean
   onHintsUsedChange?: (hintsUsed: number) => void
   onAskTutor?: () => void
+  /** The serve's shuffle token, so the steps name the labels on screen. */
+  remap?: string
 }) {
   // Mounted with key={questionId}, so state resets per question; the
   // initializers restore this session's revealed depth (FR-6).
@@ -118,7 +123,9 @@ export default function SolveAssist({
       setLoading(true)
       setError(null)
       try {
-        const g = await fetchLsatGuide(questionId, { spoilers })
+        // A shuffled serve moves the labels the steps name, so the guide is
+        // fetched under the same permutation (BL-20260606-01).
+        const g = await fetchLsatGuide(questionId, { spoilers, remap })
         setGuide(g)
         return g
       } catch (e) {
@@ -133,7 +140,7 @@ export default function SolveAssist({
         setLoading(false)
       }
     },
-    [questionId],
+    [questionId, remap],
   )
 
   // Restore previously revealed steps after a question switch.
@@ -155,40 +162,53 @@ export default function SolveAssist({
     onHintsUsedChange?.(hintsUsed)
   }, [hintsUsed, onHintsUsedChange])
 
+  // Per-reveal analytics (BL-20260830-13). Fire-and-forget in the strictest
+  // sense: the promise is not awaited and its rejection is swallowed, because
+  // a hint that failed to be *counted* is still a hint the learner has.
+  const noteReveal = useCallback(
+    (stepIndex: number, revealedCount: number, spoiler = false) => {
+      void recordLsatHintReveal(questionId, {
+        stepIndex,
+        revealedCount,
+        spoiler,
+      }).catch(() => {
+        /* never surfaced: the reveal already happened */
+      })
+    },
+    [questionId],
+  )
+
+  // The revealed depth, readable from an async handler. `reveal` awaits a
+  // fetch before it decides, so the `revealed` it closed over may be stale by
+  // then — and a state updater has to stay pure, which the analytics call
+  // inside one would not be.
+  const revealedRef = useRef(revealed)
+  useEffect(() => {
+    revealedRef.current = revealed
+  })
+
   const reveal = async () => {
     const g = guide ?? (await loadGuide(false))
     if (!g) return
-    setRevealed((r) => {
-      const next = Math.min(r + 1, g.step_count)
-      revealedByQuestion.set(questionId, next)
-      setActive(next - 1)
-      return next
-    })
+    const current = revealedRef.current
+    const next = Math.min(current + 1, g.step_count)
+    if (next === current) return
+    revealedRef.current = next
+    revealedByQuestion.set(questionId, next)
+    setRevealed(next)
+    setActive(next - 1)
+    noteReveal(next - 1, next, Boolean(g.steps[next - 1]?.spoiler))
   }
 
   const showFinal = async () => {
     const g = await loadGuide(true)
     if (!g) return
+    revealedRef.current = g.step_count
     setRevealed(g.step_count)
     setActive(g.step_count - 1)
     revealedByQuestion.set(questionId, g.step_count)
-  }
-
-  if (noGuide) {
-    return (
-      <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950/40 p-3 text-sm text-slate-400">
-        No step-by-step guide for this question yet.
-        {noGuide.hasTutor && onAskTutor && (
-          <button
-            type="button"
-            onClick={onAskTutor}
-            className="ml-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-200 transition hover:bg-amber-500/20"
-          >
-            Ask the AI tutor for a walkthrough
-          </button>
-        )}
-      </div>
-    )
+    // "Show final step" unlocks the spoiler, whatever depth it was at.
+    noteReveal(g.step_count - 1, g.step_count, true)
   }
 
   const revealedSteps = guide ? guide.steps.slice(0, revealed) : []
@@ -207,6 +227,51 @@ export default function SolveAssist({
     } else if (nextWillReveal) {
       void reveal()
     }
+  }
+
+  // Hint keys, the static site's contract ported (BL-20260901-06,
+  // `lsat-static/components/solve/SolveAssist.tsx`): H opens the guide and
+  // then walks it forward, J and K move back and forward through what is
+  // already revealed, R jumps to the final step once the question is graded.
+  // Declared before the guide-less early return so the hook order never
+  // changes between renders.
+  //
+  // Window-level and unguarded by a card scope, because exactly one question
+  // — and so exactly one guide — is on screen at a time in every panel
+  // (BL-20260901-08). `useShortcuts` skips text fields and open dialogs, so
+  // the tutor's follow-up box keeps its letters.
+  useShortcuts({
+    h: () => {
+      if (noGuide) return
+      if (revealed === 0) void reveal()
+      else goNext()
+    },
+    k: () => {
+      if (guide && active < frontier) setActive((a) => a + 1)
+    },
+    j: () => {
+      if (guide) setActive((a) => Math.max(0, a - 1))
+    },
+    r: () => {
+      if (guide && graded && hasLockedVisible) void showFinal()
+    },
+  })
+
+  if (noGuide) {
+    return (
+      <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950/40 p-3 text-sm text-slate-400">
+        No step-by-step guide for this question yet.
+        {noGuide.hasTutor && onAskTutor && (
+          <button
+            type="button"
+            onClick={onAskTutor}
+            className="ml-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-200 transition hover:bg-amber-500/20"
+          >
+            Ask the AI tutor for a walkthrough
+          </button>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -234,7 +299,7 @@ export default function SolveAssist({
           </button>
         )}
         {guide && revealed > 0 && (
-          <span className="text-[11px] text-slate-500">
+          <span className="text-[11px] text-slate-400">
             {guide.method} · step {Math.min(active + 1, guide.step_count)} of{' '}
             {guide.step_count}
           </span>

@@ -12,7 +12,6 @@
   },
   "overrides": {
     "GraphViewer": { "cardMode": "column" },
-    "NavBar": { "cardMode": "column", "viewport": "1200x320" },
     "Drill": { "cardMode": "column", "viewport": "1100x1000" },
     "AgentTrace": { "cardMode": "column" },
     "QuestionCard": { "cardMode": "column" },
@@ -38,7 +37,6 @@
     "LegalDisclaimerBanner": "../../frontend/components/LegalDisclaimer.tsx",
     "LegalDisclaimerFooter": "../../frontend/components/LegalDisclaimer.tsx",
     "LsatLab": "../../frontend/components/LsatLab.tsx",
-    "NavBar": "../../frontend/components/NavBar.tsx",
     "Concepts": "../../lsat-static/components/Concepts.tsx",
     "Drill": "../../lsat-static/components/Drill.tsx",
     "Overview": "../../lsat-static/components/Overview.tsx",
@@ -60,7 +58,6 @@
     "KnowledgeGraph": "/** Takes no props — owns its own case search and neighborhood fetching. */",
     "LegalDisclaimerFooter": "/** Takes no props — the global UPL disclaimer mounted in the root layout. */",
     "LsatLab": "/** Takes no props — owns its own tab state and LSAT content fetching. */",
-    "NavBar": "/** Takes no props — reads the active route to highlight the current section. */",
     "Concepts": "/** Takes no props — reads the bundled LSAT concept bank. */",
     "Stats": "/** Takes no props — reads drill attempt history from localStorage. */"
   }

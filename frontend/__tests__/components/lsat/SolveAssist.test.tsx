@@ -1,92 +1,114 @@
-/** Carousel-reveal tests for SolveAssist (spec 041 T-008/T-012, AC-4). */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+/**
+ * SolveAssist on the platform (spec 041 T-008/T-012, AC-4).
+ *
+ * The reveal discipline itself — one step per hint, no re-reveal when walking
+ * back, the spoiler lock, the dots — is the shared contract this product runs
+ * against the published static site's copy (BL-20260831-22). What is left here
+ * is what only the platform does: the AI-tutor fallback for a question with no
+ * guide, the `hints_used` count the lab reports, and the diagrams the API
+ * returns inside a slide.
+ */
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SolveAssist, {
   resetSolveAssistSession,
 } from '@/components/lsat/SolveAssist'
+import { http, HttpResponse } from 'msw'
 
-describe('SolveAssist (carousel)', () => {
+import {
+  lsatGuideFixture,
+  lsatHintReveals,
+  resetLsatHintReveals,
+  server,
+} from '@/mocks/server'
+import { describeSolveAssistContract } from '../../contracts/solveAssist.contract'
+
+describeSolveAssistContract({
+  product: 'platform',
+  steps: lsatGuideFixture.steps.map((s) => ({ title: s.title, text: s.text })),
+  reset: resetSolveAssistSession,
+  // The locked step's text never reached the browser, so unlocking it is a
+  // refetch behind an explicit affordance.
+  unlockNeedsButton: true,
+  mount(graded) {
+    cleanup()
+    const view = render(<SolveAssist questionId="lg-001" graded={graded} />)
+    return {
+      setGraded: (next) =>
+        view.rerender(<SolveAssist questionId="lg-001" graded={next} />),
+    }
+  },
+})
+
+describe('SolveAssist (platform only)', () => {
   beforeEach(() => {
     resetSolveAssistSession()
+    resetLsatHintReveals()
   })
 
-  it('reveals one step per hint click, showing a single slide at a time', async () => {
-    render(<SolveAssist questionId="lg-001" graded={false} />)
+  // BL-20260830-13: only grade-time `hints_used` was recorded, so a one-hint
+  // nudge and a five-hint walkthrough looked identical and hints on a question
+  // that was never submitted left no trace at all.
+  describe('per-reveal audit events', () => {
+    it('reports each reveal, with its running depth', async () => {
+      render(<SolveAssist questionId="lg-001" graded={false} />)
+      fireEvent.click(screen.getByRole('button', { name: /hint/i }))
+      await waitFor(() => expect(lsatHintReveals).toHaveLength(1))
+      expect(lsatHintReveals[0]).toMatchObject({
+        questionId: 'lg-001',
+        step_index: 0,
+        revealed_count: 1,
+        spoiler: false,
+      })
 
-    expect(screen.queryByRole('group')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /hint/i }))
-    await waitFor(() =>
-      expect(screen.getByText('Write out the elements')).toBeInTheDocument(),
-    )
-    // Exactly one slide on screen.
-    expect(screen.getAllByRole('group')).toHaveLength(1)
-    expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: /next hint/i }))
+      await waitFor(() => expect(lsatHintReveals).toHaveLength(2))
+      expect(lsatHintReveals[1]).toMatchObject({ step_index: 1, revealed_count: 2 })
+    })
 
-    fireEvent.click(screen.getByRole('button', { name: /next hint/i }))
-    await waitFor(() =>
-      expect(screen.getByText('Symbolize each rule')).toBeInTheDocument(),
-    )
-    // The carousel replaces the slide — step 1's content is gone from the DOM.
-    expect(screen.queryByText('Write out the elements')).not.toBeInTheDocument()
-    expect(screen.getAllByRole('group')).toHaveLength(1)
-    expect(screen.getByText(/step 2 of 3/i)).toBeInTheDocument()
-  })
+    it('does not report walking back and forth through revealed steps', async () => {
+      render(<SolveAssist questionId="lg-001" graded={false} />)
+      fireEvent.click(screen.getByRole('button', { name: /hint/i }))
+      await waitFor(() => expect(lsatHintReveals).toHaveLength(1))
+      fireEvent.click(screen.getByRole('button', { name: /next hint/i }))
+      await waitFor(() => expect(lsatHintReveals).toHaveLength(2))
 
-  it('navigates back and forward through revealed slides without re-revealing', async () => {
-    render(<SolveAssist questionId="lg-001" graded={false} />)
-    fireEvent.click(screen.getByRole('button', { name: /hint/i }))
-    await waitFor(() => screen.getByText('Write out the elements'))
-    fireEvent.click(screen.getByRole('button', { name: /next hint/i }))
-    await waitFor(() => screen.getByText('Symbolize each rule'))
+      fireEvent.click(screen.getByRole('button', { name: 'Previous step' }))
+      fireEvent.keyDown(document.body, { key: 'k' })
+      // Re-reading a hint is not taking one.
+      expect(lsatHintReveals).toHaveLength(2)
+    })
 
-    fireEvent.click(screen.getByRole('button', { name: /previous step/i }))
-    expect(screen.getByText('Write out the elements')).toBeInTheDocument()
-    expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument()
-    // Back at the start, Back is disabled.
-    expect(screen.getByRole('button', { name: /previous step/i })).toBeDisabled()
+    it('marks the spoiler unlock', async () => {
+      const view = render(<SolveAssist questionId="lg-001" graded={false} />)
+      fireEvent.click(screen.getByRole('button', { name: /hint/i }))
+      await waitFor(() => expect(lsatHintReveals).toHaveLength(1))
+      view.rerender(<SolveAssist questionId="lg-001" graded />)
+      fireEvent.keyDown(document.body, { key: 'h' })
+      fireEvent.keyDown(document.body, { key: 'h' })
+      await waitFor(() =>
+        expect(screen.getByText(/locked — submit an answer/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /Show final step/ }))
+      await waitFor(() =>
+        expect(lsatHintReveals.some((r) => r.spoiler)).toBe(true),
+      )
+    })
 
-    // Forward within revealed steps navigates (labelled plain Next).
-    fireEvent.click(screen.getByRole('button', { name: /^next ›$/i }))
-    expect(screen.getByText('Symbolize each rule')).toBeInTheDocument()
-
-    // Dots jump directly to a revealed step.
-    fireEvent.click(screen.getByRole('button', { name: /go to step 1/i }))
-    expect(screen.getByText('Write out the elements')).toBeInTheDocument()
-  })
-
-  it('keeps spoiler steps locked until graded, then unlocks via Show final step', async () => {
-    const { rerender } = render(
-      <SolveAssist questionId="lg-001" graded={false} />,
-    )
-    fireEvent.click(screen.getByRole('button', { name: /hint/i }))
-    await waitFor(() => screen.getByText('Write out the elements'))
-    fireEvent.click(screen.getByRole('button', { name: /next hint/i }))
-    fireEvent.click(screen.getByRole('button', { name: /next hint/i }))
-
-    // Third slide is the spoiler answer step — a locked stub, no content.
-    await waitFor(() =>
+    it('keeps revealing when the analytics endpoint is unreachable', async () => {
+      server.use(
+        http.post(
+          'http://localhost:8000/api/lsat/questions/:questionId/hint',
+          () => HttpResponse.error(),
+        ),
+      )
+      render(<SolveAssist questionId="lg-001" graded={false} />)
+      fireEvent.click(screen.getByRole('button', { name: /hint/i }))
       expect(
-        screen.getByText(/locked — submit an answer/i),
-      ).toBeInTheDocument(),
-    )
-    expect(screen.queryByText(/D is correct/)).not.toBeInTheDocument()
-    // Fully revealed: no further hint affordance, and no unlock while ungraded.
-    expect(
-      screen.queryByRole('button', { name: /next hint/i }),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: /show final step/i }),
-    ).not.toBeInTheDocument()
-
-    rerender(<SolveAssist questionId="lg-001" graded={true} />)
-    fireEvent.click(screen.getByRole('button', { name: /show final step/i }))
-    await waitFor(() =>
-      expect(screen.getByText(/D is correct/)).toBeInTheDocument(),
-    )
-    expect(
-      screen.queryByText(/locked — submit an answer/i),
-    ).not.toBeInTheDocument()
+        await screen.findByText(lsatGuideFixture.steps[0].text!),
+      ).toBeInTheDocument()
+    })
   })
 
   it('reports hints used, not counting locked stubs', async () => {
@@ -128,5 +150,81 @@ describe('SolveAssist (carousel)', () => {
     fireEvent.click(screen.getByRole('button', { name: /hint/i }))
     const board = await screen.findByRole('img')
     expect(board.getAttribute('aria-label')).toContain('Slot 4: J')
+  })
+
+  // BL-20260901-06: the static site's hint keys, ported. Until this the
+  // carousel was mouse- or Tab-only on the platform while `lsat-static`
+  // advertised H/J/K/R for the same widget.
+  describe('hint keys', () => {
+    const [first, second] = lsatGuideFixture.steps
+
+    it('opens the guide with H and walks it forward', async () => {
+      render(<SolveAssist questionId="lg-001" graded={false} />)
+      fireEvent.keyDown(document.body, { key: 'h' })
+      expect(await screen.findByText(first.text!)).toBeInTheDocument()
+      fireEvent.keyDown(document.body, { key: 'h' })
+      expect(await screen.findByText(second.text!)).toBeInTheDocument()
+    })
+
+    it('moves back with J and forward again with K, revealing nothing new', async () => {
+      const onHintsUsedChange = vi.fn()
+      render(
+        <SolveAssist
+          questionId="lg-001"
+          graded={false}
+          onHintsUsedChange={onHintsUsedChange}
+        />,
+      )
+      fireEvent.keyDown(document.body, { key: 'h' })
+      await screen.findByText(first.text!)
+      fireEvent.keyDown(document.body, { key: 'h' })
+      await screen.findByText(second.text!)
+      await waitFor(() => expect(onHintsUsedChange).toHaveBeenLastCalledWith(2))
+
+      fireEvent.keyDown(document.body, { key: 'j' })
+      expect(await screen.findByText(first.text!)).toBeInTheDocument()
+      fireEvent.keyDown(document.body, { key: 'k' })
+      expect(await screen.findByText(second.text!)).toBeInTheDocument()
+      // Walking the carousel is not a reveal.
+      expect(onHintsUsedChange).toHaveBeenLastCalledWith(2)
+    })
+
+    it('unlocks the final step with R only once the question is graded', async () => {
+      const view = render(<SolveAssist questionId="lg-001" graded={false} />)
+      // One press per step, each awaited: a reveal is a fetch, and the guard
+      // that stops two in flight would swallow a burst.
+      fireEvent.keyDown(document.body, { key: 'h' })
+      await screen.findByText(first.text!)
+      fireEvent.keyDown(document.body, { key: 'h' })
+      await screen.findByText(second.text!)
+      fireEvent.keyDown(document.body, { key: 'h' })
+      expect(
+        await screen.findByText(/locked — submit an answer/i),
+      ).toBeInTheDocument()
+
+      fireEvent.keyDown(document.body, { key: 'r' })
+      expect(screen.getByText(/locked — submit an answer/i)).toBeInTheDocument()
+
+      view.rerender(<SolveAssist questionId="lg-001" graded />)
+      fireEvent.keyDown(document.body, { key: 'r' })
+      await waitFor(() =>
+        expect(
+          screen.queryByText(/locked — submit an answer/i),
+        ).not.toBeInTheDocument(),
+      )
+    })
+
+    it('leaves the keys alone while the tutor input has focus', async () => {
+      render(
+        <>
+          <input aria-label="follow-up" />
+          <SolveAssist questionId="lg-001" graded={false} />
+        </>,
+      )
+      fireEvent.keyDown(screen.getByLabelText('follow-up'), { key: 'h' })
+      await waitFor(() =>
+        expect(screen.queryByText(first.text!)).not.toBeInTheDocument(),
+      )
+    })
   })
 })

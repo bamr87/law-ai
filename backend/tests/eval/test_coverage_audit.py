@@ -188,23 +188,39 @@ class TestEvolveAuditScanCoverage:
     """Verify that the updated _scan_coverage in evolve_audit.py delegates to
     coverage_audit and returns the expected Candidate type.
 
-    These tests load scripts/evolve_audit.py via importlib. They are skipped
-    inside Docker where the repo root scripts/ directory is not mounted.
+    These tests load scripts/evolve_audit.py via importlib. They used to skip
+    inside Docker on the premise that the repo root was not mounted — false
+    since docker-compose mounts ``./:/repo`` into the backend and worker
+    services, so both tests silently never ran in ``make test-backend``
+    (BL-20260511-14). ``_load_ea`` now tries every place the script can be.
     """
 
     def _load_ea(self) -> object:
         """Load evolve_audit as a module from its filesystem path."""
         import importlib.util
+        import os
         import sys
         from pathlib import Path
 
         # Test file is at backend/tests/eval/test_coverage_audit.py.
-        # Repo root is 3 parents up from the test file's backend/ anchor.
-        ea_path = Path(__file__).resolve().parents[3] / "scripts" / "evolve_audit.py"
-        if not ea_path.exists():
+        #   1. Host / venv run: three parents up from the backend/ anchor.
+        #   2. Docker: the repo is bind-mounted at /repo (docker-compose.yml),
+        #      while the test file lives at /app/tests/... where parents[3]
+        #      is "/" — which is why this used to skip.
+        #   3. An explicit override for any other layout.
+        candidates = [
+            Path(__file__).resolve().parents[3] / "scripts" / "evolve_audit.py",
+            Path("/repo/scripts/evolve_audit.py"),
+        ]
+        override = os.getenv("LAW_AI_REPO_ROOT", "").strip()
+        if override:
+            candidates.insert(0, Path(override) / "scripts" / "evolve_audit.py")
+
+        ea_path = next((p for p in candidates if p.exists()), None)
+        if ea_path is None:
             pytest.skip(
-                f"scripts/evolve_audit.py not found at {ea_path} — "
-                "skipping (not mounted in Docker)"
+                "scripts/evolve_audit.py not found in any of "
+                f"{[str(p) for p in candidates]} — set LAW_AI_REPO_ROOT"
             )
         spec = importlib.util.spec_from_file_location("_evolve_audit_test", ea_path)
         assert spec is not None and spec.loader is not None
@@ -263,3 +279,123 @@ class TestEvolveAuditScanCoverage:
         assert len(candidates) == 1
         assert candidates[0].severity == "high"
         assert "50" in candidates[0].title
+
+
+class TestEvolveAuditScanLegalbench:
+    """``_scan_legalbench`` (BL-20260511-15).
+
+    This scanner is load-bearing and was untested: ``main()`` wires it in and
+    ``.github/workflows/nightly-tests.yml`` greps the audit output for
+    ``*, high*`` to fail the run, so a silent break here silently stops
+    failing the nightly on a benchmark regression.
+
+    ``_load_ea`` is borrowed from the class above rather than copied, so the
+    Docker path fix has one home. The bullet that asked for this said
+    ``report-*.json``; the
+    writer actually names reports ``<UTC-timestamp>.json``
+    (``law_ai/eval/legalbench.py``) and the scanner globs ``*.json`` minus
+    ``baseline.json``, so the fixtures below use the real names.
+    """
+
+    _load_ea = TestEvolveAuditScanCoverage._load_ea
+
+    @staticmethod
+    def _seed(ea: object, tmp_path: Path, name: str, payload: dict) -> None:
+        import json as _json
+
+        report_dir = tmp_path / "backend" / "var" / "legalbench"
+        report_dir.mkdir(parents=True, exist_ok=True)
+        (report_dir / name).write_text(_json.dumps(payload), encoding="utf-8")
+        # A real directory always has one; it must be excluded from the glob.
+        (report_dir / "baseline.json").write_text(
+            _json.dumps({"accuracies": {"precedent_retrieval": 0.8}}), encoding="utf-8"
+        )
+        ea.REPO = tmp_path  # type: ignore[attr-defined]
+
+    def test_no_reports_returns_empty(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        ea = self._load_ea()
+        monkeypatch.setattr(ea, "REPO", tmp_path, raising=False)
+        assert ea._scan_legalbench() == []  # type: ignore[attr-defined]
+
+    def test_negative_delta_yields_a_high_severity_candidate(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        ea = self._load_ea()
+        self._seed(
+            ea,
+            tmp_path,
+            "20260901T000000Z.json",
+            {
+                "delta": {
+                    "precedent_retrieval": {
+                        "before": 0.8,
+                        "after": 0.7,
+                        "delta_pp": -10.0,
+                    }
+                }
+            },
+        )
+
+        candidates = ea._scan_legalbench()  # type: ignore[attr-defined]
+
+        assert len(candidates) == 1
+        candidate = candidates[0]
+        assert candidate.severity == "high"
+        assert candidate.kind == "test-gap"
+        assert "precedent_retrieval" in candidate.rationale
+        assert "-10.0pp" in candidate.rationale
+        # The nightly greps the rendered bullet for "*, high*" — the severity
+        # has to survive into the text, not just the dataclass.
+        assert "high" in candidate.severity
+
+    def test_a_positive_delta_is_not_a_regression(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        ea = self._load_ea()
+        self._seed(
+            ea,
+            tmp_path,
+            "20260901T000000Z.json",
+            {
+                "delta": {
+                    "precedent_retrieval": {
+                        "before": 0.7,
+                        "after": 0.8,
+                        "delta_pp": 10.0,
+                    }
+                }
+            },
+        )
+        assert ea._scan_legalbench() == []  # type: ignore[attr-defined]
+
+    def test_only_the_newest_report_is_read(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An old regression must not keep failing every later nightly."""
+        ea = self._load_ea()
+        self._seed(
+            ea,
+            tmp_path,
+            "20260801T000000Z.json",
+            {"delta": {"abercrombie": {"delta_pp": -20.0}}},
+        )
+        self._seed(
+            ea,
+            tmp_path,
+            "20260901T000000Z.json",
+            {"delta": {"abercrombie": {"delta_pp": 1.0}}},
+        )
+        assert ea._scan_legalbench() == []  # type: ignore[attr-defined]
+
+    def test_a_malformed_report_is_ignored_rather_than_raising(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        ea = self._load_ea()
+        report_dir = tmp_path / "backend" / "var" / "legalbench"
+        report_dir.mkdir(parents=True, exist_ok=True)
+        (report_dir / "20260901T000000Z.json").write_text("{not json", encoding="utf-8")
+        monkeypatch.setattr(ea, "REPO", tmp_path, raising=False)
+
+        assert ea._scan_legalbench() == []  # type: ignore[attr-defined]

@@ -31,13 +31,13 @@ export default function RuleNotation({ rep }: { rep: LsatNotationRep }) {
             </dt>
             <dd className="text-xs text-slate-400">
               {r.rule_text}
-              {r.note && <span className="ml-2 italic text-slate-500">{r.note}</span>}
+              {r.note && <span className="ml-2 italic text-slate-400">{r.note}</span>}
             </dd>
           </div>
         ))}
       </dl>
       {used.length > 0 && (
-        <p className="mt-3 border-t border-slate-800 pt-2 text-[11px] text-slate-500">
+        <p className="mt-3 border-t border-slate-800 pt-2 text-[11px] text-slate-400">
           Legend:{' '}
           {used.map((l, i) => (
             <span key={l.symbol}>

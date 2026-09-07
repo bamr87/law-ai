@@ -2,6 +2,8 @@
 
 This file is superseded by **[AO-SDLC_Outline_Guide.md](../AO-SDLC_Outline_Guide.md)** (v2.0, 2026-08-11) at the repo root — the canonical AO-SDLC operating guide. It replaced the v1.0 Grok xAI research-synthesis template that used to live at this path (a generic, vendor-neutral outline with projected metrics, not a description of this repository). This file is kept only as a redirect so old links don't 404; do not restock it with a second copy of the guide.
 
+**This file is not a documentation target.** Nothing new is written here — not CI notes, not autonomy notes, not a section that "fits the AO-SDLC guide". Prose about the loop as this repo actually runs it goes in [docs/ao-sdlc.md](ao-sdlc.md); prose about the loop in the abstract goes in [AO-SDLC_Outline_Guide.md](../AO-SDLC_Outline_Guide.md). Older BACKLOG items and dossiers name this path as the home for CI and autonomy documentation; they are out of date, and the file is a redirect (BL-20260906-38). It survives only because specs under `specs/` link to it and those links must not 404.
+
 Read the root guide directly. It's organized as:
 
 | Section | Covers |

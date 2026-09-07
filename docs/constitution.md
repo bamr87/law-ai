@@ -49,7 +49,7 @@ No new top-level frameworks (e.g. Vue, LlamaIndex as primary) without an ADR in 
 A spec **must** declare and a PR **must** pass:
 
 - `ruff check` + `black --check` clean (line length 88).
-- `mypy law_ai --strict` clean for any touched module.
+- `mypy law_ai --strict` clean for any touched module, and never worse anywhere. `make typecheck` runs the strict check through the ratchet in [scripts/mypy_ratchet.py](../scripts/mypy_ratchet.py), which compares per-file strict-error counts against `backend/mypy-baseline.txt` and fails when a count grows or a file the baseline calls clean stops being clean. A file with no baseline entry — every new module — must be strict-clean. Burning a file down is a diff to that baseline (`make mypy-baseline`); the baseline may only shrink, and when it reaches zero it is deleted so plain `mypy law_ai --strict` becomes the gate (BL-20260429-04).
 - Frontend: `npm run lint` + `npx tsc --noEmit` clean.
 - Pytest + Vitest green; combined coverage **≥ 75%** on changed files.
 - LegalBench regression run (`Run LegalBench Eval` task) when reasoning logic changes — score must not regress more than 1 pp on listed tasks.
@@ -148,7 +148,7 @@ Recorded by [docs/adr/0003-autonomy-orchestrator.md](adr/0003-autonomy-orchestra
 - **I1 — No auto-merge.** Every loop ends in either a draft PR (code) or a `PendingReview` row (data). No GitHub Actions workflow may be granted permissions sufficient to merge a PR; no Celery task may write to a `:Case`/`:Statute` node outside `IngestionScout.run_and_commit`.
 - **I2 — Closed source registry.** Recursion expands within `law_ai.ingestionapp.sources.SOURCE_REGISTRY` whose member name appears in `AUTONOMY_ALLOWED_SOURCES`. Adding a new adapter is its own `/specify` cycle (preserves §5).
 - **I3 — Kill-switch.** A single settings flag (`AUTONOMY_ENABLED`, default `False`) short-circuits every loop with one provenance event (`event_type='autonomy_disabled'`). Operators must explicitly opt-in per environment.
-- **I4 — One audited entry point.** Every cycle is invoked through `law_ai.core.autonomy.run_cycle()` and emits paired `autonomy_cycle.start` + `autonomy_cycle.end` provenance events. The daily digest under `AUTONOMY_DIGEST_DIR` is the canonical human-review surface.
+- **I4 — One audited entry point.** Every cycle is invoked through `law_ai.core.autonomy.run_cycle()` and emits paired `autonomy_cycle.start` + `autonomy_cycle.end` provenance events, and is additionally projected into the queryable `audit.AutonomyRun` row that the digest and the ops surfaces read ([docs/data-model.md](data-model.md)). Passing `--cycle-id` makes the entry point idempotent: a cycle whose id has already ended is *replayed* — the recorded result is returned with `replayed: true` and one `autonomy_cycle.replayed` event, and the runner is not invoked a second time ([docs/local-ai.md](local-ai.md)). The daily digest under `AUTONOMY_DIGEST_DIR` is the canonical human-review surface.
 - **I5 — Propose-only test synthesis.** Autonomy-generated tests land as `*.proposed.py` decorated with `@pytest.mark.skip("autonomy-proposed")`. Reviewers must explicitly un-skip.
 - **I6 — Provenance preserved.** Every adapter dispatch records `{adapter_name, query, items_returned, items_quarantined}`; every LLM call goes through `law_ai.core.provenance` (preserves §4).
 

@@ -62,6 +62,14 @@ curl http://localhost:8000/api/agents/specs
 # Returns [{id, status}, ...] parsed from each specs/NNN-slug/spec.md's "## Status" line
 ```
 
+### Proposed tests awaiting review
+```bash
+curl http://localhost:8000/api/agents/proposed-tests
+# Returns {count, files: [{name, path, module, size, mtime, skip_marked}], available}
+```
+
+Read-only, and the directory it lists is fixed (`backend/tests/autonomy/proposed/`) — no path parameter is accepted, because a caller-supplied one would turn this into an arbitrary-file-listing primitive. `available` is `false` when the directory does not exist yet. Nothing here promotes, un-skips, edits or deletes a proposal: the autonomy loop drafts, a human moves the file in a PR (BL-20260511-17, constitution I1/I5).
+
 ### Local AI health
 ```bash
 curl http://localhost:8000/api/agents/health/local-ai
@@ -125,6 +133,7 @@ curl http://localhost:8000/api/lsat/sections/LR             # one section + samp
 curl "http://localhost:8000/api/lsat/concepts?section=LR"   # concepts, optionally filtered by section
 curl http://localhost:8000/api/lsat/concepts/parallel-reasoning
 curl "http://localhost:8000/api/lsat/passages?section=RC"   # reading-comprehension passages
+curl "http://localhost:8000/api/lsat/passages?concept=necessary-assumption"  # only the sets carrying a concept
 curl http://localhost:8000/api/lsat/passages/<passage_id>   # passage + its questions
 ```
 
@@ -197,10 +206,28 @@ curl -X POST http://localhost:8000/api/analysis \
     {"agent": "LegalAnalyst", "trace_id": "...", "latency_ms": 640.1, "confidence": 0.9},
     {"agent": "PrecedentHunter", "trace_id": "...", "latency_ms": 580.4, "confidence": 0.8}
   ],
+  "trace_url": null,
   "phoenix_trace_url": null,
   "langgraph_thread_id": null
 }
 ```
+
+`trace_url` is the span-tree deep link; `phoenix_trace_url` is a deprecated alias of it, still emitted for existing clients and always identical (BL-20260906-10). Read `trace_url`.
+
+### Resume a thread (BL-20260810-13)
+
+Pass a previous response's `langgraph_thread_id` back as `thread_id` to continue that thread's checkpointed state; `resumed: true` in the response says the thread already held state. A resume must ask the **same** question in the **same** jurisdiction — changing either would silently rewrite what the thread recorded, so it answers `409 Conflict` naming the field that diverged (BL-20260905-81). Omit `thread_id` to branch a new thread instead.
+
+### Scope a round to a matter (BL-20260817-05)
+
+```bash
+curl -X POST http://localhost:8000/api/analysis \
+  -H 'Content-Type: application/json' \
+  -b cookies.txt -H "X-CSRFToken: $CSRF" \
+  -d '{"text": "Is the lease enforceable?", "matter_id": 12}'
+```
+
+`matter_id` feeds the authorities that matter has already had *verified* into GraphRAG as a boost set, so a later round inside one matter ranks known-good citations first. The bias is always reported back in `irac.retrieval.boosted_count` and `irac.retrieval.boost_source` (`"matter:<slug>"`) — a promoted passage is never presented as the corpus's own ordering. The field is **session-only and owner-scoped**: a matter you do not own answers `404` and an anonymous caller `401`, because the boost set is another account's verified work.
 
 ### Live progress via WebSocket (spec 032)
 
@@ -209,7 +236,8 @@ curl -X POST http://localhost:8000/api/analysis \
 1. Client picks a `stream_id` itself (`^[A-Za-z0-9._-]{1,64}$`).
 2. Client connects to `/ws/agents/<stream_id>` and waits for a `{"type": "ready"}` event.
 3. Client **then** POSTs `/api/analysis` with that same `stream_id` in the request body.
-4. Two `agent_step` events arrive as each agent finishes, followed by one `complete` event, all published to the `agent-run-<stream_id>` channel-layer group.
+4. `analysis_token` events arrive while the analyst is still writing (BL-20260905-11): `{"type": "analysis_token", "agent": "LegalAnalyst", "text": "…", "chars": 128, "model": "xai/grok-4.6"}`, where `chars` is the running total produced so far. They are progress, not the result — the deltas are a JSON payload being written, so render the count (or a spinner) rather than the fragments.
+5. Two `agent_step` events arrive as each agent finishes, followed by one `complete` event, all published to the `agent-run-<stream_id>` channel-layer group.
 
 ```javascript
 const streamId = crypto.randomUUID();
@@ -228,7 +256,9 @@ ws.onmessage = (e) => {
     });
     return;
   }
-  console.log(event); // {"type": "agent_step", ...} x2, then {"type": "complete", ...}
+  // {"type": "analysis_token", ...} while the analyst writes, then
+  // {"type": "agent_step", ...} x2, then {"type": "complete", ...}
+  console.log(event);
 };
 ```
 
@@ -241,7 +271,10 @@ Events are fire-and-forget — a Redis outage does not abort the HTTP response, 
 ```bash
 curl "http://localhost:8000/api/graph/stats"
 curl "http://localhost:8000/api/graph/cases?limit=10"
+curl "http://localhost:8000/api/graph/courts?limit=200"
 curl "http://localhost:8000/api/graph/neighborhood/<case_id>?limit=50"
 ```
+
+`courts` returns the distinct `Case.court` values with their case counts, most-populous first — the case picker's court filter is a free-form substring match, so its dropdown is fed from the whole corpus rather than the page it has loaded (BL-20260905-89). `limit` defaults to 200 and caps at 500.
 
 `case_id` is a path segment, not a query parameter. `limit` (default 50, max 200) is the only query parameter `neighborhood` accepts — there is no `depth` parameter.

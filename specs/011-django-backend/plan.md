@@ -1,5 +1,7 @@
 # Plan: Refactor Backend from FastAPI to Django
 
+> **Historical note (2026-09-05, BL-20260602-04).** `backend/app/` was the pre-Django FastAPI package. It was deleted by this spec's own T-016; the Django project package lives at `backend/law_ai/`. Every `backend/app/...` path below is therefore rendered as inline code, not as a link — the files it names no longer exist, and the ~110 dead hrefs 404'd on every platform. The text is otherwise unedited: it records the migration as it was specified.
+
 > Companion to [spec.md](spec.md). Describes **how** we satisfy FR-1 through FR-16. Decisions captured in `/memories/session/plan.md` (interviewed 2026-05-03): Django 5 + DRF, big-bang rewrite, Django ORM async for Postgres, raw async neo4j driver kept, fully ASGI, admin + auth + Celery + Channels enabled, constitution amended in Phase 0.
 
 ## 1. Architecture Overview
@@ -54,23 +56,23 @@ The dashed arrows are the only persistence paths owned by Django. Solid arrows f
 | Quarantine model | `backend/law_ai/ingestionapp/models.py` + initial migration (uses `RunSQL` to reproduce existing schema) | New `PendingReview` ORM model |
 | Token model | `backend/law_ai/core/models.py` + initial migration | New `ApiToken` ORM model |
 | Mgmt commands | `backend/law_ai/core/management/commands/{seed_api_keys,ensure_checkpointer}.py` | New |
-| Routers → Views | `backend/law_ai/{core,agentsapi,analysis,graph,lsat}/views.py` + `urls.py` | Port from [backend/app/api/](../../backend/app/api/) (1:1 contract) |
+| Routers → Views | `backend/law_ai/{core,agentsapi,analysis,graph,lsat}/views.py` + `urls.py` | Port from `backend/app/api/` (1:1 contract) |
 | Channels | `backend/law_ai/agentsapi/consumers.py`, `backend/law_ai/asgi.py` routing | New consumer skeleton |
 | Celery | `backend/law_ai/celery.py`, `backend/law_ai/ingestionapp/tasks.py` | New |
-| Relocated runtime | `backend/law_ai/agents_runtime/{crews,graphs,tools,prompts,registry.py,checkpointer.py}` | Moved from [backend/app/agents/](../../backend/app/agents/) and [backend/app/db/checkpointer.py](../../backend/app/db/checkpointer.py); imports rewritten |
-| Relocated graph DB | `backend/law_ai/core/neo4j/{driver.py,graph_queries.py,queries.py,citation_resolver.py}` | Moved from [backend/app/db/](../../backend/app/db/); imports rewritten |
-| Relocated services | `backend/law_ai/lsat/services/`, `backend/law_ai/ingestionapp/services/`, `backend/law_ai/eval/`, `backend/law_ai/core/schemas/extraction.py`, `backend/law_ai/core/telemetry.py` | Moved from [backend/app/lsat/](../../backend/app/lsat/), [backend/app/ingestion/](../../backend/app/ingestion/), [backend/app/eval/](../../backend/app/eval/), [backend/app/models/](../../backend/app/models/), [backend/app/core/telemetry.py](../../backend/app/core/telemetry.py) |
+| Relocated runtime | `backend/law_ai/agents_runtime/{crews,graphs,tools,prompts,registry.py,checkpointer.py}` | Moved from `backend/app/agents/` and `backend/app/db/checkpointer.py`; imports rewritten |
+| Relocated graph DB | `backend/law_ai/core/neo4j/{driver.py,graph_queries.py,queries.py,citation_resolver.py}` | Moved from `backend/app/db/`; imports rewritten |
+| Relocated services | `backend/law_ai/lsat/services/`, `backend/law_ai/ingestionapp/services/`, `backend/law_ai/eval/`, `backend/law_ai/core/schemas/extraction.py`, `backend/law_ai/core/telemetry.py` | Moved from `backend/app/lsat/`, `backend/app/ingestion/`, `backend/app/eval/`, `backend/app/models/`, `backend/app/core/telemetry.py` |
 | Tests | [backend/tests/conftest.py](../../backend/tests/conftest.py) and every file under [backend/tests/](../../backend/tests/) | Rewrite fixtures + import paths; assertions unchanged |
 | Container | [backend/Dockerfile](../../backend/Dockerfile), [docker-compose.yml](../../docker-compose.yml) | New CMD chain (migrate → ensure_checkpointer → seed → daphne); add `worker` service |
 | Tooling | [.vscode/tasks.json](../../.vscode/tasks.json), [Makefile](../../Makefile), `pytest.ini`, [.github/workflows/](../../.github/workflows/) | Update commands `app` → `law_ai`, `uvicorn` → `daphne`, add `make migrate`, set `DJANGO_SETTINGS_MODULE` |
-| Cleanup | Delete entire [backend/app/](../../backend/app/) tree | Final commit |
+| Cleanup | Delete entire `backend/app/` tree | Final commit |
 
 ## 3. Data & Schema Migrations
 
 - **Initial Django migration `core.0001_initial`** — creates `core_apitoken` with the FR-6 schema; no data backfill (tokens seeded by `seed_api_keys`).
 - **Initial Django migration `audit.0001_initial`** — creates `audit_auditevent` with the FR-6 schema and indexes.
-- **Initial Django migration `ingestionapp.0001_initial`** — `RunSQL.noop`-style operation that includes the verbatim DDL from [backend/app/db/postgres_migrations/001_pending_review.sql](../../backend/app/db/postgres_migrations/001_pending_review.sql) and [002_pg_trgm.sql](../../backend/app/db/postgres_migrations/002_pg_trgm.sql), then a `RenameModel`/`RenameTable` to bring it under `ingestionapp_pendingreview`. Idempotent: if the legacy `pending_review` table already exists, a `state_operations`/`database_operations` split lets Django adopt it.
-- **Neo4j migrations** — unchanged. The two existing files under [backend/app/db/neo4j_migrations/](../../backend/app/db/neo4j_migrations/) (`001_case_constraints.cypher`, `002_case_aliases.cypher`) move to `backend/law_ai/core/neo4j/migrations/` and the runner remains a thin shell script invoked from `backend/scripts/init-db.sh`.
+- **Initial Django migration `ingestionapp.0001_initial`** — `RunSQL.noop`-style operation that includes the verbatim DDL from `backend/app/db/postgres_migrations/001_pending_review.sql` and `backend/app/db/postgres_migrations/002_pg_trgm.sql`, then a `RenameModel`/`RenameTable` to bring it under `ingestionapp_pendingreview`. Idempotent: if the legacy `pending_review` table already exists, a `state_operations`/`database_operations` split lets Django adopt it.
+- **Neo4j migrations** — unchanged. The two existing files under `backend/app/db/neo4j_migrations/` (`001_case_constraints.cypher`, `002_case_aliases.cypher`) move to `backend/law_ai/core/neo4j/migrations/` and the runner remains a thin shell script invoked from `backend/scripts/init-db.sh`.
 - **LangGraph checkpointer** — owned by the library; FR-13 isolates it in schema `langgraph` via the new `manage.py ensure_checkpointer` command.
 
 All migrations are idempotent and forward-only (Constitution §3 of [ao-sdlc-guide.md](../../docs/ao-sdlc-guide.md)).
@@ -92,9 +94,9 @@ The Django adoption itself deviates from [docs/constitution.md](../../docs/const
 
 ## 5. Provenance & Audit Hook-up
 
-- **Public surface preserved.** `ProvenanceLogger.log_request`, `.log_agent_call`, `.log_graph_query`, and the `@logged_node` decorator (used by [backend/app/agents/graphs/legal_workflow.py](../../backend/app/agents/graphs/legal_workflow.py)) keep their function signatures; relocated agent code does not need to change beyond import paths.
-- **Storage swap.** Internally, every method now calls `await audit.models.AuditEvent.objects.acreate(kind=..., payload=..., timestamp=now(), agent_version=..., trace_id=...)`. The JSONL writer from [backend/app/core/audit_store.py](../../backend/app/core/audit_store.py) becomes a Celery sink invoked when DB writes fail (configurable via `AUDIT_FALLBACK_PATH` env var, defaulting to today's path).
-- **Request middleware.** A new `law_ai.core.middleware.ProvenanceMiddleware` (Django-style ASGI middleware) wraps every request and calls `await ProvenanceLogger.log_request(...)` after the response, mirroring the FastAPI middleware in [backend/app/main.py](../../backend/app/main.py).
+- **Public surface preserved.** `ProvenanceLogger.log_request`, `.log_agent_call`, `.log_graph_query`, and the `@logged_node` decorator (used by `backend/app/agents/graphs/legal_workflow.py`) keep their function signatures; relocated agent code does not need to change beyond import paths.
+- **Storage swap.** Internally, every method now calls `await audit.models.AuditEvent.objects.acreate(kind=..., payload=..., timestamp=now(), agent_version=..., trace_id=...)`. The JSONL writer from `backend/app/core/audit_store.py` becomes a Celery sink invoked when DB writes fail (configurable via `AUDIT_FALLBACK_PATH` env var, defaulting to today's path).
+- **Request middleware.** A new `law_ai.core.middleware.ProvenanceMiddleware` (Django-style ASGI middleware) wraps every request and calls `await ProvenanceLogger.log_request(...)` after the response, mirroring the FastAPI middleware in `backend/app/main.py`.
 - **OTEL/Phoenix.** `core.telemetry.init_tracing()` is called from `CoreConfig.ready()` (FR-10). Daphne and Celery worker both instrument `httpx`, Django views, and Channels consumers. Phoenix span IDs continue to surface in `AnalysisResponse.phoenix_trace_url` (no change).
 - **Neo4j writes.** `commit_extraction` and `densify_extraction` continue to set `source`, `source_url`, `ingest_timestamp`, `agent_version`, `confidence` on every node/edge. Constitution §4 satisfied unchanged.
 

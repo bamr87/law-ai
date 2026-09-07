@@ -27,7 +27,7 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, Field, model_validator
 
-from law_ai.core import claude_code, llm
+from law_ai.core import claude_code, llm, xai
 from law_ai.core.provenance import provenance
 from law_ai.lsat.services.writing import (
     WritingPrompt,
@@ -268,7 +268,12 @@ class LSATWritingEvaluator:
         confidence = 0.0
         try:
             result = await llm.agenerate(
-                full_prompt, system=_LLM_SYSTEM, agent="lsat_writing_evaluator"
+                full_prompt,
+                system=_LLM_SYSTEM,
+                agent="lsat_writing_evaluator",
+                # A learner is waiting on their essay feedback, so this takes
+                # the faster Grok id when one is configured (BL-20260905-11).
+                models=xai.interactive_overrides(),
             )
             model_used = result.model_label
             evaluation = _parse_evaluation(result.text, prompt=prompt, rubric=rubric)

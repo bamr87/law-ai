@@ -260,6 +260,76 @@ class TestSearch:
         hit = lib.search_library("negation")[0]
         assert "negation" in hit["snippet"].lower()
 
+    # BL-20260903-06: stemming, synonyms, multi-token queries.
+
+    def test_plural_query_matches_singular_body(self, sandbox: Path) -> None:
+        _write(sandbox, "solo", extra="The assumption is unstated.")
+        hits = lib.search_library("assumptions")
+        assert [h["id"] for h in hits] == ["solo"]
+        assert "body" in hits[0]["matched_in"]
+        assert "assumption" in hits[0]["snippet"].lower()
+
+    def test_singular_query_matches_plural_title(self, sandbox: Path) -> None:
+        _write(sandbox, "many", title="Formal Fallacies")
+        assert [h["id"] for h in lib.search_library("fallacy")] == ["many"]
+
+    def test_prefix_keeps_search_as_you_type_working(self, sandbox: Path) -> None:
+        _write(sandbox, "solo", extra="An assumption, unstated.")
+        assert [h["id"] for h in lib.search_library("assu")] == ["solo"]
+
+    def test_every_token_must_match_somewhere(self, sandbox: Path) -> None:
+        _write(sandbox, "both", extra="Sequencing games reward frames.")
+        _write(sandbox, "one", extra="Sequencing only, no second word.")
+        assert [h["id"] for h in lib.search_library("sequencing games")] == ["both"]
+
+    def test_section_abbreviation_expands_to_its_name(self, sandbox: Path) -> None:
+        _write(sandbox, "lg-guide", title="Logic Games Section Guide")
+        _write(sandbox, "other", title="Something Else")
+        hits = lib.search_library("LG")
+        assert [h["id"] for h in hits] == ["lg-guide"]
+        assert "title" in hits[0]["matched_in"]
+
+    def test_stopwords_do_not_score(self, sandbox: Path) -> None:
+        _write(sandbox, "the-one", title="The One")
+        _write(sandbox, "widget", title="Widget", extra="A widget.")
+        assert [h["id"] for h in lib.search_library("the widget")] == ["widget"]
+        assert lib.search_library("the") == []
+
+    def test_anchor_points_at_the_first_matching_heading(self, sandbox: Path) -> None:
+        _write(sandbox, "solo")
+        assert lib.search_library("two")[0]["anchor"] == "two"
+
+    # BL-20260903-06: one-edit typo tolerance, the last resort after exact.
+
+    def test_a_mistyped_token_still_finds_its_article(self, sandbox: Path) -> None:
+        _write(sandbox, "solo", extra="The assumption is unstated.")
+        hits = lib.search_library("assumtion")
+        assert [h["id"] for h in hits] == ["solo"]
+        assert "assumption" in hits[0]["snippet"].lower()
+
+    def test_an_exact_hit_outranks_a_mistyped_one(self, sandbox: Path) -> None:
+        _write(sandbox, "right", title="Notation Habits")
+        _write(sandbox, "close", title="Rotation Habits")
+        hits = lib.search_library("notation")
+        assert [h["id"] for h in hits] == ["right", "close"]
+        assert hits[0]["score"] > hits[1]["score"]
+
+    def test_short_words_are_not_typo_matched(self, sandbox: Path) -> None:
+        """One edit on a four-letter stem is a different word, not a typo."""
+        _write(sandbox, "solo", extra="Games reward frames.")
+        assert lib.search_library("gapes") == []
+
+    def test_two_edits_are_too_many(self, sandbox: Path) -> None:
+        _write(sandbox, "solo", title="Parallel Reasoning")
+        assert lib.search_library("parralel") == []
+
+    def test_is_typo_covers_the_four_single_edits(self) -> None:
+        assert lib.is_typo("assumption", "assumtion")  # dropped letter
+        assert lib.is_typo("assumption", "assumpttion")  # inserted letter
+        assert lib.is_typo("notation", "rotation")  # substituted letter
+        assert lib.is_typo("fallacy", "falalcy")  # transposed letters
+        assert not lib.is_typo("premis", "premium")
+
 
 class TestCrossReferenceLabels:
     """Unlabelled references resolve to a readable name, not a raw id."""
@@ -301,3 +371,107 @@ class TestCrossReferenceLabels:
         spans = lib._iter_spans(lib.load_library()["pointer"].blocks)
         ref = next(s for s in spans if s.kind == "question")
         assert ref.text == "lr-001"
+
+
+class TestScaffold:
+    """BL-20260905-53 — a section with no article at all is now reachable.
+
+    ``expand`` drafts a body and cannot write frontmatter, so
+    :func:`_host_article` dropped every gap in a section that had no article
+    yet: the autonomous cycle could improve the library but never widen it.
+    :func:`scaffold_article` writes that frontmatter.
+    """
+
+    #: A concept the catalog files under RC only, so an LR-only library has
+    #: nowhere to host it.
+    RC_ONLY_CONCEPT = "main-point"
+
+    @staticmethod
+    def _report_with_rc_gap(concept_id: str) -> dict:
+        report = lib.library_audit()
+        report["coverage"]["concepts_untaught"] = [concept_id]
+        return report
+
+    def test_an_uncovered_section_is_unreachable_until_it_is_scaffolded(
+        self, sandbox: Path
+    ) -> None:
+        _write(sandbox, "lr-hub")  # LR only
+        concept = bank_mod.load_concepts()[self.RC_ONLY_CONCEPT]
+        assert concept.sections == ["RC"]
+
+        before = lib.pick_librarian_targets(
+            self._report_with_rc_gap(self.RC_ONLY_CONCEPT), limit=5
+        )
+        assert not [
+            r for r in before if r.action == "expand"
+        ], "with no RC article the gap has no host and is dropped"
+
+        path = lib.scaffold_article(
+            "rc-hub",
+            title="Reading Comprehension — Where To Start",
+            summary="An orientation to the RC section.",
+            kind="section-guide",
+            sections=["RC"],
+        )
+        assert path == sandbox / "rc-hub.md"
+
+        article = lib.load_library()["rc-hub"]
+        assert article.sections == ["RC"]
+        # The frontmatter the agent cannot write: id, level and review status.
+        assert article.id == "rc-hub"
+        assert article.level == "core"
+        assert article.status == "draft"
+
+        after = lib.pick_librarian_targets(
+            self._report_with_rc_gap(self.RC_ONLY_CONCEPT), limit=5
+        )
+        expansions = [r for r in after if r.action == "expand"]
+        assert [r.article_id for r in expansions] == ["rc-hub"]
+        assert self.RC_ONLY_CONCEPT in (expansions[0].gap or "")
+
+    def test_a_malformed_or_duplicate_id_is_refused(self, sandbox: Path) -> None:
+        with pytest.raises(ValueError, match="lower-case words"):
+            lib.scaffold_article("Not An Id", title="T", summary="S", sections=["LR"])
+        lib.scaffold_article("rc-hub", title="T", summary="S", sections=["RC"])
+        with pytest.raises(ValueError, match="already exists"):
+            lib.scaffold_article("rc-hub", title="T", summary="S", sections=["RC"])
+
+    def test_a_scaffold_that_breaks_the_load_is_rolled_back(
+        self, sandbox: Path
+    ) -> None:
+        """The corpus never keeps an article that fails cross-reference checks."""
+        with pytest.raises(lib.LibraryError, match="no-such-concept"):
+            lib.scaffold_article(
+                "bad-hub",
+                title="T",
+                summary="S",
+                sections=["RC"],
+                concepts=["no-such-concept"],
+            )
+        assert not (sandbox / "bad-hub.md").exists()
+        assert "bad-hub" not in lib.load_library()
+
+    def test_the_command_scaffolds_and_says_what_to_run_next(
+        self, sandbox: Path
+    ) -> None:
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        out = StringIO()
+        call_command(
+            "lsat_library",
+            "scaffold",
+            "--article",
+            "rc-hub",
+            "--title",
+            "Reading Comprehension",
+            "--summary",
+            "An orientation to the RC section.",
+            "--section",
+            "RC",
+            stdout=out,
+        )
+        assert (sandbox / "rc-hub.md").is_file()
+        assert "rc-hub" in lib.load_library()
+        assert "lsat_library review --article rc-hub" in out.getvalue()

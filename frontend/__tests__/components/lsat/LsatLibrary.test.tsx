@@ -5,7 +5,15 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import { http, HttpResponse } from 'msw'
+
 import LsatLibrary from '@/components/LsatLibrary'
+import {
+  lsatConceptsFixture,
+  lsatReadArticles,
+  resetLsatReadArticles,
+  server,
+} from '@/mocks/server'
 import BlockRenderer, {
   SUPPORTED_BLOCK_TYPES,
 } from '@/components/lsat/library/BlockRenderer'
@@ -122,6 +130,68 @@ describe('LsatLibrary', () => {
   beforeEach(() => {
     window.localStorage.clear()
     window.history.replaceState(null, '', '/')
+    resetLsatReadArticles()
+  })
+
+  // BL-20260903-05: read state was per-browser localStorage on both products,
+  // so a learner who read half the library on a laptop started again on a
+  // phone.
+  describe('reading progress sync', () => {
+    it('hydrates what another device read, without losing what this one did', async () => {
+      // Read here, offline, before the server was ever asked.
+      window.localStorage.setItem(
+        'lsat:library:read',
+        JSON.stringify(['argument-anatomy']),
+      )
+      // Read on the other device.
+      resetLsatReadArticles('lr-assumption-family')
+
+      render(<LsatLibrary />)
+      const rail = await screen.findByRole('navigation', {
+        name: /library contents/i,
+      })
+      // The union, not a replacement: reading done offline is real progress.
+      await waitFor(() =>
+        expect(within(rail).getByText(/2 of 2 read/)).toBeInTheDocument(),
+      )
+      // …and the merged set is written back, so the next load starts from it
+      // with no network at all.
+      expect(
+        JSON.parse(window.localStorage.getItem('lsat:library:read') ?? '[]'),
+      ).toEqual(['argument-anatomy', 'lr-assumption-family'])
+    })
+
+    it('publishes a mark-as-read, and an unmark, to the server', async () => {
+      render(<LsatLibrary />)
+      await waitFor(() => screen.getByRole('heading', { name: 'Argument Anatomy' }))
+
+      fireEvent.click(screen.getByRole('button', { name: /mark as read/i }))
+      await waitFor(() => expect([...lsatReadArticles]).toEqual(['argument-anatomy']))
+
+      fireEvent.click(screen.getByRole('button', { name: /✓ Read/ }))
+      await waitFor(() => expect([...lsatReadArticles]).toEqual([]))
+    })
+
+    it('keeps working when the sync endpoint is unreachable', async () => {
+      server.use(
+        http.get('http://localhost:8000/api/lsat/library/read', () =>
+          HttpResponse.error(),
+        ),
+        http.post('http://localhost:8000/api/lsat/library/read', () =>
+          HttpResponse.error(),
+        ),
+      )
+      render(<LsatLibrary />)
+      await waitFor(() => screen.getByRole('heading', { name: 'Argument Anatomy' }))
+      fireEvent.click(screen.getByRole('button', { name: /mark as read/i }))
+      // localStorage is the offline fallback and answers on its own.
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /✓ Read/ })).toBeInTheDocument(),
+      )
+      expect(
+        JSON.parse(window.localStorage.getItem('lsat:library:read') ?? '[]'),
+      ).toEqual(['argument-anatomy'])
+    })
   })
 
   it('lists the contents and opens the first article', async () => {
@@ -413,12 +483,46 @@ describe('LsatLibrary — concept catalog', () => {
         screen.getByRole('button', { name: /^Argument Anatomy/ }),
       ).toBeInTheDocument(),
     )
-    // The drill count is an action, exactly where an article puts it.
+    // The drill count is an action, exactly where an article puts it — and it
+    // names the concept, so the lab opens on the drill already filtered rather
+    // than on Overview with the filtering left to the reader (BL-20260905-01).
+    // The count comes from `used_in_count`, so it is the true total rather
+    // than the capped id list's length — no "10+" where an article beside it
+    // would print an exact number (BL-20260905-06).
     expect(
       screen.getByRole('link', { name: 'Drill this (2 questions)' }),
-    ).toHaveAttribute('href', '/lsat')
+    ).toHaveAttribute('href', '/lsat?concept=main-conclusion')
     // The concept reaches a track through the article that teaches it.
     expect(screen.getByRole('button', { name: /^Start Here/ })).toBeInTheDocument()
+  })
+
+  // BL-20260905-06: `used_in_questions` is capped at ten server-side, so a
+  // popular concept's entry could only ever say "10+ questions" while an
+  // article beside it named the exact count from `drill_question_count`.
+  it('names the true drill count for a concept past the id cap', async () => {
+    server.use(
+      http.get(
+        'http://localhost:8000/api/lsat/concepts/:conceptId',
+        ({ params }) => {
+          const id = params.conceptId as string
+          const concept = lsatConceptsFixture.concepts.find((c) => c.id === id)
+          return HttpResponse.json({
+            concept,
+            used_in_questions: Array.from({ length: 10 }, (_, i) => `lr-${i}`),
+            used_in_count: 23,
+            taught_in: [],
+          })
+        },
+      ),
+    )
+    await openCatalog()
+    await waitFor(() => screen.getByRole('heading', { name: 'Modus tollens' }))
+    expect(
+      await screen.findByRole('link', { name: 'Drill this (23 questions)' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: /10\+ questions/ }),
+    ).not.toBeInTheDocument()
   })
 
   it('follows a taught-in article back into the reader', async () => {

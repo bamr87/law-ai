@@ -13,7 +13,7 @@ Today, every agent run logs JSON via `app.core.provenance` to stdout, but there 
 
 This blocks the HITL loop from working in practice (constitution §1, §11) and makes the self-evolution loop opaque to humans.
 
-Also closes **BL-20260430-02** (TODO in [backend/app/main.py](../../backend/app/main.py): "add registry endpoint").
+Also closes **BL-20260430-02** (TODO in `backend/app/main.py`: "add registry endpoint").
 
 ## 2. Goals
 

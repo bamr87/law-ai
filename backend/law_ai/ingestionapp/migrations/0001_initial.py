@@ -21,7 +21,11 @@ already in ``pending_review`` is adopted in place without DROP/CREATE.
 
 from __future__ import annotations
 
+from typing import ClassVar
+
+from django.apps.registry import Apps
 from django.db import migrations, models
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 
 # --- DDL ----------------------------------------------------------------
 #
@@ -105,7 +109,7 @@ def _split_statements(sql: str) -> list[str]:
     return [stmt.strip() for stmt in sql.split(";") if stmt.strip()]
 
 
-def _create_pending_review(apps, schema_editor):
+def _create_pending_review(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
     """Forward DB op: legacy-compatible DDL on Postgres, portable DDL elsewhere."""
     sql = (
         LEGACY_DDL_FORWARD
@@ -116,7 +120,7 @@ def _create_pending_review(apps, schema_editor):
         schema_editor.execute(stmt)
 
 
-def _drop_pending_review(apps, schema_editor):
+def _drop_pending_review(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
     """Reverse DB op: mirror of the forward op."""
     sql = (
         LEGACY_DDL_REVERSE
@@ -131,7 +135,7 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies: list[tuple[str, str]] = []
+    dependencies: ClassVar[list[tuple[str, str]]] = []
 
     operations = [
         migrations.SeparateDatabaseAndState(

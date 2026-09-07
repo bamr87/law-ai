@@ -515,7 +515,13 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-014",
@@ -552,7 +558,13 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-015",
@@ -589,7 +601,13 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-016",
@@ -626,7 +644,13 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-017",
@@ -664,7 +688,13 @@
         "modus-tollens"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-018",
@@ -702,7 +732,13 @@
         "modus-tollens"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-019",
@@ -739,7 +775,13 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-020",
@@ -776,7 +818,13 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-021",
@@ -814,7 +862,13 @@
         "universal-instantiation"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-022",
@@ -850,7 +904,13 @@
         "main-conclusion"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-023",
@@ -887,7 +947,13 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-024",
@@ -924,7 +990,13 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-025",
@@ -961,7 +1033,13 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-026",
@@ -999,7 +1077,13 @@
         "modus-tollens"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-027",
@@ -1037,7 +1121,13 @@
         "contrapositive"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-028",
@@ -1073,7 +1163,13 @@
         "main-conclusion"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-029",
@@ -1109,7 +1205,13 @@
         "main-conclusion"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-030",
@@ -1147,7 +1249,13 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-031",
@@ -1185,7 +1293,13 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-032",
@@ -1222,7 +1336,13 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-033",
@@ -1259,7 +1379,13 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-034",
@@ -1295,7 +1421,13 @@
         "main-conclusion"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-035",
@@ -1333,7 +1465,13 @@
         "modus-ponens"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-036",
@@ -1371,7 +1509,13 @@
         "causation-vs-correlation"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-037",
@@ -1409,7 +1553,13 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-038",
@@ -1447,7 +1597,13 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-039",
@@ -1484,7 +1640,13 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-040",
@@ -1522,7 +1684,13 @@
         "contrapositive"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-041",
@@ -1560,7 +1728,13 @@
         "modus-ponens"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-042",
@@ -1598,7 +1772,13 @@
         "modus-ponens"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-043",
@@ -1636,7 +1816,13 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-044",
@@ -1674,7 +1860,13 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-045",
@@ -1712,7 +1904,13 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-046",
@@ -1750,7 +1948,13 @@
         "causation-vs-correlation"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-047",
@@ -1788,7 +1992,13 @@
         "causation-vs-correlation"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-048",
@@ -1826,7 +2036,13 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-049",
@@ -1863,7 +2079,13 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-050",
@@ -1900,7 +2122,13 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-051",
@@ -1937,7 +2165,13 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-052",
@@ -1974,7 +2208,13 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-053",
@@ -2011,7 +2251,13 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-054",
@@ -2048,7 +2294,13 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-055",
@@ -2085,7 +2337,13 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-056",
@@ -2122,7 +2380,13 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-057",
@@ -2159,7 +2423,13 @@
         "causation-vs-correlation"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-058",
@@ -2196,7 +2466,13 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-059",
@@ -2233,7 +2509,13 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-060",
@@ -2271,7 +2553,13 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-061",
@@ -2309,7 +2597,13 @@
         "modus-tollens"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-062",
@@ -2347,7 +2641,13 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-063",
@@ -2385,7 +2685,13 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-064",
@@ -2422,7 +2728,13 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-065",
@@ -2458,7 +2770,13 @@
         "method-of-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-066",
@@ -2496,7 +2814,13 @@
         "contrapositive"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-067",
@@ -2533,7 +2857,13 @@
         "equivocation"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-068",
@@ -2570,7 +2900,13 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-069",
@@ -2608,7 +2944,13 @@
         "causation-vs-correlation"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-070",
@@ -2645,7 +2987,13 @@
         "appeal-to-ignorance"
       ],
       "references": [],
-      "source": "LSATContentFactory build100 (2026-07-16)"
+      "source": "LSATContentFactory build100 (2026-07-16)",
+      "review": {
+        "method": "machine-judge",
+        "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
+        "reviewed_at": "2026-07-16",
+        "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
+      }
     },
     {
       "id": "lr-071",
@@ -3049,6 +3397,561 @@
       "explanation": "The conclusion is about *detection* — finding fraud — but every figure in the stimulus is a referral rate, which measures suspicion, not accuracy. A goes straight to that gap: if trained handlers' referrals are confirmed as fraud at the same or a higher rate, the training is detecting better; if their extra referrals are overwhelmingly unfounded, the training merely made them refer more. Both answers move the argument decisively. D is the strong distractor — it supplies an alternative cause, self-selection by tenure — but it is second best, because even a perfect answer leaves the referral-versus-detection gap untouched: longer-tenured handlers referring more still tells us nothing about whether those referrals were right. B and C bear on comparability and sample size without touching the inference from referrals to detection. E concerns the remedy the insurer adopted rather than the conclusion it drew.",
       "concepts": [
         "evaluate-the-argument",
+        "causation-vs-correlation"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lr-082",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "med",
+      "stem": "Council member: The protected bike lane on Third Street will slow the buses that share the corridor, and riders on those routes will feel it. But the delay is smaller than the one drivers already impose on the buses by double-parking, and the lane will pull cyclists out of the bus lane, where they slow buses most. The lane should be built this year.\n\nThe claim that the bike lane will slow the buses that share the corridor plays which one of the following roles in the council member's argument?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "It is the main conclusion the council member argues for."
+        },
+        {
+          "label": "B",
+          "text": "It is evidence offered in direct support of the recommendation."
+        },
+        {
+          "label": "C",
+          "text": "It is a claim the council member argues is false."
+        },
+        {
+          "label": "D",
+          "text": "It is a cost the council member grants and then argues is outweighed."
+        },
+        {
+          "label": "E",
+          "text": "It is an assumption required for the recommendation to follow."
+        }
+      ],
+      "correct": "D",
+      "explanation": "The sentence is introduced as a real drawback and is immediately met with 'But' — the mark of a concession the arguer accepts and then answers. D says exactly that. A misreads the tier: the conclusion is the last sentence's recommendation. B has the support running the wrong way; a cost of building the lane cannot be evidence for building it. C is wrong because the council member never disputes that buses will be slowed, only that the delay is decisive. E confuses a conceded objection with a required premise; the argument would be stronger, not broken, if the delay did not exist.",
+      "concepts": [
+        "role-of-claim",
+        "main-conclusion"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lr-083",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "med",
+      "stem": "In one state's small-claims court, litigants may appear with or without a lawyer. Cases in which neither side has a lawyer are resolved, on average, in half the time of cases in which at least one side does. When one side has a lawyer and the other does not, the represented side prevails substantially more often than the unrepresented side. When both sides have lawyers, neither side prevails more often than the other.\n\nThe statements above, if true, most strongly support which one of the following?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "A litigant in this court who hires a lawyer is more likely to prevail than one who does not, whatever the opposing side does."
+        },
+        {
+          "label": "B",
+          "text": "Whether hiring a lawyer improves a litigant's chances in this court depends on whether the opposing side also has one."
+        },
+        {
+          "label": "C",
+          "text": "Cases resolved quickly in this court are more likely to be decided correctly than cases resolved slowly."
+        },
+        {
+          "label": "D",
+          "text": "Most litigants who appear in this court appear without a lawyer."
+        },
+        {
+          "label": "E",
+          "text": "Lawyers lengthen proceedings in this court by raising issues the court would not otherwise have to resolve."
+        }
+      ],
+      "correct": "B",
+      "explanation": "Put the two outcome facts side by side: a lawyer against an unrepresented opponent wins substantially more often, and a lawyer against another lawyer wins no more often. The advantage therefore turns on what the other side does, which is B. A overstates it into a claim the third fact directly contradicts. C rates accuracy, which the stimulus never measures. D is about how common representation is; the stimulus gives averages, not proportions of litigants. E converts a reported association between representation and duration into a causal mechanism the facts do not establish.",
+      "concepts": [
+        "most-strongly-supported",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lr-084",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "hard",
+      "stem": "Every grant application the ethics panel reviews is either funded or returned for revision. No application returned for revision is reviewed again in the same funding cycle. An application submitted after March 1 is reviewed by the panel only if a director sponsors it. Every sponsored application is funded.\n\nIf the statements above are true, which one of the following CANNOT be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "An application submitted before March 1 was returned for revision."
+        },
+        {
+          "label": "B",
+          "text": "An application was funded although no director sponsored it."
+        },
+        {
+          "label": "C",
+          "text": "A director sponsored an application that was submitted before March 1."
+        },
+        {
+          "label": "D",
+          "text": "An application submitted after March 1 was reviewed by the panel and returned for revision."
+        },
+        {
+          "label": "E",
+          "text": "An application returned for revision in one funding cycle was reviewed in a later cycle."
+        }
+      ],
+      "correct": "D",
+      "explanation": "Chain the last two conditions. Reviewed and submitted after March 1 means sponsored; sponsored means funded; and funded rules out returned for revision, since the first sentence makes the two outcomes exclusive. D asserts all of that at once, so D cannot be true. A and C concern applications the March 1 rule never reaches. B is consistent: sponsorship guarantees funding but is nowhere made necessary for it. E is barred only within the same cycle, and E moves to a later one.",
+      "concepts": [
+        "cannot-be-true",
+        "conditional-reasoning"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lr-085",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "med",
+      "stem": "Digitizing a court's paper files reduces the time clerks spend retrieving records, but it does not by itself reduce the court's backlog. The backlog forms at the hearing stage, where the number of judges available to hear matters, and not the speed with which files reach them, sets the pace at which cases clear. So a court that digitizes its files without adding judges should expect ______\n\nWhich one of the following most logically completes the argument?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "its backlog to fall roughly in proportion to the time its clerks save."
+        },
+        {
+          "label": "B",
+          "text": "its backlog to grow more quickly than it did before digitization."
+        },
+        {
+          "label": "C",
+          "text": "its clerks' retrieval work to fall while its backlog stays roughly where it was."
+        },
+        {
+          "label": "D",
+          "text": "its clerks to spend more time retrieving records than they did before."
+        },
+        {
+          "label": "E",
+          "text": "the number of judges available to hear matters to fall."
+        }
+      ],
+      "correct": "C",
+      "explanation": "The passage grants one effect and denies another: retrieval time drops, the backlog does not, because judges rather than files are the bottleneck. C is that pair of results and nothing more, so C completes the argument. A asserts the very drop the second sentence rules out. B goes further still, predicting a worsening the passage gives no reason to expect. D contradicts the first sentence. E introduces a change in judicial staffing that the passage neither states nor implies.",
+      "concepts": [
+        "completing-the-argument",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lr-086",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "med",
+      "stem": "The number of appeals filed in this state's intermediate appellate court rose by thirty percent over the last decade. Appellate work must therefore make up a larger share of the state's legal practice than it did ten years ago.\n\nThe reasoning above is most vulnerable to criticism on the ground that it",
+      "choices": [
+        {
+          "label": "A",
+          "text": "presumes without warrant that the additional appeals filed were meritorious"
+        },
+        {
+          "label": "B",
+          "text": "treats an increase in appeals filed as though it were an increase in appeals decided"
+        },
+        {
+          "label": "C",
+          "text": "draws a conclusion about a period longer than the one its evidence covers"
+        },
+        {
+          "label": "D",
+          "text": "assumes that the rise in filings was caused by an increase in errors at trial"
+        },
+        {
+          "label": "E",
+          "text": "infers a change in a proportion from a change in an absolute number, with no information about the total"
+        }
+      ],
+      "correct": "E",
+      "explanation": "The evidence is a count of appeals; the conclusion is appellate work's share of all legal practice. If every other kind of legal work grew by thirty percent as well, the share is unchanged, and if the rest grew faster, the share fell. E names that missing denominator. A and D attack quality and cause, neither of which the conclusion is about. B alleges a filed-versus-decided switch, but the conclusion concerns work performed, which filings do measure. C is false on the face of it: evidence and conclusion cover the same decade.",
+      "concepts": [
+        "percent-vs-number",
+        "flaw-in-reasoning"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lr-087",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "med",
+      "stem": "To gauge local opinion on the new zoning ordinance, a newspaper invited readers to submit comments through its website. Of the four hundred comments received, three hundred forty opposed the ordinance. The newspaper reported that most residents of the town oppose it.\n\nThe newspaper's reasoning is flawed because it",
+      "choices": [
+        {
+          "label": "A",
+          "text": "draws a conclusion about residents' opinions from evidence about the ordinance's merits"
+        },
+        {
+          "label": "B",
+          "text": "fails to consider that a single reader may have submitted more than one comment"
+        },
+        {
+          "label": "C",
+          "text": "treats people who chose to respond as though they represented the population as a whole"
+        },
+        {
+          "label": "D",
+          "text": "assumes that opposition to a zoning ordinance shows the ordinance to be unwise"
+        },
+        {
+          "label": "E",
+          "text": "overlooks the possibility that opinion will shift once the ordinance takes effect"
+        }
+      ],
+      "correct": "C",
+      "explanation": "Nobody selected these respondents but themselves, and the residents most moved to write are the residents who object. A self-selected sample cannot support a claim about everyone, which is C. B names a real hygiene problem with web comments, but even one comment per person leaves the sample self-selected, so it is not what breaks the inference. A misdescribes the evidence, which is opinion rather than merit. D and E answer questions the newspaper never asked: whether the ordinance is wise, and what residents will think later.",
+      "concepts": [
+        "sampling-flaw",
+        "flaw-in-reasoning"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lr-088",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "easy",
+      "stem": "Attorney: My client's account of the accident is credible. He would never lie under oath, as we know from the fact that he is a credible witness.\n\nThe reasoning in the attorney's argument is flawed in that the argument",
+      "choices": [
+        {
+          "label": "A",
+          "text": "relies on the testimony of someone with an interest in the outcome"
+        },
+        {
+          "label": "B",
+          "text": "treats a condition that is necessary for credibility as though it were sufficient"
+        },
+        {
+          "label": "C",
+          "text": "generalizes about all of the client's statements from a single one"
+        },
+        {
+          "label": "D",
+          "text": "assumes the truth of the very claim it is supposed to establish"
+        },
+        {
+          "label": "E",
+          "text": "criticizes those who doubt the client instead of answering their reasons"
+        }
+      ],
+      "correct": "D",
+      "explanation": "The conclusion is that the client is credible; the support offered is that he would not lie under oath; the support for that is that he is credible. The chain returns to its starting point, which is D. B describes a conditional confusion, but nothing here is offered as a necessary condition. A is a fair observation about interested witnesses and no part of this argument's structure. C invents a generalization the attorney never makes. E describes an ad hominem, and the attorney attacks no one.",
+      "concepts": [
+        "circular-reasoning",
+        "flaw-in-reasoning"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lr-089",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "intro",
+      "stem": "Every witness who testified on Monday was cross-examined. Ruiz testified on Monday.\n\nIf the statements above are true, which one of the following must also be true?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Ruiz testified only on Monday."
+        },
+        {
+          "label": "B",
+          "text": "Every witness who was cross-examined testified on Monday."
+        },
+        {
+          "label": "C",
+          "text": "Some witnesses who testified on Monday were not cross-examined."
+        },
+        {
+          "label": "D",
+          "text": "Ruiz was the only witness cross-examined on Monday."
+        },
+        {
+          "label": "E",
+          "text": "Ruiz was cross-examined."
+        }
+      ],
+      "correct": "E",
+      "explanation": "The first sentence is a conditional — testified Monday, therefore cross-examined — and the second supplies the condition for Ruiz. E follows and nothing more does. B reverses the conditional, which is not an inference the premises license. C contradicts the first sentence outright. A and D add exclusivity claims — only Monday, only Ruiz — that the premises never mention.",
+      "concepts": [
+        "conditional-reasoning",
+        "must-be-true"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lr-090",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "intro",
+      "stem": "The city's recycling program costs more per tonne than sending the same waste to a landfill. But the landfill will reach capacity in six years, and the nearest alternative site is ninety kilometres away. The city should keep funding the recycling program.\n\nWhich one of the following is the main conclusion of the argument?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "The city should keep funding the recycling program."
+        },
+        {
+          "label": "B",
+          "text": "The recycling program costs more per tonne than landfilling."
+        },
+        {
+          "label": "C",
+          "text": "The landfill will reach capacity within six years."
+        },
+        {
+          "label": "D",
+          "text": "The nearest alternative landfill site is ninety kilometres away."
+        },
+        {
+          "label": "E",
+          "text": "Recycling will become cheaper than landfilling within six years."
+        }
+      ],
+      "correct": "A",
+      "explanation": "The last sentence is the recommendation everything else is offered to support, which makes A the main conclusion. B is the cost fact the argument concedes, and C and D are the two considerations offered against it. E is a prediction the argument never makes; it claims the landfill will fill up, not that recycling will become the cheaper option.",
+      "concepts": [
+        "main-conclusion",
+        "role-of-claim"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lr-091",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "intro",
+      "stem": "The clinic's new intake form is shorter than the old one. Clients will therefore complete it more quickly.\n\nThe argument depends on assuming which one of the following?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "The old intake form was longer than any other form the clinic uses."
+        },
+        {
+          "label": "B",
+          "text": "Clients who complete the form quickly are more likely to return."
+        },
+        {
+          "label": "C",
+          "text": "The clinic's staff prefer the new intake form to the old one."
+        },
+        {
+          "label": "D",
+          "text": "The new form's questions are not harder to answer than the old form's."
+        },
+        {
+          "label": "E",
+          "text": "No client will need help completing the new form."
+        }
+      ],
+      "correct": "D",
+      "explanation": "Shorter does not mean faster if the remaining questions are harder to answer; the argument needs that possibility ruled out, which is D. Negate it and the conclusion collapses. A compares the old form with other forms, which the argument never does. B adds a benefit of speed the conclusion does not claim. C reports a preference the argument does not rely on. E is far stronger than the argument needs: some clients could need help and the form could still be quicker on average.",
+      "concepts": [
+        "necessary-assumption",
+        "warrant"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lr-092",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "intro",
+      "stem": "After the library began opening on Sundays, weekly visits rose by a fifth. The Sunday hours must be what drew the additional visitors.\n\nWhich one of the following, if true, most weakens the argument?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "The library's Sunday staff are the same people who work on Saturdays."
+        },
+        {
+          "label": "B",
+          "text": "Most libraries in the region are closed on Sundays."
+        },
+        {
+          "label": "C",
+          "text": "A new bus route serving the library opened in the same week as the Sunday hours."
+        },
+        {
+          "label": "D",
+          "text": "Visits on Saturdays fell slightly after the Sunday hours began."
+        },
+        {
+          "label": "E",
+          "text": "The library's collection has not grown since the Sunday hours began."
+        }
+      ],
+      "correct": "C",
+      "explanation": "The argument treats the Sunday hours as the cause of the rise. C supplies a rival cause that arrived at exactly the same time, which is the standard way a causal claim of this shape is undermined. D is the tempting answer, but a small fall on Saturdays is consistent with a fifth more visits overall and does nothing to explain where the extra visitors came from. A and E report facts that leave the causal question untouched, and B, if anything, helps the argument by making the library unusual in the region.",
+      "concepts": [
+        "weaken",
+        "alternative-cause"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lr-093",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "elite",
+      "stem": "Critic: A restoration is faithful only if it uses the materials the original artisans used. The chapel's roof was restored with modern tiles, so the restoration is not faithful — and since the trust funds only faithful restorations, it will not fund this one.\n\nWhich one of the following arguments is most similar in its reasoning to the argument above?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "A dish is authentic only if it is cooked in a clay pot. This stew was cooked in a clay pot, so it is authentic, and the guide lists only authentic dishes, so it will list this stew."
+        },
+        {
+          "label": "B",
+          "text": "A grant is renewable only if the project reports on time. This project reported late, so its grant is not renewable — and since the board renews only renewable grants, it will not renew this one."
+        },
+        {
+          "label": "C",
+          "text": "A translation is accurate only if the translator knows both languages. This translator knows both languages, so the translation may well be accurate, and the press publishes translations that may well be accurate."
+        },
+        {
+          "label": "D",
+          "text": "A building is historic only if it is more than a century old. The annex is ninety years old, so it is not historic, and the registry lists most historic buildings, so it probably will not list the annex."
+        },
+        {
+          "label": "E",
+          "text": "A claim is admissible only if it is filed within a year. This claim was filed within a year, so it is admissible, and the tribunal hears only admissible claims, so it will hear this one."
+        }
+      ],
+      "correct": "B",
+      "explanation": "The original runs: X only if Y; not Y; so not X; and since only X gets the benefit, this one does not. Two moves, both valid — denying the necessary condition, then applying a second necessary condition to withhold the benefit. B repeats both exactly. A and E instead affirm the necessary condition and conclude the thing holds, which is the invalid converse and so a different pattern, valid or not. C weakens every step to a possibility and reaches no comparable conclusion. D matches the first move but softens the second into 'most' and 'probably', so the conclusion no longer follows as it does in the original.",
+      "concepts": [
+        "parallel-reasoning",
+        "conditional-reasoning"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lr-094",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "elite",
+      "stem": "Principle: A public body may withhold a document only if releasing it would harm an interest the body is charged with protecting, and only if that harm outweighs the public's interest in seeing the document.\n\nWhich one of the following judgements most closely conforms to the principle?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "A housing agency withholds a contractor's bid because releasing it would embarrass the contractor, whose reputation the agency has no duty to protect, and because the public interest in the bid is slight."
+        },
+        {
+          "label": "B",
+          "text": "A police service releases an informant's name because the public interest in the case is intense, although disclosure would put the informant at serious risk of harm."
+        },
+        {
+          "label": "C",
+          "text": "A health authority withholds a hospital's inspection report because releasing it would undermine public confidence in the hospital, an interest the authority protects, even though the report bears directly on patient safety."
+        },
+        {
+          "label": "D",
+          "text": "A water utility withholds a map of its pipe network because releasing it would help vandals disable the supply, which the utility is charged with protecting, and the public can see the same safety data in the utility's annual report."
+        },
+        {
+          "label": "E",
+          "text": "A school board releases a teacher's disciplinary file because the board's policy is to release all personnel records on request."
+        }
+      ],
+      "correct": "D",
+      "explanation": "The principle permits withholding only when both tests are met: a protected interest is harmed, and that harm outweighs the public's interest in the document. D is the only judgement that satisfies both — the utility's charge is the supply itself, and the public interest is slight because the same safety information is published elsewhere. A fails the first test, since the agency protects no interest in the contractor's reputation. C is the near miss: the interest is protected but a report bearing directly on patient safety is exactly where the public interest is weightiest, so the balance goes the other way. B and E concern releases, and the principle constrains only withholding — neither judgement can conform to it or violate it.",
+      "concepts": [
+        "principle-application",
+        "conditional-reasoning"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lr-095",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "elite",
+      "stem": "Editor: Every article we publish is fact-checked. An article is published only if two editors have approved it. Kovac approved the article on the bridge collapse, and it was fact-checked. So it will be published.\n\nThe reasoning above is most vulnerable to criticism on the ground that it",
+      "choices": [
+        {
+          "label": "A",
+          "text": "treats the fact that every published article is fact-checked as though fact-checking guaranteed publication, and treats one editor's approval as though it were two"
+        },
+        {
+          "label": "B",
+          "text": "assumes without warrant that Kovac is an editor whose approval counts"
+        },
+        {
+          "label": "C",
+          "text": "confuses a claim about the editor's own articles with a claim about every article the publication runs"
+        },
+        {
+          "label": "D",
+          "text": "overlooks the possibility that an article could be fact-checked after it is published rather than before"
+        },
+        {
+          "label": "E",
+          "text": "fails to consider that the second editor's approval might be withdrawn before publication"
+        }
+      ],
+      "correct": "A",
+      "explanation": "Two distinct errors, and the credited answer has to name both. Fact-checking is stated as a *consequence* of publication, not a condition for it, so 'it was fact-checked' supports nothing; and two approvals are necessary, so one approval does not supply even the condition that is required. A is the only option that reports both. B raises a question the stimulus settles by calling Kovac an approver in an editor's own argument. D and E invent timing and withdrawal scenarios that leave the two structural errors untouched, and E in particular presupposes a second approval the stimulus never reports. C describes a scope shift the argument does not make.",
+      "concepts": [
+        "conditional-reasoning",
+        "flaw-in-reasoning"
+      ],
+      "references": [],
+      "source": "original (CC0)"
+    },
+    {
+      "id": "lr-096",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "elite",
+      "stem": "Two towns drew their drinking water from the same aquifer. After the eastern town installed a filtration plant, reported cases of gastrointestinal illness there fell by a third over five years, while reported cases in the western town, which installed no plant, held steady. Researchers concluded that the plant caused the decline.\n\nWhich one of the following, if true, most strengthens the researchers' conclusion?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "The eastern town's plant removes the two organisms most often responsible for waterborne gastrointestinal illness."
+        },
+        {
+          "label": "B",
+          "text": "Physicians in the eastern town report gastrointestinal illness to the regional registry at the same rate as physicians in the western town, and that rate did not change over the five years."
+        },
+        {
+          "label": "C",
+          "text": "The eastern town's population grew slightly over the five years while the western town's was unchanged."
+        },
+        {
+          "label": "D",
+          "text": "Residents of both towns drink roughly the same quantity of tap water each day."
+        },
+        {
+          "label": "E",
+          "text": "The eastern town's council had debated building the filtration plant for a decade before approving it."
+        }
+      ],
+      "correct": "B",
+      "explanation": "The evidence is *reported* cases, and the conclusion is about illness, so the argument is only as good as the assumption that reporting held steady while illness fell. B secures exactly that, in both towns and across the whole period, which is why it is the strongest. A is the trap: it explains how the plant could work, but a plausible mechanism adds little when a rival explanation for the *numbers* is still open. C cuts the other way — more people should mean more cases, though it does not settle the reporting question. D removes one small difference between the towns without touching the reporting gap, and E is history with no bearing on the inference.",
+      "concepts": [
+        "strengthen",
         "causation-vs-correlation"
       ],
       "references": [],

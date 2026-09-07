@@ -6,7 +6,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Question } from '@/lib/types'
 import { recordAttempt } from '@/lib/progress'
 import { useShortcuts } from '@/lib/keyboard'
-import { QuestionElapsed } from './SectionTimer'
+import { nextRovingIndex } from '@/lib/rovingFocus'
+import { permuteQuestion, toCanonical, toDisplay } from '@/lib/shuffle'
+import { QuestionElapsed } from './QuestionElapsed'
 
 interface Props {
   question: Question
@@ -33,6 +35,12 @@ interface Props {
  * roving tabindex, Arrow-key selection-follows-focus, Space selects, Enter on
  * the selected choice submits. After submitting, the key + explanation are
  * revealed and the attempt is recorded to localStorage.
+ *
+ * The arrow/Home/End half of that contract is `nextRovingIndex` — the same
+ * pure function the platform's `useRovingTabIndex` consumes, mirrored into
+ * `lib/rovingFocus.ts` by `make ui-sync` and drift-gated by ux_audit R12 — so
+ * the two products cannot disagree about what an arrow key means
+ * (BL-20260831-08).
  */
 export default function QuestionCard({
   question,
@@ -44,7 +52,14 @@ export default function QuestionCard({
   onAnnounce,
   onAnswered,
 }: Props) {
-  const [selected, setSelected] = useState<string | null>(savedChoice)
+  // Per-attempt shuffling (BL-20260606-01): the board this attempt shows, with
+  // the key and the explanation moved to match. Drawn once per question per
+  // session, so paging back reviews the board you answered.
+  const shown = useMemo(() => permuteQuestion(question), [question])
+  // A saved answer is stored in the bank's own labels; bring it into the order
+  // on screen before restoring the selection.
+  const savedDisplay = savedChoice ? toDisplay(savedChoice, shown.order) : null
+  const [selected, setSelected] = useState<string | null>(savedDisplay)
   const [submitted, setSubmitted] = useState(savedChoice !== null)
   const optionRefs = useRef<Record<string, HTMLButtonElement | null>>({})
   const elapsedRef = useRef(savedSeconds)
@@ -54,36 +69,36 @@ export default function QuestionCard({
   // this is what keeps the card correct if it is ever rendered unkeyed. Both
   // paths read the same saved answer, so it is idempotent.
   useEffect(() => {
-    setSelected(savedChoice)
+    setSelected(savedDisplay)
     setSubmitted(savedChoice !== null)
-  }, [question.id, savedChoice])
+  }, [question.id, savedChoice, savedDisplay])
 
-  const labels = useMemo(() => question.choices.map((c) => c.label), [question.choices])
+  const labels = useMemo(() => shown.choices.map((c) => c.label), [shown.choices])
 
   function focusLabel(label: string) {
     setSelected(label)
     optionRefs.current[label]?.focus()
   }
 
-  function move(from: string | null, delta: number) {
-    const start = from ? labels.indexOf(from) : -1
-    const next = (start + delta + labels.length) % labels.length
-    focusLabel(labels[next])
-  }
-
   function submit() {
     if (submitted || !selected) return
-    const correct = selected === question.correct
+    // Grade and record in the bank's labels — progress that meant "the third
+    // choice on that screen" would be unreadable a session later.
+    const canonical = toCanonical(selected, shown.order)
+    const correct = canonical === question.correct
     setSubmitted(true)
-    onAnswered?.(selected, elapsedRef.current)
+    onAnswered?.(canonical, elapsedRef.current)
     recordAttempt({
       qid: question.id,
       section: question.section,
-      choice: selected,
+      choice: canonical,
       correct,
+      // `submit` runs from a click or a keystroke, never during render, so the
+      // clock read here is not a purity violation the way the rule assumes.
+      // eslint-disable-next-line react-hooks/purity
       ts: Date.now(),
     })
-    onAnnounce?.(correct ? 'Correct.' : `Incorrect. The correct answer is ${question.correct}.`)
+    onAnnounce?.(correct ? 'Correct.' : `Incorrect. The correct answer is ${shown.correct}.`)
   }
 
   // Letter keys pick a choice from anywhere on the page — you should not have
@@ -108,17 +123,19 @@ export default function QuestionCard({
 
   function onKeyDown(e: React.KeyboardEvent, label: string) {
     if (submitted) return
+    // Movement: both axes, wrapping, Home/End, and never a modified chord.
+    const next = nextRovingIndex(
+      e,
+      labels.indexOf(selected ?? label),
+      labels.length,
+      { orientation: 'both' },
+    )
+    if (next !== null) {
+      e.preventDefault()
+      focusLabel(labels[next])
+      return
+    }
     switch (e.key) {
-      case 'ArrowDown':
-      case 'ArrowRight':
-        e.preventDefault()
-        move(selected ?? label, 1)
-        break
-      case 'ArrowUp':
-      case 'ArrowLeft':
-        e.preventDefault()
-        move(selected ?? label, -1)
-        break
       case ' ':
         e.preventDefault()
         setSelected(label)
@@ -167,10 +184,10 @@ export default function QuestionCard({
         aria-keyshortcuts="A B C D E"
         className="choices"
       >
-        {question.choices.map((c) => {
+        {shown.choices.map((c) => {
           const isSelected = selected === c.label
-          const isKey = submitted && c.label === question.correct
-          const isWrongPick = submitted && isSelected && c.label !== question.correct
+          const isKey = submitted && c.label === shown.correct
+          const isWrongPick = submitted && isSelected && c.label !== shown.correct
           const tabIndex = (selected ? isSelected : c.label === labels[0]) ? 0 : -1
           return (
             <button
@@ -225,12 +242,12 @@ export default function QuestionCard({
         </button>
       ) : (
         <div className="explain" role="region" aria-label="Explanation">
-          <p className={selected === question.correct ? 'verdict verdict-ok' : 'verdict verdict-no'}>
-            {selected === question.correct
+          <p className={selected === shown.correct ? 'verdict verdict-ok' : 'verdict verdict-no'}>
+            {selected === shown.correct
               ? 'Correct'
-              : `Incorrect — the answer is ${question.correct}`}
+              : `Incorrect — the answer is ${shown.correct}`}
           </p>
-          <p className="explain-body">{question.explanation}</p>
+          <p className="explain-body">{shown.explanation}</p>
           <ConceptRefs conceptIds={question.concepts ?? []} />
           {question.references && question.references.length > 0 && (
             <ul className="refs">

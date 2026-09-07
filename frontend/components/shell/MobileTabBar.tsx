@@ -1,6 +1,6 @@
 'use client'
 
-import { MODULE_CATALOG } from '@/lib/modules/catalog'
+import { MODULE_CATALOG, moduleForPath } from '@/lib/modules/catalog'
 import Link from 'next/link'
 
 /**
@@ -10,6 +10,14 @@ import Link from 'next/link'
  * same catalog — not a hamburger that hides the whole product behind a tap.
  */
 export default function MobileTabBar({ pathname }: { pathname: string }) {
+  // Same rule as the rail: the catalog decides which module owns this route,
+  // including the ones a module claims through a sidebar link (BL-20260906-21).
+  const owner = moduleForPath(pathname)
+  // `moduleForPath` falls back to Home for a route nobody claims. Home's entry
+  // is current at "/" and nowhere else, so an unclaimed route lights nothing
+  // rather than pointing at the dashboard.
+  const activeId =
+    owner.nav.href === '/' && pathname !== '/' ? null : owner.id
   return (
     <nav
       aria-label="Primary (compact)"
@@ -17,10 +25,7 @@ export default function MobileTabBar({ pathname }: { pathname: string }) {
       className="flex h-[var(--shell-tabbar-h)] shrink-0 items-stretch border-t border-slate-800 bg-slate-950 md:hidden"
     >
       {MODULE_CATALOG.map((mod) => {
-        const active =
-          mod.nav.href === '/'
-            ? pathname === '/'
-            : pathname.startsWith(mod.nav.href)
+        const active = mod.id === activeId
         return (
           <Link
             key={mod.id}

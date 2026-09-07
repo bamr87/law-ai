@@ -7,6 +7,8 @@
 - **Roadmap Epic**: User request 2026-04-29 — "build the lsat lab"
 - **Constitution Compliance**: confirmed against [docs/constitution.md](../../docs/constitution.md) §§1–11.
 
+> **Scope has grown well past this MVP.** Sections 1–13 below are the LR-only spec that shipped in 2026-04 and are kept verbatim as the historical record; `## 14. Scope evolution (post-MVP)` at the end records what the LSAT module actually is today and which specs got it there (BL-20260503-08).
+
 ## 1. Problem & Motivation
 
 The home page advertises an "LSAT Lab" tile but `/lsat` 404s today. Law students need an interactive way to drill Logical Reasoning (LR) questions against a transparent, open question bank with per-attempt grading and rationale — not a closed black-box scorer. This spec ships an MVP grounded in the same provenance/audit machinery that powers the agent dashboard so every grading event is auditable (constitution §1, §3).
@@ -94,6 +96,46 @@ GET  /api/lsat/stats
 - Reading Comprehension + Logic Games.
 - Per-user history (requires auth + DB).
 - Question import pipeline from public LSAT prep banks.
+
+## 14. Scope evolution (post-MVP)
+
+Recorded 2026-09-05 (BL-20260503-08). Nothing above is retracted — it simply stopped being the whole story. FR-1…FR-6, NG1 ("LR only") and §8 describe the first cycle; the module now spans four section types, a concept catalog, passages, solve guides, a knowledge library, a tutor and an HITL authoring queue. `app.lsat.*` paths in §5/§7 are also pre-Django: the module lives at `backend/law_ai/lsat/` since [spec 011](../011-django-backend/spec.md).
+
+**What changed, and where it came from**
+
+| Expansion | What it added | Spec |
+|---|---|---|
+| Multi-section bank | `Section` enum (LR / RC / LG / WS) with `sections.json`, per-section metadata and counts, replacing the single `lr_bank.json` of FR-1 (NG1 retired) | [011](../011-django-backend/spec.md), [024](../024-lsat-content-factory/spec.md) |
+| Concept catalog | `concepts.json` + `/api/lsat/concepts`, question→concept tags, `taught_in` back-links | [024](../024-lsat-content-factory/spec.md), [048](../048-lsat-knowledge-library/spec.md) |
+| Passages | Shared RC passages / LG game setups addressed by id, so several questions can hang off one stimulus | [011](../011-django-backend/spec.md), [024](../024-lsat-content-factory/spec.md) |
+| Tutor | `POST /api/lsat/tutor` — chain-backed explanation of a specific attempt (the "LR Tutor" follow-up BL-20260429-18 above), rate-limited under the `llm` throttle scope | [019](../019-lsat-content-autogen/spec.md), [030](../030-safety-guardrails/spec.md) |
+| Authoring + HITL queue | `LSATContentAuthor`, `/api/lsat/proposals*`, scanned-page intake — nothing model-drafted reaches the bank without human approval, which keeps NG4's spirit (no unreviewed AI rationales) | [019](../019-lsat-content-autogen/spec.md), [024](../024-lsat-content-factory/spec.md) |
+| Solve guides | Per-question progressive hint steps with typed diagrams, served spoiler-stripped | [045](../045-lsat-solving-aids/spec.md) |
+| Argumentative Writing (WS) | `writing_prompts.json` + `writing_rubrics.json`, offline self-scoring, `POST /api/lsat/writing/evaluate` for formative feedback | [047](../047-lsat-continuous-curriculum/spec.md) |
+| Knowledge library | Compiled typed-block articles, tracks, search and health checks | [048](../048-lsat-knowledge-library/spec.md) |
+| Item synthesis | Generated-with-provenance items and calibration behind the same HITL queue | [049](../049-lsat-synthesis-engine/spec.md) |
+| Static delivery | The approved bank exported to a serverless practice site | [025](../025-lsat-static-site/spec.md) → [docs/lsat-static.md](../../docs/lsat-static.md) |
+
+**Current route table** (`backend/law_ai/lsat/urls.py`, mounted at `/api/lsat/`). Worked `curl` examples for the read routes, the tutor and the authoring queue are in [docs/api-examples.md](../../docs/api-examples.md#lsat-lab--apilsat).
+
+| Method | Route | Purpose |
+|---|---|---|
+| GET | `sections` · `sections/<code>` | Section catalog + per-section counts (incl. `writing_prompt_count`) |
+| GET | `concepts` · `concepts/<id>` | Concept catalog and detail (`taught_in` links into the library) |
+| GET | `passages` · `passages/<id>` | RC passages / LG game setups |
+| GET | `questions` · `questions/<id>` | Keyed items, answer + explanation withheld (FR-2 still holds) |
+| GET | `questions/<id>/guide` | Solve guide, spoiler steps stripped until graded |
+| GET | `questions/<id>/cross-check` | Cross-check report for an item |
+| GET | `validation` | Bank-wide loader/validation report |
+| GET | `library` · `library/tracks` · `library/search` · `library/health` · `library/<id>` | Knowledge library index, tracks, search, health, article |
+| GET | `writing/prompts` · `writing/prompts/<id>` · `writing/rubric` | Writing prompts (model response withheld until submit) and the rubric |
+| POST | `writing/evaluate` | Rubric-scored formative feedback (`LSATWritingEvaluator`) |
+| POST | `grade` | Grade one attempt (FR-3, unchanged) |
+| GET | `stats` | Aggregate accuracy from audit events (FR-4, unchanged) |
+| POST | `tutor` | Explanation for one attempt, through `LLM_PROVIDER_CHAIN` |
+| GET/POST | `proposals` · `proposals/generate` · `guides/generate` · `proposals/<id>/approve` · `proposals/<id>/reject` · `proposals/passages/approve` | HITL authoring queue |
+| POST | `intake/ocr` | Scanned-page intake into the queue |
+| GET | `gaps` | Coverage gaps across sections/concepts |
 
 ## Follow-ups Discovered
 
