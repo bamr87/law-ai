@@ -333,7 +333,7 @@ function DiagnoseModeToggle() {
       />
       <span>
         Diagnose first
-        <span className="block text-[10px] uppercase tracking-wider text-slate-500">
+        <span className="block text-[10px] uppercase tracking-wider text-slate-400">
           name the type before the choices
         </span>
       </span>

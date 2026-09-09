@@ -120,7 +120,7 @@ export default function DiagnoseStep({
       )}
 
       {!prompt && !loadError && (
-        <p className="mt-3 text-sm text-slate-500" role="status">
+        <p className="mt-3 text-sm text-slate-400" role="status">
           Dealing the options…
         </p>
       )}
@@ -183,7 +183,7 @@ function OptionGroup({
       <div className="text-xs font-medium text-slate-300">
         {label}
         {optional && (
-          <span className="ml-1 font-normal text-slate-500">(optional)</span>
+          <span className="ml-1 font-normal text-slate-400">(optional)</span>
         )}
       </div>
       <ul role="radiogroup" aria-label={label} className="mt-2 flex flex-wrap gap-2">

@@ -77,7 +77,7 @@ export default function ContrastPanel({
               <div className="text-sm font-medium text-slate-100">
                 {m.archetype_name ?? m.archetype_id ?? m.id}
                 {m.is_root && (
-                  <span className="ml-2 text-[10px] uppercase tracking-wider text-slate-500">
+                  <span className="ml-2 text-[10px] uppercase tracking-wider text-slate-400">
                     original
                   </span>
                 )}
@@ -86,7 +86,7 @@ export default function ContrastPanel({
               {m.task && <div className="mt-1 text-xs text-slate-400">{m.task}</div>}
               {m.contrast_note && (
                 <details className="mt-1 text-xs text-slate-400">
-                  <summary className="cursor-pointer text-slate-500">
+                  <summary className="cursor-pointer text-slate-400">
                     What changes (spoiler)
                   </summary>
                   <p className="mt-1">{m.contrast_note}</p>
