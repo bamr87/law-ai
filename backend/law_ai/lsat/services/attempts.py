@@ -162,6 +162,122 @@ def writing_stats(user: Any) -> dict[str, Any]:
     }
 
 
+def record_diagnosis_attempt(
+    user: Any,
+    *,
+    question_id: str,
+    section: str,
+    archetype_id: str,
+    chosen_archetype: str,
+    archetype_correct: bool,
+    family_correct: bool,
+    chosen_strategy: str | None = None,
+    strategy_correct: bool | None = None,
+) -> Any | None:
+    """Persist one question-type diagnosis. Best-effort, like :func:`record_attempt`.
+
+    Spec 053: recognition practice is its own table so it never lands in the
+    answer-accuracy denominator or the Leitner queue.
+    """
+    from law_ai.lsat.models import LsatDiagnosisAttempt
+
+    try:
+        return LsatDiagnosisAttempt.objects.create(
+            user=user,
+            question_id=question_id,
+            section=section or "",
+            archetype_id=archetype_id,
+            chosen_archetype=chosen_archetype or "",
+            archetype_correct=bool(archetype_correct),
+            family_correct=bool(family_correct),
+            chosen_strategy=chosen_strategy or "",
+            strategy_correct=strategy_correct,
+        )
+    except Exception:  # pragma: no cover - storage hiccup must not break UX
+        logger.warning("failed to persist LSAT diagnosis attempt", exc_info=True)
+        return None
+
+
+def diagnosis_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Recognition stats from diagnosis rows (ORM ``.values()`` or audit dicts).
+
+    Each row needs ``archetype_id``, ``chosen_archetype``, ``archetype_correct``,
+    ``family_correct`` and ``strategy_correct`` (None when no strategy was
+    named). Beyond accuracy this reports the two things a learner can act on:
+    ``by_archetype`` (which types they misread, weakest first) and
+    ``confusions`` (which pairs they swap, most frequent first).
+
+    >>> diagnosis_summary([])["attempts"]
+    0
+    """
+    attempts = len(rows)
+    type_correct = sum(1 for r in rows if r.get("archetype_correct"))
+    family_correct = sum(1 for r in rows if r.get("family_correct"))
+    strategy_rows = [r for r in rows if r.get("strategy_correct") is not None]
+    strategy_correct = sum(1 for r in strategy_rows if r.get("strategy_correct"))
+
+    by_archetype: dict[str, dict[str, Any]] = {}
+    confusion_counts: dict[tuple[str, str], int] = {}
+    for r in rows:
+        key = str(r.get("archetype_id") or "?")
+        bucket = by_archetype.setdefault(key, {"attempts": 0, "correct": 0})
+        bucket["attempts"] += 1
+        if r.get("archetype_correct"):
+            bucket["correct"] += 1
+        else:
+            chosen = str(r.get("chosen_archetype") or "?")
+            confusion_counts[(chosen, key)] = confusion_counts.get((chosen, key), 0) + 1
+    for bucket in by_archetype.values():
+        bucket["accuracy"] = round(bucket["correct"] / bucket["attempts"], 4)
+    weakest = sorted(
+        by_archetype.items(),
+        key=lambda kv: (kv[1]["accuracy"], -kv[1]["attempts"], kv[0]),
+    )
+    ranked = sorted(
+        confusion_counts.items(),
+        key=lambda kv: (-kv[1], kv[0][1], kv[0][0]),
+    )
+    confusions: list[dict[str, Any]] = [
+        {"chosen": chosen, "actual": actual, "count": n}
+        for (chosen, actual), n in ranked
+    ]
+    return {
+        "attempts": attempts,
+        "type_correct": type_correct,
+        "type_accuracy": round(type_correct / attempts, 4) if attempts else 0.0,
+        "family_correct": family_correct,
+        "family_accuracy": round(family_correct / attempts, 4) if attempts else 0.0,
+        "strategy_attempts": len(strategy_rows),
+        "strategy_correct": strategy_correct,
+        "strategy_accuracy": (
+            round(strategy_correct / len(strategy_rows), 4) if strategy_rows else 0.0
+        ),
+        "by_archetype": {k: v for k, v in weakest},
+        "weakest": [k for k, v in weakest if v["accuracy"] < 1.0][:5],
+        "confusions": confusions[:5],
+    }
+
+
+def diagnosis_stats(user: Any, *, section: str | None = None) -> dict[str, Any]:
+    """This learner's type-recognition practice (spec 053)."""
+    from law_ai.lsat.models import LsatDiagnosisAttempt
+
+    qs = LsatDiagnosisAttempt.objects.filter(user=user)
+    if section:
+        qs = qs.filter(section=section)
+    rows = [
+        dict(r)
+        for r in qs.values(
+            "archetype_id",
+            "chosen_archetype",
+            "archetype_correct",
+            "family_correct",
+            "strategy_correct",
+        )
+    ]
+    return diagnosis_summary(rows)
+
+
 def _bucket(rows: list[dict[str, Any]]) -> dict[str, Any]:
     attempts = len(rows)
     correct = sum(1 for r in rows if r["correct"])
@@ -313,8 +429,11 @@ def user_stats(
 __all__ = [
     "DEFAULT_QUEUE_LIMIT",
     "MAX_BOX",
+    "diagnosis_stats",
+    "diagnosis_summary",
     "interval_days",
     "record_attempt",
+    "record_diagnosis_attempt",
     "record_writing_attempt",
     "review_queue",
     "user_stats",

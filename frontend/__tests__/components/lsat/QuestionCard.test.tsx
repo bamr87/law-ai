@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import QuestionCard from '@/components/lsat/QuestionCard'
 import type { LsatQuestion } from '@/lib/api'
@@ -253,5 +253,68 @@ describe('QuestionCard', () => {
         ),
       ).toBeInTheDocument()
     })
+  })
+})
+
+describe('diagnose first (spec 053 FR-10)', () => {
+  const diagnosePrompt = {
+    question_id: 'lr-001',
+    section: 'LR',
+    type_options: [
+      { id: 'lr-flaw-general', name: 'Flaw in the Reasoning (general)' },
+      { id: 'lr-weaken', name: 'Weaken' },
+    ],
+    strategy_options: [{ id: 'name-the-flaw', name: 'Name the flaw in your own words' }],
+  }
+
+  beforeEach(async () => {
+    const { setDiagnoseMode } = await import('@/lib/lsat/diagnoseMode')
+    setDiagnoseMode(true)
+    server.use(
+      http.get('http://localhost:8000/api/lsat/questions/lr-001/diagnose', () =>
+        HttpResponse.json(diagnosePrompt),
+      ),
+    )
+  })
+
+  afterEach(async () => {
+    const { resetDiagnoseModeForTests } = await import('@/lib/lsat/diagnoseMode')
+    resetDiagnoseModeForTests()
+  })
+
+  it('hides the choices, the guide and the letter keys until the diagnosis is done', async () => {
+    render(<QuestionCard question={question} onResolved={() => {}} />)
+    expect(await screen.findByRole('radiogroup', { name: /what type of question/i })).toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup', { name: /answer choices/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Submit$/ })).not.toBeInTheDocument()
+    // Letter keys have nothing to pick while the board is hidden.
+    fireEvent.keyDown(window, { key: 'a' })
+    fireEvent.click(screen.getByRole('button', { name: /skip and show the choices/i }))
+    const choices = await screen.findByRole('radiogroup', { name: /answer choices/i })
+    expect(choices).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /A.*Alpha/ })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('button', { name: /^Submit$/ })).toBeDisabled()
+  })
+
+  it('does not ask again for a question the panel has already graded', () => {
+    render(
+      <QuestionCard
+        question={question}
+        onResolved={() => {}}
+        saved={{
+          choice: 'A',
+          elapsedSeconds: 3,
+          result: {
+            question_id: 'lr-001',
+            correct: false,
+            correct_choice: 'C',
+            explanation: 'x',
+            section: 'LR',
+          },
+        }}
+      />,
+    )
+    expect(screen.queryByRole('radiogroup', { name: /what type of question/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: /answer choices/i })).toBeInTheDocument()
   })
 })

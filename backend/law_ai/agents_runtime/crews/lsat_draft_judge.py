@@ -132,6 +132,20 @@ class JudgeDraftInput(BaseModel):
     draft: dict[str, Any]
     passage_id: str | None = None
     proposal_id: str | None = None
+    #: Spec 054: pin the Claude tiers to one model id — how the final review
+    #: runs on Fable regardless of the deployment's default tier model.
+    model_override: str | None = None
+
+
+def model_overrides(model_id: str | None) -> dict[str, str]:
+    """``models=`` mapping pinning both Claude tiers to ``model_id`` (empty when None).
+
+    >>> model_overrides("claude-fable-5-1")["claude_code"]
+    'claude-fable-5-1'
+    """
+    if not model_id:
+        return {}
+    return {"claude_code": model_id, "anthropic_api": model_id}
 
 
 class JudgeDraftOutput(BaseModel):
@@ -256,6 +270,7 @@ class LSATDraftJudge:
                 system=_LLM_SYSTEM,
                 response_schema=_VERDICT_RESPONSE_SCHEMA,
                 agent="lsat_draft_judge",
+                models=model_overrides(inp.model_override),
             )
             verdict = _parse_verdict(
                 result.text, stated_key=str(stated_key) if stated_key else None
@@ -283,6 +298,7 @@ class LSATDraftJudge:
                 "section": inp.draft.get("section"),
                 "difficulty": inp.draft.get("difficulty"),
                 "passage_id": passage_id,
+                "model_override": inp.model_override,
             },
             output_data={
                 "verdict": verdict.verdict,

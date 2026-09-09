@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
+  fetchLsatQuestion,
   fetchLsatQuestions,
   fetchLsatSections,
   type LsatDifficulty,
@@ -33,6 +34,10 @@ export default function LrPanel({
   onAttempt,
   concept,
   onClearConcept,
+  archetype,
+  onClearArchetype,
+  questionId,
+  onClearQuestion,
 }: {
   onAttempt: AttemptHandler
   /**
@@ -42,6 +47,20 @@ export default function LrPanel({
    */
   concept?: string
   onClearConcept?: () => void
+  /**
+   * Draw only from questions stamped with this question type (spec 053 FR-9).
+   * Set by the lab from `?archetype=<id>`, the playbook browser's "drill this
+   * type" link.
+   */
+  archetype?: string
+  onClearArchetype?: () => void
+  /**
+   * Open on this exact question first (spec 054): the contrast panel's "try
+   * the same argument as a Strengthen question" link. Consumed once; "next"
+   * deals from the bank as usual.
+   */
+  questionId?: string
+  onClearQuestion?: () => void
 }) {
   const [difficulty, setDifficulty] = useState<LsatDifficulty | 'any'>('any')
   const [question, setQuestion] = useState<LsatQuestion | null>(null)
@@ -60,15 +79,28 @@ export default function LrPanel({
   // same path while the user is still in the select — never yanks focus.
   const advanced = useRef(false)
 
+  // The deep-linked question is served once; after that the stream resumes.
+  const pinned = useRef<string | undefined>(questionId)
+  useEffect(() => {
+    pinned.current = questionId
+  }, [questionId])
+
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
+      if (pinned.current) {
+        const id = pinned.current
+        pinned.current = undefined
+        setQuestion(await fetchLsatQuestion(id, { shuffle: true }))
+        return
+      }
       const body = await fetchLsatQuestions({
         limit: 1,
         section: 'LR',
         difficulty: difficulty === 'any' ? undefined : difficulty,
         concept,
+        archetype,
         // Per-attempt shuffling (BL-20260606-01): the key must not sit in the
         // same place every time a question comes round again.
         shuffle: true,
@@ -79,7 +111,7 @@ export default function LrPanel({
     } finally {
       setLoading(false)
     }
-  }, [difficulty, concept])
+  }, [difficulty, concept, archetype])
 
   useEffect(() => {
     void load()
@@ -120,8 +152,11 @@ export default function LrPanel({
 
   const loadNext = useCallback(() => {
     advanced.current = true
+    // Leaving the pinned question drops it from the URL so a reload does not
+    // deal it again.
+    onClearQuestion?.()
     void load()
-  }, [load])
+  }, [load, onClearQuestion])
 
   // Drawing the next question unmounts the card (the panel shows a skeleton
   // while it fetches), which dropped focus to <body> — outside the element the
@@ -141,6 +176,8 @@ export default function LrPanel({
         rightLabel={`Section: Logical Reasoning`}
         concept={concept}
         onClearConcept={onClearConcept}
+        archetype={archetype}
+        onClearArchetype={onClearArchetype}
       />
       {loading && <SkeletonQuestion />}
       {!loading && error && <ErrorBanner message={error} onRetry={load} />}
@@ -151,7 +188,9 @@ export default function LrPanel({
         <p className="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-6 text-sm text-slate-400">
           {concept
             ? `No Logical Reasoning questions are tagged ${concept} yet.`
-            : 'No Logical Reasoning questions match this filter yet.'}
+            : archetype
+              ? `No Logical Reasoning questions of type ${archetype} yet.`
+              : 'No Logical Reasoning questions match this filter yet.'}
           {concept && onClearConcept && (
             <>
               {' '}
@@ -188,12 +227,16 @@ function Toolbar({
   rightLabel,
   concept,
   onClearConcept,
+  archetype,
+  onClearArchetype,
 }: {
   difficulty: LsatDifficulty | 'any'
   onDifficulty: (d: LsatDifficulty | 'any') => void
   rightLabel: string
   concept?: string
   onClearConcept?: () => void
+  archetype?: string
+  onClearArchetype?: () => void
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 backdrop-blur">
@@ -224,6 +267,23 @@ function Toolbar({
         // narrows the bank and gives no way back is a trap, not a shortcut.
         // Shared with the passage panels, which take the same deep link.
         <ConceptChip concept={concept} onClear={onClearConcept} />
+      )}
+      {archetype && (
+        // The type filter, visible and reversible like the concept chip.
+        <span className="inline-flex items-center gap-2 rounded-full border border-violet-500/40 bg-violet-500/10 px-3 py-1 text-xs text-violet-100">
+          <span className="uppercase tracking-wider text-violet-300">Type</span>
+          <span className="font-mono">{archetype}</span>
+          {onClearArchetype && (
+            <button
+              type="button"
+              onClick={onClearArchetype}
+              aria-label={`Stop filtering by type ${archetype}`}
+              className="rounded px-1 text-violet-300 hover:text-white focus-ring"
+            >
+              ×
+            </button>
+          )}
+        </span>
       )}
       <div className="text-xs uppercase tracking-wider text-slate-400">
         {rightLabel}

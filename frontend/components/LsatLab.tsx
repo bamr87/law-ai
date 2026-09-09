@@ -38,6 +38,7 @@ import {
 } from '@/lib/api'
 import SectionTimerWidget from '@/components/lsat/SectionTimerWidget'
 import { recordAnswer } from '@/lib/lsat/timerStore'
+import { useDiagnoseMode } from '@/lib/lsat/diagnoseMode'
 import AuthoringPanel from '@/components/lsat/AuthoringPanel'
 import { Stat } from '@/components/lsat/LabPrimitives'
 import LrPanel from '@/components/lsat/LrPanel'
@@ -71,6 +72,12 @@ export default function LsatLab() {
   // also decides where the lab opens — on the drill, not on Overview — while
   // an explicit `?tab=` still wins, so a link can name both.
   const [concept] = useUrlState<string>('concept', { fallback: '' })
+  // A question-type deep link (spec 053 FR-9): the playbook browser's "drill
+  // this type" goes to `/lsat?tab=LR&archetype=<id>`. Only the LR drill
+  // filters by stamp; passage sections are linked by concept instead.
+  const [archetype] = useUrlState<string>('archetype', { fallback: '' })
+  // A specific question to open on (spec 054): the contrast panel's "try it".
+  const [pinnedQuestion] = useUrlState<string>('question', { fallback: '' })
   // Where a concept-only link opens. The section is asked of the bank rather
   // than assumed: two thirds of the concepts the bank tags carry no Logical
   // Reasoning question at all, so the old hard-coded 'LR' sent `sequencing`
@@ -110,7 +117,11 @@ export default function LsatLab() {
     // The resolved section is a *fallback*, not a URL write: the lab opens on
     // the right drill without spending a history entry on a decision the
     // learner did not make.
-    fallback: concept ? (conceptTab ?? 'LR') : 'overview',
+    fallback: concept
+      ? (conceptTab ?? 'LR')
+      : archetype || pinnedQuestion
+        ? 'LR'
+        : 'overview',
     allowed: TAB_IDS,
   })
   // Dropping the filter has to pin the tab in the same navigation: the concept
@@ -120,6 +131,14 @@ export default function LsatLab() {
   const writeUrl = useUrlWrite('replace')
   const clearConcept = useCallback(
     () => writeUrl({ concept: null, tab }),
+    [tab, writeUrl],
+  )
+  const clearArchetype = useCallback(
+    () => writeUrl({ archetype: null, tab }),
+    [tab, writeUrl],
+  )
+  const clearQuestion = useCallback(
+    () => writeUrl({ question: null, tab }),
     [tab, writeUrl],
   )
   const [globalStats, setGlobalStats] = useState<LsatStats | null>(null)
@@ -193,6 +212,10 @@ export default function LsatLab() {
                 onAttempt={onAttempt}
                 concept={concept || undefined}
                 onClearConcept={concept ? clearConcept : undefined}
+                archetype={archetype || undefined}
+                onClearArchetype={archetype ? clearArchetype : undefined}
+                questionId={pinnedQuestion || undefined}
+                onClearQuestion={pinnedQuestion ? clearQuestion : undefined}
               />
             )}
             {tab === 'RC' && (
@@ -263,6 +286,8 @@ function Header({
         openDocks={['sidebar', 'inspector']}
       />
       <div className="flex flex-wrap items-center justify-end gap-4">
+        <DiagnoseModeToggle />
+        <span className="h-6 w-px bg-slate-800" />
         <Stat
           label="Session"
           value={`${session.correct}/${session.attempts}`}
@@ -288,6 +313,31 @@ function Header({
         />
       </div>
     </div>
+  )
+}
+
+/**
+ * "Diagnose first" (spec 053 FR-10): every drill card asks for the question
+ * type and strategy before it shows the choices. Lives in the header so it
+ * follows the learner across sections; the cards read it from the store.
+ */
+function DiagnoseModeToggle() {
+  const [on, setOn] = useDiagnoseMode()
+  return (
+    <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={(e) => setOn(e.target.checked)}
+        className="h-4 w-4 accent-violet-500"
+      />
+      <span>
+        Diagnose first
+        <span className="block text-[10px] uppercase tracking-wider text-slate-400">
+          name the type before the choices
+        </span>
+      </span>
+    </label>
   )
 }
 

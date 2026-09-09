@@ -179,7 +179,15 @@ class TestExemplarCoverage:
         archetype = get_archetype("lr-flaw-general")
         primary = archetype.concepts[0]
         bank = load_bank()
-        difficulties = {q.difficulty for q in bank.values() if primary in q.concepts}
+        # The tie being broken is *within* the top-ranked group: stamped
+        # instances of the archetype (spec 053 stamped the bank), or, for an
+        # unstamped item, the primary-concept proxy.
+        difficulties = {
+            q.difficulty
+            for q in bank.values()
+            if q.archetype == "lr-flaw-general"
+            or (q.archetype is None and primary in q.concepts)
+        }
         wanted = "easy" if "easy" in difficulties else sorted(difficulties)[0]
         first = select_exemplars(
             _target(
@@ -204,9 +212,21 @@ class TestStampedArchetype:
     def test_a_stamped_item_outranks_the_concept_proxy(
         self, factory_env: FactoryConfig
     ) -> None:
-        stamped = _add_bank_item(archetype="lr-weaken", concepts=[])
-        first = select_exemplars(_target(), k=1)
-        assert [q.id for q in first] == [stamped]
+        # Spec 053 stamped the whole bank, so the stamped test item now competes
+        # with real stamped weaken items and sits behind the ones that also
+        # carry the primary concept. The claim under test is the *ordering*:
+        # any stamped item, even one with no concept tags, outranks an
+        # unstamped item that merely carries the concepts.
+        stamped = _add_bank_item(
+            id="lr-stamped-001", archetype="lr-weaken", concepts=[]
+        )
+        proxy = _add_bank_item(
+            id="lr-proxy-001", archetype=None, concepts=["weaken", "alternative-cause"]
+        )
+        ranked = [q.id for q in select_exemplars(_target(), k=500)]
+        assert stamped in ranked and proxy in ranked
+        assert ranked.index(stamped) < ranked.index(proxy)
+        assert all(q.archetype == "lr-weaken" for q in select_exemplars(_target(), k=1))
 
     def test_an_unstamped_bank_still_selects_by_concept(
         self, factory_env: FactoryConfig

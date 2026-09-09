@@ -56,6 +56,11 @@ PROPOSAL_KINDS = (
     "library_finding",
     "library_article",
     "crosscheck",
+    # Spec 054: a type-stamp disagreement filed by ``lsat_type_review_sweep``.
+    "typecheck",
+    # Spec 054: a judge-driven rewrite of an existing bank item, promoted in
+    # place so the question keeps its id and its learners' history.
+    "rewrite",
 )
 
 _BANK_FILES: dict[Section, str] = {
@@ -605,6 +610,15 @@ def promote_to_bank(
     archetype_id = factory_meta.get("archetype_id")
     if isinstance(archetype_id, str) and archetype_id:
         new_item["archetype"] = archetype_id
+    # Spec 054: a contrast variation keeps its lineage and its teaching note.
+    # ``variation_of`` lives on meta (the author set it, not the model) and the
+    # note on the draft (it is reviewed content like the explanation).
+    variation_of = (row.get("meta") or {}).get("variation_of")
+    if isinstance(variation_of, str) and variation_of:
+        new_item["variation_of"] = variation_of
+    contrast_note = draft.get("contrast_note")
+    if isinstance(contrast_note, str) and contrast_note.strip():
+        new_item["contrast_note"] = contrast_note.strip()
 
     bank_blob.setdefault("items", []).append(new_item)
 
@@ -861,6 +875,137 @@ def promote_crosscheck(
         reviewer=reviewer,
         note=note,
         question_id=str((row.get("draft") or {}).get("question_id") or "") or None,
+    )
+
+
+def promote_typecheck(
+    proposal_id: str,
+    *,
+    reviewer: str = "anonymous",
+    note: str | None = None,
+) -> dict[str, Any]:
+    """Restamp a question with the reviewer agent's read of its type (spec 054).
+
+    A ``typecheck`` row says the model read a bank item as one archetype while
+    the stamp says another. Approving it means "the model is right": the item's
+    ``archetype`` is rewritten in the bank file to the model's read, which is
+    the one field the diagnosis exercise keys on. Rejecting the row keeps the
+    stamp — the mirror of :func:`promote_crosscheck`, where approval changes
+    nothing, and the card's buttons say which is which.
+
+    Raises ``KeyError`` for an unknown proposal and ``ValueError`` when the row
+    is not a pending type check, when the section is unknown, or when the
+    question is no longer in the bank.
+    """
+    row = get_proposal(proposal_id)
+    if row is None:
+        raise KeyError(f"unknown proposal {proposal_id!r}")
+    if row.get("status") != "pending":
+        raise ValueError(
+            f"proposal {proposal_id!r} cannot be closed from status "
+            f"{row.get('status')!r}"
+        )
+    if row.get("proposal_kind") != "typecheck":
+        raise ValueError(
+            f"proposal {proposal_id!r} is a {row.get('proposal_kind')!r} draft — "
+            "use the matching promote_* helper"
+        )
+    draft = dict(row.get("draft") or {})
+    question_id = str(draft.get("question_id") or "")
+    section = draft.get("section")
+    new_archetype = str(draft.get("model_archetype") or "")
+    if section not in _BANK_FILES or not question_id or not new_archetype:
+        raise ValueError(f"proposal {proposal_id!r} names no restampable question")
+    bank_path = _bank.DATA_DIR / _BANK_FILES[section]
+    blob: dict[str, Any] = json.loads(bank_path.read_text(encoding="utf-8"))
+    hit = next(
+        (it for it in blob.get("items", []) if it.get("id") == question_id), None
+    )
+    if hit is None:
+        raise ValueError(f"question {question_id!r} is no longer in the bank")
+    hit["archetype"] = new_archetype
+    with _LOCK:
+        bank_path.write_text(
+            json.dumps(blob, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        load_bank.cache_clear()
+    return set_status(
+        proposal_id,
+        "approved",
+        reviewer=reviewer,
+        note=note,
+        question_id=question_id,
+    )
+
+
+#: Fields a rewrite may replace on the bank item. Everything else — id,
+#: section, archetype, lineage, passage link — is identity and stays.
+_REWRITABLE_FIELDS = ("stem", "choices", "correct", "explanation", "concepts")
+
+
+def promote_rewrite(
+    proposal_id: str,
+    *,
+    reviewer: str = "anonymous",
+    note: str | None = None,
+) -> dict[str, Any]:
+    """Replace a bank item's content with its approved rewrite (spec 054).
+
+    A ``rewrite`` row carries the edited item under ``draft`` and the id it
+    rewrites under ``draft.question_id``. Approval rewrites the item **in
+    place**: the id, section, archetype stamp, passage link and contrast
+    lineage stay, so attempts, guides and siblings keep pointing at it, and
+    the review record says who approved the rewrite and why.
+
+    Raises ``KeyError`` for an unknown proposal and ``ValueError`` when the
+    row is not a pending rewrite or the question is gone.
+    """
+    row = get_proposal(proposal_id)
+    if row is None:
+        raise KeyError(f"unknown proposal {proposal_id!r}")
+    if row.get("status") != "pending":
+        raise ValueError(
+            f"proposal {proposal_id!r} cannot be promoted from status "
+            f"{row.get('status')!r}"
+        )
+    if row.get("proposal_kind") != "rewrite":
+        raise ValueError(
+            f"proposal {proposal_id!r} is a {row.get('proposal_kind')!r} draft — "
+            "use the matching promote_* helper"
+        )
+    draft = dict(row.get("draft") or {})
+    question_id = str(draft.get("question_id") or "")
+    section = draft.get("section")
+    if section not in _BANK_FILES or not question_id:
+        raise ValueError(f"proposal {proposal_id!r} names no rewritable question")
+    bank_path = _bank.DATA_DIR / _BANK_FILES[section]
+    blob: dict[str, Any] = json.loads(bank_path.read_text(encoding="utf-8"))
+    hit = next(
+        (it for it in blob.get("items", []) if it.get("id") == question_id), None
+    )
+    if hit is None:
+        raise ValueError(f"question {question_id!r} is no longer in the bank")
+    for field in _REWRITABLE_FIELDS:
+        if draft.get(field) is not None:
+            hit[field] = draft[field]
+    summary = str(draft.get("change_summary") or "").strip()
+    hit["review"] = {
+        "method": "editorial",
+        "reviewed_by": (reviewer or "").strip() or "(unattributed)",
+        "reviewed_at": datetime.now(UTC).date().isoformat(),
+        "note": ((note or "").strip() or f"rewrite approved: {summary}")[:300] or None,
+    }
+    with _LOCK:
+        bank_path.write_text(
+            json.dumps(blob, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        load_bank.cache_clear()
+    return set_status(
+        proposal_id,
+        "approved",
+        reviewer=reviewer,
+        note=note,
+        question_id=question_id,
     )
 
 
