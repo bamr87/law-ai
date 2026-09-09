@@ -188,6 +188,13 @@ class Question(BaseModel):
         default=None,
         description="Set on RC + LG items to link them to a PassageContext.",
     )
+    #: Spec 054: the bank id of the question this one is a *contrast variation*
+    #: of — same stimulus, re-asked as a different archetype. None on a root.
+    variation_of: str | None = None
+    #: Spec 054: what changes between this variation and its root — how the
+    #: task moves the key and which traps swap sides. Spoiler-class content:
+    #: served only after grading, like the explanation.
+    contrast_note: str | None = None
     archetype: str | None = Field(
         default=None,
         description="Factory taxonomy archetype this item instantiates "
@@ -273,6 +280,9 @@ class PublicQuestion(BaseModel):
     concepts: list[str] = Field(default_factory=list)
     references: list[Reference] = Field(default_factory=list)
     passage_id: str | None = None
+    #: The root question this is a contrast variation of (spec 054). Safe to
+    #: ship: it names a sibling, not the key.
+    variation_of: str | None = None
     #: The signed permutation this serve used (BL-20260606-01). Present only
     #: when the question was requested with ``shuffle``; the client echoes it
     #: back at grade time so the answer is read in the order it was shown.
@@ -367,6 +377,7 @@ def public_view(q: Question) -> PublicQuestion:
         concepts=q.concepts,
         references=q.references,
         passage_id=q.passage_id,
+        variation_of=q.variation_of,
     )
 
 

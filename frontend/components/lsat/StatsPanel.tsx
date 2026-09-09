@@ -10,7 +10,7 @@
 
 import Link from 'next/link'
 
-import type { LsatReviewItem, LsatStats } from '@/lib/api'
+import type { LsatDiagnosisStats, LsatReviewItem, LsatStats } from '@/lib/api'
 import type { SessionScore } from '@/components/lsat/labTabs'
 
 export default function StatsPanel({
@@ -50,6 +50,7 @@ export default function StatsPanel({
           />
         )}
       </div>
+      <DiagnosisProgress diagnosis={stats?.diagnosis} />
       <WritingProgress writing={stats?.writing} />
       <ReviewQueue items={stats?.review_queue ?? []} />
       {stats?.by_section && Object.keys(stats.by_section).length > 0 && (
@@ -146,6 +147,106 @@ function ReadingCard({ read, total }: { read: number; total: number }) {
   )
 }
 
+
+/** `lr-necessary-assumption` → `Necessary assumption` for a stats row. */
+export function humanizeArchetype(id: string): string {
+  const words = id.replace(/^(lr|rc|lg)-/, '').split('-').join(' ')
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+/**
+ * Question-type recognition across attempts (spec 053 FR-7).
+ *
+ * Kept apart from answer accuracy because it measures a different skill, and
+ * shaped around the two readouts a learner can act on: which types they misread
+ * (weakest first, each linking to its playbook) and which pairs they swap.
+ * "You keep calling necessary assumptions sufficient" is the sentence this
+ * card exists to say.
+ */
+function DiagnosisProgress({ diagnosis }: { diagnosis?: LsatDiagnosisStats }) {
+  if (!diagnosis || diagnosis.attempts === 0) return null
+  const pct = (n: number) => `${Math.round(n * 100)}%`
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 backdrop-blur">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
+          Question-type recognition
+        </h3>
+        <Link
+          href="/lsat/playbooks"
+          className="text-xs text-amber-300 underline underline-offset-2 hover:text-amber-200"
+        >
+          All playbooks
+        </Link>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-6">
+        <div>
+          <div className="text-[11px] uppercase tracking-wider text-slate-400">
+            Type named
+          </div>
+          <div className="text-2xl font-semibold tabular-nums text-slate-100">
+            {diagnosis.type_correct}
+            <span className="text-slate-400"> / {diagnosis.attempts}</span>
+          </div>
+          <div className="text-xs text-slate-400">
+            {pct(diagnosis.type_accuracy)} · {pct(diagnosis.family_accuracy)} right
+            family
+          </div>
+        </div>
+        {diagnosis.strategy_attempts > 0 && (
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-slate-400">
+              Strategy named
+            </div>
+            <div className="text-2xl font-semibold tabular-nums text-slate-100">
+              {diagnosis.strategy_correct}
+              <span className="text-slate-400"> / {diagnosis.strategy_attempts}</span>
+            </div>
+            <div className="text-xs text-slate-400">{pct(diagnosis.strategy_accuracy)}</div>
+          </div>
+        )}
+      </div>
+      {diagnosis.confusions.length > 0 && (
+        <div className="mt-4">
+          <div className="text-[11px] uppercase tracking-wider text-slate-400">
+            Most often confused
+          </div>
+          <ul className="mt-1 space-y-1 text-sm text-slate-200">
+            {diagnosis.confusions.map((c) => (
+              <li key={`${c.chosen}>${c.actual}`}>
+                Called{' '}
+                <Link
+                  href={`/lsat/playbooks#${c.actual}`}
+                  className="text-sky-300 underline underline-offset-2 hover:text-sky-200"
+                >
+                  {humanizeArchetype(c.actual)}
+                </Link>{' '}
+                “{humanizeArchetype(c.chosen)}”
+                <span className="text-slate-400"> ×{c.count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {diagnosis.weakest.length > 0 && (
+        <p className="mt-3 text-xs text-slate-400">
+          Weakest types:{' '}
+          {diagnosis.weakest.map((id, i) => (
+            <span key={id}>
+              {i > 0 && ' · '}
+              <Link
+                href={`/lsat/playbooks#${id}`}
+                className="underline underline-offset-2 hover:text-slate-200"
+              >
+                {humanizeArchetype(id)}
+              </Link>
+            </span>
+          ))}
+        </p>
+      )}
+    </div>
+  )
+}
 
 /**
  * Argumentative Writing across attempts (BL-20260831-27).

@@ -924,6 +924,8 @@ export interface LsatQuestion {
   concepts?: string[]
   references?: LsatReference[]
   passage_id?: string | null
+  /** The root question this is a contrast variation of (spec 054). */
+  variation_of?: string | null
   /**
    * Signed permutation this serve used (BL-20260606-01). Present only when the
    * question was requested with `shuffle`; echo it back to `gradeLsat` so the
@@ -1017,6 +1019,12 @@ export interface LsatStats extends LsatStatsBucket {
    * so `model` and `prompt_version` ride along to be shown where the bands
    * are. Absent when a keyed section was asked for.
    */
+  /**
+   * Question-type recognition practice (spec 053 FR-7). Separate from answer
+   * accuracy on purpose: naming the type is a different skill from solving,
+   * and a diagnosis never enters the attempts denominator above.
+   */
+  diagnosis?: LsatDiagnosisStats
   writing?: {
     attempts: number
     by_prompt: Record<string, number>
@@ -1239,6 +1247,11 @@ export interface LsatQuestionFilters {
   concept?: string
   /** Shuffle the answer choices for this serve (BL-20260606-01). */
   shuffle?: boolean
+  /**
+   * Only questions stamped with this archetype (spec 053 FR-9) — what a
+   * playbook's "drill this type" link asks for.
+   */
+  archetype?: string
 }
 
 export function fetchLsatQuestions(
@@ -1254,6 +1267,7 @@ export function fetchLsatQuestions(
   if (filters.section) qs.set('section', filters.section)
   if (filters.passage_id) qs.set('passage_id', filters.passage_id)
   if (filters.concept) qs.set('concept', filters.concept)
+  if (filters.archetype) qs.set('archetype', filters.archetype)
   if (filters.shuffle) qs.set('shuffle', '1')
   return getJson<{ questions: LsatQuestion[]; count: number }>(
     `/api/lsat/questions?${qs.toString()}`,
@@ -1279,6 +1293,206 @@ export async function gradeLsat(
   })
   if (!res.ok) throw new Error(`Grade failed (${res.status})`)
   return (await res.json()) as LsatGradeResponse
+}
+
+// --- Question-type diagnosis + playbooks (spec 053) ---
+
+export interface LsatDiagnosisOption {
+  id: string
+  name: string
+}
+
+/** What the learner is asked before the answer choices are shown. */
+export interface LsatDiagnosisPrompt {
+  question_id: string
+  section: LsatSection
+  type_options: LsatDiagnosisOption[]
+  strategy_options: LsatDiagnosisOption[]
+}
+
+export interface LsatStrategy {
+  id: string
+  name: string
+  sections: LsatSection[]
+  summary: string
+}
+
+export interface LsatTrap {
+  id: string
+  name: string
+  summary: string
+}
+
+/** How one question type is recognised and solved. */
+export interface LsatPlaybook {
+  archetype_id: string
+  name: string
+  section: LsatSection
+  family: string
+  concepts: string[]
+  /** Stem phrasings that give the type away. */
+  cues: string[]
+  task: string
+  strategies: LsatStrategy[]
+  method: string[]
+  traps: LsatTrap[]
+  confused_with: LsatDiagnosisOption[]
+}
+
+export interface LsatPlaybookDetail extends LsatPlaybook {
+  taught_in: { id: string; title: string; kind: string }[]
+  question_count: number
+  difficulty_weights: Record<string, number>
+}
+
+export interface LsatDiagnosisResult {
+  question_id: string
+  section: LsatSection
+  archetype_id: string
+  archetype_name: string
+  family: string
+  chosen_archetype: string
+  chosen_archetype_name: string | null
+  archetype_correct: boolean
+  /** Right family, wrong sub-type — partial credit. */
+  family_correct: boolean
+  chosen_strategy: string | null
+  strategy_correct: boolean | null
+  /** The words in this stem that the type's cue caught, when quotable. */
+  matched_cue: string | null
+  playbook: LsatPlaybook
+}
+
+export interface LsatDiagnosisStats {
+  attempts: number
+  type_correct: number
+  type_accuracy: number
+  family_correct: number
+  family_accuracy: number
+  strategy_attempts: number
+  strategy_correct: number
+  strategy_accuracy: number
+  /** Weakest type first. */
+  by_archetype: Record<string, { attempts: number; correct: number; accuracy: number }>
+  weakest: string[]
+  /** Most frequent swap first. */
+  confusions: { chosen: string; actual: string; count: number }[]
+}
+
+export function fetchLsatDiagnosis(questionId: string) {
+  return getJson<LsatDiagnosisPrompt>(
+    `/api/lsat/questions/${encodeURIComponent(questionId)}/diagnose`,
+  )
+}
+
+export async function submitLsatDiagnosis(
+  questionId: string,
+  archetypeId: string,
+  strategyId?: string | null,
+): Promise<LsatDiagnosisResult> {
+  const body: { archetype_id: string; strategy_id?: string } = {
+    archetype_id: archetypeId,
+  }
+  if (strategyId) body.strategy_id = strategyId
+  const res = await apiFetch(
+    `/api/lsat/questions/${encodeURIComponent(questionId)}/diagnose`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )
+  if (!res.ok) throw new Error(`Diagnosis failed (${res.status})`)
+  return (await res.json()) as LsatDiagnosisResult
+}
+
+export function fetchLsatPlaybooks(section?: LsatSection) {
+  const qs = new URLSearchParams()
+  if (section) qs.set('section', section)
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  return getJson<{
+    playbooks: LsatPlaybook[]
+    count: number
+    strategies: LsatStrategy[]
+    traps: LsatTrap[]
+  }>(`/api/lsat/playbooks${suffix}`)
+}
+
+export function fetchLsatPlaybook(archetypeId: string) {
+  return getJson<LsatPlaybookDetail>(
+    `/api/lsat/playbooks/${encodeURIComponent(archetypeId)}`,
+  )
+}
+
+// --- Contrast variations (spec 054) ---
+
+/** One member of a contrast set: the same stimulus, asked as this type. */
+export interface LsatContrastMember {
+  id: string
+  is_root: boolean
+  difficulty: LsatDifficulty
+  archetype_id: string | null
+  archetype_name: string | null
+  family: string | null
+  task: string | null
+  question_sentence: string
+  /** Where the keys move between this member and the root. Spoiler-class: only present with `spoilers`. */
+  contrast_note?: string | null
+}
+
+export interface LsatContrastSet {
+  root_id: string
+  question_id: string
+  count: number
+  members: LsatContrastMember[]
+  spoilers: boolean
+}
+
+export interface LsatVariationResult {
+  source_id: string
+  target_archetype_id: string
+  proposal_id: string | null
+  accepted: boolean
+  degraded: boolean
+  rounds: number
+  model: string
+  issues: string[]
+}
+
+export function fetchLsatContrast(questionId: string, opts?: { spoilers?: boolean }) {
+  const qs = opts?.spoilers ? '?spoilers=1' : ''
+  return getJson<LsatContrastSet>(
+    `/api/lsat/questions/${encodeURIComponent(questionId)}/contrast${qs}`,
+  )
+}
+
+/** Fetch one question by id (spec 054: the contrast panel's "try it" link). */
+export function fetchLsatQuestion(questionId: string, opts?: { shuffle?: boolean }) {
+  const qs = opts?.shuffle ? '?shuffle=1' : ''
+  return getJson<LsatQuestion>(
+    `/api/lsat/questions/${encodeURIComponent(questionId)}${qs}`,
+  )
+}
+
+/** Draft a contrast variation through the author → judge → revise loop into the HITL queue. */
+export async function draftLsatVariation(
+  questionId: string,
+  targetArchetypeId: string,
+  opts?: { maxRounds?: number },
+): Promise<LsatVariationResult> {
+  const res = await apiFetch(
+    `/api/lsat/questions/${encodeURIComponent(questionId)}/variations`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        target_archetype_id: targetArchetypeId,
+        ...(opts?.maxRounds ? { max_rounds: opts.maxRounds } : {}),
+      }),
+    },
+  )
+  if (!res.ok) throw new Error(`Variation draft failed (${res.status})`)
+  return (await res.json()) as LsatVariationResult
 }
 
 export function fetchLsatStats(section?: LsatSection) {
@@ -1788,6 +2002,33 @@ export interface LsatCrossCheckProposalDraft {
   model: string
 }
 
+/**
+ * Type-stamp disagreement queued by the type-review sweep (spec 054). A
+ * report: approving it restamps the question with the model's read; rejecting
+ * it keeps the stamp.
+ */
+export interface LsatTypeCheckProposalDraft {
+  question_id: string
+  section: LsatSection
+  stem: string
+  stamped_archetype: string | null
+  cue_archetype: string | null
+  model_archetype: string
+  rationale: string
+  confidence: number
+  model: string
+}
+
+/**
+ * Judge-driven rewrite of an existing bank item (spec 054 FR-11). Approving
+ * it replaces the item **in place** — same id, stamp and lineage — so
+ * attempts, guides and contrast siblings keep pointing at it.
+ */
+export interface LsatRewriteProposalDraft extends LsatProposalDraft {
+  question_id: string
+  change_summary: string
+}
+
 export interface LsatProposal {
   id: string
   status: LsatProposalStatus
@@ -1798,7 +2039,13 @@ export interface LsatProposal {
    * (BL-20260831-21 — a blind-solve disagreement awaiting re-verification) or
    * "writing_prompt" (BL-20260831-28 — a factory-drafted WS task).
    */
-  proposal_kind?: 'question' | 'guide' | 'crosscheck' | 'writing_prompt'
+  proposal_kind?:
+    | 'question'
+    | 'guide'
+    | 'crosscheck'
+    | 'writing_prompt'
+    | 'typecheck'
+    | 'rewrite'
   section: LsatSection | null
   difficulty: LsatDifficulty | null
   agent_trace_id: string
@@ -1810,6 +2057,8 @@ export interface LsatProposal {
     | LsatGuideProposalDraft
     | LsatCrossCheckProposalDraft
     | LsatWritingProposalDraft
+    | LsatTypeCheckProposalDraft
+    | LsatRewriteProposalDraft
   reviewer?: string | null
   note?: string | null
   question_id?: string | null
@@ -1827,6 +2076,26 @@ export interface LsatProposal {
      * still pending: the *proposal* id of that question (BL-20260901-04).
      */
     guide_for_proposal?: string | null
+    /** Spec 054: the bank question this draft is a contrast variation of. */
+    variation_of?: string | null
+    /** Spec 054: the bank question this draft rewrites in place. */
+    rewrite_of?: string | null
+    /** Spec 054: the judge's verdict on the item as it stood, before the rewrite. */
+    original_judge?: LsatJudgeVerdict | null
+    /** Spec 054: the final reviewer's verdict (Fable) on the accepted draft. */
+    final_review?: (LsatJudgeVerdict & { role?: string }) | null
+    /** Spec 054: the author → gates → judge → revise history behind the draft. */
+    revisions?: {
+      accepted: boolean
+      rounds: {
+        round: number
+        model: string
+        gate_issues: string[]
+        judge?: LsatJudgeVerdict | null
+        critique: string[]
+        accepted: boolean
+      }[]
+    } | null
     /** Factory lineage: which run, tier and executor produced the draft. */
     factory?: {
       manifest_id?: string | null

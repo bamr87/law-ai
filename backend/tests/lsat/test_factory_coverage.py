@@ -52,14 +52,22 @@ class TestCensus:
 
         counts = census()
         bank = list(load_bank().values())
-        # Census counts an item toward an archetype via the archetype's PRIMARY
-        # concept tag; verify against a recomputation so the test is robust to
-        # bank growth (no hard-coded per-cell numbers).
+        # Census counts a stamped item under its stamp (spec 053 stamped the
+        # whole bank) and an unstamped one via the archetype's PRIMARY concept
+        # tag; verify against a recomputation so the test is robust to bank
+        # growth (no hard-coded per-cell numbers).
         for arch_id in ("lr-weaken", "lg-grouping", "rc-inference"):
             primary = get_archetype(arch_id).concepts[0]
             for diff in ("easy", "med", "hard"):
                 expected = sum(
-                    1 for q in bank if q.difficulty == diff and primary in q.concepts
+                    1
+                    for q in bank
+                    if q.difficulty == diff
+                    and (
+                        q.archetype == arch_id
+                        if q.archetype is not None
+                        else primary in q.concepts
+                    )
                 )
                 assert counts[(arch_id, diff)] == expected
         # Seed sanity: the bundled lr-002 med weaken item is present.

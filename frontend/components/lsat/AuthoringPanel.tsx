@@ -18,12 +18,17 @@ import {
   fetchLsatFactoryStatus,
   fetchLsatGaps,
   fetchLsatProposals,
+  draftLsatVariation,
+  fetchLsatPlaybooks,
   generateLsatProposals,
   promoteLsatPassage,
   rejectLsatProposal,
   type LsatDifficulty,
   type LsatFactoryStatus,
   type LsatCrossCheckProposalDraft,
+  type LsatDiagnosisOption,
+  type LsatRewriteProposalDraft,
+  type LsatTypeCheckProposalDraft,
   type LsatWritingProposalDraft,
   type LsatDraftReview,
   type LsatGapRow,
@@ -104,6 +109,48 @@ export default function AuthoringPanel() {
       setGenerating(false)
     }
   }, [section, difficulty, count, refresh])
+
+  // Spec 054: draft a contrast variation of one bank question through the
+  // author → gates → judge → revise loop. Same queue, same review.
+  const [varSource, setVarSource] = useState('lr-002')
+  const [varTarget, setVarTarget] = useState('')
+  const [types, setTypes] = useState<LsatDiagnosisOption[]>([])
+  const [varBusy, setVarBusy] = useState(false)
+  const [varNote, setVarNote] = useState<string | null>(null)
+  useEffect(() => {
+    let live = true
+    fetchLsatPlaybooks('LR')
+      .then((b) => {
+        if (!live) return
+        const opts = b.playbooks.map((pb) => ({ id: pb.archetype_id, name: pb.name }))
+        setTypes(opts)
+        setVarTarget((t) => t || opts[0]?.id || '')
+      })
+      .catch(() => {
+        /* the form still accepts a typed id */
+      })
+    return () => {
+      live = false
+    }
+  }, [])
+  const onDraftVariation = useCallback(async () => {
+    if (!varSource.trim() || !varTarget) return
+    setVarBusy(true)
+    setVarNote(null)
+    setError(null)
+    try {
+      const r = await draftLsatVariation(varSource.trim(), varTarget)
+      setVarNote(
+        `${r.proposal_id} filed after ${r.rounds} round${r.rounds === 1 ? '' : 's'}` +
+          (r.accepted ? '.' : ' — not accepted by the gates/judge; review carefully.'),
+      )
+      await refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Variation draft failed')
+    } finally {
+      setVarBusy(false)
+    }
+  }, [varSource, varTarget, refresh])
 
   const onApprove = useCallback(
     async (id: string) => {
@@ -244,6 +291,53 @@ export default function AuthoringPanel() {
             {generating ? 'Drafting…' : 'Draft questions'}
           </button>
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-violet-500/30 bg-violet-500/5 p-6">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-violet-300">
+          Draft a contrast variation
+        </h3>
+        <p className="mt-1 text-xs text-slate-400">
+          Re-ask one bank question as a different type on the same stimulus.
+          The draft goes through the gates and the judge, is revised on their
+          objections, and lands here pending like anything else.
+        </p>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="flex flex-col text-xs text-slate-400">
+            Source question
+            <input
+              value={varSource}
+              onChange={(e) => setVarSource(e.target.value)}
+              className="mt-1 w-32 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm text-slate-200"
+            />
+          </label>
+          <label className="flex flex-col text-xs text-slate-400">
+            Re-ask as
+            <select
+              value={varTarget}
+              onChange={(e) => setVarTarget(e.target.value)}
+              className="mt-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+            >
+              {types.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            onClick={() => void onDraftVariation()}
+            disabled={varBusy || !varTarget}
+            className="rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-500/20 transition disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {varBusy ? 'Drafting and reviewing…' : 'Draft variation'}
+          </button>
+        </div>
+        {varNote && (
+          <p role="status" className="mt-2 text-xs text-slate-300">
+            {varNote}
+          </p>
+        )}
       </div>
 
       <FactoryStatusCard status={factory} />
@@ -687,6 +781,136 @@ export function ProposalCard({
     )
   }
 
+  // Spec 054: a rewrite replaces an existing item in place. Show the reviewer
+  // what the judge objected to, what changed, and both versions side by side.
+  if (proposal.proposal_kind === 'rewrite') {
+    const r = proposal.draft as LsatRewriteProposalDraft
+    const original = proposal.meta?.original_judge ?? null
+    const final = proposal.meta?.final_review ?? null
+    return (
+      <article
+        data-testid="rewrite-proposal-card"
+        className="rounded-xl border border-sky-800/60 bg-slate-950/60 p-4"
+      >
+        <header className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="rounded-md bg-sky-900/60 px-2 py-0.5 font-mono text-sky-300">
+            rewrite
+          </span>
+          <span className="rounded-md bg-slate-800 px-2 py-0.5 font-mono text-slate-300">
+            {r.question_id}
+          </span>
+          <span className="text-slate-400">{proposal.model}</span>
+          {final && <FinalReviewBadge verdict={final} />}
+          <span className="ml-auto font-mono text-slate-600">{proposal.id}</span>
+        </header>
+        <p className="mt-3 text-sm text-slate-200">{r.change_summary}</p>
+        {original && (
+          <div className="mt-2 rounded-md border border-amber-800/60 bg-amber-950/20 px-3 py-2 text-xs text-amber-200">
+            Judge on the original: <span className="font-mono">{original.verdict}</span>
+            {original.key_agrees === false ? ' (blind key disagreed)' : ''}
+            {original.issues.length > 0 && (
+              <ul className="ml-4 mt-1 list-disc">
+                {original.issues.map((i) => (
+                  <li key={i}>{i}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        <div className="mt-3 whitespace-pre-wrap text-sm text-slate-300">{r.stem}</div>
+        <ol className="mt-3 space-y-1 text-sm">
+          {r.choices.map((c) => (
+            <li
+              key={c.label}
+              className={c.label === r.correct ? 'text-emerald-300' : 'text-slate-300'}
+            >
+              <span className="mr-2 font-mono">{c.label}.</span>
+              {c.text}
+            </li>
+          ))}
+        </ol>
+        <details className="mt-3 text-sm text-slate-400">
+          <summary className="cursor-pointer text-slate-300">Explanation</summary>
+          <p className="mt-2 whitespace-pre-wrap">{r.explanation}</p>
+        </details>
+        {proposal.meta?.revisions && <RevisionHistory revisions={proposal.meta.revisions} />}
+        <footer className="mt-4 flex items-center justify-end gap-2">
+          <button
+            onClick={onReject}
+            disabled={busy}
+            className="rounded-md border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+          >
+            Keep original
+          </button>
+          <button
+            onClick={onApprove}
+            disabled={busy}
+            className="rounded-md border border-emerald-700/60 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-900/40 disabled:opacity-50"
+          >
+            Approve &rarr; replace {r.question_id}
+          </button>
+        </footer>
+      </article>
+    )
+  }
+
+  // Spec 054: a type-check row is a disagreement about the question's type.
+  // Approving it restamps the question with the model's read; rejecting it
+  // keeps the stamp. Neither writes a question, so it has its own card.
+  if (proposal.proposal_kind === 'typecheck') {
+    const t = proposal.draft as LsatTypeCheckProposalDraft
+    return (
+      <article
+        data-testid="typecheck-proposal-card"
+        className="rounded-xl border border-violet-800/60 bg-slate-950/60 p-4"
+      >
+        <header className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="rounded-md bg-violet-900/60 px-2 py-0.5 font-mono text-violet-300">
+            type check
+          </span>
+          <span className="rounded-md bg-slate-800 px-2 py-0.5 font-mono text-slate-300">
+            {t.question_id}
+          </span>
+          <span className="text-slate-400">{t.model}</span>
+          <span className="ml-auto font-mono text-slate-600">{proposal.id}</span>
+        </header>
+        <p className="mt-3 text-sm text-slate-300">
+          Stamped <span className="font-mono text-emerald-400">{t.stamped_archetype ?? '—'}</span>
+          ; the model read it as{' '}
+          <span className="font-mono text-amber-300">{t.model_archetype}</span>
+          {t.cue_archetype && t.cue_archetype !== t.stamped_archetype && (
+            <>
+              {' '}
+              (stem cues say <span className="font-mono">{t.cue_archetype}</span>)
+            </>
+          )}
+          .
+        </p>
+        <div className="mt-2 whitespace-pre-wrap text-sm text-slate-400">{t.stem}</div>
+        <details className="mt-3 text-sm text-slate-400">
+          <summary className="cursor-pointer text-slate-300">Model&apos;s reasoning</summary>
+          <p className="mt-2 whitespace-pre-wrap">{t.rationale}</p>
+        </details>
+        <footer className="mt-4 flex items-center justify-end gap-2">
+          <button
+            onClick={onReject}
+            disabled={busy}
+            className="rounded-md border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+          >
+            Keep current stamp
+          </button>
+          <button
+            onClick={onApprove}
+            disabled={busy}
+            className="rounded-md border border-amber-700/60 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-900/40 disabled:opacity-50"
+          >
+            Restamp as {t.model_archetype}
+          </button>
+        </footer>
+      </article>
+    )
+  }
+
   // BL-20260831-21: a cross-check row is a disagreement report, not a draft.
   // Approving it says the key is right; rejecting it says the question needs
   // an edit. Neither writes content, so it gets its own compact card.
@@ -828,6 +1052,20 @@ export function ProposalCard({
         <span className="rounded-md bg-slate-800 px-2 py-0.5 text-slate-300">
           {d.difficulty}
         </span>
+        {proposal.meta?.variation_of && (
+          <span
+            className="rounded-md bg-violet-900/60 px-2 py-0.5 font-mono text-violet-200"
+            title="Contrast variation: same stimulus as the named question, re-asked as a different type"
+          >
+            variation of {proposal.meta.variation_of}
+            {proposal.meta.factory?.archetype_id
+              ? ` → ${String(proposal.meta.factory.archetype_id)}`
+              : ''}
+          </span>
+        )}
+        {proposal.meta?.final_review && (
+          <FinalReviewBadge verdict={proposal.meta.final_review} />
+        )}
         <span className="text-slate-400">
           confidence {(proposal.confidence * 100).toFixed(0)}%
         </span>
@@ -862,6 +1100,9 @@ export function ProposalCard({
         <p className="mt-2 whitespace-pre-wrap">{d.explanation}</p>
       </details>
       {judge && <JudgeVerdictPanel verdict={judge} />}
+      {proposal.meta?.revisions && (
+        <RevisionHistory revisions={proposal.meta.revisions} />
+      )}
       {linkedGuideIds.length > 0 && (
         <p className="mt-3 text-xs text-sky-300">
           {linkedGuideIds.length === 1
@@ -908,5 +1149,87 @@ export function ProposalCard({
         </button>
       </footer>
     </article>
+  )
+}
+
+/**
+ * The author → gates → judge → revise history behind a contrast variation
+ * (spec 054). A reviewer sees what was objected to each round and whether the
+ * final draft was accepted; an unaccepted draft is still here on purpose,
+ * flagged, because a human is the gate — the loop only improves what they see.
+ */
+export function RevisionHistory({
+  revisions,
+}: {
+  revisions: NonNullable<NonNullable<LsatProposal['meta']>['revisions']>
+}) {
+  return (
+    <details
+      data-testid="revision-history"
+      className={
+        'mt-3 rounded-md border px-3 py-2 text-xs ' +
+        (revisions.accepted
+          ? 'border-slate-800 text-slate-400'
+          : 'border-amber-800/60 bg-amber-950/20 text-amber-200')
+      }
+    >
+      <summary className="cursor-pointer">
+        {revisions.rounds.length} drafting round{revisions.rounds.length === 1 ? '' : 's'} ·{' '}
+        {revisions.accepted ? 'accepted by the gates and the judge' : 'NOT accepted — cap reached'}
+      </summary>
+      <ol className="mt-2 space-y-2">
+        {revisions.rounds.map((r) => (
+          <li key={r.round}>
+            <span className="font-mono text-slate-300">round {r.round}</span>{' '}
+            <span className="text-slate-500">{r.model}</span>
+            {r.accepted && <span className="ml-1 text-emerald-300">✓</span>}
+            {r.gate_issues.length > 0 && (
+              <ul className="ml-4 list-disc text-slate-400">
+                {r.gate_issues.map((g) => (
+                  <li key={g}>gate: {g}</li>
+                ))}
+              </ul>
+            )}
+            {r.judge && (
+              <div className="ml-4 text-slate-400">
+                judge: {r.judge.verdict}
+                {r.judge.key_agrees === false ? ' (blind key disagrees)' : ''}
+                {r.judge.issues.length > 0 ? ` — ${r.judge.issues.join(' · ')}` : ''}
+              </div>
+            )}
+          </li>
+        ))}
+      </ol>
+    </details>
+  )
+}
+
+/**
+ * The final reviewer's verdict (spec 054: Fable, a different model from the
+ * judge inside the loop). A `fail` here left the draft filed but unaccepted;
+ * it is the last independent read before a human decides.
+ */
+export function FinalReviewBadge({
+  verdict,
+}: {
+  verdict: LsatJudgeVerdict & { role?: string }
+}) {
+  const cls =
+    verdict.verdict === 'pass'
+      ? 'bg-emerald-900/60 text-emerald-300'
+      : verdict.verdict === 'flag'
+        ? 'bg-amber-900/60 text-amber-200'
+        : 'bg-red-900/60 text-red-300'
+  return (
+    <span
+      data-testid="final-review-badge"
+      className={'rounded-md px-2 py-0.5 font-mono ' + cls}
+      title={
+        `Final review (${verdict.model}): ${verdict.verdict}` +
+        (verdict.issues.length ? ` — ${verdict.issues.join(' · ')}` : '')
+      }
+    >
+      final review: {verdict.verdict}
+    </span>
   )
 }

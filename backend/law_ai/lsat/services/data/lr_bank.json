@@ -40,7 +40,8 @@
           "url": "https://www.khanacademy.org/prep/lsat/lsat-lessons/logical-reasoning/x60ba31fe60ad9ad8:parallel-reasoning/v/parallel-reasoning-1"
         }
       ],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-parallel-reasoning"
     },
     {
       "id": "lr-002",
@@ -83,7 +84,8 @@
           "url": "https://www.powerscore.com/lsat/help/content_diagrams.cfm"
         }
       ],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-weaken"
     },
     {
       "id": "lr-003",
@@ -125,7 +127,8 @@
           "url": "https://plato.stanford.edu/entries/logic-classical/"
         }
       ],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-contrapositive-inference"
     },
     {
       "id": "lr-004",
@@ -167,7 +170,8 @@
           "url": "https://7sage.com/lesson/lr-flaw-question-types/"
         }
       ],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-equivocation"
     },
     {
       "id": "lr-005",
@@ -209,7 +213,8 @@
           "url": "https://www.khanacademy.org/prep/lsat/lsat-lessons/logical-reasoning"
         }
       ],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-causal-flaw"
     },
     {
       "id": "lr-006",
@@ -246,7 +251,8 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-appeal-to-ignorance"
     },
     {
       "id": "lr-007",
@@ -288,7 +294,8 @@
           "url": "https://7sage.com/lesson/lr-necessary-assumption/"
         }
       ],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-necessary-assumption"
     },
     {
       "id": "lr-008",
@@ -325,7 +332,8 @@
         "causation-vs-correlation"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-strengthen"
     },
     {
       "id": "lr-009",
@@ -362,7 +370,8 @@
         "contrapositive"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-contrapositive-inference"
     },
     {
       "id": "lr-010",
@@ -399,7 +408,8 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-flaw-general"
     },
     {
       "id": "lr-011",
@@ -441,7 +451,8 @@
           "url": "https://7sage.com/lesson/lr-sufficient-assumption/"
         }
       ],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-sufficient-assumption"
     },
     {
       "id": "lr-012",
@@ -478,7 +489,8 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-conditional-inference"
     },
     {
       "id": "lr-013",
@@ -521,7 +533,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-conditional-inference"
     },
     {
       "id": "lr-014",
@@ -564,7 +577,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-conditional-inference"
     },
     {
       "id": "lr-015",
@@ -607,7 +621,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-conditional-inference"
     },
     {
       "id": "lr-016",
@@ -650,7 +665,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-conditional-inference"
     },
     {
       "id": "lr-017",
@@ -694,7 +710,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-contrapositive-inference"
     },
     {
       "id": "lr-018",
@@ -738,7 +755,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-contrapositive-inference"
     },
     {
       "id": "lr-019",
@@ -781,7 +799,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-appeal-to-ignorance"
     },
     {
       "id": "lr-020",
@@ -824,7 +843,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-appeal-to-ignorance"
     },
     {
       "id": "lr-021",
@@ -868,7 +888,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-must-be-true"
     },
     {
       "id": "lr-022",
@@ -910,7 +931,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-main-conclusion"
     },
     {
       "id": "lr-023",
@@ -953,7 +975,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-appeal-to-ignorance"
     },
     {
       "id": "lr-024",
@@ -996,7 +1019,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-appeal-to-ignorance"
     },
     {
       "id": "lr-025",
@@ -1039,7 +1063,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-principle-apply"
     },
     {
       "id": "lr-026",
@@ -1083,7 +1108,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-contrapositive-inference"
     },
     {
       "id": "lr-027",
@@ -1127,7 +1153,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-contrapositive-inference"
     },
     {
       "id": "lr-028",
@@ -1169,7 +1196,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-main-conclusion"
     },
     {
       "id": "lr-029",
@@ -1211,7 +1239,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-main-conclusion"
     },
     {
       "id": "lr-030",
@@ -1255,7 +1284,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-causal-flaw"
     },
     {
       "id": "lr-031",
@@ -1299,7 +1329,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-causal-flaw"
     },
     {
       "id": "lr-032",
@@ -1342,7 +1373,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-principle-apply"
     },
     {
       "id": "lr-033",
@@ -1385,7 +1417,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-principle-apply"
     },
     {
       "id": "lr-034",
@@ -1427,7 +1460,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-main-conclusion"
     },
     {
       "id": "lr-035",
@@ -1471,7 +1505,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-sufficient-assumption"
     },
     {
       "id": "lr-036",
@@ -1515,7 +1550,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-weaken"
     },
     {
       "id": "lr-037",
@@ -1559,7 +1595,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-causal-flaw"
     },
     {
       "id": "lr-038",
@@ -1603,7 +1640,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-causal-flaw"
     },
     {
       "id": "lr-039",
@@ -1646,7 +1684,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-principle-apply"
     },
     {
       "id": "lr-040",
@@ -1690,7 +1729,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-contrapositive-inference"
     },
     {
       "id": "lr-041",
@@ -1734,7 +1774,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-sufficient-assumption"
     },
     {
       "id": "lr-042",
@@ -1778,7 +1819,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-sufficient-assumption"
     },
     {
       "id": "lr-043",
@@ -1822,7 +1864,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-strengthen"
     },
     {
       "id": "lr-044",
@@ -1866,7 +1909,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-strengthen"
     },
     {
       "id": "lr-045",
@@ -1910,7 +1954,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-strengthen"
     },
     {
       "id": "lr-046",
@@ -1954,7 +1999,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-weaken"
     },
     {
       "id": "lr-047",
@@ -1998,7 +2044,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-weaken"
     },
     {
       "id": "lr-048",
@@ -2042,7 +2089,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-causal-flaw"
     },
     {
       "id": "lr-049",
@@ -2085,7 +2133,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-equivocation"
     },
     {
       "id": "lr-050",
@@ -2128,7 +2177,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-equivocation"
     },
     {
       "id": "lr-051",
@@ -2171,7 +2221,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-resolve-paradox"
     },
     {
       "id": "lr-052",
@@ -2214,7 +2265,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-resolve-paradox"
     },
     {
       "id": "lr-053",
@@ -2257,7 +2309,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-weaken"
     },
     {
       "id": "lr-054",
@@ -2300,7 +2353,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-equivocation"
     },
     {
       "id": "lr-055",
@@ -2343,7 +2397,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-resolve-paradox"
     },
     {
       "id": "lr-056",
@@ -2386,7 +2441,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-necessary-assumption"
     },
     {
       "id": "lr-057",
@@ -2429,7 +2485,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-strengthen"
     },
     {
       "id": "lr-058",
@@ -2472,7 +2529,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-flaw-general"
     },
     {
       "id": "lr-059",
@@ -2515,7 +2573,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-equivocation"
     },
     {
       "id": "lr-060",
@@ -2559,7 +2618,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-parallel-reasoning"
     },
     {
       "id": "lr-061",
@@ -2603,7 +2663,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-parallel-reasoning"
     },
     {
       "id": "lr-062",
@@ -2647,7 +2708,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-parallel-flaw"
     },
     {
       "id": "lr-063",
@@ -2691,7 +2753,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-parallel-flaw"
     },
     {
       "id": "lr-064",
@@ -2734,7 +2797,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-resolve-paradox"
     },
     {
       "id": "lr-065",
@@ -2776,7 +2840,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-method-of-reasoning"
     },
     {
       "id": "lr-066",
@@ -2820,7 +2885,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-necessary-assumption"
     },
     {
       "id": "lr-067",
@@ -2863,7 +2929,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-equivocation"
     },
     {
       "id": "lr-068",
@@ -2906,7 +2973,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-parallel-flaw"
     },
     {
       "id": "lr-069",
@@ -2950,7 +3018,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-method-of-reasoning"
     },
     {
       "id": "lr-070",
@@ -2993,7 +3062,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lr-necessary-assumption"
     },
     {
       "id": "lr-071",
@@ -3030,7 +3100,8 @@
         "method-of-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-point-at-issue"
     },
     {
       "id": "lr-072",
@@ -3067,7 +3138,8 @@
         "main-conclusion"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-role-of-claim"
     },
     {
       "id": "lr-073",
@@ -3104,7 +3176,8 @@
         "must-be-true"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-most-strongly-supported"
     },
     {
       "id": "lr-074",
@@ -3141,7 +3214,8 @@
         "contrapositive"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-cannot-be-true"
     },
     {
       "id": "lr-075",
@@ -3178,7 +3252,8 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-evaluate-argument"
     },
     {
       "id": "lr-076",
@@ -3215,7 +3290,8 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-complete-the-argument"
     },
     {
       "id": "lr-077",
@@ -3252,7 +3328,8 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-percent-vs-number"
     },
     {
       "id": "lr-078",
@@ -3289,7 +3366,8 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-sampling-flaw"
     },
     {
       "id": "lr-079",
@@ -3326,7 +3404,8 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-circular-reasoning"
     },
     {
       "id": "lr-080",
@@ -3363,7 +3442,8 @@
         "method-of-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-point-at-issue"
     },
     {
       "id": "lr-081",
@@ -3400,7 +3480,8 @@
         "causation-vs-correlation"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-evaluate-argument"
     },
     {
       "id": "lr-082",
@@ -3437,7 +3518,8 @@
         "main-conclusion"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-role-of-claim"
     },
     {
       "id": "lr-083",
@@ -3474,7 +3556,8 @@
         "must-be-true"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-most-strongly-supported"
     },
     {
       "id": "lr-084",
@@ -3511,7 +3594,8 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-cannot-be-true"
     },
     {
       "id": "lr-085",
@@ -3548,7 +3632,8 @@
         "must-be-true"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-complete-the-argument"
     },
     {
       "id": "lr-086",
@@ -3585,7 +3670,8 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-percent-vs-number"
     },
     {
       "id": "lr-087",
@@ -3622,7 +3708,8 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-sampling-flaw"
     },
     {
       "id": "lr-088",
@@ -3659,7 +3746,8 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-circular-reasoning"
     },
     {
       "id": "lr-089",
@@ -3696,7 +3784,8 @@
         "must-be-true"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-must-be-true"
     },
     {
       "id": "lr-090",
@@ -3733,7 +3822,8 @@
         "role-of-claim"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-main-conclusion"
     },
     {
       "id": "lr-091",
@@ -3770,7 +3860,8 @@
         "warrant"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-necessary-assumption"
     },
     {
       "id": "lr-092",
@@ -3807,7 +3898,8 @@
         "alternative-cause"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-weaken"
     },
     {
       "id": "lr-093",
@@ -3844,7 +3936,8 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-parallel-reasoning"
     },
     {
       "id": "lr-094",
@@ -3881,7 +3974,8 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-principle-apply"
     },
     {
       "id": "lr-095",
@@ -3918,7 +4012,8 @@
         "flaw-in-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-flaw-general"
     },
     {
       "id": "lr-096",
@@ -3955,7 +4050,129 @@
         "causation-vs-correlation"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lr-strengthen"
+    },
+    {
+      "id": "lr-097",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "med",
+      "stem": "City planner: Building a light-rail line will reduce traffic congestion downtown, because every comparable city that built one saw congestion fall within five years.\n\nWhich one of the following, if true, most strengthens the planner's argument?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "In the five years after their light-rail lines opened, the comparable cities adopted no other measures aimed at reducing downtown traffic."
+        },
+        {
+          "label": "B",
+          "text": "Light-rail construction in the comparable cities was completed ahead of schedule."
+        },
+        {
+          "label": "C",
+          "text": "A majority of downtown business owners in the planner's city favor the light-rail proposal."
+        },
+        {
+          "label": "D",
+          "text": "In the comparable cities, congestion fell more sharply in outlying neighborhoods than downtown."
+        },
+        {
+          "label": "E",
+          "text": "The proposed line will cost less per mile than any of the comparable cities' lines."
+        }
+      ],
+      "correct": "A",
+      "explanation": "The argument infers that light rail caused the congestion drop from the fact that the two went together in comparable cities. A strengthens it by ruling out the most natural alternative explanation: if nothing else was done about traffic, the rail line is the likeliest cause. B (schedule), C (popularity) and E (cost) do not bear on whether rail reduces congestion. D, if anything, weakens: the effect showed up where the line was not.",
+      "concepts": [
+        "strengthen",
+        "causation-vs-correlation",
+        "alternative-cause"
+      ],
+      "references": [],
+      "source": "original (CC0)",
+      "archetype": "lr-strengthen",
+      "variation_of": "lr-002",
+      "contrast_note": "Same argument as the Weaken version. There, the key supplied an alternative cause for the congestion drop (a second policy enacted at the same time). Here the task is reversed, so the key does the reverse job: it rules alternative causes out. Notice that the cost and popularity choices are wrong in both directions, because neither touches the causal link the argument rests on."
+    },
+    {
+      "id": "lr-098",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "med",
+      "stem": "City planner: Building a light-rail line will reduce traffic congestion downtown, because every comparable city that built one saw congestion fall within five years.\n\nThe planner's argument depends on assuming which one of the following?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "Light rail is the most cost-effective way for a city to reduce downtown congestion."
+        },
+        {
+          "label": "B",
+          "text": "The fall in congestion in the comparable cities was not entirely due to factors unrelated to their light-rail lines."
+        },
+        {
+          "label": "C",
+          "text": "Every city that builds a light-rail line sees downtown congestion fall within five years."
+        },
+        {
+          "label": "D",
+          "text": "Downtown congestion in the planner's city has been increasing for at least five years."
+        },
+        {
+          "label": "E",
+          "text": "Residents of the comparable cities preferred light rail to expanded bus service."
+        }
+      ],
+      "correct": "B",
+      "explanation": "The argument moves from 'congestion fell after rail was built' to 'rail will reduce congestion', which needs the drop to have had something to do with the rail. Negate B — the drop was entirely due to unrelated factors — and the argument collapses, so B is required. A and C are stronger than the argument needs (it never claims rail is best, or that the effect is universal). D and E are outside the argument's scope.",
+      "concepts": [
+        "necessary-assumption",
+        "causation-vs-correlation"
+      ],
+      "references": [],
+      "source": "original (CC0)",
+      "archetype": "lr-necessary-assumption",
+      "variation_of": "lr-002",
+      "contrast_note": "Same argument as the Weaken and Strengthen versions, now asked for what it silently relies on. The Weaken key attacked the causal link with a rival cause; the necessary assumption is the modest denial of exactly that attack — rival causes did not do all the work. The two 'too strong' choices here would be fine Strengthen answers, which is the trap: a claim that would help an argument is not thereby one it needs."
+    },
+    {
+      "id": "lr-099",
+      "section": "LR",
+      "type": "LR",
+      "difficulty": "hard",
+      "stem": "Lawyer: To win the appeal, the defendant must show either that the trial court misapplied the statute or that the jury was improperly instructed. The trial court did not misapply the statute. So if the defendant wins the appeal, then the jury was improperly instructed.\n\nThe conclusion follows logically if which one of the following is assumed?",
+      "choices": [
+        {
+          "label": "A",
+          "text": "A defendant can show that a trial court misapplied a statute only if the court in fact did so."
+        },
+        {
+          "label": "B",
+          "text": "If a trial court misapplies a statute, the defendant will be able to show that it did."
+        },
+        {
+          "label": "C",
+          "text": "The defendant will win the appeal."
+        },
+        {
+          "label": "D",
+          "text": "The jury was improperly instructed."
+        },
+        {
+          "label": "E",
+          "text": "An appeal cannot be won on the ground of improper jury instruction alone."
+        }
+      ],
+      "correct": "A",
+      "explanation": "The premises say winning requires showing one of two things, and that the court did not misapply the statute. The gap is between the court not misapplying the statute and the defendant being unable to show that it did. A closes it: no misapplication means no showing of one, so the only route left is the jury instruction. B bridges the wrong direction. C and D merely assert parts of the conclusion. E contradicts the premises.",
+      "concepts": [
+        "sufficient-assumption",
+        "conditional-reasoning"
+      ],
+      "references": [],
+      "source": "original (CC0)",
+      "archetype": "lr-sufficient-assumption",
+      "variation_of": "lr-007",
+      "contrast_note": "Same argument as the Necessary Assumption version. That task asked for the modest claim the argument cannot do without (that the two listed grounds are the only grounds). This task asks for a claim strong enough to guarantee the conclusion, so the key is a conditional that bridges the actual gap between 'the court did not misapply the statute' and 'the defendant cannot show that it did'. The reversed conditional is the planted trap: it links the same two terms in the direction that proves nothing."
     }
   ]
 }

@@ -16,6 +16,7 @@
 	lsat-library-audit lsat-library-review \
 	lsat-synth-list lsat-synth-preview lsat-synth-generate lsat-synth-sweep \
 	lsat-synth-polish-yield lsat-synth-calibrate lsat-cross-check-sweep \
+	lsat-contrast-sweep lsat-type-review lsat-question-review \
 	legal-analyst-demo host-setup host-test reset-db clean
 
 # =============================================================================
@@ -105,6 +106,9 @@ help:
 	@echo "  make lsat-library-audit  - Deterministic knowledge-library health report (no LLM)"
 	@echo "  make lsat-cross-check-sweep - Blind-solve unchecked questions; disagreements to the HITL queue"
 	@echo "  make lsat-library-review - HITL-gated LSATLibrarian review pass over the library"
+	@echo "  make lsat-contrast-sweep - Draft contrast variations (same stimulus, new type) through the judge/revise loop into the HITL queue"
+	@echo "  make lsat-type-review    - Blind-read question types; disagreements with the stamp to the HITL queue"
+	@echo "  make lsat-question-review - Judge every bank item; rewrite the ones the judge objects to, into the HITL queue (Fable final review)"
 	@echo "  make lsat-synth-list     - Schemas and domain packs the synthesis engine ships"
 	@echo "  make lsat-synth-sweep    - Generate across every schema x domain and verify each"
 	@echo "  make lsat-synth-polish-yield - Measure the polish prompt's yield (calls the provider chain)"
@@ -745,6 +749,17 @@ lsat-synth-calibrate:
 # full service (credentials); --limit defaults to 5 to cap the spend.
 lsat-cross-check-sweep:
 	$(RUN_BACKEND_FULL) python manage.py lsat_cross_check_sweep $(ARGS)
+
+# Spec 054. Same shape as the cross-check sweep: a budget cap, dry-run, and
+# every result files into the HITL queue rather than the bank.
+lsat-contrast-sweep:
+	$(RUN_BACKEND_FULL) python manage.py lsat_contrast_sweep $(ARGS)
+
+lsat-type-review:
+	$(RUN_BACKEND_FULL) python manage.py lsat_type_review_sweep $(ARGS)
+
+lsat-question-review:
+	$(RUN_BACKEND_FULL) python manage.py lsat_question_review_sweep $(ARGS)
 
 lsat-library-audit:
 	$(RUN_BACKEND) python manage.py lsat_library audit $(ARGS)

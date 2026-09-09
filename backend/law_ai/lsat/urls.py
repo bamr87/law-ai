@@ -49,6 +49,22 @@ from law_ai.lsat.services.shuffle import (
     to_display,
 )
 from law_ai.lsat.services.ocr_intake import IngestScanRequest, ingest_scan
+from law_ai.lsat.services.playbooks import (
+    diagnosis_options,
+    grade_diagnosis,
+    load_playbooks,
+    load_strategies,
+    load_traps,
+    playbooks_for_section,
+    public_playbook_view,
+)
+from law_ai.lsat.factory.taxonomy import get_archetype
+from law_ai.lsat.services.contrast import (
+    VariationResult,
+    draft_variation,
+    public_contrast_view,
+)
+from law_ai.lsat.services.rewrite import ReviewResult, review_question
 from law_ai.lsat.services.library import (
     articles_teaching,
     inbound_links,
@@ -277,6 +293,9 @@ class QuestionsView(_Base):
         # ``concepts`` since the bank shipped; this is the filter that lets a
         # tag link straight through to practice.
         concept = request.query_params.get("concept")
+        # Spec 053 FR-9: a playbook's "drill this type" link filters by the
+        # archetype stamp, which every bank item carries since the backfill.
+        archetype = request.query_params.get("archetype")
         bank = load_bank()
         pool = [
             q
@@ -285,6 +304,7 @@ class QuestionsView(_Base):
             and (section is None or q.section == section)
             and (passage_id is None or q.passage_id == passage_id)
             and (concept is None or concept in q.concepts)
+            and (archetype is None or q.archetype == archetype)
         ]
         if not pool:
             return Response({"questions": [], "count": 0})
@@ -459,6 +479,296 @@ class GradeView(_Base):
         return Response(body.model_dump())
 
 
+class _DiagnoseRequest(BaseModel):
+    """The learner's call on a question's type and strategy (spec 053 FR-5)."""
+
+    archetype_id: str = Field(max_length=64)
+    strategy_id: str | None = Field(default=None, max_length=64)
+
+
+class DiagnoseView(_Base):
+    """``/api/lsat/questions/<id>/diagnose`` — the type-recognition exercise.
+
+    ``GET`` deals the prompt: candidate question types and strategies for this
+    item, the key among them, nothing marking which (spec 053 FR-4). ``POST``
+    marks the learner's call and returns the playbook as feedback (FR-5/FR-6):
+    the cue in the stem that gives the type away, the task, the method, and
+    the traps. Every diagnosis writes an ``lsat_diagnose`` audit event; a
+    signed-in learner also gets a durable row so the stats surface can report
+    which types they misread and which pairs they swap (FR-7).
+    """
+
+    def get(
+        self, request: Request, question_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        q = load_bank().get(question_id)
+        if q is None:
+            raise Http404("question not found")
+        try:
+            prompt = diagnosis_options(q)
+        except ValueError:
+            return Response(
+                {"detail": "this question has no recognised type yet"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(prompt.model_dump())
+
+    def post(
+        self, request: Request, question_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        try:
+            req = _DiagnoseRequest.model_validate(request.data)
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        q = load_bank().get(question_id)
+        if q is None:
+            raise Http404("question not found")
+        if req.archetype_id not in load_playbooks():
+            return Response(
+                {"detail": f"unknown question type {req.archetype_id!r}"},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        if req.strategy_id is not None and req.strategy_id not in load_strategies():
+            return Response(
+                {"detail": f"unknown strategy {req.strategy_id!r}"},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        try:
+            result = grade_diagnosis(
+                q, chosen_archetype=req.archetype_id, chosen_strategy=req.strategy_id
+            )
+        except ValueError:
+            return Response(
+                {"detail": "this question has no recognised type yet"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            audit_store.record(
+                {
+                    "type": "lsat_diagnose",
+                    "question_id": q.id,
+                    "section": q.section,
+                    "archetype_id": result.archetype_id,
+                    "chosen_archetype": result.chosen_archetype,
+                    "archetype_correct": result.archetype_correct,
+                    "family_correct": result.family_correct,
+                    "chosen_strategy": result.chosen_strategy,
+                    "strategy_correct": result.strategy_correct,
+                }
+            )
+        except Exception:
+            logger.warning("audit_store.record failed for lsat_diagnose", exc_info=True)
+        if is_signed_in(request):
+            attempts_store.record_diagnosis_attempt(
+                request.user,
+                question_id=q.id,
+                section=q.section,
+                archetype_id=result.archetype_id,
+                chosen_archetype=result.chosen_archetype,
+                archetype_correct=result.archetype_correct,
+                family_correct=result.family_correct,
+                chosen_strategy=result.chosen_strategy,
+                strategy_correct=result.strategy_correct,
+            )
+        return Response(result.model_dump())
+
+
+class PlaybooksView(_Base):
+    """``GET /api/lsat/playbooks?section=`` — every question type's playbook.
+
+    Spec 053 FR-8: the reference half of the exercise. Returns the playbooks
+    (optionally one section's) together with the shared strategy and trap
+    catalogs so a client can render the whole pattern library offline.
+    """
+
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        section = request.query_params.get("section")
+        if section is not None and section not in ("LR", "RC", "LG"):
+            return Response(
+                {"detail": "section must be LR, RC or LG"},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        books = playbooks_for_section(section)  # type: ignore[arg-type]
+        return Response(
+            {
+                "playbooks": books,
+                "count": len(books),
+                "strategies": [s.model_dump() for s in load_strategies().values()],
+                "traps": [t.model_dump() for t in load_traps().values()],
+            }
+        )
+
+
+class PlaybookDetailView(_Base):
+    """``GET /api/lsat/playbooks/<archetype_id>`` — one type, with where to study it.
+
+    Adds ``taught_in`` (library articles whose frontmatter names the archetype)
+    and ``question_count`` (stamped bank items) so the page can send the
+    learner to the article that teaches the pattern and the drill that uses it.
+    """
+
+    def get(
+        self, request: Request, archetype_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        book = load_playbooks().get(archetype_id)
+        if book is None:
+            raise Http404("playbook not found")
+        body = public_playbook_view(book)
+        library = load_library()
+        body["taught_in"] = [
+            {"id": a.id, "title": a.title, "kind": a.kind}
+            for a in sorted(library.values(), key=lambda a: a.id)
+            if archetype_id in a.archetypes
+        ]
+        body["question_count"] = sum(
+            1 for q in load_bank().values() if q.archetype == archetype_id
+        )
+        body["difficulty_weights"] = dict(
+            get_archetype(archetype_id).difficulty_weights
+        )
+        return Response(body)
+
+
+class ContrastView(_Base):
+    """``GET /api/lsat/questions/<id>/contrast`` — the question's contrast set (spec 054).
+
+    The root and every variation of it: same stimulus, different type, with
+    each member's task so a learner sees how the question changes. The
+    ``contrast_note`` says where the keys move, so it is withheld unless
+    ``?spoilers=1``, which the client sends only after grading.
+    """
+
+    def get(
+        self, request: Request, question_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        try:
+            body = public_contrast_view(
+                question_id,
+                include_spoilers=request.query_params.get("spoilers") in ("1", "true"),
+            )
+        except KeyError:
+            raise Http404("question not found") from None
+        return Response(body)
+
+
+class _VariationRequest(BaseModel):
+    target_archetype_id: str = Field(max_length=64)
+    max_rounds: int = Field(default=3, ge=1, le=5)
+    use_judge: bool = True
+
+
+class VariationDraftView(_Base):
+    """``POST /api/lsat/questions/<id>/variations`` — draft one contrast variation.
+
+    Runs ``LSATContrastAuthor`` through the gates → ``LSATDraftJudge`` → revise
+    loop and files the result as a pending ``question`` proposal for the
+    Authoring tab (spec 054 FR-5/FR-6). Returns 503 when no provider answered:
+    a degraded run files nothing, because an offline placeholder is not a
+    variation. The only LSAT authoring endpoint besides generate that invokes
+    a model, so it shares the ``llm`` throttle scope.
+    """
+
+    throttle_classes = [ScopedActorRateThrottle]
+    throttle_scope = "llm"
+
+    def post(
+        self, request: Request, question_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        try:
+            req = _VariationRequest.model_validate(request.data)
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        if question_id not in load_bank():
+            raise Http404("question not found")
+        if req.target_archetype_id not in load_playbooks():
+            return Response(
+                {"detail": f"unknown question type {req.target_archetype_id!r}"},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        result: VariationResult = async_to_sync(draft_variation)(
+            question_id,
+            req.target_archetype_id,
+            max_rounds=req.max_rounds,
+            use_judge=req.use_judge,
+        )
+        if result.proposal_id is None:
+            return Response(
+                {
+                    "detail": "no provider answered; nothing was drafted",
+                    **result.model_dump(),
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(result.model_dump(), status=status.HTTP_202_ACCEPTED)
+
+
+class _ReviewRequest(BaseModel):
+    max_rounds: int = Field(default=3, ge=1, le=5)
+    refresh: bool = False
+
+
+class QuestionReviewView(_Base):
+    """``POST /api/lsat/questions/<id>/review`` — judge one bank item; rewrite if needed.
+
+    Spec 054 FR-11. The judge attacks the item as it stands; a clean verdict
+    records that and files nothing, an objection sends the item through
+    ``LSATQuestionEditor`` → gates → judge → final review and files the
+    rewrite as a pending ``rewrite`` proposal for a human. Shares the ``llm``
+    throttle scope.
+    """
+
+    throttle_classes = [ScopedActorRateThrottle]
+    throttle_scope = "llm"
+
+    def post(
+        self, request: Request, question_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        try:
+            req = _ReviewRequest.model_validate(request.data)
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.errors()}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        if question_id not in load_bank():
+            raise Http404("question not found")
+        result: ReviewResult = async_to_sync(review_question)(
+            question_id, max_rounds=req.max_rounds, refresh=req.refresh
+        )
+        if result.degraded:
+            return Response(
+                {"detail": "no provider answered", **result.model_dump()},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(result.model_dump(), status=status.HTTP_202_ACCEPTED)
+
+
+def _fold_diagnosis(
+    request: Any,
+    body: dict[str, Any],
+    section: str | None,
+    events: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Add type-recognition practice to a stats payload (spec 053 FR-7).
+
+    Two readings like the rest of the surface: a signed-in learner's rows out
+    of :class:`~law_ai.lsat.models.LsatDiagnosisAttempt`, everyone else the
+    ``lsat_diagnose`` events in the audit tail. Same shape either way.
+    """
+    out = dict(body)
+    if is_signed_in(request):
+        out["diagnosis"] = attempts_store.diagnosis_stats(request.user, section=section)
+        return out
+    rows = [e for e in events if e.get("type") == "lsat_diagnose"]
+    if section:
+        rows = [e for e in rows if e.get("section") == section]
+    out["diagnosis"] = attempts_store.diagnosis_summary(rows)
+    return out
+
+
 def _fold_reading(
     request: Any,
     body: dict[str, Any],
@@ -628,6 +938,7 @@ def _fold_extras(
         events = audit_store.tail(10_000)
     folded = _fold_reading(request, body, section, events)
     folded = _fold_hints(folded, section, events)
+    folded = _fold_diagnosis(request, folded, section, events)
     return _fold_writing(folded, section, events, request)
 
 
@@ -1481,6 +1792,10 @@ class ProposalApproveView(_Base):
             "guide": proposals_store.promote_guide_to_bank,
             "crosscheck": proposals_store.promote_crosscheck,
             "writing_prompt": proposals_store.promote_writing_prompt,
+            # Spec 054: approving a type check restamps the question; approving
+            # a rewrite replaces the item in place.
+            "typecheck": proposals_store.promote_typecheck,
+            "rewrite": proposals_store.promote_rewrite,
         }
         promote = promoters.get(
             str(existing.get("proposal_kind") or ""),
@@ -1711,6 +2026,33 @@ urlpatterns = [
         "questions/<str:question_id>/cross-check",
         CrossCheckView.as_view(),
         name="lsat-question-cross-check",
+    ),
+    # Spec 053: type-recognition exercise + the playbook reference behind it.
+    path(
+        "questions/<str:question_id>/diagnose",
+        DiagnoseView.as_view(),
+        name="lsat-question-diagnose",
+    ),
+    path(
+        "questions/<str:question_id>/contrast",
+        ContrastView.as_view(),
+        name="lsat-question-contrast",
+    ),
+    path(
+        "questions/<str:question_id>/variations",
+        VariationDraftView.as_view(),
+        name="lsat-question-variations",
+    ),
+    path(
+        "questions/<str:question_id>/review",
+        QuestionReviewView.as_view(),
+        name="lsat-question-review",
+    ),
+    path("playbooks", PlaybooksView.as_view(), name="lsat-playbooks"),
+    path(
+        "playbooks/<str:archetype_id>",
+        PlaybookDetailView.as_view(),
+        name="lsat-playbook-detail",
     ),
     path("validation", ValidationView.as_view(), name="lsat-validation"),
     # Knowledge library (spec 048). Static segments precede the catch-all id
