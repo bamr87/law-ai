@@ -2399,3 +2399,36 @@ kbd {
     display: block;
   }
 }
+
+
+/* ---- Playbook chip (spec 053 / #126) ----------------------------------- */
+.playbook-chip {
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid color-mix(in oklab, var(--accent, #eab308) 35%, transparent);
+  border-radius: 0.5rem;
+  background: color-mix(in oklab, var(--accent, #eab308) 8%, transparent);
+  font-size: 0.9rem;
+}
+.playbook-chip summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+.playbook-chip summary::-webkit-details-marker { display: none; }
+.playbook-chip-family {
+  margin-left: 0.5rem;
+  font-weight: 500;
+  opacity: 0.75;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.playbook-chip-task { margin: 0.5rem 0 0.35rem; }
+.playbook-chip-meta { margin: 0.25rem 0 0; opacity: 0.9; }
+.playbook-chip-locked { font-style: italic; opacity: 0.75; }
+.playbook-source {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}

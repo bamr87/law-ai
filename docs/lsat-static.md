@@ -4,6 +4,27 @@ The LSAT module ships to learners through two surfaces. The platform Lab (`front
 
 This document is the architecture-level description of that channel: what the app is, how content reaches it, what gates it, and which specs shaped it. The operator quickstart (local dev, npm scripts, deliberate divergences, the bundle-shard trigger) lives in [lsat-static/README.md](../lsat-static/README.md) and is not repeated here.
 
+
+
+## Question-type playbooks (spec 053 / #126)
+
+`content.json` schema **v4** adds a `playbooks` block:
+
+```json
+{
+  "playbooks": {
+    "strategies": [{ "id", "name", "sections", "summary" }],
+    "traps": [{ "id", "name", "summary" }],
+    "items": [{ "archetype_id", "name", "section", "family", "cues", "task", "strategies", "method", "traps", "confused_with" }]
+  }
+}
+```
+
+- **Source of truth:** `backend/law_ai/lsat/services/data/playbooks.json` via `public_playbook_view`.
+- **Not exported:** raw `cue_patterns` (classifier-only). The static site looks up playbooks by stamped `Question.archetype`.
+- **UI:** `SolveAssist` shows a playbook chip when an item guide exists; when no guide, it seeds the hint carousel from the playbook method (trap list stays spoiler-locked until graded).
+- **Still lab-only:** Diagnose-first (`DiagnoseStep`) and `/lsat/playbooks` browser — those need the API exercise.
+
 ## Status: this replaced the buildless site of spec 025
 
 [Spec 025](../specs/025-lsat-static-site/spec.md) shipped a hand-rolled, deliberately buildless app at `frontend/public/lsat-practice/` — three files (`index.html`, `styles.css`, `app.js`) deployed verbatim, with "must stay buildless" as an explicit non-goal-of-change. That directory no longer exists. It was rebuilt as the Next.js static export under `lsat-static/`, and spec 025's spec/plan/tasks are kept as the historical record of the first delivery, marked superseded, with this document as the current description (BL-20260716-11).

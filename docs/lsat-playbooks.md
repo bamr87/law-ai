@@ -68,3 +68,8 @@ The stamps themselves are checked by `LSATTypeReviewer`, which reads each item b
 ## Judge-driven rewrites and the Fable final review (spec 054)
 
 `make lsat-question-review ARGS='--section LR --limit 10'` asks `LSATDraftJudge` to attack each bank item as it stands. A clean verdict is cached and nothing is filed. An objection sends the item to `LSATQuestionEditor`, which makes the minimal rewrite that answers it; `validate_rewrite` (`backend/law_ai/lsat/services/rewrite.py`) refuses a type change and, for a contrast-set member, any change to the shared stimulus; the judge attacks the rewrite; and the loop repeats up to the cap. Every accepted draft — variations and rewrites alike — then gets one independent verdict from the final-review model, Fable by default (`LSAT_FINAL_REVIEW_MODEL`, both Claude tiers pinned); a `fail` there files the draft unaccepted, a `flag` is a reservation shown on the card. On the Authoring tab a rewrite card shows the judge's original objections, the change summary, both versions, the revision history and the final-review badge; "Approve → replace lr-NNN" rewrites the item in place with an editorial review record, "Keep original" closes the row. `POST /api/lsat/questions/<id>/review` runs the same loop for one item.
+
+
+## Static edition (#126)
+
+As of schema v4, `make lsat-export` ships learner-facing playbooks into `lsat-static/content.json` (strategies, traps, and `public_playbook_view` items — **without** `cue_patterns`). The offline site uses stamped `Question.archetype` for lookup; Diagnose-first remains lab-only.

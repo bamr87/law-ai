@@ -228,7 +228,7 @@ export default function QuestionCard({
 
       {/* Progressive hints, same guide data the API-backed lab serves
           (spec 046). Keyed on the question so revealed depth resets with it. */}
-      <SolveAssist key={question.id} questionId={question.id} graded={submitted} />
+      <SolveAssist key={question.id} questionId={question.id} graded={submitted} archetype={question.archetype} />
 
       {!submitted ? (
         <button

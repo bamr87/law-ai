@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react'
 
-import { guideFor } from '@/lib/data'
-import type { SolveStep, StepKind } from '@/lib/types'
+import { guideFor, playbookFor } from '@/lib/data'
+import type { Playbook, SolveGuide, SolveStep, StepKind } from '@/lib/types'
 import Representation from './diagrams/Representation'
 import { useShortcuts } from '@/lib/keyboard'
 
@@ -21,7 +21,10 @@ import { useShortcuts } from '@/lib/keyboard'
  *     is graded, mirroring the API's `public_guide_view`. A locked step still
  *     shows its title and position, so the user can see how many steps exist.
  *
- * There is no AI-tutor fallback here; that needs a backend.
+ * Spec 053 / #126: when a per-question guide is missing, seed a method carousel
+ * from the stamped archetype's playbook. When a guide exists, still show a
+ * compact playbook chip (task + strategies + traps) so type coaching is always
+ * available offline. There is still no AI-tutor fallback; that needs a backend.
  */
 
 const KIND_LABEL: Record<StepKind, string> = {
@@ -32,6 +35,37 @@ const KIND_LABEL: Record<StepKind, string> = {
   infer: 'Infer',
   eliminate: 'Eliminate',
   answer: 'Answer',
+}
+
+/** Map playbook method index → step kind for synthetic guides. */
+const METHOD_KINDS: StepKind[] = ['orient', 'inventory', 'infer', 'eliminate', 'answer']
+
+function guideFromPlaybook(pb: Playbook): SolveGuide {
+  const steps: SolveStep[] = [
+    {
+      kind: 'orient',
+      title: pb.name,
+      text: `${pb.task}\n\nHow to spot it: ${pb.cues[0] ?? ''}`,
+      spoiler: false,
+    },
+    ...pb.method.map((text, i) => ({
+      kind: METHOD_KINDS[Math.min(i + 1, METHOD_KINDS.length - 1)],
+      title: `Step ${i + 1}`,
+      text,
+      spoiler: false,
+    })),
+    {
+      kind: 'eliminate',
+      title: 'Watch for these traps',
+      text: pb.traps.map((t) => `${t.name}: ${t.summary}`).join('\n'),
+      spoiler: true,
+    },
+  ]
+  return {
+    question_id: pb.archetype_id,
+    method: pb.strategies[0]?.name ?? pb.name,
+    steps,
+  }
 }
 
 // Session-scoped memory of how far each question's guide was revealed.
@@ -46,6 +80,33 @@ const revealedByQuestion = new Map<string, number>()
  */
 export function resetSolveAssistSession(): void {
   revealedByQuestion.clear()
+}
+
+function PlaybookChip({ playbook, graded }: { playbook: Playbook; graded: boolean }) {
+  return (
+    <details className="playbook-chip">
+      <summary>
+        Type playbook · {playbook.name}
+        <span className="playbook-chip-family">{playbook.family}</span>
+      </summary>
+      <p className="playbook-chip-task">{playbook.task}</p>
+      <p className="playbook-chip-meta">
+        <strong>Strategies:</strong>{' '}
+        {playbook.strategies.map((s) => s.name).join(' · ')}
+      </p>
+      {graded && (
+        <p className="playbook-chip-meta">
+          <strong>Traps:</strong>{' '}
+          {playbook.traps.map((t) => t.name).join(' · ')}
+        </p>
+      )}
+      {!graded && (
+        <p className="playbook-chip-meta playbook-chip-locked">
+          Trap names unlock after you check an answer.
+        </p>
+      )}
+    </details>
+  )
 }
 
 function StepSlide({
@@ -77,7 +138,16 @@ function StepSlide({
         </p>
       ) : (
         <>
-          {step.text && <p className="solve-slide-text">{step.text}</p>}
+          {step.text && (
+            <p className="solve-slide-text">
+              {step.text.split('\n').map((line, i) => (
+                <span key={i}>
+                  {i > 0 && <br />}
+                  {line}
+                </span>
+              ))}
+            </p>
+          )}
           {step.representation && (
             <div className="solve-slide-rep">
               <Representation rep={step.representation} />
@@ -92,11 +162,22 @@ function StepSlide({
 export default function SolveAssist({
   questionId,
   graded,
+  archetype,
 }: {
   questionId: string
   graded: boolean
+  /** Spec 053 stamp from the bank item; drives playbook lookup. */
+  archetype?: string | null
 }) {
-  const guide = useMemo(() => guideFor(questionId), [questionId])
+  const authored = useMemo(() => guideFor(questionId), [questionId])
+  const playbook = useMemo(() => playbookFor(archetype), [archetype])
+  const guide = useMemo(() => {
+    if (authored) return authored
+    if (playbook) return guideFromPlaybook(playbook)
+    return undefined
+  }, [authored, playbook])
+  const fromPlaybookOnly = !authored && !!playbook
+
   const [revealed, setRevealed] = useState(
     () => revealedByQuestion.get(questionId) ?? 0,
   )
@@ -163,6 +244,14 @@ export default function SolveAssist({
 
   return (
     <section aria-label="Solve assist" className="solve">
+      {playbook && !fromPlaybookOnly && (
+        <PlaybookChip playbook={playbook} graded={graded} />
+      )}
+      {fromPlaybookOnly && playbook && (
+        <p className="playbook-source">
+          Coached from the {playbook.name} playbook (no item-specific guide yet).
+        </p>
+      )}
       <div className="solve-controls">
         {revealed === 0 && (
           <button

@@ -25,6 +25,12 @@ call (spec 048 FR-13, NFR-OFFLINE-1). Articles ship as compiled *typed blocks*,
 never as Markdown — neither client parses anything, which is what keeps the two
 renderers in lockstep and keeps raw HTML off both pages.
 
+Spec 053 (issue #126) adds ``playbooks``: shared strategies/traps plus one
+learner-facing playbook per taxonomy archetype (cues, task, method, resolved
+strategies/traps). Raw ``cue_patterns`` stay server-side for the classifier;
+the static site teaches from human-readable ``cues`` and uses stamped
+``Question.archetype`` to look up the playbook. Diagnose-first remains lab-only.
+
 Everything is loaded through the canonical Pydantic loaders in
 :mod:`law_ai.lsat.services.bank`, so only loader-valid content can ship.
 Ordering is stable (sections LR/RC/LG; everything else by id) so re-exports
@@ -56,11 +62,17 @@ from law_ai.lsat.services.library import (
     load_tracks,
     public_track_view,
 )
+from law_ai.lsat.services.playbooks import (
+    load_playbooks,
+    load_strategies,
+    load_traps,
+    public_playbook_view,
+)
 from law_ai.lsat.services.writing import load_writing_prompts, load_writing_rubrics
 
-# 3: spec 048 adds `library` + `library_tracks`. Additive — both clients treat
-# a missing key as "older artifact" and degrade to no-library.
-SCHEMA_VERSION = 3
+# 4: spec 053 / #126 adds `playbooks` (strategies, traps, items). Additive —
+# clients treat a missing key as "older artifact" and skip type coaching.
+SCHEMA_VERSION = 4
 
 _SECTION_ORDER = ("LR", "RC", "LG", "WS")
 
@@ -107,6 +119,21 @@ def build_content() -> dict[str, Any]:
     # deterministic — the file is committed — which is what the drift gate needs.
     track_payload = [public_track_view(track) for track in tracks.values()]
 
+    strategies = load_strategies()
+    traps = load_traps()
+    playbooks = load_playbooks()
+    # Learner payload: resolved strategies/traps, human cues — no cue_patterns.
+    playbook_items = [
+        public_playbook_view(playbooks[aid]) for aid in sorted(playbooks)
+    ]
+    playbooks_payload = {
+        "strategies": [
+            strategies[sid].model_dump(mode="json") for sid in sorted(strategies)
+        ],
+        "traps": [traps[tid].model_dump(mode="json") for tid in sorted(traps)],
+        "items": playbook_items,
+    }
+
     return {
         "schema_version": SCHEMA_VERSION,
         "generated_at": datetime.now(UTC).isoformat(),
@@ -117,6 +144,9 @@ def build_content() -> dict[str, Any]:
             "writing_prompts": len(prompts),
             "library_articles": len(library_payload),
             "library_tracks": len(track_payload),
+            "playbooks": len(playbook_items),
+            "strategies": len(strategies),
+            "traps": len(traps),
         },
         "sections": [
             sections[code].model_dump(mode="json")
@@ -135,6 +165,7 @@ def build_content() -> dict[str, Any]:
         ],
         "library": library_payload,
         "library_tracks": track_payload,
+        "playbooks": playbooks_payload,
     }
 
 
@@ -172,6 +203,7 @@ class Command(BaseCommand):
                 f"{len(content['concepts'])} concepts, "
                 f"{counts['writing_prompts']} writing prompts, "
                 f"{counts['library_articles']} library articles "
-                f"in {counts['library_tracks']} tracks → {path}"
+                f"in {counts['library_tracks']} tracks, "
+                f"{counts['playbooks']} playbooks → {path}"
             )
         )

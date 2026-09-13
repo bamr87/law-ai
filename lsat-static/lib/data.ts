@@ -6,6 +6,7 @@ import type {
   Concept,
   Content,
   Passage,
+  Playbook,
   Question,
   SectionCode,
   SolveGuide,
@@ -160,4 +161,27 @@ export function drillsForArticle(article: Article): Question[] {
   return content.questions.filter((q) =>
     (q.concepts ?? []).some((c) => article.concepts.includes(c)),
   )
+}
+
+// ---------------------------------------------------------------------------
+// Question-type playbooks (spec 053 / #126)
+// ---------------------------------------------------------------------------
+
+const _playbooks = new Map<string, Playbook>(
+  (content.playbooks?.items ?? []).map((p) => [p.archetype_id, p]),
+)
+
+/**
+ * Playbook for a stamped archetype id, if the bundle shipped playbooks.
+ *
+ * Older content.json artifacts omit `playbooks`; callers must tolerate
+ * undefined and fall back to guide-only / explanation-only help.
+ */
+export function playbookFor(archetypeId: string | null | undefined): Playbook | undefined {
+  return archetypeId ? _playbooks.get(archetypeId) : undefined
+}
+
+/** Playbook for a bank question via its archetype stamp. */
+export function playbookForQuestion(q: Question): Playbook | undefined {
+  return playbookFor(q.archetype)
 }
