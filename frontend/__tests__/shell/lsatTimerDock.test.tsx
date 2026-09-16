@@ -16,6 +16,7 @@ import {
 } from '@/lib/settings/catalog'
 import {
   __resetTimerStore,
+  beginSection,
   getTimerSnapshot,
   isSectionInProgress,
   pauseTimer,
@@ -23,7 +24,9 @@ import {
   resetSection,
   resetTimer,
   setRemainingQuestions,
+  setTimerDuration,
   startTimer,
+  subscribeTimer,
 } from '@/lib/lsat/timerStore'
 
 const ALL: Dock[] = ['sidebar', 'inspector']
@@ -152,6 +155,86 @@ describe('timer store', () => {
     expect(getTimerSnapshot().remainingQuestions).toBe(12)
     resetSection()
     expect(getTimerSnapshot().remainingQuestions).toBeNull()
+  })
+
+  // `beginSection` is the reason `resetSection` above is now reachable at all
+  // (BL-20260916-03). The caller that needs it — the static drill — is
+  // remounted by its own page on a section switch, so it cannot tell a change
+  // of section from a first mount: every ref it might compare against is
+  // reinitialised with it. The store is the one participant that is not
+  // remounted, so deciding it here is what makes the decision possible.
+  describe('beginSection', () => {
+    it('claims the clock without resetting the first section', () => {
+      // Nothing to carry over yet, and a reader may already have set a preset
+      // and pressed Start before the drill mounted.
+      startTimer()
+      recordAnswer(30)
+      expect(beginSection('LR')).toBe(false)
+      expect(getTimerSnapshot().section).toBe('LR')
+      expect(getTimerSnapshot().answered).toBe(1)
+      expect(getTimerSnapshot().running).toBe(true)
+    })
+
+    it('is idempotent, so a remount within a section keeps its clock', () => {
+      // The property this store was hoisted out of `useState` to provide
+      // (BL-20260830-04): moving the widget between docks, or a refresh
+      // restoring through `rehydrate`, must not restart a running section.
+      beginSection('LR')
+      startTimer()
+      recordAnswer(45)
+      expect(beginSection('LR')).toBe(false)
+      expect(getTimerSnapshot().running).toBe(true)
+      expect(getTimerSnapshot().answered).toBe(1)
+      expect(getTimerSnapshot().answeredSeconds).toBe(45)
+    })
+
+    it('resets the clock and the pace counters on a real change of section', () => {
+      beginSection('LR')
+      startTimer()
+      recordAnswer(90)
+      setRemainingQuestions(24)
+
+      expect(beginSection('RC')).toBe(true)
+
+      const s = getTimerSnapshot()
+      expect(s.section).toBe('RC')
+      expect(s.answered).toBe(0)
+      expect(s.answeredSeconds).toBe(0)
+      expect(s.remainingQuestions).toBeNull()
+      expect(s.running).toBe(false)
+      expect(s.remainingSeconds).toBe(s.durationSeconds)
+    })
+
+    it('leaves a chosen duration alone across the switch', () => {
+      // The preset is the reader's choice and outlives a section; the clock
+      // returns to `durationSeconds`, not to a hard-coded 35 minutes.
+      setTimerDuration(600)
+      beginSection('LR')
+      recordAnswer(60)
+      beginSection('LG')
+      expect(getTimerSnapshot().durationSeconds).toBe(600)
+      expect(getTimerSnapshot().remainingSeconds).toBe(600)
+    })
+
+    it('records the section in the persisted blob, so a refresh is not a switch', () => {
+      // If the section were dropped on rehydrate, every reload would look like
+      // a change of section and reset the clock this persistence exists to
+      // save — the exact bug, reintroduced one layer down.
+      beginSection('RC')
+      const blob = window.sessionStorage.getItem('law-ai.lsat.timer.v1')
+      expect(JSON.parse(blob as string).section).toBe('RC')
+    })
+
+    it('notifies subscribers when it claims a section', () => {
+      const seen = vi.fn()
+      const unsubscribe = subscribeTimer(seen)
+      try {
+        beginSection('LR')
+        expect(seen).toHaveBeenCalled()
+      } finally {
+        unsubscribe()
+      }
+    })
   })
 })
 
