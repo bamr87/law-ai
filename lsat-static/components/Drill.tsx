@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { SectionCode } from '@/lib/types'
+import type { Question, SectionCode } from '@/lib/types'
 import { passageById, questionsFor, sectionMeta } from '@/lib/data'
 import QuestionCard from './QuestionCard'
 import PassagePanel from './PassagePanel'
@@ -13,11 +13,41 @@ import {
   resetSection,
   setRemainingQuestions,
 } from '@/lib/lsat/timerStore'
+import {
+  type DrillPosition,
+  readDrillPosition,
+  writeDrillPosition,
+} from '@/lib/deviceState'
 
 /** What the drill remembers about a question you have already answered. */
 interface Answer {
   choice: string
   seconds: number
+}
+
+/**
+ * A saved position brought back into the shape the drill works in.
+ *
+ * Answers are dropped unless the question is still in the bank: `content.json`
+ * is regenerated, so a record written weeks ago can name questions that no
+ * longer exist, and carrying them would inflate `answers.size` — which is the
+ * pace denominator the timer publishes (BL-20260829-01).
+ */
+function restore(
+  saved: DrillPosition | null,
+  questions: Question[],
+): { i: number; answers: Map<string, Answer> } {
+  if (!saved) return { i: 0, answers: new Map() }
+  const ids = new Set(questions.map((q) => q.id))
+  return {
+    // Clamp to the bank as it is now: an index past the end would render the
+    // last question while the progress readout quoted a number that is not
+    // there.
+    i: Math.min(saved.i, Math.max(0, questions.length - 1)),
+    answers: new Map(
+      Object.entries(saved.answers).filter(([qid]) => ids.has(qid)),
+    ),
+  }
 }
 
 /** Question-by-question drill for one section, with prev/next navigation. */
@@ -30,11 +60,29 @@ export default function Drill({
 }) {
   const questions = useMemo(() => questionsFor(section), [section])
   const meta = sectionMeta(section)
-  const [i, setI] = useState(0)
+  // Where this section was left, read once on mount (BL-20260916-01).
+  //
+  // `app/page.tsx` keys the view wrapper on `view`, so changing destination
+  // unmounts this component outright — checking Stats mid-section threw the
+  // reader's place away while the attempts (`lib/progress.ts`) and the clock
+  // (`lib/lsat/timerStore.ts`) both survived, because neither lives in the
+  // component tree. Of the site's three tiers of state the drill was on the
+  // only one a remount can erase.
+  //
+  // Read during render rather than from an effect, which is the opposite of
+  // the rule `app/page.tsx` follows for the header pin — and the difference is
+  // the prerender. `Page` is rendered by the static export, so a first paint
+  // that disagreed with storage would be a hydration mismatch; `Drill` is not,
+  // because the page opens on 'overview' and no section is mounted until the
+  // reader clicks one, long after hydration. Reading here therefore costs
+  // nothing and buys two things: no flash of question 1 before the effect
+  // lands, and no setState-in-an-effect cascade.
+  const [restored] = useState(() => restore(readDrillPosition(section), questions))
+  const [i, setI] = useState(restored.i)
   // The answer *and* the time, not just the time: the card is keyed on the
   // question, so whatever the drill does not hold here is destroyed the moment
   // you move off a question and rebuilt blank when you come back.
-  const [answers, setAnswers] = useState<Map<string, Answer>>(() => new Map())
+  const [answers, setAnswers] = useState<Map<string, Answer>>(restored.answers)
   const cardRef = useRef<HTMLElement | null>(null)
   // Second rung of the sticky stack: the passage column hangs off
   // `--drill-head-h`, so the token follows this element rather than a constant
@@ -61,9 +109,22 @@ export default function Drill({
     resetSection()
   }, [section])
 
+  // Write the position back on every change, so the next mount can read it.
+  //
+  // `moves` is deliberately untouched by any of this. It is what tells the
+  // focus effect above that *the user* moved, and arriving on a restored
+  // position is not a move — bumping it would land focus on the card while the
+  // reader was still on the nav button they clicked, which is the regression
+  // `Drill.test.tsx` pins for mounting.
+  useEffect(() => {
+    writeDrillPosition(section, { i, answers: Object.fromEntries(answers) })
+  }, [section, i, answers])
+
   // Read through a ref rather than a `setI` updater: the move counter has to
-  // move with the index, and a state updater has to stay pure.
-  const iRef = useRef(0)
+  // move with the index, and a state updater has to stay pure. Seeded from the
+  // restored index, not 0, so it mirrors `i` from the first render rather than
+  // from the first effect.
+  const iRef = useRef(restored.i)
   useEffect(() => {
     iRef.current = i
   })
