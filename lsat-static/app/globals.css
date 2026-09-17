@@ -812,6 +812,40 @@ main#view {
   margin-bottom: 1.25rem;
   font-size: 0.9rem;
 }
+/* Argumentative Writing on the progress screen (#121). Its own block rather
+   than a row in `.stat-table`, because the table's four columns are correct /
+   attempted / accuracy and writing has none of them: there are no keyed
+   questions to be right about, and the whole feedback loop is the learner
+   scoring themselves against the rubric. `SECTIONS` stays `['LR','RC','LG']`
+   for exactly that reason. */
+.stat-writing {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+.stat-writing h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+.stat-writing-figure {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+}
+.stat-writing-figure strong {
+  color: var(--accent);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+.stat-writing-drafts {
+  color: var(--text-muted);
+}
+.stat-writing p.drill-timing {
+  margin: 0;
+  max-width: 60ch;
+}
+
 /* Export / import (BL-20260702-10). Below the stats and set off by a rule:
    it is about the data rather than the numbers, and it is shown even with no
    attempts — a reader with an empty device is exactly the one with a file to
