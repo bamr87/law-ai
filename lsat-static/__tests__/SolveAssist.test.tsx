@@ -22,6 +22,7 @@ vi.mock('@/lib/data', async () => {
   return {
     // The module keeps reveal depth per question id, so each test uses its own.
     guideFor: (id: string) => (id.startsWith('no-guide') ? undefined : f.GUIDE),
+    playbookFor: () => undefined,
   }
 })
 

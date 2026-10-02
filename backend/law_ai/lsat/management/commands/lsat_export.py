@@ -123,9 +123,7 @@ def build_content() -> dict[str, Any]:
     traps = load_traps()
     playbooks = load_playbooks()
     # Learner payload: resolved strategies/traps, human cues — no cue_patterns.
-    playbook_items = [
-        public_playbook_view(playbooks[aid]) for aid in sorted(playbooks)
-    ]
+    playbook_items = [public_playbook_view(playbooks[aid]) for aid in sorted(playbooks)]
     playbooks_payload = {
         "strategies": [
             strategies[sid].model_dump(mode="json") for sid in sorted(strategies)
