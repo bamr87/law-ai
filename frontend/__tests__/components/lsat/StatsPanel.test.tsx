@@ -225,3 +225,47 @@ describe('StatsPanel', () => {
     expect(screen.queryByText('Argumentative Writing')).not.toBeInTheDocument()
   })
 })
+
+describe('question-type recognition (spec 053 FR-7)', () => {
+  it('renders type/strategy accuracy, confusions and weakest types with playbook links', () => {
+    render(
+      <StatsPanel
+        session={{ attempts: 0, correct: 0, assisted: 0 }}
+        stats={{
+          attempts: 0,
+          correct: 0,
+          accuracy: 0,
+          scope: 'user',
+          diagnosis: {
+            attempts: 3,
+            type_correct: 1,
+            type_accuracy: 0.3333,
+            family_correct: 3,
+            family_accuracy: 1,
+            strategy_attempts: 2,
+            strategy_correct: 1,
+            strategy_accuracy: 0.5,
+            by_archetype: { 'lr-necessary-assumption': { attempts: 2, correct: 0, accuracy: 0 } },
+            weakest: ['lr-necessary-assumption'],
+            confusions: [{ chosen: 'lr-sufficient-assumption', actual: 'lr-necessary-assumption', count: 2 }],
+          },
+        }}
+      />,
+    )
+    expect(screen.getByRole('heading', { name: /question-type recognition/i })).toBeInTheDocument()
+    expect(screen.getByText(/33% · 100% right family/)).toBeInTheDocument()
+    expect(screen.getByText(/“Sufficient assumption”/)).toBeInTheDocument()
+    const link = screen.getAllByRole('link', { name: 'Necessary assumption' })[0]
+    expect(link).toHaveAttribute('href', '/lsat/playbooks#lr-necessary-assumption')
+  })
+
+  it('renders nothing for the card when no diagnosis has been made', () => {
+    render(
+      <StatsPanel
+        session={{ attempts: 0, correct: 0, assisted: 0 }}
+        stats={{ attempts: 0, correct: 0, accuracy: 0, diagnosis: { attempts: 0, type_correct: 0, type_accuracy: 0, family_correct: 0, family_accuracy: 0, strategy_attempts: 0, strategy_correct: 0, strategy_accuracy: 0, by_archetype: {}, weakest: [], confusions: [] } }}
+      />,
+    )
+    expect(screen.queryByRole('heading', { name: /question-type recognition/i })).not.toBeInTheDocument()
+  })
+})

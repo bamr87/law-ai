@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AuthoringPanel from '@/components/lsat/AuthoringPanel'
 import { lsatFactoryStatusFixture, server } from '@/mocks/server'
@@ -610,4 +610,156 @@ describe('AuthoringPanel', () => {
   })
 
 
+})
+
+describe('spec 054: type checks and contrast variations in the queue', () => {
+  it('renders a type-check card with restamp / keep actions', async () => {
+    const { ProposalCard } = await import('@/components/lsat/AuthoringPanel')
+    const onApprove = vi.fn()
+    const onReject = vi.fn()
+    render(
+      <ProposalCard
+        proposal={{
+          id: 'prop-tc1',
+          status: 'pending',
+          created_at: '2026-09-08T00:00:00Z',
+          updated_at: '2026-09-08T00:00:00Z',
+          proposal_kind: 'typecheck',
+          section: 'LR',
+          difficulty: 'med',
+          agent_trace_id: '',
+          model: 'claude_code/x',
+          confidence: 0.7,
+          source_concept_ids: [],
+          draft: {
+            question_id: 'lr-002',
+            section: 'LR',
+            stem: 'City planner: ...',
+            stamped_archetype: 'lr-weaken',
+            cue_archetype: 'lr-weaken',
+            model_archetype: 'lr-causal-flaw',
+            rationale: 'It says flawed because.',
+            confidence: 0.7,
+            model: 'claude_code/x',
+          },
+        }}
+        busy={false}
+        onApprove={onApprove}
+        onReject={onReject}
+        onPromotePassage={() => {}}
+      />,
+    )
+    expect(screen.getByTestId('typecheck-proposal-card')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /restamp as lr-causal-flaw/i }))
+    expect(onApprove).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /keep current stamp/i }))
+    expect(onReject).toHaveBeenCalled()
+  })
+
+  it('shows lineage and the revision history on a variation draft', async () => {
+    const { ProposalCard } = await import('@/components/lsat/AuthoringPanel')
+    render(
+      <ProposalCard
+        proposal={{
+          id: 'prop-v1',
+          status: 'pending',
+          created_at: '2026-09-08T00:00:00Z',
+          updated_at: '2026-09-08T00:00:00Z',
+          proposal_kind: 'question',
+          section: 'LR',
+          difficulty: 'med',
+          agent_trace_id: '',
+          model: 'claude_code/x',
+          confidence: 0.8,
+          source_concept_ids: ['strengthen'],
+          draft: {
+            section: 'LR',
+            difficulty: 'med',
+            stem: 'Stimulus.\n\nWhich one of the following most strengthens?',
+            choices: ['A', 'B', 'C', 'D', 'E'].map((label) => ({ label: label as 'A', text: `c${label}` })),
+            correct: 'A',
+            explanation: 'Because.',
+            concepts: ['strengthen'],
+            confidence: 0.8,
+          },
+          meta: {
+            variation_of: 'lr-002',
+            factory: { archetype_id: 'lr-strengthen' },
+            revisions: {
+              accepted: false,
+              rounds: [
+                { round: 1, model: 'm', gate_issues: ['the stem reads as lr-weaken'], critique: ['x'], accepted: false },
+                { round: 2, model: 'm', gate_issues: [], judge: { verdict: 'fail', single_best_answer: false, solved_key: 'B', key_agrees: false, ambiguity: 0.5, issues: ['(B) also works'], confidence: 0.8, rationale: '', model: 'm', degraded: false }, critique: [], accepted: false },
+              ],
+            },
+          },
+        }}
+        busy={false}
+        onApprove={() => {}}
+        onReject={() => {}}
+        onPromotePassage={() => {}}
+      />,
+    )
+    expect(screen.getByText(/variation of lr-002 → lr-strengthen/)).toBeInTheDocument()
+    const history = screen.getByTestId('revision-history')
+    expect(history).toHaveTextContent('2 drafting rounds')
+    expect(history).toHaveTextContent('NOT accepted')
+    expect(history).toHaveTextContent('gate: the stem reads as lr-weaken')
+    expect(history).toHaveTextContent('judge: fail (blind key disagrees)')
+  })
+})
+
+describe('spec 054: rewrites and the final review', () => {
+  it('renders a rewrite card with the original verdict, the change summary and replace/keep actions', async () => {
+    const { ProposalCard } = await import('@/components/lsat/AuthoringPanel')
+    const onApprove = vi.fn()
+    const onReject = vi.fn()
+    render(
+      <ProposalCard
+        proposal={{
+          id: 'prop-rw1',
+          status: 'pending',
+          created_at: '2026-09-08T00:00:00Z',
+          updated_at: '2026-09-08T00:00:00Z',
+          proposal_kind: 'rewrite',
+          section: 'LR',
+          difficulty: 'med',
+          agent_trace_id: '',
+          model: 'claude_code/x',
+          confidence: 0.8,
+          source_concept_ids: ['weaken'],
+          draft: {
+            question_id: 'lr-002',
+            section: 'LR',
+            difficulty: 'med',
+            stem: 'Stimulus.\n\nWhich weakens?',
+            choices: ['A', 'B', 'C', 'D', 'E'].map((label) => ({ label: label as 'A', text: `c${label}` })),
+            correct: 'D',
+            explanation: 'Because.',
+            concepts: ['weaken'],
+            confidence: 0.8,
+            change_summary: 'Tightened choice A so it no longer presupposes a cost estimate.',
+          },
+          meta: {
+            rewrite_of: 'lr-002',
+            original_judge: { verdict: 'flag', single_best_answer: true, solved_key: 'D', key_agrees: true, ambiguity: 0.2, issues: ['Choice A presupposes a cost estimate.'], confidence: 0.8, rationale: '', model: 'm', degraded: false },
+            final_review: { role: 'final_review', verdict: 'pass', single_best_answer: true, solved_key: 'D', key_agrees: true, ambiguity: 0, issues: [], confidence: 0.9, rationale: '', model: 'claude_code/claude-fable-5-1', degraded: false },
+            revisions: { accepted: true, rounds: [{ round: 1, model: 'm', gate_issues: [], critique: [], accepted: true }] },
+          },
+        }}
+        busy={false}
+        onApprove={onApprove}
+        onReject={onReject}
+        onPromotePassage={() => {}}
+      />,
+    )
+    expect(screen.getByTestId('rewrite-proposal-card')).toBeInTheDocument()
+    expect(screen.getByText(/Tightened choice A/)).toBeInTheDocument()
+    expect(screen.getByText('Choice A presupposes a cost estimate.')).toBeInTheDocument()
+    expect(screen.getByTestId('final-review-badge')).toHaveTextContent('final review: pass')
+    fireEvent.click(screen.getByRole('button', { name: /approve → replace lr-002/i }))
+    expect(onApprove).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /keep original/i }))
+    expect(onReject).toHaveBeenCalled()
+  })
 })

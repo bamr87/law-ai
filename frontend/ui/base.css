@@ -26,12 +26,44 @@
    */
   --z-content: 0;
   --z-sticky-sub: 20;
+  --z-fab: 25;
   --z-sticky-header: 30;
   --z-popover: 35;
   --z-masthead: 40;
   --z-scrim: 50;
   --z-drawer: 60;
   --z-palette: 70;
+  --z-feedback-modal: 75;
+
+  /* The feedback widget (public/fleet-feedback.js, vendored from the fleet kit
+   * bamr87/bamr87 templates/feedback) renders in a shadow root, so it cannot
+   * read Tailwind classes — it reads these tokens instead, with hard-coded
+   * fallbacks of its own. Mapping them onto the scale above is what keeps R4
+   * honest: without it the widget would sit at 1051/1096, above everything,
+   * with no idea the drawer is at 60.
+   *
+   * The FAB sits above the back-to-top affordance and below the masthead, so a
+   * drawer, the scrim, and the command palette all cover it. Its dialog sits
+   * above the palette, because a report is the thing you open last.
+   */
+  --fleet-layer-fab-feedback: var(--z-fab);
+  --fleet-layer-feedback-modal: var(--z-feedback-modal);
+
+  /* Clear the compact tab bar (--shell-tabbar-h 3.5rem): the widget offsets its
+   * FAB by offset + gap + size from the bottom, which is 5.25rem here, so the
+   * button stays in thumb reach without covering primary navigation. */
+  --fleet-space-fab-offset: 1rem;
+  --fleet-space-fab-gap: 0.75rem;
+  --fleet-space-fab-size: 3rem;
+
+  /* Surface tokens, so the dialog reads as part of this app rather than as a
+   * white card dropped onto a dark shell. */
+  --fleet-color-ink: rgb(226 232 240);
+  --fleet-color-ink-muted: rgb(148 163 184);
+  --fleet-color-bg-elevated: rgb(2 6 23);
+  --fleet-color-border: rgb(30 41 59);
+  --fleet-color-primary: rgb(59 130 246);
+  --fleet-shadow-focus: 0 0 0 2px var(--focus-ring);
 
   /* --- Focus -----------------------------------------------------------
    * Blue on the platform, amber in practice contexts. The static site is

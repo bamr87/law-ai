@@ -54,7 +54,16 @@ export default function OverviewPanel({ onJump }: { onJump: (t: Tab) => void }) 
             knowledge library
           </Link>{' '}
           — long-form articles on how the exam works, plus the catalog of every
-          reasoning pattern it recycles.
+          reasoning pattern it recycles. The{' '}
+          <Link
+            href="/lsat/playbooks"
+            className="text-amber-300 underline underline-offset-2 hover:text-amber-200"
+          >
+            question-type playbooks
+          </Link>{' '}
+          list every type the exam recycles — how to spot it, the method, and
+          the traps — and “Diagnose first” in the header quizzes you on them
+          before each question.
         </p>
       </div>
 

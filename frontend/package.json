@@ -39,7 +39,7 @@
     "prettier": "^3.8.0",
     "tailwindcss": "^4.2.0",
     "typescript": "^5.9.0",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "postcss": "$postcss"

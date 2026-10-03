@@ -204,3 +204,53 @@ class LsatArticleRead(models.Model):
     def __str__(self) -> str:  # pragma: no cover - admin/debug convenience
         verdict = "read" if self.read else "unread"
         return f"LsatArticleRead({self.reader}, {self.article_id}, {verdict})"
+
+
+class LsatDiagnosisAttempt(models.Model):
+    """One question-type diagnosis by a signed-in learner (spec 053).
+
+    The diagnosis exercise asks a learner to name a question's *type* and the
+    *strategy* that applies before they see the answer choices. That is a
+    different response from a graded answer — there is no ``choice`` and the
+    thing being measured is recognition, not solving — so, like
+    :class:`LsatWritingAttempt`, it gets a sibling table rather than a flag on
+    :class:`LsatAttempt`. Putting it there would land every diagnosis in the
+    answer-accuracy denominator and in the spaced-repetition queue.
+
+    ``archetype_id`` is the key and ``chosen_archetype`` the learner's call;
+    together they are a confusion matrix, which is the readout that turns
+    "62% on type" into "you keep calling necessary assumptions sufficient".
+    ``family_correct`` is partial credit: right family, wrong sub-type.
+
+    The ``lsat_diagnose`` audit event is written for every diagnosis, signed-in
+    or not; this table is an addition. ``on_delete=CASCADE`` like the others:
+    study history is the learner's own data (constitution §4 keeps the
+    anonymised audit rows).
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="lsat_diagnosis_attempts",
+    )
+    question_id = models.CharField(max_length=64, db_index=True)
+    section = models.CharField(max_length=8, blank=True, default="", db_index=True)
+    archetype_id = models.CharField(max_length=64, db_index=True)
+    chosen_archetype = models.CharField(max_length=64, blank=True, default="")
+    archetype_correct = models.BooleanField(default=False)
+    family_correct = models.BooleanField(default=False)
+    chosen_strategy = models.CharField(max_length=64, blank=True, default="")
+    #: Nullable: a diagnosis may name a type without committing to a strategy.
+    strategy_correct = models.BooleanField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["user", "archetype_id"]),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - admin/debug convenience
+        verdict = "correct" if self.archetype_correct else "wrong"
+        return f"LsatDiagnosisAttempt({self.user_id}, {self.question_id}, {verdict})"

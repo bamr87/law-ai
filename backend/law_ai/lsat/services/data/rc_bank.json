@@ -36,7 +36,8 @@
         "rc-structure"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-main-point"
     },
     {
       "id": "rc-002",
@@ -74,7 +75,8 @@
         "rc-tone"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-attitude"
     },
     {
       "id": "rc-003",
@@ -111,7 +113,8 @@
         "detail-question"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-detail"
     },
     {
       "id": "rc-004",
@@ -148,7 +151,8 @@
         "rc-structure"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-function"
     },
     {
       "id": "rc-005",
@@ -186,7 +190,8 @@
         "author-attitude"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-inference"
     },
     {
       "id": "rc-006",
@@ -224,7 +229,8 @@
         "rc-structure"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-main-point"
     },
     {
       "id": "rc-007",
@@ -261,7 +267,8 @@
         "detail-question"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-detail"
     },
     {
       "id": "rc-008",
@@ -298,7 +305,8 @@
         "rc-structure"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-function"
     },
     {
       "id": "rc-009",
@@ -336,7 +344,8 @@
         "rc-tone"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-attitude"
     },
     {
       "id": "rc-010",
@@ -379,7 +388,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-detail"
     },
     {
       "id": "rc-011",
@@ -423,7 +433,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-detail"
     },
     {
       "id": "rc-012",
@@ -466,7 +477,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-detail"
     },
     {
       "id": "rc-013",
@@ -509,7 +521,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-function"
     },
     {
       "id": "rc-014",
@@ -552,7 +565,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-detail"
     },
     {
       "id": "rc-015",
@@ -595,7 +609,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-main-point"
     },
     {
       "id": "rc-016",
@@ -638,7 +653,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-inference"
     },
     {
       "id": "rc-017",
@@ -682,7 +698,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-attitude"
     },
     {
       "id": "rc-018",
@@ -725,7 +742,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-main-point"
     },
     {
       "id": "rc-019",
@@ -768,7 +786,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-function"
     },
     {
       "id": "rc-020",
@@ -812,7 +831,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-attitude"
     },
     {
       "id": "rc-021",
@@ -856,7 +876,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-main-point"
     },
     {
       "id": "rc-022",
@@ -899,7 +920,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-organization"
     },
     {
       "id": "rc-023",
@@ -943,7 +965,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-main-point"
     },
     {
       "id": "rc-024",
@@ -986,7 +1009,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-inference"
     },
     {
       "id": "rc-025",
@@ -1029,7 +1053,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-inference"
     },
     {
       "id": "rc-026",
@@ -1072,7 +1097,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-attitude"
     },
     {
       "id": "rc-027",
@@ -1115,7 +1141,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-inference"
     },
     {
       "id": "rc-028",
@@ -1158,7 +1185,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-main-point"
     },
     {
       "id": "rc-029",
@@ -1202,7 +1230,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-attitude"
     },
     {
       "id": "rc-030",
@@ -1245,7 +1274,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-function"
     },
     {
       "id": "rc-031",
@@ -1289,7 +1319,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-inference"
     },
     {
       "id": "rc-032",
@@ -1332,7 +1363,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-detail"
     },
     {
       "id": "rc-033",
@@ -1375,7 +1407,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-inference"
     },
     {
       "id": "rc-034",
@@ -1419,7 +1452,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-attitude"
     },
     {
       "id": "rc-035",
@@ -1462,7 +1496,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-attitude"
     },
     {
       "id": "rc-036",
@@ -1505,7 +1540,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-function"
     },
     {
       "id": "rc-037",
@@ -1549,7 +1585,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "rc-organization"
     },
     {
       "id": "rc-038",
@@ -1587,7 +1624,8 @@
         "rc-structure"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-main-point"
     },
     {
       "id": "rc-039",
@@ -1625,7 +1663,8 @@
         "detail-question"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-phrase-in-context"
     },
     {
       "id": "rc-040",
@@ -1663,7 +1702,8 @@
         "must-be-true"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-comparative"
     },
     {
       "id": "rc-041",
@@ -1701,7 +1741,8 @@
         "rc-structure"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-comparative"
     },
     {
       "id": "rc-042",
@@ -1739,7 +1780,8 @@
         "rc-inference"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-analogous-situation"
     },
     {
       "id": "rc-043",
@@ -1777,7 +1819,8 @@
         "rc-tone"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-attitude"
     },
     {
       "id": "rc-044",
@@ -1815,7 +1858,8 @@
         "rc-inference"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-analogous-situation"
     },
     {
       "id": "rc-045",
@@ -1853,7 +1897,8 @@
         "author-attitude"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-phrase-in-context"
     },
     {
       "id": "rc-046",
@@ -1891,7 +1936,8 @@
         "rc-structure"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-main-point"
     },
     {
       "id": "rc-047",
@@ -1929,7 +1975,8 @@
         "rc-inference"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-detail"
     },
     {
       "id": "rc-048",
@@ -1967,7 +2014,8 @@
         "argument-organization"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-function"
     },
     {
       "id": "rc-049",
@@ -2005,7 +2053,8 @@
         "rc-inference"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-inference"
     },
     {
       "id": "rc-050",
@@ -2043,7 +2092,8 @@
         "author-attitude"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-inference"
     },
     {
       "id": "rc-051",
@@ -2081,7 +2131,8 @@
         "rc-comparative"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-main-point"
     },
     {
       "id": "rc-052",
@@ -2119,7 +2170,8 @@
         "argument-organization"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-comparative"
     },
     {
       "id": "rc-053",
@@ -2157,7 +2209,8 @@
         "rc-comparative"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-inference"
     },
     {
       "id": "rc-054",
@@ -2195,7 +2248,8 @@
         "rc-inference"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-comparative"
     },
     {
       "id": "rc-055",
@@ -2233,7 +2287,8 @@
         "author-attitude"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-comparative"
     },
     {
       "id": "rc-056",
@@ -2271,7 +2326,8 @@
         "rc-structure"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-main-point"
     },
     {
       "id": "rc-057",
@@ -2309,7 +2365,8 @@
         "rc-inference"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-analogous-situation"
     },
     {
       "id": "rc-058",
@@ -2347,7 +2404,8 @@
         "rc-inference"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-detail"
     },
     {
       "id": "rc-059",
@@ -2385,7 +2443,8 @@
         "rc-tone"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-attitude"
     },
     {
       "id": "rc-060",
@@ -2423,7 +2482,8 @@
         "author-attitude"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "rc-comparative"
     }
   ]
 }

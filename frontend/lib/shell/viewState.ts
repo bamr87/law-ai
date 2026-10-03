@@ -30,6 +30,12 @@ export const VIEW_KEYS = [
   // The LSAT lab's concept filter (BL-20260905-01): the library's catalog
   // links `/lsat?concept=<id>` so a tag reaches practice in one step.
   'concept',
+  // The lab's question-type filter (spec 053): a playbook's "drill this type"
+  // link is `/lsat?tab=LR&archetype=<id>`.
+  'archetype',
+  // A specific question to open the LR drill on (spec 054): the contrast
+  // panel's "try the same argument as a Strengthen question" link.
+  'question',
 ] as const
 
 export type ViewKey = (typeof VIEW_KEYS)[number]

@@ -875,6 +875,20 @@ export const handlers = [
     })
   }),
 
+  // Spec 054: by default a question has no contrast siblings, so the panel
+  // renders nothing; a test that wants a set installs its own handler.
+  http.get(
+    'http://localhost:8000/api/lsat/questions/:questionId/contrast',
+    ({ params }) =>
+      HttpResponse.json({
+        root_id: params.questionId,
+        question_id: params.questionId,
+        count: 1,
+        members: [],
+        spoilers: false,
+      }),
+  ),
+
   http.post(
     'http://localhost:8000/api/lsat/questions/:questionId/hint',
     async ({ params, request }) => {

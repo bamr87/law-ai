@@ -20,12 +20,16 @@ import { useShortcuts, type ShortcutMap } from '@/lib/lsat/keyboard'
 import {
   gradeLsat,
   type LsatChoiceLabel,
+  type LsatDiagnosisResult,
   type LsatGradeResponse,
   type LsatQuestion,
   type LsatTutorTrace,
 } from '@/lib/api'
 import ConceptRefs from '@/components/lsat/ConceptRefs'
+import ContrastPanel from '@/components/lsat/ContrastPanel'
 import CrossCheckPanel from '@/components/lsat/CrossCheckPanel'
+import DiagnoseStep from '@/components/lsat/DiagnoseStep'
+import { useDiagnoseMode } from '@/lib/lsat/diagnoseMode'
 import { DiffBadge } from '@/components/lsat/LabPrimitives'
 import { QuestionElapsed } from '@/components/lsat/QuestionElapsed'
 import SolveAssist from '@/components/lsat/SolveAssist'
@@ -99,6 +103,15 @@ export default function QuestionCard({
   const [error, setError] = useState<string | null>(null)
   const [showTutor, setShowTutor] = useState(false)
   const [walkthrough, setWalkthrough] = useState(false)
+  // Spec 053 FR-10: with "Diagnose first" on, the choices stay hidden until
+  // the learner has named the question type (or skipped). The setting is
+  // read at mount for this question, so flipping it mid-question does not
+  // yank a half-answered card.
+  const [diagnoseMode] = useDiagnoseMode()
+  const [diagnosed, setDiagnosed] = useState(false)
+  const [diagnosis, setDiagnosis] = useState<LsatDiagnosisResult | null>(null)
+  const diagnosing =
+    diagnoseMode && !diagnosed && result === null && !saved?.result
   const elapsedRef = useRef(saved?.elapsedSeconds ?? 0)
   const hintsUsedRef = useRef(0)
   // Read through a ref inside the reset effect below: a panel rebuilds the
@@ -140,9 +153,16 @@ export default function QuestionCard({
     setShowTutor(false)
     setWalkthrough(false)
     setError(null)
+    setDiagnosed(false)
+    setDiagnosis(null)
     elapsedRef.current = s?.elapsedSeconds ?? 0
     hintsUsedRef.current = 0
   }, [question.id])
+
+  const finishDiagnosis = useCallback((r: LsatDiagnosisResult | null) => {
+    setDiagnosis(r)
+    setDiagnosed(true)
+  }, [])
 
   /**
    * The attempt trace the tutor coaches against (BL-20260429-18).
@@ -258,13 +278,15 @@ export default function QuestionCard({
   if (onNext && (result !== null || browsable)) keymap.n = () => onNext()
   // `P` steps back whenever there is anything to step back to, graded or not.
   if (onPrev) keymap.p = () => onPrev()
-  useShortcuts(keymap, { enabled: !submitting })
+  // While the choices are hidden behind the diagnosis, the letter keys have
+  // nothing to pick and must not select a choice the learner cannot see.
+  useShortcuts(keymap, { enabled: !submitting && !diagnosing })
 
   // Enter, scoped to this card: on a radio that is not the selected one it
   // selects that choice rather than grading another; anywhere else on the card
   // it submits the selection, and once graded it draws the next question.
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (submitting || e.key !== 'Enter') return
+    if (submitting || diagnosing || e.key !== 'Enter') return
     // Let modified shortcuts (Ctrl/⌘/Alt+key) reach the browser.
     if (e.ctrlKey || e.metaKey || e.altKey) return
     const tag = (e.target as HTMLElement).tagName
@@ -337,6 +359,22 @@ export default function QuestionCard({
             </span>
           </>
         )}
+        {diagnosis && (
+          <span
+            className={
+              'rounded-full px-2 py-0.5 text-[10px] font-semibold normal-case ring-1 ring-inset ' +
+              (diagnosis.archetype_correct
+                ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30'
+                : diagnosis.family_correct
+                  ? 'bg-amber-500/15 text-amber-200 ring-amber-500/30'
+                  : 'bg-red-500/15 text-red-300 ring-red-500/30')
+            }
+            title="Your read of the question type"
+          >
+            {diagnosis.archetype_name}
+            {diagnosis.archetype_correct ? ' ✓' : ' ✗'}
+          </span>
+        )}
         <QuestionElapsed
           key={question.id}
           frozen={result !== null || submitting || !elapsedEnabled}
@@ -350,6 +388,16 @@ export default function QuestionCard({
         {question.stem}
       </p>
 
+      {diagnosing && (
+        <DiagnoseStep
+          key={question.id}
+          questionId={question.id}
+          section={question.section}
+          onComplete={finishDiagnosis}
+        />
+      )}
+
+      {!diagnosing && (
       <ul
         className="mt-5 space-y-2"
         role="radiogroup"
@@ -441,7 +489,8 @@ export default function QuestionCard({
           )
         })}
       </ul>
-      {!result && (
+      )}
+      {!diagnosing && !result && (
         <p className="mt-2 text-[11px] text-slate-400">
           Cross out a choice with{' '}
           <kbd className="rounded border border-slate-700 bg-slate-800/60 px-1 font-mono text-slate-300">
@@ -474,7 +523,7 @@ export default function QuestionCard({
         </p>
       )}
 
-      {!result && (
+      {!diagnosing && !result && (
         <p className="mt-2 text-[11px] text-slate-400">
           Keyboard:{' '}
           <kbd className="rounded border border-slate-700 bg-slate-800/60 px-1 font-mono text-slate-300">
@@ -505,15 +554,19 @@ export default function QuestionCard({
         </p>
       )}
 
-      {/* Spec 045 FR-6: progressive solve guide (hints + diagrams). */}
-      <SolveAssist
-        key={question.id}
-        questionId={question.id}
-        graded={result !== null}
-        onHintsUsedChange={onHintsUsedChange}
-        onAskTutor={openWalkthrough}
-        remap={question.remap}
-      />
+      {/* Spec 045 FR-6: progressive solve guide (hints + diagrams). Hidden
+          while a diagnosis is pending: the guide's first step names the
+          question type, which is the very thing being asked. */}
+      {!diagnosing && (
+        <SolveAssist
+          key={question.id}
+          questionId={question.id}
+          graded={result !== null}
+          onHintsUsedChange={onHintsUsedChange}
+          onAskTutor={openWalkthrough}
+          remap={question.remap}
+        />
+      )}
 
       {walkthrough && !result && (
         <TutorPane
@@ -532,7 +585,7 @@ export default function QuestionCard({
       )}
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
-        {!result && (
+        {!diagnosing && !result && (
           <button
             onClick={() => void submit()}
             disabled={!selected || submitting}
@@ -584,6 +637,10 @@ export default function QuestionCard({
           )}
         />
       )}
+
+      {/* Spec 054: the same stimulus asked as other types, with the note on
+          where the key moved. Post-grade only, like the explanation. */}
+      {result && <ContrastPanel questionId={question.id} section={question.section} />}
 
       {/* Spec 045 FR-14: independent blind solve vs. the answer key. */}
       {result && <CrossCheckPanel questionId={question.id} />}

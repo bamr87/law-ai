@@ -41,7 +41,8 @@
           "url": "https://7sage.com/free-lsat-prep-course/"
         }
       ],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-acceptability"
     },
     {
       "id": "lg-002",
@@ -79,7 +80,8 @@
         "must-be-true"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-003",
@@ -117,7 +119,8 @@
         "must-be-true"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-004",
@@ -155,7 +158,8 @@
         "could-be-true-except"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-could-be-true-except"
     },
     {
       "id": "lg-005",
@@ -193,7 +197,8 @@
         "must-be-true"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-006",
@@ -237,7 +242,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lg-acceptability"
     },
     {
       "id": "lg-007",
@@ -281,7 +287,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lg-acceptability"
     },
     {
       "id": "lg-008",
@@ -325,7 +332,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lg-could-be-true-except"
     },
     {
       "id": "lg-009",
@@ -370,7 +378,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-010",
@@ -414,7 +423,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lg-acceptability"
     },
     {
       "id": "lg-011",
@@ -458,7 +468,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lg-could-be-true-except"
     },
     {
       "id": "lg-012",
@@ -502,7 +513,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lg-must-be-true"
     },
     {
       "id": "lg-013",
@@ -546,7 +558,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-014",
@@ -591,7 +604,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-015",
@@ -635,7 +649,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lg-could-be-true-except"
     },
     {
       "id": "lg-016",
@@ -679,7 +694,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-017",
@@ -723,7 +739,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-018",
@@ -767,7 +784,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lg-must-be-true"
     },
     {
       "id": "lg-019",
@@ -811,7 +829,8 @@
         "reviewed_by": "adversarial judge + logic check at import (PR #50, 583c1cb)",
         "reviewed_at": "2026-07-16",
         "note": "Automated review only: these items were machine-reviewed and logic-checked when the build100 set was ported, and have not had a human editorial pass."
-      }
+      },
+      "archetype": "lg-must-be-true"
     },
     {
       "id": "lg-020",
@@ -849,7 +868,8 @@
         "in-out-selection"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-acceptability"
     },
     {
       "id": "lg-021",
@@ -887,7 +907,8 @@
         "must-be-true"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-in-out-selection"
     },
     {
       "id": "lg-022",
@@ -925,7 +946,8 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-023",
@@ -963,7 +985,8 @@
         "contrapositive"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-024",
@@ -1001,7 +1024,8 @@
         "numeric-distribution"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-max-min"
     },
     {
       "id": "lg-025",
@@ -1039,7 +1063,8 @@
         "elimination-grid"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-acceptability"
     },
     {
       "id": "lg-026",
@@ -1077,7 +1102,8 @@
         "must-be-true"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-hybrid"
     },
     {
       "id": "lg-027",
@@ -1115,7 +1141,8 @@
         "hybrid-game"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-max-min"
     },
     {
       "id": "lg-028",
@@ -1153,7 +1180,8 @@
         "hybrid-game"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-acceptability"
     },
     {
       "id": "lg-029",
@@ -1191,7 +1219,8 @@
         "hybrid-game"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-rule-substitution"
     },
     {
       "id": "lg-030",
@@ -1229,7 +1258,8 @@
         "must-be-true"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-031",
@@ -1267,7 +1297,8 @@
         "sequencing"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-rule-substitution"
     },
     {
       "id": "lg-032",
@@ -1305,7 +1336,8 @@
         "elimination-grid"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-acceptability"
     },
     {
       "id": "lg-033",
@@ -1343,7 +1375,8 @@
         "grouping-game"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-numeric-distribution"
     },
     {
       "id": "lg-034",
@@ -1381,7 +1414,8 @@
         "grouping-game"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-035",
@@ -1419,7 +1453,8 @@
         "numeric-distribution"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-036",
@@ -1457,7 +1492,8 @@
         "could-be-true-except"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-could-be-true-except"
     },
     {
       "id": "lg-037",
@@ -1495,7 +1531,8 @@
         "elimination-grid"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-acceptability"
     },
     {
       "id": "lg-038",
@@ -1533,7 +1570,8 @@
         "must-be-true"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-must-be-true"
     },
     {
       "id": "lg-039",
@@ -1571,7 +1609,8 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-040",
@@ -1609,7 +1648,8 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-041",
@@ -1647,7 +1687,8 @@
         "could-be-true-except"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-could-be-true-except"
     },
     {
       "id": "lg-042",
@@ -1685,7 +1726,8 @@
         "elimination-grid"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-acceptability"
     },
     {
       "id": "lg-043",
@@ -1723,7 +1765,8 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-044",
@@ -1761,7 +1804,8 @@
         "max-min"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-max-min"
     },
     {
       "id": "lg-045",
@@ -1799,7 +1843,8 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-046",
@@ -1837,7 +1882,8 @@
         "could-be-true-except"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-could-be-true-except"
     },
     {
       "id": "lg-047",
@@ -1875,7 +1921,8 @@
         "grouping-game"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-acceptability"
     },
     {
       "id": "lg-048",
@@ -1913,7 +1960,8 @@
         "must-be-true"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-grouping"
     },
     {
       "id": "lg-049",
@@ -1951,7 +1999,8 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-050",
@@ -1989,7 +2038,8 @@
         "conditional-reasoning"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-local-conditional"
     },
     {
       "id": "lg-051",
@@ -2027,7 +2077,8 @@
         "could-be-true-except"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-could-be-true-except"
     },
     {
       "id": "lg-052",
@@ -2065,7 +2116,8 @@
         "could-be-true-except"
       ],
       "references": [],
-      "source": "original (CC0)"
+      "source": "original (CC0)",
+      "archetype": "lg-must-be-true"
     }
   ]
 }
