@@ -20,11 +20,14 @@ export default function Overview({
       <div className="intro">
         <h2>Practice every LSAT section</h2>
         <p>
-          {content.counts.total} original, openly-licensed practice items across Logical Reasoning,
-          Reading Comprehension, and Logic Games — each with a full explanation — plus{' '}
-          {content.counts.writing_prompts ?? 0} Argumentative Writing prompts with a scoring rubric
-          and an annotated model response. Everything runs in your browser; your progress is stored
-          only on this device.
+          {/* counts.total is the multiple-choice bank only; the grand total is
+              derived so it can never go stale against content.json (law-ai#125). */}
+          {content.counts.total} original, openly-licensed multiple-choice practice items across
+          Logical Reasoning, Reading Comprehension, and Logic Games — each with a full explanation —
+          plus {content.counts.writing_prompts ?? 0} Argumentative Writing prompts with a scoring
+          rubric and an annotated model response —{' '}
+          {content.counts.total + (content.counts.writing_prompts ?? 0)} items in all. Everything
+          runs in your browser; your progress is stored only on this device.
         </p>
         {/* Say what is missing rather than letting it be discovered. The full
             lab has three things this site cannot: they all need a server, and
