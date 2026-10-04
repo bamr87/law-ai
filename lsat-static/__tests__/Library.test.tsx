@@ -163,6 +163,48 @@ describe('library search', () => {
     expect(railTitles().join(' ')).toContain('What the LSAT measures')
   })
 
+  // Regression: issue #120. The chips lit up and `aria-pressed` went true, but
+  // the search branch replaced the filtered rail wholesale with hits the filter
+  // had never been shown — so the combination silently did half of what the
+  // reader asked for, with nothing on screen to say so.
+  it('composes the section chip with the search box', () => {
+    render(<Library />)
+    // "summary" is in every fixture article's summary: two LR, one LG.
+    fireEvent.change(searchBox(), { target: { value: 'summary' } })
+    expect(screen.getByText('3 results')).toBeInTheDocument()
+
+    fireEvent.click(within(rail()).getByRole('button', { name: 'Logic Games' }))
+    // The count is the filtered count, not the corpus-wide one.
+    expect(screen.getByText('1 result')).toBeInTheDocument()
+    const hits = railTitles().join(' ')
+    expect(hits).toContain('Conditional diagramming')
+    expect(hits).not.toContain('The assumption family')
+    expect(hits).not.toContain('What the LSAT measures')
+
+    // All sections restores the unfiltered hit list…
+    fireEvent.click(within(rail()).getByRole('button', { name: 'All sections' }))
+    expect(screen.getByText('3 results')).toBeInTheDocument()
+
+    // …and clearing the query with a chip still selected falls back to the
+    // filtered rail, which already worked and must not regress.
+    fireEvent.click(within(rail()).getByRole('button', { name: 'Logic Games' }))
+    fireEvent.change(searchBox(), { target: { value: '' } })
+    expect(screen.queryByText(/results?$/)).toBeNull()
+    expect(railTitles().join(' ')).toContain('Conditional diagramming')
+    expect(railTitles().join(' ')).not.toContain('The assumption family')
+  })
+
+  it('leaves the article you are reading alone when a chip narrows the rail', () => {
+    // Decided deliberately (issue #120): narrowing the contents must not yank
+    // the page out from under a reader. The rail changes; the reader does not.
+    render(<Library />)
+    fireEvent.click(within(rail()).getByText('The assumption family'))
+    expect(reader()).toHaveAccessibleName('The assumption family')
+
+    fireEvent.click(within(rail()).getByRole('button', { name: 'Logic Games' }))
+    expect(reader()).toHaveAccessibleName('The assumption family')
+  })
+
   it('is reachable with / and left with Escape', () => {
     render(<Library />)
     fireEvent.keyDown(window, { key: '/' })
