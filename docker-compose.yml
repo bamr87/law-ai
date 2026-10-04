@@ -4,7 +4,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       args:
-        # Spec 053: the ocrmd scanner library, opt-in (see .env.example).
+        # Spec 055: the ocrmd scanner library, opt-in (see .env.example).
         INSTALL_OCRMD: ${INSTALL_OCRMD:-0}
     ports:
       - "8000:8000"

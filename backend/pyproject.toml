@@ -124,7 +124,7 @@ nlp = [
     "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
 ]
 
-# Spec 053: the ocrmd scanner as an optional library (ENABLE_OCRMD). Not in the default
+# Spec 055: the ocrmd scanner as an optional library (ENABLE_OCRMD). Not in the default
 # image — `INSTALL_OCRMD=1 docker compose build backend` adds it — because it pins opencv
 # (which needs libGL in the container), pulls an ONNX runtime, and is pinned to a git ref
 # until ocrmd is on PyPI. RapidOCR is the engine on Linux (Apple Vision is macOS-only);

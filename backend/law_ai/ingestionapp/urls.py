@@ -301,7 +301,7 @@ class ReviewReextractView(_Base):
 
 
 # ---------------------------------------------------------------------------
-# The ocrmd plug-in (spec 053): the scanner as a library, on an upload
+# The ocrmd plug-in (spec 055): the scanner as a library, on an upload
 # ---------------------------------------------------------------------------
 
 _DOC_SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")

@@ -1,6 +1,6 @@
 """``ocrmd_scan`` — OCR image or PDF files with the embedded scanner and route the pages.
 
-The Docker-first way to use the ocrmd plug-in (spec 053) without a scanner rig or a
+The Docker-first way to use the ocrmd plug-in (spec 055) without a scanner rig or a
 browser::
 
     make manage CMD='ocrmd_scan /repo/scans/page-15.jpg --doc prep-book'
@@ -26,7 +26,7 @@ from law_ai.ingestionapp.services import ocrmd_plugin
 
 
 class Command(BaseCommand):
-    help = "OCR files with the embedded ocrmd scanner and route the pages (spec 053)."
+    help = "OCR files with the embedded ocrmd scanner and route the pages (spec 055)."
 
     def add_arguments(self, parser: Any) -> None:
         parser.add_argument("paths", nargs="+", help="image/PDF files or directories")

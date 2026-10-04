@@ -21,7 +21,7 @@ library (``ocrmd.api.Library``), so an upload can be OCR'd *here* without a scan
 **Provider policy.** The embedded library runs with ``provider=None``: OCR only, every
 byte on this host. ocrmd's own vision pass would call Anthropic from inside a dependency,
 bypassing ``law_ai.core.llm`` — the constitution §4 choke point — and the chain has no
-image path yet (BL-20260907-13). Pages read here therefore arrive with *one* reading and
+image path yet (BL-20260907-21). Pages read here therefore arrive with *one* reading and
 say so in their provenance (``llm_model`` empty, ``status`` ``unverified``); the
 cross-checked path is a scanner rig posting to the doors above.
 """

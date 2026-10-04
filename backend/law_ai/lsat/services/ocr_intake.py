@@ -59,7 +59,7 @@ logger = logging.getLogger("law_ai.lsat.ocr_intake")
 
 SOURCE_TOOL = "ocrmd"
 
-#: The sink descriptor (spec 053): what ocrmd probes with ``GET`` before it draws its Send
+#: The sink descriptor (spec 055): what ocrmd probes with ``GET`` before it draws its Send
 #: panel, so the operator sees this door's options with their real choices instead of
 #: typing field names from memory.
 INTAKE_DESCRIPTOR = descriptor(
@@ -122,7 +122,7 @@ class ScanProvenance(BaseModel):
     bbox: list[float] | None = None
     #: A URL the reviewer can open to see the page image, if the scanner is reachable.
     image_url: str = ""
-    # --- carried by the sink envelope (spec 053) ------------------------------------
+    # --- carried by the sink envelope (spec 055) ------------------------------------
     tool_version: str = ""
     #: Disagreement marks still open in the text that was sent (the scanner strips
     #: nothing; the extractor does, see ``clean_page_text``).
@@ -150,7 +150,7 @@ class IngestScanRequest(BaseModel):
         """The ocrmd envelope — ``text``, ``provenance``, ``document``, ``options`` —
         mapped onto the fields this door has taken since it opened. The legacy shape
         (``source_text`` + top-level ``hint``/``section``/``difficulty``) still works,
-        so nothing that posted here before spec 053 has to change.
+        so nothing that posted here before spec 055 has to change.
         """
         if not isinstance(data, dict) or not is_envelope(data):
             return data
@@ -195,7 +195,7 @@ class IngestScanResult(BaseModel):
     model: str = ""
     degraded: bool = False
     extracted: int = 0
-    # --- the answer in the sink contract's terms (spec 053) ---------------------------
+    # --- the answer in the sink contract's terms (spec 055) ---------------------------
     summary: str = ""
     items: list[dict[str, Any]] = Field(
         default_factory=list,

@@ -1,4 +1,4 @@
-"""A scanned page filed on a matter — the matter door of the ocrmd plug-in (spec 053).
+"""A scanned page filed on a matter — the matter door of the ocrmd plug-in (spec 055).
 
 Ownership is the load-bearing property, as everywhere under ``/api/matters``: the door
 is signed-in only, a stranger's matter is a 404, and a page already filed answers with

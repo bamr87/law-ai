@@ -40,7 +40,7 @@ None. `MatterArtifact.body` is a JSONField; the page id is looked up with a `bod
 | Decision | Chosen | Alternatives Considered | Why |
 |----------|--------|-------------------------|-----|
 | Where scanned pages land for "further analysis" | `MatterArtifact(kind=document)` | a `PendingReview` kind `scanned_page`; a `:SourceDocument` graph node | A scanned book page is the user's material, not a public source: it needs no quarantine and must not enter the graph as authority. The matter is the platform's own container for source material. A graph node is a follow-up with its own spec. |
-| How the embedded scanner reads | `provider=None` (OCR only) | ocrmd's own `AnthropicProvider`; a `Provider` shim over `core.llm` | The first would call a vendor from inside a dependency (§4 rejects it). The second needs an image path the chain does not have yet (BL-20260907-13). One honest reading beats a hidden second call. |
+| How the embedded scanner reads | `provider=None` (OCR only) | ocrmd's own `AnthropicProvider`; a `Provider` shim over `core.llm` | The first would call a vendor from inside a dependency (§4 rejects it). The second needs an image path the chain does not have yet (BL-20260907-21). One honest reading beats a hidden second call. |
 | Dependency shape | opt-in build arg + extra | always in the image | opencv needs system libraries and the package is pinned to a git ref; the default image stays byte-identical. The `nlp` extra's precedent is followed for the runtime flag. |
 | Receiver contract | ocrmd's descriptor + envelope, legacy body kept | a Law AI-specific body | The scanner draws the options from the descriptor, so section/difficulty vocabulary lives here, not in a scanner. Keeping the legacy body means nothing that posted before breaks. |
 | Idempotent matter filing | page id + bbox | always create | "Did that go through?" is answered by pressing the button again — the contract ocrmd's sinks are written against. |
@@ -66,7 +66,7 @@ No deviation from constitution §2.
 - Unit (`backend/tests/lsat/test_ocr_intake_envelope.py`): descriptor shape; envelope → 202 in the contract's terms with the proposal's provenance; legacy shape; WS → 422; duplicate → warning. `llm.agenerate` patched as in the extractor tests.
 - Unit (`backend/tests/matters/test_ocrmd_intake.py`): descriptor; filing; idempotency; a region as its own filing; the operator's title; caveats; 401/404; empty text → 422.
 - Unit (`backend/tests/ingestion/test_ocrmd_plugin.py`): the models; status; `library()` refusals; `scan_file` driving a fake library OCR-only and closing it; the upload door's 503/422/200 and routing to both doors; the management command.
-- Integration: the doors use Postgres through the ORM like every matter/proposal test; no Neo4j involved. A real-engine scan needs the opt-in image and is a follow-up (BL-20260907-17).
+- Integration: the doors use Postgres through the ORM like every matter/proposal test; no Neo4j involved. A real-engine scan needs the opt-in image and is a follow-up (BL-20260907-25).
 - Frontend: none (NG2).
 
 ## 8. Rollout
@@ -80,7 +80,7 @@ No deviation from constitution §2.
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
 | A scanned page read as authority | low | high | `source=ocrmd`, kind `document`, never in `MatterAuthority` without a human (R-1) |
-| Opt-in build breaks when ocrmd `main` moves | med | low | default image unaffected; pin to a release (BL-20260907-16) |
+| Opt-in build breaks when ocrmd `main` moves | med | low | default image unaffected; pin to a release (BL-20260907-24) |
 | A slow OCR on the request thread | med | low | `OCRMD_MAX_PAGES`, one file per request, a rig for books |
 
 ## 10. Estimated Effort

@@ -1,4 +1,4 @@
-"""The LSAT door speaks the ocrmd sink contract (spec 053).
+"""The LSAT door speaks the ocrmd sink contract (spec 055).
 
 ``GET`` answers with a descriptor so the scanner can draw this door's real options;
 ``POST`` takes the scanner's envelope — text, provenance, catalogue entry, options — and

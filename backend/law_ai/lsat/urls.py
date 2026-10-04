@@ -1865,7 +1865,7 @@ class ScanIntakeView(_Base):
     The ingestion door for `ocrmd`, the camera-to-Markdown scanner: it reads a book
     page twice (local OCR + a vision model), reconciles the two readings, and posts
     the result here with the page's provenance attached — as its sink *envelope*
-    (spec 053), or in the legacy ``source_text`` shape. The text is transcribed
+    (spec 055), or in the legacy ``source_text`` shape. The text is transcribed
     into question drafts, gated exactly as factory-generated ones are, and parked in
     the HITL queue — this endpoint has no path to the live bank. ``GET`` answers with
     the sink descriptor the scanner probes first.
@@ -1878,7 +1878,7 @@ class ScanIntakeView(_Base):
     throttle_scope = "llm"
 
     def get(self, request: Any, *args: Any, **kwargs: Any) -> Response:
-        """The sink descriptor (spec 053): what this door is and which options it
+        """The sink descriptor (spec 055): what this door is and which options it
         takes, so the scanner draws real choices instead of asking for field names."""
         return Response(INTAKE_DESCRIPTOR)
 

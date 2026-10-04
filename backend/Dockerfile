@@ -30,7 +30,7 @@ RUN --mount=type=cache,target=/root/.cache/pip pip install -e ".[dev,local-ai,fu
 RUN --mount=type=cache,target=/root/.cache/pip pip install --no-deps \
     "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
 
-# Spec 053: the ocrmd scanner library is opt-in — `INSTALL_OCRMD=1 docker compose build
+# Spec 055: the ocrmd scanner library is opt-in — `INSTALL_OCRMD=1 docker compose build
 # backend` — because it brings opencv (which needs libGL and glib at import time) and an
 # ONNX runtime, and is pinned to a git ref until ocrmd is on PyPI. The default image is
 # byte-identical with the arg at 0. ENABLE_OCRMD then turns the feature on at runtime.

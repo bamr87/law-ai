@@ -239,7 +239,7 @@ class MatterArtifactListView(_Base):
 class MatterOcrmdIntakeView(_Base):
     """``GET/POST /api/matters/<slug>/intake/ocrmd`` — a scanned page filed on this matter.
 
-    The matter half of the ocrmd plug-in (spec 053, :mod:`law_ai.matters.services.scanned`):
+    The matter half of the ocrmd plug-in (spec 055, :mod:`law_ai.matters.services.scanned`):
     ``GET`` is the sink descriptor the scanner probes, ``POST`` takes its envelope and
     files the page as a ``document`` artifact. Signed-in only like every matter route —
     a scanner sends a user bearer token, not an API key — and a page already filed

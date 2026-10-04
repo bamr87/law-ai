@@ -1,4 +1,4 @@
-"""A scanned page filed on a matter — the matter half of the ocrmd plug-in (spec 053).
+"""A scanned page filed on a matter — the matter half of the ocrmd plug-in (spec 055).
 
 A page a scanner has read becomes a ``document`` artifact on the user's matter: the
 reconciled text, the scanner's provenance and the book's catalogue entry in ``body``,

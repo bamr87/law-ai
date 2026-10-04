@@ -53,7 +53,7 @@
 - **Status**: `[x]`
 - **Files**: `backend/law_ai/settings/base.py`, `.env.example`, `backend/pyproject.toml`, `backend/Dockerfile`, `docker-compose.yml`
 - **Steps**: three settings declared and bound; the `ocrmd` extra with licences noted; `ARG INSTALL_OCRMD=0` and a conditional layer adding libGL/glib and the extra; compose passes the arg to `backend` and `worker`; `ocrmd.*` in the mypy ignore list.
-- **Verify**: `docker compose config --quiet`; the default build is unchanged; `INSTALL_OCRMD=1 docker compose build backend` installs the extra (follow-up BL-20260907-17 exercises it with a real engine).
+- **Verify**: `docker compose config --quiet`; the default build is unchanged; `INSTALL_OCRMD=1 docker compose build backend` installs the extra (follow-up BL-20260907-25 exercises it with a real engine).
 
 ## T-006 — Docs, gates, backlog
 
@@ -81,9 +81,9 @@
 
 > Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id.
 
-- BL-20260907-13 — feature, med — An image path through `law_ai.core.llm` (`LLMRequest.images` across the four transports), so ocrmd's vision cross-check can run inside Law AI through the §4 choke point instead of OCR-only.
-- BL-20260907-14 — feature, med — A frontend for the plug-in: an upload panel (`POST /api/ingestion/ocrmd/scan`) on the LSAT Lab authoring tab and on a matter's documents, and a "scanned page" view that shows the scanner's provenance and caveats.
-- BL-20260907-15 — feature, low — A `:SourceDocument` node (or `PendingReview` kind `scanned_page`) so a scanned source can be cited from an analysis with graph-level provenance; needs its own spec, a licence posture per source, and HITL.
-- BL-20260907-16 — infra, low — Pin the `ocrmd` extra to a release tag once ocrmd publishes one (or to PyPI), and consider installing it in the default image if the opencv system libraries are acceptable there.
-- BL-20260907-17 — test-gap, med — An `integration`-marked test that runs `scan_file` against a real RapidOCR engine in an `INSTALL_OCRMD=1` image, nightly, so the embedded path is exercised end to end.
-- BL-20260907-18 — doc-gap, low — Regenerate `frontend/__tests__/fixtures/api-schema.json` with `IngestScanRequest`/`IngestScanResult` and the ocrmd `Envelope` once the frontend consumes them (`make manage CMD=export_api_schema`).
+- BL-20260907-21 — feature, med — An image path through `law_ai.core.llm` (`LLMRequest.images` across the four transports), so ocrmd's vision cross-check can run inside Law AI through the §4 choke point instead of OCR-only.
+- BL-20260907-22 — feature, med — A frontend for the plug-in: an upload panel (`POST /api/ingestion/ocrmd/scan`) on the LSAT Lab authoring tab and on a matter's documents, and a "scanned page" view that shows the scanner's provenance and caveats.
+- BL-20260907-23 — feature, low — A `:SourceDocument` node (or `PendingReview` kind `scanned_page`) so a scanned source can be cited from an analysis with graph-level provenance; needs its own spec, a licence posture per source, and HITL.
+- BL-20260907-24 — infra, low — Pin the `ocrmd` extra to a release tag once ocrmd publishes one (or to PyPI), and consider installing it in the default image if the opencv system libraries are acceptable there.
+- BL-20260907-25 — test-gap, med — An `integration`-marked test that runs `scan_file` against a real RapidOCR engine in an `INSTALL_OCRMD=1` image, nightly, so the embedded path is exercised end to end.
+- BL-20260907-26 — doc-gap, low — Regenerate `frontend/__tests__/fixtures/api-schema.json` with `IngestScanRequest`/`IngestScanResult` and the ocrmd `Envelope` once the frontend consumes them (`make manage CMD=export_api_schema`).

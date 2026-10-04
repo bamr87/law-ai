@@ -1,4 +1,4 @@
-"""The embedded scanner (spec 053): its status, the upload door, and the routing.
+"""The embedded scanner (spec 055): its status, the upload door, and the routing.
 
 The library is stubbed throughout — the suite has no OCR engine and must not need one.
 What is under test is everything around it: the feature flag, the install check, what an

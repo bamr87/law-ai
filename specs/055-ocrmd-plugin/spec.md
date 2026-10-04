@@ -1,6 +1,6 @@
 # Spec: ocrmd as a plug-in — scanned pages as LSAT drafts and as matter documents
 
-- **ID**: 053-ocrmd-plugin
+- **ID**: 055-ocrmd-plugin
 - **Status**: shipped
 - **Owner**: @bamr87
 - **Created**: 2026-09-06
@@ -28,9 +28,9 @@ Two things were wrong with that. On the scanner's side it made a general-purpose
 
 ## 4. Non-Goals
 
-- NG1: A vision path through the provider chain (the cross-check inside Law AI). Follow-up BL-20260907-13.
-- NG2: A frontend for uploads or for browsing scanned pages. Follow-up BL-20260907-14.
-- NG3: A graph node for scanned sources, or a `PendingReview` kind for them. A scanned book page is the user's material, not a public data source; follow-up BL-20260907-15 records the case for a `:SourceDocument` node.
+- NG1: A vision path through the provider chain (the cross-check inside Law AI). Follow-up BL-20260907-21.
+- NG2: A frontend for uploads or for browsing scanned pages. Follow-up BL-20260907-22.
+- NG3: A graph node for scanned sources, or a `PendingReview` kind for them. A scanned book page is the user's material, not a public data source; follow-up BL-20260907-23 records the case for a `:SourceDocument` node.
 - NG4: Installing ocrmd in the default image. It is pinned to a git ref and brings opencv; it is an opt-in build.
 - NG5: Asynchronous scanning. The upload door is bounded (`OCRMD_MAX_PAGES`); a book goes through a scanner rig.
 
@@ -102,7 +102,7 @@ No Neo4j change. No new Postgres table: the matter door writes `MatterArtifact` 
 ## 13. Risks & Open Questions
 
 - **R-1**: A scanned page filed on a matter could be read by a later feature as authority. Mitigation: `source="ocrmd"` and `confidence` = the scanner's agreement, the artifact kind is `document`, and it never enters `MatterAuthority` or the boost set without a human recording it there.
-- **R-2**: The git-pinned dependency makes the opt-in build depend on GitHub and on ocrmd's `main`. Mitigation: opt-in only, default image unchanged; BL-20260907-16 tracks pinning to a release.
+- **R-2**: The git-pinned dependency makes the opt-in build depend on GitHub and on ocrmd's `main`. Mitigation: opt-in only, default image unchanged; BL-20260907-24 tracks pinning to a release.
 - **R-3**: Copyright. A prep book photographed by its owner and OCR'd for their own review is their own use; the platform stores the text on their account, never redistributes it, and excludes it from any public export. `docs/data-sources.md` records this posture; it is not a licence row.
 
 ## 14. Out of Scope / Follow-ups
