@@ -203,8 +203,10 @@ describe('LsatLibrary', () => {
       ).toBeInTheDocument(),
     )
     const rail = screen.getByRole('navigation', { name: /library contents/i })
+    // The rail renders (search box, section chips) before the contents fetch
+    // resolves, so its article rows have to be awaited, not asserted at once.
     expect(
-      within(rail).getByRole('button', { name: /Argument Anatomy/ }),
+      await within(rail).findByRole('button', { name: /Argument Anatomy/ }),
     ).toBeInTheDocument()
 
     await waitFor(() =>
