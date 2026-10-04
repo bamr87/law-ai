@@ -18,7 +18,7 @@
 // backend's rule for rule.
 
 import { articles } from './data'
-import type { Article, Block, Cell, Span } from './types'
+import type { Article, Block, Cell, SectionCode, Span } from './types'
 
 const WEIGHTS = { title: 8, summary: 4, tag: 3, heading: 3, body: 1 }
 const SNIPPET_RADIUS = 90
@@ -341,12 +341,26 @@ function scoreArticle(
   return { score, where, anchor }
 }
 
-export function searchLibrary(query: string, limit = 20): SearchHit[] {
+/**
+ * Rank the library against `query`, optionally narrowed to one exam section.
+ *
+ * `section` filters INSIDE the scoring loop, not after it. Capping first and
+ * filtering after would report a section as empty whenever its matches all
+ * ranked below `limit` in the unfiltered order (issue #120). The default
+ * `'all'` leaves the ranking byte-for-byte as it was, which is what keeps the
+ * backend parity fixture (`search_parity.json`) meaningful.
+ */
+export function searchLibrary(
+  query: string,
+  limit = 20,
+  section: SectionCode | 'all' = 'all',
+): SearchHit[] {
   const tokens = queryTokens(query)
   if (tokens.length === 0) return []
 
   const hits: SearchHit[] = []
   for (const article of articles) {
+    if (section !== 'all' && !article.sections.includes(section)) continue
     const { score, where, anchor } = scoreArticle(article, tokens)
     if (score === 0) continue
     const body = bodies.get(article.id) ?? ''

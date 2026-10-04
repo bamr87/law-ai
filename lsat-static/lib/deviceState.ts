@@ -15,6 +15,7 @@
 export const LIBRARY_READ_KEY = 'lsat-library-read'
 export const WRITING_DRAFT_PREFIX = 'lsat-writing:draft:'
 export const WRITING_SUBMITTED_PREFIX = 'lsat-writing:submitted:'
+export const DRILL_POSITION_PREFIX = 'lsat-practice.drill-position.v1:'
 
 export function readLocal(key: string): string | null {
   try {
@@ -126,6 +127,91 @@ export function writeWritingState(state: WritingState, replace = false): void {
     writeLocal(writingDraftKey(id), text)
   }
   for (const id of state.submitted) writeLocal(writingSubmittedKey(id), '1')
+}
+
+// --- drill position ---------------------------------------------------------
+
+/**
+ * Where you are in a section's bank, and what you have already answered.
+ *
+ * `Drill` holds these in `useState`, and `app/page.tsx` wraps the view switch
+ * in `<div className="view-anim" key={view}>` — so changing destination is an
+ * instruction to React to throw the drill away and build a new one. Checking
+ * Stats mid-section therefore dropped you back on question 1 with your
+ * selections gone, while the attempts (`progress.ts`) and the section clock
+ * (`lib/lsat/timerStore.ts`) both survived, because both of those live outside
+ * the component tree. Three tiers of state, and the drill was on the only one
+ * that a remount can erase.
+ *
+ * Stored here rather than hoisted into `Page` so that a refresh costs nothing
+ * either — the same standard attempts and the clock already meet. Keyed *per
+ * section*, which is what keeps LR → RC from showing you LR's place: each
+ * section reads only its own record, so a section you have not opened is
+ * empty, and the reset `Drill` used to do on a section change falls out of the
+ * key rather than having to be performed.
+ *
+ * Deliberately **not** in the export snapshot (`lib/backup.ts`), by the same
+ * reasoning as `HEADER_PINNED_KEY` below: the snapshot exists so a month of
+ * drilling survives a replaced phone, and a `replace` restore is allowed to
+ * overwrite history. A half-finished section is not history — it is a cursor
+ * into this device's current sitting. Restoring a file would otherwise drop
+ * the reader into the middle of a section they never started on this device,
+ * with answers attributed to them that they cannot see the questions for. The
+ * graded record of what they answered *is* carried, by `attempts`.
+ */
+export interface DrillPosition {
+  /** Index into the section's question bank. */
+  i: number
+  /** Question id → the choice given and the seconds it took. */
+  answers: Record<string, { choice: string; seconds: number }>
+}
+
+export function drillPositionKey(section: string): string {
+  return `${DRILL_POSITION_PREFIX}${section}`
+}
+
+/**
+ * The saved position for one section, or null where there is none.
+ *
+ * Null rather than an empty position, so a caller can tell "never opened" from
+ * "opened and on question 1" — only the first may be overwritten without
+ * having been read. Every field is re-checked: the blob came out of storage a
+ * previous version of this site wrote, and a bad record must cost the reader a
+ * fresh start, not a crash mid-drill.
+ */
+export function readDrillPosition(section: string): DrillPosition | null {
+  try {
+    const raw = readLocal(drillPositionKey(section))
+    if (!raw) return null
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null) return null
+    const p = parsed as Record<string, unknown>
+    const i = typeof p.i === 'number' && Number.isFinite(p.i) ? Math.max(0, Math.floor(p.i)) : 0
+    const answers: DrillPosition['answers'] = {}
+    if (typeof p.answers === 'object' && p.answers !== null) {
+      for (const [qid, value] of Object.entries(p.answers as Record<string, unknown>)) {
+        if (typeof value !== 'object' || value === null) continue
+        const a = value as Record<string, unknown>
+        if (typeof a.choice !== 'string') continue
+        const seconds =
+          typeof a.seconds === 'number' && Number.isFinite(a.seconds)
+            ? Math.max(0, a.seconds)
+            : 0
+        answers[qid] = { choice: a.choice, seconds }
+      }
+    }
+    return { i, answers }
+  } catch {
+    return null
+  }
+}
+
+export function writeDrillPosition(section: string, position: DrillPosition): void {
+  writeLocal(drillPositionKey(section), JSON.stringify(position))
+}
+
+export function clearDrillPosition(section: string): void {
+  removeLocal(drillPositionKey(section))
 }
 
 // --- per-device preferences -------------------------------------------------
