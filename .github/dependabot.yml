@@ -60,6 +60,29 @@ updates:
       # passes in Docker (the frontend's MSW mocks are what the major touches).
       - dependency-name: msw
         update-types: ["version-update:semver-major"]
+      # PR #155 bumped eslint 9 -> 10 inside the regrouped PR and its lint job
+      # died on `TypeError: Error while loading rule 'react/display-name':
+      # contextOrFilename.getFilename is not a function`. ESLint 10 removed
+      # `context.getFilename()`, and the `eslint-plugin-react` that
+      # `eslint-config-next` depends on still calls it. Until that plugin
+      # supports ESLint 10, a major eslint bump can only break `npm run lint`,
+      # so hold at 9.x.
+      #
+      # THE UNBLOCK SIGNAL (BL-20261007-02): `eslint-plugin-react`'s
+      # `peerDependencies.eslint` must admit 10.x. Check it against the registry:
+      #
+      #   npm view eslint-plugin-react peerDependencies.eslint
+      #
+      # Last checked 2026-10-07: eslint-plugin-react 7.37.5 peers `eslint` up to
+      # `^9.7`, and eslint-config-next 16.4.0 still depends on
+      # `eslint-plugin-react ^7.37.0` — so 10.x is still excluded and this
+      # entry must stay.
+      #
+      # When the bound moves: delete this comment block and the two lines
+      # below, let the next grouped PR bump eslint, then confirm `make lint`
+      # passes in Docker.
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
     labels:
       - dependencies
