@@ -39,6 +39,27 @@ updates:
       # tsc strictness, so typecheck is not a formality here).
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
+      # PR #136 bumped msw 2 -> 3 inside the grouped PR and took the whole
+      # group down with it: `npm ci` failed because the `@vitest/mocker` that
+      # vitest nests declares `peerDependencies.msw ^2.4.9`, so the lockfile
+      # would need a second msw 2.x beside the root's 3.x and cannot be
+      # satisfied as written. Until a mocker release admits msw 3, a major msw
+      # bump can only break the frontend install, so hold at 2.x.
+      #
+      # THE UNBLOCK SIGNAL (BL-20261007-01): `@vitest/mocker`'s
+      # `peerDependencies.msw` must admit 3.x. Check it against the registry:
+      #
+      #   npm view @vitest/mocker peerDependencies.msw
+      #
+      # Last checked 2026-10-07: @vitest/mocker 5.0.3 (the version vitest 5.0.3
+      # depends on) peers `msw ^2.4.9`, and msw is at 3.0.2 — so 3.x is still
+      # excluded and this entry must stay.
+      #
+      # When the bound moves: delete this comment block and the two lines
+      # below, let the next grouped PR bump msw, then confirm `make test-frontend`
+      # passes in Docker (the frontend's MSW mocks are what the major touches).
+      - dependency-name: msw
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
     labels:
       - dependencies
