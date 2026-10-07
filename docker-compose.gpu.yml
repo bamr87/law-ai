@@ -77,7 +77,7 @@ services:
     # kernel support change between releases.
     image: vllm/vllm-openai:v0.11.0
     ports:
-      - "8001:8000"
+      - "127.0.0.1:${LAW_AI_VLLM_PORT:-8001}:8000"
     environment:
       # Gated repos (Llama) need a token with the license accepted.
       - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN:-}
@@ -99,7 +99,7 @@ services:
     # vLLM's tokenizer/allocator wants a bigger /dev/shm than the 64 MB default.
     shm_size: "8gb"
     healthcheck:
-      test: [ "CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1" ]
+      test: [ "CMD-SHELL", "curl -fsS http://127.0.0.1:8000/health || exit 1" ]
       interval: 15s
       timeout: 5s
       retries: 10
