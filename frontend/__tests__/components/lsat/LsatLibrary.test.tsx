@@ -5,11 +5,12 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { http, HttpResponse } from 'msw'
+import { delay, http, HttpResponse } from 'msw'
 
 import LsatLibrary from '@/components/LsatLibrary'
 import {
   lsatConceptsFixture,
+  lsatLibraryIndexFixture,
   lsatReadArticles,
   resetLsatReadArticles,
   server,
@@ -194,17 +195,15 @@ describe('LsatLibrary', () => {
     })
   })
 
-  it('lists the contents and opens the first article', async () => {
-    render(<LsatLibrary />)
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole('navigation', { name: /library contents/i }),
-      ).toBeInTheDocument(),
-    )
-    const rail = screen.getByRole('navigation', { name: /library contents/i })
+  // The rail's nav renders on first paint, before the library fetch resolves,
+  // so the article buttons must be awaited rather than queried synchronously
+  // (#139: a slow runner lost that race in CI).
+  async function expectContentsAndFirstArticle() {
+    const rail = await screen.findByRole('navigation', {
+      name: /library contents/i,
+    })
     expect(
-      within(rail).getByRole('button', { name: /Argument Anatomy/ }),
+      await within(rail).findByRole('button', { name: /Argument Anatomy/ }),
     ).toBeInTheDocument()
 
     await waitFor(() =>
@@ -215,6 +214,23 @@ describe('LsatLibrary', () => {
     expect(
       screen.getByText('Separating the conclusion from what supports it.'),
     ).toBeInTheDocument()
+  }
+
+  it('lists the contents and opens the first article', async () => {
+    render(<LsatLibrary />)
+    await expectContentsAndFirstArticle()
+  })
+
+  it('lists the contents even when the library response is slow', async () => {
+    server.use(
+      http.get('http://localhost:8000/api/lsat/library', async () => {
+        await delay(200)
+        const { articles } = lsatLibraryIndexFixture
+        return HttpResponse.json({ articles, count: articles.length })
+      }),
+    )
+    render(<LsatLibrary />)
+    await expectContentsAndFirstArticle()
   })
 
   it('follows an inline article cross-reference into the other article', async () => {

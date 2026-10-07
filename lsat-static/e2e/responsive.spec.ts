@@ -355,6 +355,139 @@ test.describe('1280x900 (desktop)', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Writing at the reporter's viewport (#115)
+// ---------------------------------------------------------------------------
+
+/**
+ * The Writing screen is the one place `.passage` appears outside a drill grid,
+ * and the sticky stack's third rung used to claim it: the prompt pinned
+ * partway down the viewport, painted over the editor, and — because sticky
+ * establishes a stacking context — swallowed the clicks aimed at the
+ * textarea, the timer and Submit. Keyboard shortcuts were the only way in.
+ *
+ * `__tests__/stickyScope.test.tsx` covers the cascade question on every PR.
+ * This covers the part jsdom structurally cannot: whether a mouse lands on
+ * the control a reader aims at. 1280×800 is the reporter's own viewport.
+ */
+test.describe('1280x800 (desktop, Argumentative Writing)', () => {
+  test.use({ viewport: { width: 1280, height: 800 } })
+
+  /**
+   * What a click aimed at `selector` would actually hit.
+   *
+   * The point is the centre of the control's *visible* box, not of its layout
+   * box: `elementFromPoint` answers about the viewport, and the 18-row
+   * textarea is taller than 800px of screen, so its true centre is below the
+   * fold even with the control perfectly usable.
+   */
+  async function hitAtCentreOf(page: Page, selector: string): Promise<boolean> {
+    const control = page.locator(selector).first()
+    await control.scrollIntoViewIfNeeded()
+    return control.evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      const top = Math.max(r.top, 0)
+      const bottom = Math.min(r.bottom, window.innerHeight)
+      const left = Math.max(r.left, 0)
+      const right = Math.min(r.right, window.innerWidth)
+      if (bottom <= top || right <= left) return false
+      const hit = document.elementFromPoint((left + right) / 2, (top + bottom) / 2)
+      // A click on a control's own label or inner span still reaches it, so
+      // "the element or something inside it" is the honest contract.
+      return hit === el || el.contains(hit)
+    })
+  }
+
+  async function openFirstPrompt(page: Page): Promise<void> {
+    await page.goto('./')
+    await page
+      .locator('.site-header .nav')
+      .getByRole('button', { name: 'Argumentative Writing' })
+      .click()
+    await page.getByRole('button', { name: 'Open prompt' }).first().click()
+    await expect(page.locator('#writing-draft')).toBeVisible()
+  }
+
+  test('the prompt does not pin, and every control takes a real click', async ({
+    page,
+  }) => {
+    await openFirstPrompt(page)
+
+    // The regression itself: a bare `.passage { position: sticky }` inside the
+    // 820px block reached this article.
+    await expect(page.locator('.passage')).toHaveCSS('position', 'static')
+    expect(
+      await page.locator('.passage').first().evaluate((el) => el.closest('.drill-grid')),
+      'the Writing prompt is not inside a drill grid',
+    ).toBeNull()
+
+    // One vertical stack: the prompt ends before the drafting panel begins.
+    const prompt = await boxOf(page, '.passage')
+    const drafting = await boxOf(page, 'section[aria-label="Drafting"]')
+    expect(
+      drafting.y,
+      'the drafting panel starts below the prompt, not on top of it',
+    ).toBeGreaterThanOrEqual(prompt.y + prompt.height - 1)
+
+    // Pinning is a scroll-time behaviour, so scrolling is the only way to see
+    // it: an unpinned prompt travels the full distance with the page. Measured
+    // before the hit tests below, which scroll controls into view themselves.
+    const before = await boxOf(page, '.passage')
+    await scrollTo(page, 300)
+    const after = await boxOf(page, '.passage')
+    expect(
+      after.y,
+      'the prompt scrolled away with the page rather than pinning',
+    ).toBeLessThanOrEqual(before.y - 300 + 2)
+
+    // And the clicks land. These are the three controls the report named.
+    expect(await hitAtCentreOf(page, '#writing-draft'), 'textarea').toBe(true)
+    expect(
+      await hitAtCentreOf(page, '.section-timer-controls .btn'),
+      'timer Start/Pause',
+    ).toBe(true)
+    expect(
+      await hitAtCentreOf(page, '.solve-controls .btn-primary'),
+      'Submit',
+    ).toBe(true)
+  })
+
+  test('the review phase clears the sticky header', async ({ page }) => {
+    await openFirstPrompt(page)
+
+    // Fifty words is the submit gate (`DraftPanel.canSubmit`).
+    await page
+      .locator('#writing-draft')
+      .fill(Array.from({ length: 60 }, (_, i) => `word${i}`).join(' '))
+    await page.getByRole('button', { name: /Submit and unlock/ }).click()
+    await expect(page.getByRole('region', { name: 'Review' })).toBeVisible()
+
+    // The site header is the one element that legitimately pins up here, so
+    // nothing may be drawn over it.
+    expect(await hitAtCentreOf(page, '.site-header .brand'), 'site header').toBe(
+      true,
+    )
+
+    // Measured from the top of the page: content scrolling *under* a sticky
+    // header is correct, so the claim is about the resting layout — the review
+    // panel begins below the bar rather than behind it.
+    await scrollTo(page, 0)
+    const header = await boxOf(page, '.site-header')
+    const review = await boxOf(page, 'section[aria-label="Review"]')
+    expect(
+      review.y,
+      'the review panel starts below the header, not sandwiched behind it',
+    ).toBeGreaterThanOrEqual(header.y + header.height - 1)
+
+    // The model response is the tallest thing on the screen and was the worst
+    // of the overlap; it must be reachable by mouse too.
+    const reveal = page.getByRole('button', { name: /model response/ })
+    expect(await hitAtCentreOf(page, '.btn-reveal'), 'reveal control').toBe(true)
+    await reveal.click()
+    await expect(page.locator('.model-response').first()).toBeVisible()
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Desktop, with the entrance animation actually running
 // ---------------------------------------------------------------------------
 
