@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from pathlib import Path
 
 import pytest
@@ -167,37 +166,62 @@ async def test_high_confidence_clears_hitl_flag(
 async def test_run_analysis_executes_agents_in_parallel(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """AC-5: gather() ⇒ wall-clock ≈ max(latency), not sum."""
+    """AC-5: gather() ⇒ both agents are in flight at the same time.
+
+    Asserted structurally rather than against the wall clock. Each patched agent
+    announces that it has started, then waits for the *other* to have started.
+    Under ``gather`` both reach the rendezvous at once. If the endpoint ever
+    awaited them one after the other, the first would wait for an agent that has
+    not begun and hit the timeout, which is recorded and fails the test.
+
+    The earlier ``elapsed < 0.25`` check sat only 50 ms above its own serial
+    floor (0.20 s) and had already been loosened once (0.18 → 0.25) for shared
+    GitHub Actions runners; a loaded runner still pushed it over (0.260 s). No
+    threshold here depends on how busy the runner is.
+    """
     from law_ai.agents_runtime.crews.legal_analyst import LegalAnalyst
     from law_ai.agents_runtime.crews.precedent_hunter import PrecedentHunter
 
     orig_a = LegalAnalyst.run
     orig_h = PrecedentHunter.run
 
+    both_started = asyncio.Event()
+    started: list[str] = []
+    timed_out: list[str] = []
+
+    async def rendezvous(name: str) -> None:
+        started.append(name)
+        if len(started) == 2:
+            both_started.set()
+        try:
+            # Normally a microsecond handshake; the deadline is only ever
+            # consumed when execution is serial.
+            await asyncio.wait_for(both_started.wait(), timeout=2)
+        except TimeoutError:
+            # Recorded rather than relied on: the endpoint degrades a failing
+            # agent instead of raising, so the exception alone may never reach
+            # the test.
+            timed_out.append(name)
+            raise
+
     async def slow_a(self, input_data):  # type: ignore[no-untyped-def]
-        await asyncio.sleep(0.1)
+        await rendezvous("LegalAnalyst")
         return await orig_a(self, input_data)
 
     async def slow_h(self, input_data):  # type: ignore[no-untyped-def]
-        await asyncio.sleep(0.1)
+        await rendezvous("PrecedentHunter")
         return await orig_h(self, input_data)
 
     monkeypatch.setattr(LegalAnalyst, "run", slow_a)
     monkeypatch.setattr(PrecedentHunter, "run", slow_h)
 
-    started = time.perf_counter()
     res = await client.post(
         "/api/analysis", json={"text": "Tort claim.", "use_langgraph": False}
     )
-    elapsed = time.perf_counter() - started
     assert res.status_code == 200
-    # Serial would be ≥ 0.20s; parallel should be well under 0.25s even on
-    # noisy CI runners. Threshold raised from 0.18 → 0.25 because shared
-    # GitHub Actions VMs occasionally add 50–100 ms of scheduling overhead on
-    # top of the 0.1 s asyncio.sleep, pushing wall-clock past 0.18 s even
-    # though the agents ran concurrently.  0.25 s is still far below the 0.20 s
-    # serial floor, so the test still catches any accidental serialisation.
-    assert elapsed < 0.25, f"expected parallel run, got {elapsed:.3f}s"
+    assert sorted(started) == ["LegalAnalyst", "PrecedentHunter"]
+    why = f"agents ran serially: {timed_out} waited for an agent that had not started"
+    assert not timed_out, why
 
 
 # --- Spec 027/029: the default LangGraph engine is a resilience boundary ---
