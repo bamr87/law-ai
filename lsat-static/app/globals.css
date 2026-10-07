@@ -486,27 +486,35 @@ main#view {
     padding: 0.6rem 0;
     border-bottom: 1px solid var(--border);
   }
-  .passage {
+  /* Scoped to the drill grid, every declaration of it. `.passage` is not a
+   * drill-only class: `Writing` reuses it for the prompt article, which sits
+   * *above* the editor rather than beside it, so a bare `.passage` rule
+   * reaches a screen this stack was never designed for (#115). Pinning it
+   * there parked the prompt partway down the viewport, and because sticky
+   * establishes a stacking context the pinned prompt painted over *and*
+   * hit-tested in front of the textarea, the timer and Submit — the Writing
+   * page was unusable with a mouse. The scroll-region half below was already
+   * scoped for the same reason; the pin itself was not.
+   *
+   * `align-self: start` is load-bearing: a grid item defaults to
+   * `align-self: stretch`, which makes it exactly as tall as its row and
+   * leaves sticky nowhere to travel. The platform's graph case picker had the
+   * same latent bug.
+   *
+   * The passage column also gets its own scroll region, the way `.lib-rail`
+   * already does. Without a height cap, a passage taller than the viewport
+   * gets no benefit from top stickiness at all — a browser only pins such an
+   * element once its *bottom* has scrolled into view, so the longest RC
+   * passages, the ones that most need to stay beside their questions, were
+   * exactly the ones that scrolled away. Keyed off the same tokens as `top`,
+   * so the offset and the height can never disagree (and ux_audit R9 keeps
+   * seeing a token-derived sticky offset). `overscroll-behavior: contain`
+   * keeps a wheel that reaches the end of the passage from carrying on down
+   * the page behind it. */
+  .drill-grid > .passage {
     position: sticky;
     top: calc(var(--site-header-h) + var(--drill-head-h) + 0.75rem);
-    /* Load-bearing: a grid item defaults to `align-self: stretch`, which makes
-     * it exactly as tall as its row and leaves sticky nowhere to travel. The
-     * platform's graph case picker had the same latent bug. */
     align-self: start;
-  }
-  /* The passage column gets its own scroll region, the way `.lib-rail` already
-   * does. Without a height cap, a passage taller than the viewport gets no
-   * benefit from top stickiness at all — a browser only pins such an element
-   * once its *bottom* has scrolled into view, so the longest RC passages, the
-   * ones that most need to stay beside their questions, were exactly the ones
-   * that scrolled away. Keyed off the same tokens as `top` above, so the
-   * offset and the height can never disagree (and ux_audit R9 keeps seeing a
-   * token-derived sticky offset). Scoped to the drill grid: the Writing
-   * prompt is also a `.passage`, but it sits above the editor rather than
-   * beside it, and boxing it would be a change to a different screen.
-   * `overscroll-behavior: contain` keeps a wheel that reaches the end of the
-   * passage from carrying on down the page behind it. */
-  .drill-grid > .passage {
     max-height: calc(100vh - var(--site-header-h) - var(--drill-head-h) - 1.5rem);
     overflow-y: auto;
     overscroll-behavior: contain;
