@@ -41,6 +41,20 @@ export interface LsatTimerState {
    * blank the readout by way of `secondsPerQuestion`.
    */
   remainingQuestions: number | null
+  /**
+   * Which section this clock is timing, or null before a drill has claimed it.
+   *
+   * The store has to be what remembers this, because it is the only thing that
+   * outlives the drill. A component cannot tell "a fresh mount of the section
+   * already running" from "a fresh mount of a different section": both are a
+   * first render, and any ref it might compare against is reinitialised along
+   * with it. The store is never remounted, so it can (BL-20260916-03).
+   *
+   * A plain string rather than `SectionCode` — this file is mirrored into the
+   * static export and has to stay framework- and catalog-plain, and the clock
+   * does not care what the sections are called.
+   */
+  section: string | null
 }
 
 const INITIAL: LsatTimerState = {
@@ -50,6 +64,7 @@ const INITIAL: LsatTimerState = {
   answered: 0,
   answeredSeconds: 0,
   remainingQuestions: null,
+  section: null,
 }
 
 const PERSIST_KEY = 'law-ai.lsat.timer.v1'
@@ -106,6 +121,11 @@ function rehydrate(): void {
       // would quote a pace for a stack that is no longer on screen. Whichever
       // panel mounts sets it again within a frame.
       remainingQuestions: null,
+      // Restored, unlike the count above, and that asymmetry is the point: the
+      // section is how the drill that mounts next recognises this clock as its
+      // own. Dropping it would make every refresh look like a section switch
+      // and reset the very clock this rehydrate exists to save.
+      section: typeof p.section === 'string' ? p.section : null,
     }
 
     if (p.running && typeof p.deadline === 'number') {
@@ -211,6 +231,45 @@ export function resetSection(): void {
     answeredSeconds: 0,
     remainingQuestions: null,
   })
+}
+
+/**
+ * Claim the clock for `section`, resetting it only if it belonged to another.
+ *
+ * This is what a drill calls on mount, and it exists because the caller cannot
+ * make that decision itself. `resetSection` above has always been correct; it
+ * was simply unreachable. The static drill guarded it with
+ * `useRef(section)` — sound only if the component survives the switch, and it
+ * does not: `app/page.tsx` keys the view wrapper on `view`, so changing
+ * section unmounts the drill and remounts a new one whose ref initialises to
+ * the *new* section. The guard's condition was then true on every first run,
+ * the early return always taken, and the reset never executed — while the
+ * module-level store, by design, kept the previous section's counters. RC
+ * inherited LR's clock and LG inherited RC's average (BL-20260916-03).
+ *
+ * Deciding it here fixes that without the caller needing to know whether it
+ * was remounted, because the store is the one participant that was not.
+ *
+ * Idempotent on purpose. Re-claiming the section already running is a no-op,
+ * so a remount *within* a section — moving the widget between docks, or a
+ * refresh restoring through `rehydrate` — keeps its clock. That is the
+ * property this store was hoisted out of `useState` to provide
+ * (BL-20260830-04) and the one thing this must not cost.
+ *
+ * @returns true when a new section was actually started, so a caller can clear
+ *   its own per-section state on the same event rather than guessing at it.
+ */
+export function beginSection(section: string): boolean {
+  if (state.section === section) return false
+  const switching = state.section !== null
+  emit({ section })
+  // The first section claimed on a page has nothing to carry over, so claiming
+  // it must not wipe a clock the reader has already set going — choosing a
+  // 10-minute preset, pressing Start, and then opening a drill is exactly that
+  // case. Only a *change* of section resets.
+  if (!switching) return false
+  resetSection()
+  return true
 }
 
 export function setTimerDuration(seconds: number): void {

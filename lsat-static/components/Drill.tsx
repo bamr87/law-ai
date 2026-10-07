@@ -10,8 +10,8 @@ import { useShortcuts } from '@/lib/keyboard'
 import { useMeasuredCssVar } from '@/lib/useMeasuredCssVar'
 import { LSAT_SECTION_QUESTIONS } from '@/lib/lsatTimer'
 import {
+  beginSection,
   recordAnswer,
-  resetSection,
   setRemainingQuestions,
 } from '@/lib/lsat/timerStore'
 import {
@@ -95,19 +95,32 @@ export default function Drill({
   // latter must not steal focus out of the nav the user is still tabbing.
   const [moves, setMoves] = useState(0)
 
-  // Guarded on an actual change of section rather than on mount: the clock
-  // lives in a module store now (shared with the platform, BL-20260830-04) and
-  // persists a running section across a refresh. Resetting on mount would
-  // throw that away, which is the bug the store exists to fix. Switching
-  // sections is the one case where nothing carries over.
+  // Two resets on a section change, with two different owners — which is the
+  // distinction that was missing, and the whole of BL-20260916-03.
+  //
+  // The clock lives in a module store, shared with the platform and deliberately
+  // outliving this component (BL-20260830-04). The index and answers below live
+  // in this component. A ref can only speak for the second: `app/page.tsx` keys
+  // the view wrapper on `view`, so switching section unmounts the drill and
+  // mounts a fresh one whose `useRef(section)` initialises to the *new* section
+  // — the comparison is then true on the first run, the early return always
+  // taken, and `resetSection()` was unreachable. Meanwhile the store, by design,
+  // kept LR's counters and handed them to RC.
+  //
+  // For the component's own state the ref is still exactly right, and for the
+  // same reason: it is only ever consulted by the instance that owns that state,
+  // and a fresh instance starts fresh anyway. So the ref stays where it works,
+  // and the clock is claimed from the store, which is the one participant in a
+  // section switch that is not remounted and can therefore still tell a change
+  // of section from a first mount.
   const lastSection = useRef(section)
   useEffect(() => {
+    beginSection(section)
     if (lastSection.current === section) return
     lastSection.current = section
     setI(0)
     setAnswers(new Map())
     setMoves(0)
-    resetSection()
   }, [section])
 
   // Write the position back on every change, so the next mount can read it.
