@@ -48,6 +48,23 @@ def test_docs_only_change_is_out_of_scope(gate: ModuleType) -> None:
 # --- the gate applies and fails ----------------------------------------------
 
 
+def test_lockfile_only_change_is_out_of_scope(gate: ModuleType) -> None:
+    ok, message = gate.evaluate(
+        "", ["frontend/package-lock.json", "lsat-static/package-lock.json"]
+    )
+    assert ok
+    assert "does not apply" in message
+
+
+def test_manifest_bump_with_a_lockfile_is_still_gated(gate: ModuleType) -> None:
+    ok, message = gate.evaluate(
+        "", ["frontend/package.json", "frontend/package-lock.json"]
+    )
+    assert not ok
+    assert "frontend/package.json" in message
+    assert "package-lock.json" not in message
+
+
 def test_frontend_change_without_evidence_fails(gate: ModuleType) -> None:
     ok, message = gate.evaluate(
         "Refactored the shell.", ["frontend/components/shell/AppShell.tsx"]

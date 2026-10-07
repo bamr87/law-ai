@@ -146,7 +146,7 @@ Shared hex coincidence: both canvases are `#0f172a` / `#e2e8f0`. That is the ent
 | `QuestionElapsed.tsx` | Primitive | The per-question clock, split out of `SectionTimer.tsx` so the platform's `lsat/QuestionElapsed.tsx` has a same-named counterpart here (R13, BL-20260831-15). |
 | `Library.tsx` | Screen | Reading surface, two views: contents rail + block-rendered article, or the concept catalog. |
 | `Concepts.tsx` | View | Filterable concept catalog, rendered by `Library.tsx` as its Concepts view. |
-| `Stats.tsx` | Screen | `localStorage` attempt history. |
+| `Stats.tsx` | Screen | `localStorage` attempt history, plus an Argumentative Writing figure read from `lib/deviceState.readWritingState()`. Writing is deliberately **not** a row of the section table: `SECTIONS` is `['LR','RC','LG']` because writing has no keyed questions, and there is no accuracy to report on work the learner scores themselves (#121). |
 
 ---
 

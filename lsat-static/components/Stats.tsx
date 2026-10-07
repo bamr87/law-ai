@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { SECTIONS, sectionMeta } from '@/lib/data'
+import { SECTIONS, sectionMeta, writingPrompts } from '@/lib/data'
 import {
   type Attempt,
   clearAttempts,
@@ -16,6 +16,9 @@ import {
   SnapshotError,
   type ImportMode,
 } from '@/lib/backup'
+import { readWritingState, type WritingState } from '@/lib/deviceState'
+
+const NO_WRITING: WritingState = { drafts: {}, submitted: [] }
 
 /**
  * All-time + per-section accuracy from localStorage, with a guarded reset —
@@ -26,16 +29,29 @@ import {
  * the only honest answer: export takes everything (attempts, read marks,
  * writing drafts and submissions), and import either merges it into what is
  * here or replaces it outright.
+ *
+ * Argumentative Writing is reported separately from the section table, and has
+ * to be (#121). `SECTIONS` is `['LR','RC','LG']` on purpose — writing has no
+ * keyed questions, so `lib/data.ts` excludes `'WS'` and the backend's
+ * `MCQ_SECTIONS` mirrors that — and `getAttempts()` only ever holds
+ * multiple-choice answers. So a writing figure cannot come from either; it
+ * comes from the same `readWritingState()` the export already reads, and is
+ * rendered as its own block. There is no accuracy to report either way: the
+ * whole writing loop is self-assessment against a rubric.
  */
 export default function Stats() {
   const [attempts, setAttempts] = useState<Attempt[]>([])
+  const [writing, setWriting] = useState<WritingState>(NO_WRITING)
   const [status, setStatus] = useState('')
   const [problem, setProblem] = useState('')
   const fileRef = useRef<HTMLInputElement | null>(null)
   const modeRef = useRef<ImportMode>('merge')
 
+  // After mount, never during render: the static export prerenders this
+  // component on the server, where `localStorage` does not exist.
   useEffect(() => {
     setAttempts(getAttempts())
+    setWriting(readWritingState())
   }, [])
 
   function download() {
@@ -80,6 +96,9 @@ export default function Stats() {
     try {
       const result = importSnapshot(await file.text(), modeRef.current)
       setAttempts(getAttempts())
+      // A restored file carries writing state too, so the figure below has to
+      // be re-read for the same reason the table is (#121).
+      setWriting(readWritingState())
       setStatus(
         `Restored: ${result.attempts} attempts, ${result.library_read} read articles, ` +
           `${result.writing} drafts.`,
@@ -99,6 +118,18 @@ export default function Stats() {
   }
 
   const overall = overallAccuracy(attempts)
+  const hasDrills = overall.attempted > 0
+
+  // Counted against the prompts this bundle actually ships: a restored file
+  // can carry submissions for prompts that have since left the bank, and
+  // "5 of 4 prompts submitted" is worse than not saying it.
+  const promptIds = new Set(writingPrompts.map((p) => p.id))
+  const submittedCount = writing.submitted.filter((id) => promptIds.has(id)).length
+  // A prompt that has been submitted is not also "in progress".
+  const draftCount = Object.keys(writing.drafts).filter(
+    (id) => promptIds.has(id) && !writing.submitted.includes(id),
+  ).length
+  const hasWriting = submittedCount > 0 || draftCount > 0
 
   function reset() {
     if (!window.confirm('Erase all saved practice history on this device? This cannot be undone.')) {
@@ -157,44 +188,80 @@ export default function Stats() {
         <p className="drill-timing">Stored only in this browser</p>
       </div>
 
-      {overall.attempted === 0 ? (
+      {!hasDrills && !hasWriting ? (
         <p className="empty">No attempts yet — start a drill to build your stats.</p>
       ) : (
         <>
-          <div className="stat-hero">
-            <div className="stat-num">{overall.pct}%</div>
-            <div className="stat-sub">
-              {overall.correct} / {overall.attempted} questions correct
-            </div>
-          </div>
+          {hasDrills ? (
+            <>
+              <div className="stat-hero">
+                <div className="stat-num">{overall.pct}%</div>
+                <div className="stat-sub">
+                  {overall.correct} / {overall.attempted} questions correct
+                </div>
+              </div>
 
-          <table className="stat-table">
-            <thead>
-              <tr>
-                <th scope="col">Section</th>
-                <th scope="col">Correct</th>
-                <th scope="col">Attempted</th>
-                <th scope="col">Accuracy</th>
-              </tr>
-            </thead>
-            <tbody>
-              {SECTIONS.map((code) => {
-                const a = sectionAccuracy(attempts, code)
-                return (
-                  <tr key={code}>
-                    <th scope="row">{sectionMeta(code)?.name ?? code}</th>
-                    <td>{a.correct}</td>
-                    <td>{a.attempted}</td>
-                    <td>{a.attempted ? `${a.pct}%` : '—'}</td>
+              <table className="stat-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Section</th>
+                    <th scope="col">Correct</th>
+                    <th scope="col">Attempted</th>
+                    <th scope="col">Accuracy</th>
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody>
+                  {SECTIONS.map((code) => {
+                    const a = sectionAccuracy(attempts, code)
+                    return (
+                      <tr key={code}>
+                        <th scope="row">{sectionMeta(code)?.name ?? code}</th>
+                        <td>{a.correct}</td>
+                        <td>{a.attempted}</td>
+                        <td>{a.attempted ? `${a.pct}%` : '—'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </>
+          ) : (
+            // Reached only by a writing-only learner: their work IS on this
+            // screen, just below, so the blanket "no attempts yet" would be
+            // the wrong thing to say.
+            <p className="empty">
+              No drill attempts yet — the section table fills in once you answer
+              questions in LR, RC or LG.
+            </p>
+          )}
 
-          <button type="button" className="btn btn-danger" onClick={reset}>
-            Reset progress
-          </button>
+          {hasWriting && (
+            <div className="stat-writing">
+              <h3>{sectionMeta('WS')?.name ?? 'Argumentative Writing'}</h3>
+              <p className="stat-writing-figure">
+                <strong>{submittedCount}</strong> of {writingPrompts.length}{' '}
+                {writingPrompts.length === 1 ? 'prompt' : 'prompts'} submitted
+                {draftCount > 0 && (
+                  <span className="stat-writing-drafts">
+                    {' '}
+                    · {draftCount} {draftCount === 1 ? 'draft' : 'drafts'} in
+                    progress
+                  </span>
+                )}
+              </p>
+              <p className="drill-timing">
+                Writing is scored against the rubric by you, not by the site, so
+                there is no accuracy to report here — only whether the work is
+                done.
+              </p>
+            </div>
+          )}
+
+          {hasDrills && (
+            <button type="button" className="btn btn-danger" onClick={reset}>
+              Reset progress
+            </button>
+          )}
         </>
       )}
 

@@ -69,6 +69,15 @@ npm test -- --run       # from lsat-static/, if you already have node_modules lo
 
 CI runs the same suite (plus `tsc --noEmit`) in the `lsat-static` job of [`ci.yml`](../.github/workflows/ci.yml) whenever `lsat-static/**` changes.
 
+**jsdom has no layout engine**, so anything that is a box measurement — header heights, touch targets, overflow, which element a click actually lands on, and the wide-viewport sticky stack — is measured in a real browser instead, by [`e2e/responsive.spec.ts`](e2e/responsive.spec.ts) over the built export:
+
+```bash
+make lsat-static-e2e          # from the repo root: build + Playwright, in the pinned image
+make lsat-static-e2e-cached   # the same suite, reusing node_modules and out/ when they are current
+```
+
+That suite runs in [`deploy-lsat-pages.yml`](../.github/workflows/deploy-lsat-pages.yml) rather than on a pull request, which is a gap tracked as `BL-20260917-01` — run it locally when a change touches layout.
+
 ## Deployment
 
 Pushed automatically by [`.github/workflows/deploy-lsat-pages.yml`](../.github/workflows/deploy-lsat-pages.yml) on `main` when `lsat-static/**` (or the workflow itself) changes: it runs `npm ci && npm run build` and publishes `out/` to GitHub Pages. Source-bank paths under `backend/law_ai/lsat/services/data/` are deliberately **not** triggers here — a bank edit reaches the site only once `content.json` is refreshed (spec 046); listing them produced no-op deploys that looked like the site had updated when it had not. [`refresh-lsat-content.yml`](../.github/workflows/refresh-lsat-content.yml) is what watches those paths, and it dispatches this workflow after it commits. See [docs/lsat-static.md](../docs/lsat-static.md) for the full delivery channel.

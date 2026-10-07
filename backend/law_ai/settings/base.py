@@ -158,6 +158,13 @@ env = environ.Env(
     ENABLE_NER=(bool, False),
     INGEST_LLM_SUMMARY=(bool, False),
     LOCAL_ONLY_MODE=(bool, True),
+    # The ocrmd scanner as a library (spec 055). Off by default: the package is an
+    # optional extra, and a scan is a synchronous OCR pass on the request thread. The
+    # two intake doors ocrmd posts to need neither of these — only the upload route
+    # and `manage.py ocrmd_scan` do.
+    ENABLE_OCRMD=(bool, False),
+    OCRMD_ROOT=(str, "var/ocrmd"),
+    OCRMD_MAX_PAGES=(int, 5),
     # Auth / API keys
     AGENT_API_KEY=(str, ""),
     ANALYSIS_API_KEY=(str, ""),
@@ -328,6 +335,10 @@ ENABLE_NER: bool = env.bool("ENABLE_NER")
 # per-document model call is neither.
 INGEST_LLM_SUMMARY: bool = env.bool("INGEST_LLM_SUMMARY")
 LOCAL_ONLY_MODE: bool = env.bool("LOCAL_ONLY_MODE")
+# Spec 055: the embedded ocrmd scanner (OCR only; see ingestionapp/services/ocrmd_plugin.py).
+ENABLE_OCRMD: bool = env.bool("ENABLE_OCRMD")
+OCRMD_ROOT: str = env("OCRMD_ROOT")
+OCRMD_MAX_PAGES: int = env.int("OCRMD_MAX_PAGES")
 
 AGENT_API_KEY: str | None = env("AGENT_API_KEY") or None
 
