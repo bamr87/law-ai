@@ -3,6 +3,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        # Spec 055: the ocrmd scanner library, opt-in (see .env.example).
+        INSTALL_OCRMD: ${INSTALL_OCRMD:-0}
     ports:
       - "8000:8000"
     # Root .env (see .env.example) is layered under the explicit environment
@@ -76,6 +79,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        INSTALL_OCRMD: ${INSTALL_OCRMD:-0}
     env_file:
       - path: ./.env
         required: false
