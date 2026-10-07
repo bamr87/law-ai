@@ -20,8 +20,8 @@ services:
     # `-m: command not found`) — daphne never started under `make debug`.
     command: sh -c "python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py ensure_checkpointer && python -m debugpy --listen 0.0.0.0:5678 -m daphne -b 0.0.0.0 -p 8000 law_ai.asgi:application"
     ports:
-      - "8000:8000"
-      - "5678:5678"
+      - "127.0.0.1:${LAW_AI_API_PORT:-8000}:8000"
+      - "127.0.0.1:${LAW_AI_DEBUG_PORT:-5678}:5678"
 
   worker:
     # Parity with docker-compose.yml: keep --beat and the autonomy queue.
@@ -29,7 +29,7 @@ services:
       python -m debugpy --listen 0.0.0.0:5679
       -m celery -A law_ai worker --beat -l info -Q autonomy,celery
     ports:
-      - "5679:5679"
+      - "127.0.0.1:${LAW_AI_WORKER_DEBUG_PORT:-5679}:5679"
 
   frontend:
     # NODE_OPTIONS propagates the inspector to the child processes Next.js
@@ -41,7 +41,7 @@ services:
       - NODE_OPTIONS=--inspect=0.0.0.0:9229
     command: npm run dev
     ports:
-      - "3000:3000"
-      - "9229:9229"
-      - "9230:9230"
-      - "9231:9231"
+      - "127.0.0.1:${LAW_AI_FRONTEND_PORT:-3000}:3000"
+      - "127.0.0.1:${LAW_AI_FRONTEND_9229_PORT:-9229}:9229"
+      - "127.0.0.1:${LAW_AI_FRONTEND_9230_PORT:-9230}:9230"
+      - "127.0.0.1:${LAW_AI_FRONTEND_9231_PORT:-9231}:9231"
