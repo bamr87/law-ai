@@ -13,6 +13,7 @@ import type {
   Concept,
   Question,
   Section,
+  SectionCode,
   SolveGuide,
   Track,
   WritingPrompt,
@@ -259,12 +260,24 @@ export function libraryData() {
   }
 }
 
-/** A stand-in ranker: substring over title and summary, in corpus order. */
-export function librarySearch(query: string, limit = 20): SearchHit[] {
+/**
+ * A stand-in ranker: substring over title and summary, in corpus order.
+ *
+ * Mirrors the real `searchLibrary` signature, including the section narrowing
+ * — and, like it, filters BEFORE `limit` so the cap cannot hide a section's
+ * matches (issue #120).
+ */
+export function librarySearch(
+  query: string,
+  limit = 20,
+  section: SectionCode | 'all' = 'all',
+): SearchHit[] {
   const needle = query.trim().toLowerCase()
   if (needle.length < 2) return []
-  return ARTICLES.filter((a) =>
-    `${a.title} ${a.summary}`.toLowerCase().includes(needle),
+  return ARTICLES.filter(
+    (a) =>
+      `${a.title} ${a.summary}`.toLowerCase().includes(needle) &&
+      (section === 'all' || a.sections.includes(section)),
   )
     .slice(0, limit)
     .map((a) => ({

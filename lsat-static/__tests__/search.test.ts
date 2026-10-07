@@ -108,3 +108,60 @@ describe('searchLibrary', () => {
     expect(searchLibrary('a')).toEqual([])
   })
 })
+
+/**
+ * Section narrowing (issue #120).
+ *
+ * The Library's section chips used to go cosmetic the moment a query was
+ * typed, because the search branch called this ranker with no knowledge of the
+ * filter. The narrowing lives here rather than over the returned hits so the
+ * `limit` cap cannot hide a section whose matches all rank low overall.
+ */
+describe('searchLibrary — section narrowing', () => {
+  const SECTIONS = ['LR', 'RC', 'LG', 'WS'] as const
+
+  it('returns only articles tagged with the requested section', () => {
+    const all = searchLibrary('argument', 100)
+    expect(all.length).toBeGreaterThan(1)
+
+    for (const code of SECTIONS) {
+      const narrowed = searchLibrary('argument', 100, code)
+      expect(
+        narrowed.every((h) => h.sections.includes(code)),
+        `${code} hits: ${narrowed.map((h) => h.id).join(', ')}`,
+      ).toBe(true)
+      // …and nothing tagged with it is dropped: narrowing is a filter over the
+      // same ranking, not a different search.
+      expect(narrowed.map((h) => h.id), code).toEqual(
+        all.filter((h) => h.sections.includes(code)).map((h) => h.id),
+      )
+    }
+  })
+
+  it('leaves the unnarrowed ranking byte-for-byte unchanged', () => {
+    // The backend parity fixture above pins the default path; this asserts the
+    // new parameter cannot perturb it.
+    expect(searchLibrary('assumptions', 5, 'all')).toEqual(searchLibrary('assumptions', 5))
+  })
+
+  it('applies the limit after the section filter, not before', () => {
+    const wide = searchLibrary('argument', 100)
+    const firstRc = wide.findIndex((h) => h.sections.includes('RC'))
+    // Precondition, asserted rather than assumed: RC must not already be the
+    // top hit, or this test proves nothing.
+    expect(firstRc, 'expected an RC match ranked below the top of "argument"')
+      .toBeGreaterThan(0)
+
+    // Capping first and filtering after would slice RC away entirely here.
+    const narrowed = searchLibrary('argument', firstRc, 'RC')
+    expect(narrowed.length).toBeGreaterThan(0)
+    expect(narrowed[0]?.id).toBe(wide[firstRc]?.id)
+  })
+
+  it('narrows to nothing rather than falling back to the whole corpus', () => {
+    // A query with no match in the section is an empty result, not a silently
+    // unfiltered one — the failure mode this issue was filed about.
+    const ws = searchLibrary('contrapositive', 100, 'WS')
+    expect(ws.every((h) => h.sections.includes('WS'))).toBe(true)
+  })
+})

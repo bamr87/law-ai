@@ -11,6 +11,7 @@ Open, machine-readable corpora used by Law AI.
 | eCFR (current CFR text)   | https://www.ecfr.gov/developers/documentation/api/v1             | Public domain (US)  | None          | Be polite             | Planned  |
 | U.S. Code (OLRC)          | https://uscode.house.gov/download/download.shtml                 | Public domain (US)  | None (bulk XML) | None — bulk releases | Planned  |
 | RECAP archive (dockets)   | https://www.courtlistener.com/api/rest/v3 (recap endpoints)      | Public domain (US)  | API token     | shared with CourtListener | Planned  |
+| **Scanned physical books** (ocrmd) | a user's own scanner, or an upload — see below           | The user's own copy; per-account, never redistributed, never in a public export | a user's session/token (matters) or the LSAT scope | none — it is a push, not a crawl | **Active** (spec 055) |
 
 > **CAP note (2024 update).** The 500-cases/day quota above described CAP's pre-2024
 > research-access terms. In March 2024 the Caselaw Access Project released the full
@@ -89,3 +90,14 @@ Deferred out of spec 016 as "spec 016.b" and delivered under `BL-20260509-05`. I
 The autonomy orchestrator (`make autonomy-run KIND=… SOURCE=…`) does not call the `services/` clients above directly — it goes through a thin adapter layer at [backend/law_ai/ingestionapp/sources/](../backend/law_ai/ingestionapp/sources/) (`SourceAdapter`, `RawDoc`, `SOURCE_REGISTRY`, spec 018), which wraps `services/courtlistener.py`, `services/colorado_statutes.py` and `services/denver_municipal_code.py` for scheduled/autonomous runs. The `services/` clients documented above remain the real HTTP clients; the adapter layer only normalizes their output for the autonomy loop.
 
 Each adapter declares `name`, `jurisdiction`, `license`, `requires_human_approval`, and `rate_limit_rps`. Setting `requires_human_approval=True` makes `TopicFrontier` dispatch with `force_quarantine=True`, so every document from that source is held in `PendingReview` regardless of confidence and can never be auto-committed — the full contract is in [docs/architecture.md](architecture.md#source-adapter-contract).
+
+## Scanned physical books (the ocrmd plug-in, spec 055)
+
+Not a public corpus and not a crawl: a person photographs pages of a book they own with [ocrmd](https://github.com/bamr87/ocrmd), which reads each page twice (local OCR engines and a vision model), reconciles the readings, and — when they press *Send* — posts the page's **reconciled text** with its provenance to one of two doors here. The photograph never travels; the page id (the sha256 of the processed image) does, so a reviewer can always get back to it on the scanner.
+
+- **Doors** (receivers in ocrmd's sink contract — `GET` a descriptor, `POST` an envelope):
+  - `POST /api/lsat/intake/ocr` — `LSATSourceExtractor` transcribes the questions printed on the page, every draft is scored for grounding against the page text and passes the spec-024 gates into the HITL queue. Scope: `LSAT_API_KEY`/`AGENT_API_KEY`, open in dev.
+  - `POST /api/matters/<slug>/intake/ocrmd` — the page is filed as a `document` artifact on the caller's own matter (`source="ocrmd"`, `confidence` = the scanner's agreement score). Signed-in only, like every matter route: the scanner is configured with a user bearer token.
+- **The scanner as a library** (`ENABLE_OCRMD`, opt-in build `INSTALL_OCRMD=1`): `POST /api/ingestion/ocrmd/scan` and `manage.py ocrmd_scan` OCR an upload inside Law AI with `ocrmd.api.Library(provider=None)` — **OCR only**, every byte on this host; ocrmd's own vision pass would call a vendor from inside a dependency and bypass `law_ai.core.llm` (constitution §4), and the chain has no image path yet (BL-20260907-21). Pages read here carry one reading and say so.
+- **Licence posture**: the text is the user's own copy of a work they hold, stored on their account for their own review and study. It is not a data source Law AI redistributes: it never enters the graph, the retrieval boost set, the LSAT static export, or any public dataset, and a scanned page filed on a matter is labelled as a scanned *source* with a machine agreement figure, never as authority (constitution §13).
+- Configuration: `ENABLE_OCRMD`, `OCRMD_ROOT`, `OCRMD_MAX_PAGES`, `INSTALL_OCRMD` in [.env.example](../.env.example); the plug-in module is [backend/law_ai/ingestionapp/services/ocrmd_plugin.py](../backend/law_ai/ingestionapp/services/ocrmd_plugin.py).
