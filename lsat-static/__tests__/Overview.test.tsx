@@ -52,6 +52,18 @@ describe('Overview', () => {
     expect(note.open).toBe(false)
   })
 
+  it('separates the multiple-choice bank from the writing prompts and totals both', () => {
+    // counts.total is the multiple-choice bank only (WS has prompts, not keyed
+    // questions — spec 047 FR-3), so "N items … plus M prompts" alone left
+    // "N or N+M?" open (law-ai#125). The grand total is derived, never literal.
+    render(<Overview onStart={vi.fn()} />)
+    const intro = screen.getByRole('heading', { name: 'Practice every LSAT section' })
+      .parentElement as HTMLElement
+    expect(intro).toHaveTextContent('3 original, openly-licensed multiple-choice practice items')
+    expect(intro).toHaveTextContent('plus 1 Argumentative Writing prompts')
+    expect(intro).toHaveTextContent('4 items in all')
+  })
+
   it('still opens each section', () => {
     const onStart = vi.fn()
     render(<Overview onStart={onStart} />)

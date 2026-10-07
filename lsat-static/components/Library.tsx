@@ -205,11 +205,20 @@ export default function Library({
     }))
   }, [visible, activeTrack])
 
+  // The search branch replaces `visible` wholesale below, so the section chip
+  // has to reach the ranker or it goes cosmetic the moment a query is typed
+  // (issue #120). `sectionFilter` is a memo dependency for the same reason —
+  // without it, clicking a chip re-renders with the previous query's hits.
   const hits: SearchHit[] | null = useMemo(
-    () => (query.trim().length >= 2 ? searchLibrary(query) : null),
-    [query],
+    () =>
+      query.trim().length >= 2 ? searchLibrary(query, undefined, sectionFilter) : null,
+    [query, sectionFilter],
   )
 
+  // Deliberately NOT re-pointed by the filters: the reader keeps showing the
+  // article you opened even after you narrow the rail around it, so changing a
+  // chip mid-read never yanks the page out from under you. `visible[0]` is only
+  // the cold-start fallback for when nothing has been selected yet.
   const article = articleById(selectedId) ?? visible[0] ?? articles[0]
 
   const open = useCallback(

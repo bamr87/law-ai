@@ -37,7 +37,7 @@ What carried over from 025: the delivery model (a static, serverless, HITL-appro
 |------|----------|
 | `lsat-static/app/` | `layout.tsx`, `page.tsx` (the whole site is one client-side-tabbed page — there is no router), `globals.css`, and `base.css` mirrored from `frontend/ui/base.css` |
 | `lsat-static/components/` | `Overview`, `Drill`, `Concepts`, `Library`, `Writing`, `Stats`, plus `QuestionCard`, `PassagePanel`, `SectionTimer`, `QuestionElapsed`, `ShortcutHelp`, `solve/` (`SolveAssist`, `ConceptRefs`, diagram renderers) and `library/BlockRenderer` |
-| `lsat-static/lib/` | `data.ts` (the build-time `content.json` import + typed accessors), `types.ts`, `progress.ts` and `backup.ts` (device-local `localStorage` attempts + export/import), `search.ts`, `shuffle.ts`, `keyboard.ts`, and the primitives mirrored from the platform (`rovingFocus.ts`, `lsatTimer.ts`, `lsat/timerStore.ts`) |
+| `lsat-static/lib/` | `data.ts` (the build-time `content.json` import + typed accessors), `types.ts`, `progress.ts` (device-local `localStorage` attempts — multiple choice only), `deviceState.ts` (every other key this site writes: library read marks, writing drafts and submissions, the header pin — found by prefix, since the writing keys are per prompt) and `backup.ts` (export/import over both), `search.ts`, `shuffle.ts`, `keyboard.ts`, and the primitives mirrored from the platform (`rovingFocus.ts`, `lsatTimer.ts`, `lsat/timerStore.ts`) |
 | `lsat-static/__tests__/` | Vitest + RTL component tests, including `contracts/` shared with `frontend/` |
 | `lsat-static/e2e/` | Playwright viewport/sticky measurements over the built export |
 | `lsat-static/content.json` | The committed content artifact (see below) |
