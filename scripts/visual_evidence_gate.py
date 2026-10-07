@@ -60,6 +60,13 @@ from pathlib import Path
 #: Paths whose change requires visual evidence.
 VISUAL_PREFIXES = ("frontend/", "lsat-static/")
 
+#: Files under those paths that cannot change what a screen looks like on
+#: their own. A lockfile-only diff (a Dependabot security bump of a transitive
+#: dependency, say) has no screen to photograph, so it does not put a PR under
+#: the gate. ``package.json`` stays in scope: a direct dependency bump can
+#: change the UI.
+NON_VISUAL_BASENAMES = frozenset({"package-lock.json"})
+
 #: Where a committed screenshot lives.
 IMAGE_DIR = "docs/images/"
 
@@ -105,7 +112,12 @@ DOC_POINTER = (
 
 def touches_visual_paths(paths: list[str]) -> list[str]:
     """The changed files that put a PR under this gate."""
-    return [p for p in paths if p.startswith(VISUAL_PREFIXES)]
+    return [
+        p
+        for p in paths
+        if p.startswith(VISUAL_PREFIXES)
+        and p.rsplit("/", 1)[-1] not in NON_VISUAL_BASENAMES
+    ]
 
 
 def has_body_image(body: str) -> bool:
@@ -123,7 +135,10 @@ def evaluate(body: str, paths: list[str]) -> tuple[bool, str]:
     """``(passed, message)`` — the whole decision, so tests need no subprocess."""
     visual = touches_visual_paths(paths)
     if not visual:
-        return True, "No frontend/ or lsat-static/ files changed; gate does not apply."
+        return True, (
+            "No visual frontend/ or lsat-static/ files changed (lockfiles do "
+            "not count); gate does not apply."
+        )
 
     committed = has_committed_image(paths)
     if committed:

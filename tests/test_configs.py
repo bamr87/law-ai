@@ -354,11 +354,29 @@ def _extras_sets(text: str) -> list[set[str]]:
     ]
 
 
+def _unconditional_instructions(dockerfile: str) -> str:
+    """The Dockerfile with continuation lines joined and every `RUN` that is
+    gated by a shell `if` dropped.
+
+    An ARG-gated install (`INSTALL_OCRMD=1` -> `.[ocrmd]`) is an
+    opt-in image variant, not part of the default image, so CI deliberately
+    does not mirror it; only the unconditional install defines the extras CI
+    must match.
+    """
+    joined = re.sub(r"\\\n", " ", dockerfile)
+    return "\n".join(
+        line
+        for line in joined.splitlines()
+        if not (line.lstrip().startswith("RUN") and re.search(r"\bif \[", line))
+    )
+
+
 def test_ci_extras_match_dockerfile(repo_root: Path) -> None:
     dockerfile = (repo_root / "backend" / "Dockerfile").read_text()
-    docker_extras = _extras_sets(dockerfile)
+    docker_extras = _extras_sets(_unconditional_instructions(dockerfile))
     assert len(docker_extras) == 1, (
-        "expected exactly one extras-bearing pip install in backend/Dockerfile; "
+        "expected exactly one unconditional extras-bearing pip install in "
+        "backend/Dockerfile; "
         f"found {len(docker_extras)}"
     )
     required = docker_extras[0]

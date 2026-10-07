@@ -8,6 +8,7 @@ import PassagePanel from './PassagePanel'
 import SectionTimer from './SectionTimer'
 import { useShortcuts } from '@/lib/keyboard'
 import { useMeasuredCssVar } from '@/lib/useMeasuredCssVar'
+import { LSAT_SECTION_QUESTIONS } from '@/lib/lsatTimer'
 import {
   beginSection,
   recordAnswer,
@@ -179,10 +180,26 @@ export default function Drill({
   // passed down: the platform's clock docks into panels the drill cannot reach
   // with a prop, and the two products render the same readout from the same
   // number (BL-20260829-01).
+  //
+  // ONE SECTION, not the whole bank (BL-20260905-32). This used to publish
+  // `questions.length - answers.size`, which quoted 35:00 ÷ 99 ≈ 0:21 for
+  // Logical Reasoning — arithmetically true of the bank, a speed that does not
+  // exist on the exam, and printed in the visual position of an official
+  // per-question budget next to the section's own "~1:25 per question". The
+  // platform fixed this in `frontend/components/lsat/LrPanel.tsx`; only half of
+  // that fix crossed, because `make ui-sync` mirrors `lib/` (which is how
+  // LSAT_SECTION_QUESTIONS got here) but not `components/`, where the two
+  // products keep independent implementations. Expect that split again for the
+  // next lib-plus-call-site change.
   useEffect(() => {
-    setRemainingQuestions(
-      questions.length === 0 ? null : questions.length - answers.size,
-    )
+    if (questions.length === 0) {
+      setRemainingQuestions(null)
+      return
+    }
+    const section = Math.min(questions.length, LSAT_SECTION_QUESTIONS)
+    // Past a full section the readout blanks rather than going negative: the
+    // section the clock was timing is over.
+    setRemainingQuestions(Math.max(0, section - answers.size))
   }, [questions, answers])
   useEffect(() => () => setRemainingQuestions(null), [])
 

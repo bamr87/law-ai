@@ -25,20 +25,27 @@ Ids are carried in the query string / body rather than the path:
 
 from __future__ import annotations
 
+import json
 import logging
+import re
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from asgiref.sync import async_to_sync
+from django.conf import settings
 from django.http import Http404
 from django.urls import path
 from pydantic import BaseModel, Field, ValidationError
 from rest_framework import status
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from law_ai.core.auth import has_scope
+from law_ai.core.auth import has_scope, is_signed_in
 from law_ai.core.reviewer import attributed, reviewer_from_request
+from law_ai.ingestionapp.services import ocrmd_plugin
 from law_ai.ingestionapp.services.approval import (
     ApprovalError,
     commit_approved_review,
@@ -293,7 +300,214 @@ class ReviewReextractView(_Base):
         )
 
 
+# ---------------------------------------------------------------------------
+# The ocrmd plug-in (spec 055): the scanner as a library, on an upload
+# ---------------------------------------------------------------------------
+
+_DOC_SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+_TARGET_RE = re.compile(r"^(none|lsat|matter:[a-z0-9][a-z0-9-]{0,63})$")
+
+
+class OcrmdStatusView(_Base):
+    """``GET /api/ingestion/ocrmd/status`` — is the scanner library installed and on,
+    where its store is, which OCR engines it found, and which doors this platform opens.
+    """
+
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        return Response(ocrmd_plugin.status())
+
+
+class _Refused(Exception):
+    """A scan request the door turns away, with the status that says why."""
+
+    def __init__(self, detail: Any, http_status: int) -> None:
+        super().__init__(str(detail))
+        self.detail = detail
+        self.http_status = http_status
+
+
+class _BadScan(_Refused):
+    """A scan request refused before the scanner is touched (a 422)."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail, status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+
+def _plugin_gate() -> None:
+    """Refuse with a 503 when the embedded scanner is off or absent."""
+    if not ocrmd_plugin.enabled():
+        raise _Refused(
+            "the ocrmd plug-in is off (ENABLE_OCRMD=false)",
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    if not ocrmd_plugin.installed():
+        raise _Refused(
+            "the ocrmd package is not installed — build the backend image with "
+            "INSTALL_OCRMD=1",
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+
+def _parse_scan_request(
+    request: Request,
+) -> tuple[Any, str, str, str, dict[str, Any], int]:
+    """``(upload, name, doc, target, options, max_pages)`` or :class:`_BadScan`."""
+    data: Any = request.data if isinstance(request.data, dict) else {}
+    upload = request.FILES.get("file")
+    if upload is None:
+        raise _BadScan("file is required")
+    name = Path(str(getattr(upload, "name", "") or "upload")).name
+    if Path(name).suffix.lower() not in ocrmd_plugin.IMAGE_SUFFIXES:
+        raise _BadScan(f"unsupported file type {Path(name).suffix!r}")
+    doc = str(data.get("doc") or "uploads")
+    if not _DOC_SLUG_RE.match(doc):
+        raise _BadScan(f"invalid document slug {doc!r}")
+    target = str(data.get("target") or "none")
+    if not _TARGET_RE.match(target):
+        raise _BadScan("target must be none | lsat | matter:<slug>")
+    try:
+        options = json.loads(str(data.get("options") or "{}"))
+    except ValueError as exc:
+        raise _BadScan(f"options: {exc}") from exc
+    if not isinstance(options, dict):
+        raise _BadScan("options must be a JSON object")
+    cap = int(getattr(settings, "OCRMD_MAX_PAGES", 5))
+    try:
+        max_pages = min(int(data.get("max_pages") or cap), cap)
+    except ValueError:
+        max_pages = cap
+    return upload, name, doc, target, options, max_pages
+
+
+def _owned_matter(request: Request, slug: str) -> Any:
+    """The signed-in caller's matter, or a 404 indistinguishable from a stranger's."""
+    from law_ai.matters.models import Matter
+
+    owner: Any = request.user
+    matter = Matter.objects.filter(
+        owner=owner, slug=slug, archived_at__isnull=True
+    ).first()
+    if matter is None:
+        raise Http404("matter not found")
+    return matter
+
+
+def _route_page(
+    env: dict[str, Any], target: str, matter: Any, request: Request
+) -> dict[str, Any] | None:
+    """Hand one envelope to the door ``target`` names; None when there is none."""
+    if target == "lsat":
+        from law_ai.lsat.services.ocr_intake import IngestScanRequest, ingest_scan
+
+        out = ingest_scan(IngestScanRequest.model_validate(env))
+        return {
+            "door": "lsat",
+            "summary": out.summary,
+            "items": out.items,
+            "warnings": out.warnings,
+        }
+    if matter is not None:
+        from law_ai.matters.services import scanned
+
+        envelope = ocrmd_plugin.Envelope.model_validate(env)
+        artifact, created = scanned.file_page(matter, envelope, request.user)
+        return {
+            "door": "matter",
+            **scanned.delivery(matter, artifact, created, envelope),
+        }
+    return None
+
+
+def _page_row(env: dict[str, Any]) -> dict[str, Any]:
+    prov: dict[str, Any] = dict(env.get("provenance") or {})
+    text = str(env.get("text") or "")
+    return {
+        "sequence": prov.get("page"),
+        "page_id": prov.get("page_id"),
+        "status": prov.get("status"),
+        "chars": len(text),
+        "text": text,
+        "provenance": prov,
+    }
+
+
+class OcrmdScanView(_Base):
+    """``POST /api/ingestion/ocrmd/scan`` — OCR an uploaded image or PDF here, then route.
+
+    Multipart: ``file``; ``doc`` (the scanner document the pages join, default
+    ``uploads``); ``target`` = ``none`` | ``lsat`` | ``matter:<slug>``; ``options`` (JSON,
+    the target door's own options); ``max_pages``. Synchronous and bounded by
+    ``OCRMD_MAX_PAGES``: the engines take a second or two per page and the caller is a
+    person waiting. A whole book goes through a scanner rig posting to the doors, not
+    through this one.
+
+    OCR only — see :mod:`law_ai.ingestionapp.services.ocrmd_plugin` for why the embedded
+    scanner never calls a model — so every routed page carries a one-reading caveat.
+    """
+
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        try:
+            return Response(_scan(request))
+        except _Refused as exc:
+            return Response({"detail": exc.detail}, status=exc.http_status)
+
+
+def _scan(request: Request) -> dict[str, Any]:
+    """The whole upload door; every refusal is a :class:`_Refused`."""
+    _plugin_gate()
+    upload, name, doc, target, options, max_pages = _parse_scan_request(request)
+    matter = None
+    if target.startswith("matter:"):
+        if not is_signed_in(request):
+            raise _Refused(
+                "sign in to file a scan on a matter", status.HTTP_401_UNAUTHORIZED
+            )
+        matter = _owned_matter(request, target[7:])
+
+    with tempfile.TemporaryDirectory(prefix="ocrmd-upload-") as tmp:
+        path = Path(tmp) / name
+        with path.open("wb") as fh:
+            for chunk in upload.chunks():
+                fh.write(chunk)
+        try:
+            result = ocrmd_plugin.scan_file(path, doc, max_pages=max_pages)
+        except ocrmd_plugin.OcrmdUnavailable as exc:
+            raise _Refused(str(exc), status.HTTP_503_SERVICE_UNAVAILABLE) from exc
+        except Exception as exc:
+            logger.exception("ocrmd scan failed: %s", exc)
+            raise _Refused(
+                f"scan failed: {type(exc).__name__}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+            ) from exc
+
+    routed: list[dict[str, Any] | None] = []
+    for env in result.pages:
+        env["options"] = options
+        try:
+            routed.append(_route_page(env, target, matter, request))
+        except ValidationError as exc:
+            raise _Refused(
+                exc.errors(include_context=False, include_input=False),
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+            ) from exc
+    return {
+        "document": result.document,
+        "engine": result.engine,
+        "llm": "none",
+        "summary": result.summary(),
+        "duplicates": result.duplicates,
+        "rejected": result.rejected,
+        "unreadable": result.unreadable,
+        "pages": [_page_row(env) for env in result.pages],
+        "routed": routed,
+    }
+
+
 urlpatterns = [
+    path("ocrmd/status", OcrmdStatusView.as_view(), name="ingestion-ocrmd-status"),
+    path("ocrmd/scan", OcrmdScanView.as_view(), name="ingestion-ocrmd-scan"),
     path("reviews", ReviewListView.as_view(), name="ingestion-reviews"),
     path("reviews/detail", ReviewDetailView.as_view(), name="ingestion-review-detail"),
     path(
