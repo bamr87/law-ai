@@ -7,7 +7,7 @@ services:
         # Spec 055: the ocrmd scanner library, opt-in (see .env.example).
         INSTALL_OCRMD: ${INSTALL_OCRMD:-0}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:${LAW_AI_API_PORT:-8000}:8000"
     # Root .env (see .env.example) is layered under the explicit environment
     # block: `environment` wins over `env_file`, so the dev-stack wiring below
     # stays canonical while operator secrets (AGENT_API_KEY, COURTLISTENER_*,
@@ -28,7 +28,7 @@ services:
       - OLLAMA_BASE_URL=http://ollama:11434
       - REDIS_URL=redis://redis:6379
       - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006/v1/traces
-      - PHOENIX_UI_URL=http://localhost:6006
+      - PHOENIX_UI_URL=http://localhost:${LAW_AI_PHOENIX_PORT:-6006}
       - PHOENIX_PROJECT_NAME=law_ai
       # BL-20260502-07: phoenix | langfuse | none. Everything above is the
       # phoenix backend's own input; LANGFUSE_* takes over when switched.
@@ -66,7 +66,7 @@ services:
       - ./:/repo
     command: sh -c "python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py ensure_checkpointer && daphne -b 0.0.0.0 -p 8000 law_ai.asgi:application"
     healthcheck:
-      test: [ "CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1" ]
+      test: [ "CMD-SHELL", "curl -fsS http://127.0.0.1:8000/health || exit 1" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -119,7 +119,7 @@ services:
     command: celery -A law_ai worker --beat -l info -Q autonomy,celery
     healthcheck:
       # Celery workers have no HTTP port — use inspect ping instead.
-      test: [ "CMD-SHELL", "celery -A law_ai inspect ping --destination celery@$$HOSTNAME || exit 1" ]
+      test: [ "CMD-SHELL", "celery -A law_ai inspect ping --timeout 8 --destination celery@$$HOSTNAME || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -131,7 +131,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "127.0.0.1:${LAW_AI_FRONTEND_PORT:-3000}:3000"
     environment:
       # Browser → same-origin proxy → backend, so the API key never reaches
       # the bundle (BL-20260430-07). AGENT_API_KEY is read by the Next server
@@ -143,7 +143,7 @@ services:
       # guarantee of the e2e stack depends on that being the pinned-degraded
       # sidecar rather than the dev backend.
       - BACKEND_INTERNAL_URL=${FRONTEND_BACKEND_URL:-http://backend:8000}
-      - NEXT_PUBLIC_WS_URL=${FRONTEND_WS_URL:-ws://localhost:8000}
+      - NEXT_PUBLIC_WS_URL=${FRONTEND_WS_URL:-ws://localhost:${LAW_AI_API_PORT:-8000}}
       - AGENT_API_KEY=${AGENT_API_KEY:-}
     depends_on:
       # started, not healthy: Next dev doesn't need the API to boot, and
@@ -157,7 +157,7 @@ services:
     command: npm run dev
     healthcheck:
       # node:alpine ships busybox wget; Next dev serves / once compiled.
-      test: [ "CMD-SHELL", "wget -q --spider http://localhost:3000 || exit 1" ]
+      test: [ "CMD-SHELL", "wget -q --spider http://127.0.0.1:3000 || exit 1" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -181,7 +181,7 @@ services:
       POSTGRES_PASSWORD: law_ai-dev
       POSTGRES_DB: law_ai
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${LAW_AI_DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -194,8 +194,8 @@ services:
   neo4j:
     image: neo4j:5-community
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "127.0.0.1:${LAW_AI_NEO4J_PORT:-7474}:7474"
+      - "127.0.0.1:${LAW_AI_NEO4J_7687_PORT:-7687}:7687"
     environment:
       NEO4J_AUTH: neo4j/law_ai-dev
       NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
@@ -207,7 +207,7 @@ services:
     volumes:
       - neo4jdata:/data
     healthcheck:
-      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:7474 || exit 1" ]
+      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:7474 || exit 1" ]
       interval: 10s
       timeout: 5s
       # 30s + 5x10s was enough on a warm laptop but not on a cold CI runner
@@ -225,7 +225,7 @@ services:
     # a silent Ollama upgrade can shift LegalBench numbers under you.
     image: ollama/ollama:0.12.6
     ports:
-      - "11434:11434"
+      - "127.0.0.1:${LAW_AI_OLLAMA_PORT:-11434}:11434"
     volumes:
       - ollama:/root/.ollama
       - ./backend/scripts/ollama-bootstrap.sh:/scripts/ollama-bootstrap.sh:ro
@@ -266,8 +266,8 @@ services:
     # Pinned (was :latest) for reproducible traces UI + OTLP behavior.
     image: arizephoenix/phoenix:12.9.0
     ports:
-      - "6006:6006" # UI + OTLP/HTTP
-      - "4317:4317" # OTLP/gRPC (unused today, exposed for future)
+      - "127.0.0.1:${LAW_AI_PHOENIX_PORT:-6006}:6006" # UI + OTLP/HTTP
+      - "127.0.0.1:${LAW_AI_PHOENIX_4317_PORT:-4317}:4317" # OTLP/gRPC (unused today, exposed for future)
     environment:
       - PHOENIX_WORKING_DIR=/data
     volumes:
@@ -276,7 +276,7 @@ services:
       # Distroless image: NO /bin/sh, so CMD-SHELL can never run — exec-form
       # with the bare python binary (present at /usr/bin/python) is required.
       # An uncaught urlopen exception is a nonzero exit, so no `|| exit 1`.
-      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:6006', timeout=3)" ]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:6006', timeout=3)" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -284,9 +284,9 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:${LAW_AI_REDIS_PORT:-6379}:6379"
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
@@ -358,7 +358,7 @@ services:
       - ./:/repo
     command: sh -c "python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py ensure_checkpointer && python manage.py seed_admin && daphne -b 0.0.0.0 -p 8000 law_ai.asgi:application"
     healthcheck:
-      test: [ "CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1" ]
+      test: [ "CMD-SHELL", "curl -fsS http://127.0.0.1:8000/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -438,7 +438,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.studio
     ports:
-      - "2024:8000"
+      - "127.0.0.1:${LAW_AI_LANGGRAPH_PORT:-2024}:8000"
     env_file:
       - path: ./.env
         required: false
