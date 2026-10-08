@@ -31,6 +31,10 @@ export interface Question {
   concepts?: string[]
   references?: Reference[]
   passage_id?: string | null
+  /** Spec 053 stamp — keys into content.playbooks.items. */
+  archetype?: string | null
+  variation_of?: string | null
+  contrast_note?: string | null
 }
 
 export interface Passage {
@@ -386,6 +390,53 @@ export interface Track {
   estimated_minutes: number
 }
 
+
+// ---------------------------------------------------------------------------
+// Question-type playbooks (spec 053 schema, shipped to static by #126)
+// ---------------------------------------------------------------------------
+
+export interface Strategy {
+  id: string
+  name: string
+  sections: SectionCode[]
+  summary: string
+}
+
+export interface Trap {
+  id: string
+  name: string
+  summary: string
+}
+
+export interface PlaybookConfusedWith {
+  id: string
+  name: string
+}
+
+/**
+ * Learner-facing playbook. Raw cue_patterns stay on the server for the
+ * classifier; the static site looks these up by Question.archetype.
+ */
+export interface Playbook {
+  archetype_id: string
+  name: string
+  section: SectionCode
+  family: string
+  concepts?: string[]
+  cues: string[]
+  task: string
+  strategies: Strategy[]
+  method: string[]
+  traps: Trap[]
+  confused_with: PlaybookConfusedWith[]
+}
+
+export interface PlaybooksCatalog {
+  strategies: Strategy[]
+  traps: Trap[]
+  items: Playbook[]
+}
+
 export interface Content {
   schema_version: number | string
   generated_at: string
@@ -394,6 +445,9 @@ export interface Content {
     guides?: number
     /** Present since spec 047; WS has prompts rather than keyed questions. */
     writing_prompts?: number
+    playbooks?: number
+    strategies?: number
+    traps?: number
   } & Record<SectionCode, number>
   sections: Section[]
   concepts: Concept[]
@@ -407,4 +461,6 @@ export interface Content {
   /** Present since spec 048; older artifacts predate the knowledge library. */
   library?: Article[]
   library_tracks?: Track[]
+  /** Present since spec 053 / #126; older artifacts skip type coaching. */
+  playbooks?: PlaybooksCatalog
 }
