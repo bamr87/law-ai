@@ -234,6 +234,53 @@ describe('PassagePanel one-question-at-a-time drill', () => {
   })
 })
 
+// law-ai#147: the drill tests above flaked under full-suite load because the
+// input landed after the set's DOM committed but before React's passive
+// effects ran — `go()` still clamped against an empty stack, and the card's
+// window `keydown` listener was not attached yet. Firing the input from a
+// MutationObserver callback the instant question 1 appears lands it in that
+// window every time, with no timing and no load needed.
+describe('PassagePanel input the moment a set renders (law-ai#147)', () => {
+  /** Run `act` synchronously as soon as `match` is in the DOM. */
+  function onFirstAppearance(match: RegExp, act: () => void): Promise<void> {
+    return new Promise((resolve) => {
+      const observer = new MutationObserver(() => {
+        if (!match.test(document.body.textContent ?? '')) return
+        observer.disconnect()
+        act()
+        resolve()
+      })
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      })
+    })
+  }
+
+  it('honours a strip click that lands before passive effects flush', async () => {
+    twoQuestionSet()
+    const fired = onFirstAppearance(/main point of the passage/, () =>
+      fireEvent.click(
+        screen.getByRole('button', { name: /Question 2, unanswered/ }),
+      ),
+    )
+    render(<PassagePanel section="RC" onAttempt={() => {}} />)
+    await fired
+    expect(await screen.findByText(/would most likely agree/)).toBeInTheDocument()
+  })
+
+  it('honours N pressed before passive effects flush', async () => {
+    twoQuestionSet()
+    const fired = onFirstAppearance(/main point of the passage/, () =>
+      fireEvent.keyDown(document.body, { key: 'n' }),
+    )
+    render(<PassagePanel section="RC" onAttempt={() => {}} />)
+    await fired
+    expect(await screen.findByText(/would most likely agree/)).toBeInTheDocument()
+  })
+})
+
 describe('PassageReader', () => {
   it('gives a comparative set two headed texts (spec 047 FR-9)', () => {
     render(

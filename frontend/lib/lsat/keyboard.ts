@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 
 import { isTypingTarget } from '@/lib/shell/shortcuts'
 
@@ -29,6 +29,12 @@ import { isTypingTarget } from '@/lib/shell/shortcuts'
  *  - **Never shadow the browser or a screen reader.** Bare letters and
  *    punctuation only; Alt is left alone, and Ctrl/Cmd only where a binding
  *    explicitly asks for `mod+`.
+ *  - **Be listening as soon as the DOM is.** The listener is attached, and the
+ *    map ref refreshed, in `useLayoutEffect`. A passive `useEffect` runs on a
+ *    later task after a non-discrete commit (a fetch resolving), so a key
+ *    pressed the moment a card appeared reached no listener, or a stale map —
+ *    the input the drill dropped under load (law-ai#147). Any hook that binds
+ *    shortcuts, or syncs a ref a handler reads, has to follow the same rule.
  *
  * What is *not* ported, and deliberately: the shell owns `[`, `]`, `?` and
  * `Escape` on every route (`lib/shell/shortcuts.ts`), so this map refuses
@@ -137,12 +143,13 @@ export function useShortcuts(
   const { enabled = true, whileModal = false, allowWhileTyping } = opts
   const allowRef = useRef(allowWhileTyping)
   const mapRef = useRef(map)
-  useEffect(() => {
+  // Layout effects, not passive ones (law-ai#147): see the header.
+  useLayoutEffect(() => {
     allowRef.current = allowWhileTyping
     mapRef.current = map
   })
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!enabled) return
     const onKeyDown = (e: KeyboardEvent) => {
       // A component handler already claimed this keystroke.

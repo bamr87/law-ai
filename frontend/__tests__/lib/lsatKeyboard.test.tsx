@@ -8,6 +8,7 @@
  * app shell owns.
  */
 import { fireEvent, render, screen } from '@testing-library/react'
+import { useLayoutEffect } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
@@ -160,6 +161,47 @@ describe('useShortcuts', () => {
     render(<Harness map={{ n }} opts={{ enabled: false }} />)
     fireEvent.keyDown(document.body, { key: 'n' })
     expect(n).not.toHaveBeenCalled()
+  })
+
+  // law-ai#147: a binding has to be live as soon as its component is in the
+  // DOM. A sibling's layout effect runs after the Harness has committed but
+  // before any passive effect — exactly where a keystroke landed when the
+  // drill tests flaked under load.
+  function PressOnCommit({ keyName: key }: { keyName: string }) {
+    useLayoutEffect(() => {
+      fireEvent.keyDown(document.body, { key })
+    })
+    return null
+  }
+
+  it('is listening as soon as the component commits', () => {
+    const n = vi.fn()
+    render(
+      <>
+        <Harness map={{ n }} />
+        <PressOnCommit keyName="n" />
+      </>,
+    )
+    expect(n).toHaveBeenCalledTimes(1)
+  })
+
+  it('answers with the newest map as soon as a re-render commits', () => {
+    const before = vi.fn()
+    const after = vi.fn()
+    const view = render(
+      <>
+        <Harness map={{ n: before }} />
+        {null}
+      </>,
+    )
+    view.rerender(
+      <>
+        <Harness map={{ n: after }} />
+        <PressOnCommit keyName="n" />
+      </>,
+    )
+    expect(before).not.toHaveBeenCalled()
+    expect(after).toHaveBeenCalledTimes(1)
   })
 
   it('unbinds on unmount', () => {
