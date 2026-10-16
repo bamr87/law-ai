@@ -110,6 +110,22 @@ jobs:
           df -h /
 
       # ------------------------------------------------------------------
+      # Pulled is not serving (bamr87/bamr87#253). `ollama list` succeeded on
+      # every one of the 38 red nightlies; what it cannot tell you is whether
+      # the model answers a real generation on this CPU-only runner before the
+      # backend's per-attempt deadline (OLLAMA_REQUEST_TIMEOUT_S, 120s). Ask
+      # for one, and fail here in ~2 minutes with a legible reason instead of
+      # inside the LegalBench gate or a degraded autonomy cycle much later.
+      # ------------------------------------------------------------------
+      - name: Probe that the gate model serves
+        if: ${{ !inputs.dry_run }}
+        run: >-
+          python3 scripts/ollama_serving_probe.py
+          --url "http://127.0.0.1:${LAW_AI_OLLAMA_PORT:-11434}"
+          --model mistral:7b-instruct-q4_K_M
+          --deadline 120 --tokens 32
+
+      # ------------------------------------------------------------------
       # Coverage — emits backend/coverage.xml via bind mount (./backend:/app).
       # evolve_audit.py reads coverage.xml to detect shortfalls.
       # ------------------------------------------------------------------
