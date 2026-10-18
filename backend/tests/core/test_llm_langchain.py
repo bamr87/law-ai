@@ -284,7 +284,9 @@ class TestStreaming:
         labelled = [p for p in pieces if p.content]
         assert labelled
         for piece in labelled:
-            assert piece.response_metadata["model_label"] == "claude_code/claude-opus-5-5"
+            assert (
+                piece.response_metadata["model_label"] == "claude_code/claude-opus-5-5"
+            )
 
     async def test_the_chain_receives_the_models_configuration(self) -> None:
         model = ChatProviderChain(
