@@ -644,7 +644,13 @@ BUNDLE_BUDGET_BYTES = 1_500_000
 #: unless something measures the growth. Two thirds of the budget is the
 #: point at which the next export could plausibly breach it, which is early
 #: enough to act deliberately rather than in a hurry.
-BUNDLE_WARN_BYTES = BUNDLE_BUDGET_BYTES * 2 // 3
+#:
+#: Raised from two thirds of the budget (1,000,000 bytes) to the full
+#: 1,500,000-byte budget: Amr approved this on 2026-10-17 to keep the static
+#: site offline-only (no sharding, zero network calls for content) when
+#: content.json reached 1,030,931 bytes. The trigger still fails above
+#: 1,500,000 bytes, as does test_bundle_stays_within_budget.
+BUNDLE_WARN_BYTES = 1_500_000
 
 
 def _library_source_ids() -> set[str]:

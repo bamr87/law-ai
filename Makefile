@@ -689,7 +689,7 @@ lsat-static-e2e:
 	docker run --rm --ipc=host -v "$(PWD)":/repo \
 		-v law_ai_lsat_static_node_modules:/repo/lsat-static/node_modules \
 		-w /repo/lsat-static -e PAGES_BASE_PATH=/law-ai -e CI=$(CI) \
-		mcr.microsoft.com/playwright:v1.59.1-noble \
+		mcr.microsoft.com/playwright:v1.63.0-noble \
 		sh -c "npm ci --no-audit --no-fund && npm run build && npx playwright test"
 
 # Same suite, same image, without paying for `npm ci` and a full `next build`
@@ -703,7 +703,7 @@ lsat-static-e2e-cached:
 	docker run --rm --ipc=host -v "$(PWD)":/repo \
 		-v law_ai_lsat_static_node_modules:/repo/lsat-static/node_modules \
 		-w /repo/lsat-static -e PAGES_BASE_PATH=/law-ai -e CI=$(CI) \
-		mcr.microsoft.com/playwright:v1.59.1-noble \
+		mcr.microsoft.com/playwright:v1.63.0-noble \
 		sh -c 'set -e; \
 		[ -x node_modules/.bin/next ] || npm ci --no-audit --no-fund; \
 		if [ -f out/index.html ] && [ -z "$$(find app components lib content.json package.json next.config.mjs -newer out/index.html 2>/dev/null | head -1)" ]; then \
