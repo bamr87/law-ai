@@ -26,6 +26,11 @@ services:
       - NEO4J_USER=neo4j
       - NEO4J_PASSWORD=law_ai-dev
       - OLLAMA_BASE_URL=http://ollama:11434
+      # Per-attempt Ollama deadline, stated here rather than left to the
+      # settings default (bamr87/bamr87#253): with OLLAMA_MAX_RETRIES=2 it is
+      # what bounds how long a slow local model is waited on before a call
+      # falls back.
+      - OLLAMA_REQUEST_TIMEOUT_S=${OLLAMA_REQUEST_TIMEOUT_S:-120}
       - REDIS_URL=redis://redis:6379
       - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006/v1/traces
       - PHOENIX_UI_URL=http://localhost:${LAW_AI_PHOENIX_PORT:-6006}
