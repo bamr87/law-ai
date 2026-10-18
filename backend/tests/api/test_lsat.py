@@ -1793,9 +1793,20 @@ def test_the_trace_signature_buckets_time_but_not_eliminations() -> None:
 
 @pytest.mark.asyncio
 async def test_tutor_reports_no_trace_when_telemetry_is_disabled(
-    client: AsyncClient,
+    client: AsyncClient, settings: Any
 ) -> None:
-    """Local-first default: no collector, no trace, and no broken link."""
+    """Telemetry off: no collector, no trace link, and no broken link.
+
+    The disabled state is set here rather than assumed (bamr87/bamr87#253).
+    The ``backend`` compose service the nightly runs this suite in sets
+    ``PHOENIX_COLLECTOR_ENDPOINT`` and ``OBSERVABILITY_BACKEND=phoenix``, so a
+    test that relied on the ambient default measured the developer's
+    environment instead of the gate: green on a laptop, red in CI. The
+    companion test below pins the *enabled* half against the same settings.
+    """
+    settings.OBSERVABILITY_BACKEND = "phoenix"
+    settings.PHOENIX_COLLECTOR_ENDPOINT = None
+    settings.OTEL_EXPORTER_OTLP_ENDPOINT = ""
     bank = load_bank()
     qid = next(iter(bank))
     res = await client.post("/api/lsat/tutor", json={"question_id": qid})
@@ -1812,6 +1823,43 @@ async def test_tutor_reports_no_trace_when_telemetry_is_disabled(
     # would force a client to branch on which endpoint answered.
     assert "langgraph_thread_id" in body
     assert body["langgraph_thread_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_tutor_links_a_well_formed_trace_url_when_telemetry_is_enabled(
+    client: AsyncClient, settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The other half of the gate above, driven by the same settings.
+
+    Telemetry configured (a collector endpoint and a UI) must produce a link
+    built from those settings and this request's trace id — through the real
+    ``trace_url``, not a stub — so the disabled test cannot pass merely
+    because the link is never produced.
+    """
+    from opentelemetry import trace as otel_trace
+    from opentelemetry.sdk.trace import TracerProvider
+
+    # A real SDK provider so the span has a valid context; no exporter, so
+    # nothing leaves the process.
+    monkeypatch.setattr(
+        otel_trace, "get_tracer", lambda *a, **k: TracerProvider().get_tracer("test")
+    )
+    settings.OBSERVABILITY_BACKEND = "phoenix"
+    settings.PHOENIX_COLLECTOR_ENDPOINT = "http://collector.invalid:6006/v1/traces"
+    settings.OTEL_EXPORTER_OTLP_ENDPOINT = ""
+    settings.PHOENIX_UI_URL = "http://ui.invalid:6006/"
+    settings.PHOENIX_PROJECT_NAME = "law_ai_test"
+
+    bank = load_bank()
+    qid = next(iter(bank))
+    res = await client.post("/api/lsat/tutor", json={"question_id": qid})
+    assert res.status_code == 200
+    body = res.json()
+    trace_id = body["trace_id"]
+    assert isinstance(trace_id, str) and len(trace_id) == 32
+    assert body["phoenix_trace_url"] == (
+        f"http://ui.invalid:6006/projects/law_ai_test/traces/{trace_id}"
+    )
 
 
 @pytest.mark.asyncio
