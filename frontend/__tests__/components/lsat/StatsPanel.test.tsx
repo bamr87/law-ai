@@ -180,7 +180,7 @@ describe('StatsPanel', () => {
             best_band: 3.5,
             band_trend: [2, 3.5, 3],
             degraded: 1,
-            model: 'claude_code/claude-opus-5',
+            model: 'claude_code/claude-opus-5-5',
             prompt_version: 'lsat_writing_evaluator.v1',
           },
         }}

@@ -56,7 +56,7 @@ def _ws_job(archetype_id: str = "ws-resource-tradeoff") -> GenerationJob:
         job_id="mfst-ws-job01",
         target=_ws_target(archetype_id),
         tier="premium",
-        model_hint="claude-opus-4-8",
+        model_hint="claude-opus-5-5",
         template_version=WRITING_TEMPLATE_VERSION,
         prompt="PROMPT",
     )

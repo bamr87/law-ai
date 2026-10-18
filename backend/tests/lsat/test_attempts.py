@@ -278,7 +278,7 @@ class TestWritingAttempts:
             "weighted_band": 3.0,
             "criteria": {"argument": 3},
             "response_chars": 1200,
-            "model": "claude_code/claude-opus-5",
+            "model": "claude_code/claude-opus-5-5",
             "prompt_version": "lsat_writing_evaluator.v1",
         }
         payload.update(kw)
@@ -309,7 +309,7 @@ class TestWritingAttempts:
         assert writing["latest_band"] == 3.5
         assert writing["best_band"] == 3.5
         # NFR-PROV-1: a band is machine-derived and says whose machine.
-        assert writing["model"] == "claude_code/claude-opus-5"
+        assert writing["model"] == "claude_code/claude-opus-5-5"
         assert writing["prompt_version"] == "lsat_writing_evaluator.v1"
 
     def test_a_learner_with_no_essays_reports_zero_not_the_instances(

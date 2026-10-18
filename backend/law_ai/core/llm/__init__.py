@@ -6,7 +6,7 @@ Import this package, not a specific transport::
 
     result = await llm.agenerate(prompt, system=SYS, json_mode=True)
     payload = llm.loads_first_json(result.text)
-    label = result.model_label            # "claude_code/claude-opus-4-8"
+    label = result.model_label            # "claude_code/claude-opus-5-5"
 
 Token streaming is opt-in per call site (BL-20260811-20) — the same chain,
 the same fallback, the same ``llm_call`` provenance event::

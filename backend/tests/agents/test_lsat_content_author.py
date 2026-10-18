@@ -38,7 +38,7 @@ def _valid_drafts_payload(count: int = 1, section: str = "LR") -> str:
 
 
 def _llm_result(
-    text: str, *, provider: str = "claude_code", model: str = "claude-opus-5"
+    text: str, *, provider: str = "claude_code", model: str = "claude-opus-5-5"
 ):
     """Build the LLMResult the provider chain hands back."""
     from law_ai.core.llm.base import LLMResult
@@ -199,7 +199,7 @@ class TestRunViaProviderChain:
             out = await agent.run({"section": "LR", "difficulty": "med", "count": 1})
         assert gen.await_count == 1
         assert out.degraded is False
-        assert out.model == "claude_code/claude-opus-5"
+        assert out.model == "claude_code/claude-opus-5-5"
         assert len(out.drafts) == 1
 
     @pytest.mark.asyncio
@@ -232,7 +232,7 @@ class TestRunViaProviderChain:
         ):
             out = await agent.run({"section": "LR", "difficulty": "med", "count": 1})
         assert out.degraded is False
-        assert out.model == "claude_code/claude-opus-5"
+        assert out.model == "claude_code/claude-opus-5-5"
 
     @pytest.mark.asyncio
     async def test_degrades_when_the_whole_chain_is_unavailable(self) -> None:

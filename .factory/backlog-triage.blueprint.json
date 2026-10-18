@@ -58,7 +58,7 @@
       },
       "config": {
         "promptRef": ".factory/prompts/backlog-triage.md",
-        "model": "claude-sonnet-4-6",
+        "model": "claude-sonnet-5-5",
         "maxTurns": 30,
         "checks": "python3 scripts/spec_validator.py\npython3 scripts/backlog_lint.py"
       }

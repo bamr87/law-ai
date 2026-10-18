@@ -328,7 +328,7 @@ class TestLegalAnalystAttribution:
                     return_value=LLMResult(
                         text=payload,
                         provider="claude_code",
-                        model="claude-opus-5",
+                        model="claude-opus-5-5",
                         latency_ms=1.0,
                     )
                 ),

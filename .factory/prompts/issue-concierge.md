@@ -1,7 +1,7 @@
 ---
 title: Issue Concierge
 description: Label and route each new issue with one short triage comment.
-model_hint: claude-sonnet-4-6
+model_hint: claude-sonnet-5-5
 inputs: REPO, ISSUE_NUMBER
 obligations_note: One label pass + at most ONE comment per issue; never a second comment.
 ---

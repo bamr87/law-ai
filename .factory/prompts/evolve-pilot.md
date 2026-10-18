@@ -1,7 +1,7 @@
 ---
 title: Evolve Pilot
 description: Advance the repo by one AO-SDLC cycle — top BACKLOG item to reviewable PR — as a GitFactory line.
-model_hint: claude-opus-4-8
+model_hint: claude-opus-5-5
 inputs: REPO
 obligations_note: Opens exactly one PR; never merges. All heavy gates run on the PR via CI, not in this line.
 ---

@@ -372,7 +372,7 @@ async def test_tutor_uses_llm_when_available(
                 '"next_steps": ["Diagram conditionals", "Review modus tollens"]}'
             ),
             provider="claude_code",
-            model="claude-opus-5",
+            model="claude-opus-5-5",
             latency_ms=1.0,
         )
 
@@ -389,7 +389,7 @@ async def test_tutor_uses_llm_when_available(
     assert body["used_llm"] is True
     assert "Walkthrough" in body["coaching"]
     assert len(body["next_steps"]) == 2
-    assert body["model"] == "claude_code/claude-opus-5"
+    assert body["model"] == "claude_code/claude-opus-5-5"
 
 
 @pytest.mark.asyncio
@@ -407,7 +407,7 @@ async def test_tutor_reports_the_serving_provider(
                 '"next_steps": ["Diagram conditionals", "Recheck modus tollens"]}'
             ),
             provider="claude_code",
-            model="claude-opus-5",
+            model="claude-opus-5-5",
             latency_ms=1.0,
         )
 
@@ -421,7 +421,7 @@ async def test_tutor_reports_the_serving_provider(
     assert res.status_code == 200
     body = res.json()
     assert body["used_llm"] is True
-    assert body["model"] == "claude_code/claude-opus-5"
+    assert body["model"] == "claude_code/claude-opus-5-5"
     assert "Claude Code walkthrough" in body["coaching"]
     assert len(body["next_steps"]) == 2
 
@@ -442,7 +442,7 @@ async def test_tutor_strips_markdown_fence(
                 "```"
             ),
             provider="claude_code",
-            model="claude-opus-5",
+            model="claude-opus-5-5",
             latency_ms=1.0,
         )
 
@@ -519,7 +519,7 @@ async def test_tutor_reasons_about_the_board_the_learner_saw(
         return LLMResult(
             text='{"coaching": "Board-aware.", "next_steps": []}',
             provider="claude_code",
-            model="claude-opus-5",
+            model="claude-opus-5-5",
             latency_ms=1.0,
         )
 
@@ -924,7 +924,7 @@ async def test_tutor_streams_progress_to_the_clients_stream_id(
         return LLMResult(
             text='{"coaching": "Contrapositive first.", "next_steps": ["Diagram"]}',
             provider="claude_code",
-            model="claude-opus-5",
+            model="claude-opus-5-5",
             latency_ms=1.0,
         )
 
@@ -944,7 +944,7 @@ async def test_tutor_streams_progress_to_the_clients_stream_id(
     assert stages == ["generating", "generated"]
     terminal = _events(ws_capture)[-1]
     assert terminal["type"] == "complete"
-    assert terminal["model"] == "claude_code/claude-opus-5"
+    assert terminal["model"] == "claude_code/claude-opus-5-5"
 
 
 @pytest.mark.asyncio
@@ -1231,7 +1231,7 @@ def _fake_astream(*deltas: str):
                 yield LLMChunk(
                     text=text,
                     provider="claude_code",
-                    model="claude-opus-5",
+                    model="claude-opus-5-5",
                     first=index == 0,
                 )
 
@@ -1273,7 +1273,7 @@ async def test_tutor_streams_coaching_tokens(
 
     tokens = [e for e in _events(ws_capture) if e["type"] == "tutor_token"]
     assert "".join(t["text"] for t in tokens).startswith("Contrapositive first.")
-    assert tokens[0]["model"] == "claude_code/claude-opus-5"
+    assert tokens[0]["model"] == "claude_code/claude-opus-5-5"
 
 
 @pytest.mark.asyncio
@@ -1356,7 +1356,7 @@ async def test_stream_tokens_without_a_stream_id_stays_buffered(
         return LLMResult(
             text='{"coaching": "Buffered.", "next_steps": ["Go"]}',
             provider="claude_code",
-            model="claude-opus-5",
+            model="claude-opus-5-5",
             latency_ms=1.0,
         )
 
@@ -1385,7 +1385,7 @@ async def test_streamed_and_buffered_walkthroughs_do_not_share_a_cache_entry(
         return LLMResult(
             text='{"coaching": "Buffered answer.", "next_steps": ["Go"]}',
             provider="claude_code",
-            model="claude-opus-5",
+            model="claude-opus-5-5",
             latency_ms=1.0,
         )
 
@@ -1423,7 +1423,7 @@ def _record_evaluation(**over: Any) -> None:
         "section": "WS",
         "response_chars": 1200,
         "weighted_band": 2.5,
-        "model": "claude_code/claude-opus-5",
+        "model": "claude_code/claude-opus-5-5",
         "degraded": False,
         "prompt_version": "lsat_writing_evaluator.v1",
         "rubric_id": "ws-rubric-standard",
@@ -1465,7 +1465,7 @@ async def test_stats_folds_writing_evaluations_in_order(client: AsyncClient) -> 
     assert writing["best_band"] == 3.5
     assert writing["degraded"] == 1
     # NFR-PROV-1: bands are machine-derived and say whose machine.
-    assert writing["model"] == "claude_code/claude-opus-5"
+    assert writing["model"] == "claude_code/claude-opus-5-5"
     assert writing["prompt_version"] == "lsat_writing_evaluator.v1"
 
 
@@ -1563,7 +1563,7 @@ async def test_the_llm_call_event_names_the_prompt_version(
         return LLMResult(
             text='{"coaching": "Ok.", "next_steps": []}',
             provider="claude_code",
-            model="claude-opus-5",
+            model="claude-opus-5-5",
             latency_ms=1.0,
         )
 
@@ -1636,7 +1636,7 @@ async def test_the_trace_reaches_the_prompt(
         return LLMResult(
             text='{"coaching": "Your split was right.", "next_steps": []}',
             provider="claude_code",
-            model="claude-opus-5",
+            model="claude-opus-5-5",
             latency_ms=1.0,
         )
 
@@ -1681,7 +1681,7 @@ async def test_no_trace_renders_no_trace_block(
         return LLMResult(
             text='{"coaching": "Ok.", "next_steps": []}',
             provider="claude_code",
-            model="claude-opus-5",
+            model="claude-opus-5-5",
             latency_ms=1.0,
         )
 
@@ -1741,7 +1741,7 @@ async def test_two_different_attempts_do_not_share_a_walkthrough(
         return LLMResult(
             text=f'{{"coaching": "Answer {len(calls)}.", "next_steps": []}}',
             provider="claude_code",
-            model="claude-opus-5",
+            model="claude-opus-5-5",
             latency_ms=1.0,
         )
 

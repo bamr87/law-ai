@@ -37,7 +37,7 @@ def _job(
             rationale="test",
         ),
         tier="standard",
-        model_hint="claude-sonnet-5",
+        model_hint="claude-sonnet-5-5",
         template_version="lsat_factory_item/1",
         prompt="PROMPT",
     )

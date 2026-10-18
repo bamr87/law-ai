@@ -33,7 +33,7 @@ class _FakeProvider:
 
 
 def _llm_result(
-    text: str, *, provider: str = "claude_code", model: str = "claude-opus-5"
+    text: str, *, provider: str = "claude_code", model: str = "claude-opus-5-5"
 ):
     """Build the LLMResult the provider chain hands back."""
     from law_ai.core.llm.base import LLMResult
@@ -207,7 +207,7 @@ class TestViaProviderChain:
         ]
         assert out.confidence == 0.85
         assert out.trace_id == "trace-cc"
-        assert log.call_args.kwargs["model"] == "claude_code/claude-opus-5"
+        assert log.call_args.kwargs["model"] == "claude_code/claude-opus-5-5"
 
     @pytest.mark.asyncio
     async def test_audit_records_the_tier_that_actually_served(self) -> None:

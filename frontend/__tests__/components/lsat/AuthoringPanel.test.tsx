@@ -60,7 +60,7 @@ const crossCheckProposal = {
     bank_choice: 'C',
     model_choice: 'E',
     rationale: 'E follows from the second premise.',
-    model: 'claude_code/claude-opus-5',
+    model: 'claude_code/claude-opus-5-5',
   },
 }
 

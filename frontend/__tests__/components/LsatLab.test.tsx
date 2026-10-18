@@ -841,7 +841,7 @@ describe('LsatLab', () => {
                   best_band: 2.8,
                   band_trend: [2.8],
                   degraded: 0,
-                  model: 'claude_code/claude-opus-5',
+                  model: 'claude_code/claude-opus-5-5',
                   prompt_version: 'v1',
                 },
         })

@@ -38,7 +38,7 @@ def _envelope(**options: Any) -> dict[str, Any]:
             "page_label": "37",
             "captured_at": "2026-09-06T10:00:00",
             "ocr_engine": "apple_vision@26.5+rapidocr@3.9.2",
-            "llm_model": "claude-opus-5",
+            "llm_model": "claude-opus-5-5",
             "agreement": 0.98,
             "overlap": 0.99,
             "flagged_spans": 1,

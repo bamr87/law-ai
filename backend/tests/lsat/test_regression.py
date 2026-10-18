@@ -69,7 +69,7 @@ def _seed(
     ts: str,
     used_llm: bool = True,
     cached: bool = False,
-    model: str = "claude_code/claude-opus-5",
+    model: str = "claude_code/claude-opus-5-5",
 ) -> None:
     from law_ai.core import audit_jsonl as audit_store
 
@@ -268,7 +268,7 @@ def _verdict(choice: str) -> Any:
     return LLMResult(
         text=json.dumps({"choice": choice, "rationale": "Because."}),
         provider="claude_code",
-        model="claude-opus-5",
+        model="claude-opus-5-5",
         latency_ms=1.0,
     )
 
