@@ -90,7 +90,7 @@ class TestVerdicts:
         assert out.symbolization_faithful is True
         assert [f.index for f in out.step_findings] == [1, 2]
         assert out.confidence == pytest.approx(0.8)
-        assert out.model == "claude_code/claude-opus-5"
+        assert out.model == "claude_code/claude-opus-5-5"
         assert out.degraded is False
         assert out.trace_id == "t"
 

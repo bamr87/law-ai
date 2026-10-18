@@ -15,7 +15,7 @@ Usage::
 
     model = ChatProviderChain(agent="legal_workflow")
     reply = await model.ainvoke("Summarise the holding of Marbury v. Madison")
-    reply.response_metadata["model_label"]   # e.g. "claude_code/claude-opus-5"
+    reply.response_metadata["model_label"]   # e.g. "claude_code/claude-opus-5-5"
 
 ``astream`` is a real token stream (BL-20260811-26), not the buffered
 fallback ``BaseChatModel`` supplies for a model without ``_astream``::

@@ -1007,7 +1007,7 @@ async def test_approve_endpoint_closes_a_crosscheck_without_touching_the_bank(
             "rationale": "The chain preferred B.",
         },
         agent_trace_id="",
-        model="claude_code/claude-opus-5",
+        model="claude_code/claude-opus-5-5",
         confidence=0.0,
         proposal_kind="crosscheck",
     )

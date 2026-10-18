@@ -69,7 +69,7 @@ def _fake_output(question_id: str, *, degraded: bool = False) -> Any:
         )
     return GenerateGuideOutput(
         guide=guide,
-        model="fallback/offline" if degraded else "claude_code/claude-opus-5",
+        model="fallback/offline" if degraded else "claude_code/claude-opus-5-5",
         confidence=0.0 if degraded else 0.7,
         degraded=degraded,
         trace_id="t-backfill",

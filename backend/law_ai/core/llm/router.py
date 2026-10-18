@@ -35,7 +35,7 @@ Usage::
     from law_ai.core import llm
 
     result = await llm.agenerate("Summarise this holding", system=SYS)
-    text, label = result.text, result.model_label   # "claude_code/claude-opus-4-8"
+    text, label = result.text, result.model_label   # "claude_code/claude-opus-5-5"
 
 Sync call sites (Celery tasks, management commands) use :func:`generate`.
 LangGraph nodes that want a LangChain-shaped runnable use

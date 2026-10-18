@@ -257,7 +257,7 @@ class DraftFileExecutor:
     File format — one JSON object per line::
 
         {"job_id": "mfst-…-job01", "drafts": [...],
-         "passage": {...}?, "model": "claude_code/claude-haiku-4-5"?}
+         "passage": {...}?, "model": "claude_code/claude-haiku-5-5"?}
 
     Unknown job ids in the file are ignored; a job with no record raises
     :class:`ExecutionError` so the pipeline reports it as unfulfilled.

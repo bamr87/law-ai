@@ -70,7 +70,7 @@ class TestCredentials:
 
     def test_model_label(self, settings) -> None:
         settings.CLAUDE_CODE_MODEL = "claude-opus-5-5"
-        assert claude_code.model_label() == "claude_code/claude-opus-5"
+        assert claude_code.model_label() == "claude_code/claude-opus-5-5"
 
     def test_legacy_lsat_provider_pin_is_gone(self) -> None:
         """BL-20260811-22: ``LSAT_LLM_PROVIDER`` was folded into the chain.

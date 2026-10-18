@@ -130,7 +130,7 @@ Until `make xai-login` has been run, the tier reports itself unconfigured and th
 | `CLAUDE_CODE_MAX_RETRIES` | `3` | Retries on transient `429/5xx/529`. |
 | `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | API base (override for proxies). |
 
-Every call is recorded through the audit layer (the `model` field shows e.g. `claude_code/claude-opus-5` or `anthropic_api/claude-opus-5`), so provenance is preserved regardless of which tier served the request.
+Every call is recorded through the audit layer (the `model` field shows e.g. `claude_code/claude-opus-5-5` or `anthropic_api/claude-opus-5-5`), so provenance is preserved regardless of which tier served the request.
 
 ## See also
 

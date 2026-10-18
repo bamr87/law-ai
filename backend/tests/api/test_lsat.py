@@ -389,7 +389,7 @@ async def test_tutor_uses_llm_when_available(
     assert body["used_llm"] is True
     assert "Walkthrough" in body["coaching"]
     assert len(body["next_steps"]) == 2
-    assert body["model"] == "claude_code/claude-opus-5"
+    assert body["model"] == "claude_code/claude-opus-5-5"
 
 
 @pytest.mark.asyncio
@@ -421,7 +421,7 @@ async def test_tutor_reports_the_serving_provider(
     assert res.status_code == 200
     body = res.json()
     assert body["used_llm"] is True
-    assert body["model"] == "claude_code/claude-opus-5"
+    assert body["model"] == "claude_code/claude-opus-5-5"
     assert "Claude Code walkthrough" in body["coaching"]
     assert len(body["next_steps"]) == 2
 
@@ -944,7 +944,7 @@ async def test_tutor_streams_progress_to_the_clients_stream_id(
     assert stages == ["generating", "generated"]
     terminal = _events(ws_capture)[-1]
     assert terminal["type"] == "complete"
-    assert terminal["model"] == "claude_code/claude-opus-5"
+    assert terminal["model"] == "claude_code/claude-opus-5-5"
 
 
 @pytest.mark.asyncio
@@ -1273,7 +1273,7 @@ async def test_tutor_streams_coaching_tokens(
 
     tokens = [e for e in _events(ws_capture) if e["type"] == "tutor_token"]
     assert "".join(t["text"] for t in tokens).startswith("Contrapositive first.")
-    assert tokens[0]["model"] == "claude_code/claude-opus-5"
+    assert tokens[0]["model"] == "claude_code/claude-opus-5-5"
 
 
 @pytest.mark.asyncio
@@ -1423,7 +1423,7 @@ def _record_evaluation(**over: Any) -> None:
         "section": "WS",
         "response_chars": 1200,
         "weighted_band": 2.5,
-        "model": "claude_code/claude-opus-5",
+        "model": "claude_code/claude-opus-5-5",
         "degraded": False,
         "prompt_version": "lsat_writing_evaluator.v1",
         "rubric_id": "ws-rubric-standard",
@@ -1465,7 +1465,7 @@ async def test_stats_folds_writing_evaluations_in_order(client: AsyncClient) -> 
     assert writing["best_band"] == 3.5
     assert writing["degraded"] == 1
     # NFR-PROV-1: bands are machine-derived and say whose machine.
-    assert writing["model"] == "claude_code/claude-opus-5"
+    assert writing["model"] == "claude_code/claude-opus-5-5"
     assert writing["prompt_version"] == "lsat_writing_evaluator.v1"
 
 

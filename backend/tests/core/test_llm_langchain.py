@@ -89,7 +89,7 @@ class TestGeneration:
 
         assert isinstance(reply, AIMessage)
         assert reply.content == "the holding"
-        assert reply.response_metadata["model_label"] == "claude_code/claude-opus-5"
+        assert reply.response_metadata["model_label"] == "claude_code/claude-opus-5-5"
         assert reply.response_metadata["fell_back"] is False
         assert agen.call_args.kwargs["agent"] == "legal_workflow"
         assert agen.call_args.kwargs["system"] is None
@@ -284,7 +284,7 @@ class TestStreaming:
         labelled = [p for p in pieces if p.content]
         assert labelled
         for piece in labelled:
-            assert piece.response_metadata["model_label"] == "claude_code/claude-opus-5"
+            assert piece.response_metadata["model_label"] == "claude_code/claude-opus-5-5"
 
     async def test_the_chain_receives_the_models_configuration(self) -> None:
         model = ChatProviderChain(
