@@ -392,7 +392,7 @@ async def test_model_label_records_the_serving_provider() -> None:
             self.content = text
             self.response_metadata = {
                 "provider": "claude_code",
-                "model": "claude-opus-5",
+                "model": "claude-opus-5-5",
                 "model_label": "claude_code/claude-opus-5",
             }
 

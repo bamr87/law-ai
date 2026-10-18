@@ -61,7 +61,7 @@ def _llm_result(text: str):
     from law_ai.core.llm.base import LLMResult
 
     return LLMResult(
-        text=text, provider="claude_code", model="claude-opus-5", latency_ms=1.0
+        text=text, provider="claude_code", model="claude-opus-5-5", latency_ms=1.0
     )
 
 

@@ -43,7 +43,7 @@ def _job(job_id: str = "mfst-x-job01", mode: str = "items") -> GenerationJob:
             rationale="test",
         ),
         tier="standard",
-        model_hint="claude-sonnet-5",
+        model_hint="claude-sonnet-5-5",
         template_version="lsat_factory_item/1",
         prompt="PROMPT",
     )
@@ -119,7 +119,7 @@ class TestClaudeCodeExecutor:
 
         # One provider only: a fall-through would make the bank unattributable.
         assert captured["providers"] == ("claude_code",)
-        assert captured["models"] == {"claude_code": "claude-sonnet-5"}
+        assert captured["models"] == {"claude_code": "claude-sonnet-5-5"}
         # Items mode pins the response with the structured-output schema.
         assert captured["schema"] is not None
         assert captured["agent"] == "lsat_factory"

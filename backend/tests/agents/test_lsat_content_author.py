@@ -38,7 +38,7 @@ def _valid_drafts_payload(count: int = 1, section: str = "LR") -> str:
 
 
 def _llm_result(
-    text: str, *, provider: str = "claude_code", model: str = "claude-opus-5"
+    text: str, *, provider: str = "claude_code", model: str = "claude-opus-5-5"
 ):
     """Build the LLMResult the provider chain hands back."""
     from law_ai.core.llm.base import LLMResult

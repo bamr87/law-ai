@@ -29,7 +29,7 @@ ENVELOPE: dict[str, Any] = {
         "page_id": "abc123",
         "page_label": "3",
         "ocr_engine": "apple_vision@26.5",
-        "llm_model": "claude-opus-5",
+        "llm_model": "claude-opus-5-5",
         "agreement": 0.97,
         "overlap": 0.99,
         "flagged_spans": 0,

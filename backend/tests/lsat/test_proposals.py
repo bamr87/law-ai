@@ -308,7 +308,7 @@ async def test_generate_persists_and_lists(client: AsyncClient) -> None:
     from law_ai.core.llm.base import LLMResult
 
     result = LLMResult(
-        text=payload, provider="claude_code", model="claude-opus-5", latency_ms=1.0
+        text=payload, provider="claude_code", model="claude-opus-5-5", latency_ms=1.0
     )
     with patch.object(mod.llm, "agenerate", new=AsyncMock(return_value=result)):
         res = await client.post(
@@ -756,7 +756,7 @@ async def test_approve_endpoint_returns_cross_check_verdict(
     verdict = LLMResult(
         text=json.dumps({"choice": "A", "rationale": "Because A."}),
         provider="claude_code",
-        model="claude-opus-5",
+        model="claude-opus-5-5",
         latency_ms=1.0,
     )
     with patch.object(cc_mod.llm, "agenerate", new=AsyncMock(return_value=verdict)):
@@ -821,7 +821,7 @@ async def test_generate_flags_answer_key_skew_onto_the_queue(
         }
     )
     result = LLMResult(
-        text=payload, provider="claude_code", model="claude-opus-5", latency_ms=1.0
+        text=payload, provider="claude_code", model="claude-opus-5-5", latency_ms=1.0
     )
     with patch.object(mod.llm, "agenerate", new=AsyncMock(return_value=result)):
         res = await client.post(
@@ -862,7 +862,7 @@ async def test_generate_leaves_no_flag_on_a_spread_batch(client: AsyncClient) ->
         }
     )
     result = LLMResult(
-        text=payload, provider="claude_code", model="claude-opus-5", latency_ms=1.0
+        text=payload, provider="claude_code", model="claude-opus-5-5", latency_ms=1.0
     )
     with patch.object(mod.llm, "agenerate", new=AsyncMock(return_value=result)):
         res = await client.post(

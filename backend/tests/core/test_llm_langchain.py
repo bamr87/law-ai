@@ -27,7 +27,7 @@ from law_ai.core.usage import LLMUsage
 
 def _result(text: str = "ok", provider: str = "claude_code") -> LLMResult:
     return LLMResult(
-        text=text, provider=provider, model="claude-opus-5", latency_ms=1.0
+        text=text, provider=provider, model="claude-opus-5-5", latency_ms=1.0
     )
 
 
@@ -184,7 +184,7 @@ class TestUsageMetadata:
         result = LLMResult(
             text="ok",
             provider="claude_code",
-            model="claude-opus-5",
+            model="claude-opus-5-5",
             latency_ms=1.0,
             usage=LLMUsage(input_tokens=100, output_tokens=20),
         )
@@ -257,7 +257,7 @@ def _fake_stream(*chunks: LLMChunk) -> Any:
 
 def _chunk(text: str, first: bool = False) -> LLMChunk:
     return LLMChunk(
-        text=text, provider="claude_code", model="claude-opus-5", first=first
+        text=text, provider="claude_code", model="claude-opus-5-5", first=first
     )
 
 

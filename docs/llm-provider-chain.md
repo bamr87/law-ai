@@ -58,7 +58,7 @@ anthropic-version: 2023-06-01
 
    ```dotenv
    CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...
-   CLAUDE_CODE_MODEL=claude-opus-5    # default
+   CLAUDE_CODE_MODEL=claude-opus-5-5    # default
    ```
 
    That's sufficient — no provider opt-in flag is needed; the chain tries `claude_code` first by default. To use an API key instead (e.g. no Claude Code subscription), set `ANTHROPIC_API_KEY` and skip the OAuth token; `ANTHROPIC_MODEL` overrides the model id for that tier only, otherwise it follows `CLAUDE_CODE_MODEL`.
@@ -122,7 +122,7 @@ Until `make xai-login` has been run, the tier reports itself unconfigured and th
 | `LLM_PROVIDER_CHAIN` | `claude_code,anthropic_api,xai,ollama` | Ordered provider list; pin to `ollama` for local-only. The `xai` tier is documented in [specs/050-xai-oauth-provider](../specs/050-xai-oauth-provider/spec.md). |
 | `CLAUDE_CODE_OAUTH_TOKEN` | _(unset)_ | OAuth token from `claude setup-token` (tier 1). |
 | `ANTHROPIC_API_KEY` | _(unset)_ | Standard API key (tier 2). |
-| `CLAUDE_CODE_MODEL` | `claude-opus-5` | Model id for both Claude tiers. |
+| `CLAUDE_CODE_MODEL` | `claude-opus-5-5` | Model id for both Claude tiers. |
 | `ANTHROPIC_MODEL` | _(unset)_ | Overrides the model id for tier 2 only; falls back to `CLAUDE_CODE_MODEL`. |
 | `CLAUDE_EFFORT` | _(unset)_ | Optional reasoning-effort hint passed through `output_config.effort`. |
 | `CLAUDE_CODE_MAX_TOKENS` | `8192` | Max output tokens per call. |

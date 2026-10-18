@@ -145,7 +145,7 @@ class TestDefaultCallerInsideEventLoop:
         result = LLMResult(
             text=_FAKE_TARGETS,
             provider="claude_code",
-            model="claude-opus-5",
+            model="claude-opus-5-5",
             latency_ms=1.0,
         )
         with (

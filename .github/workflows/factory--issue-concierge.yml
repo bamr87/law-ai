@@ -51,6 +51,6 @@ jobs:
             1. [sink.label lb] Apply the appropriate labels to issue #${{ github.event.issue.number }} using `gh issue edit --add-label`. Prefer existing labels (`gh label list`).
             2. [sink.comment cm] Post exactly one comment on issue #${{ github.event.issue.number }} that posts ONE short triage comment (kind/severity guess + where it lands in BACKLOG.md); never posts a second comment on the same issue.
           claude_args: |-
-            --model claude-sonnet-4-6
+            --model claude-sonnet-5-5
             --max-turns 10
             --allowedTools "Bash(gh issue view:*),Bash(gh search issues:*),Read,Glob,Grep,Bash(gh label list:*),Bash(gh issue edit:*),Bash(gh issue comment:*)"

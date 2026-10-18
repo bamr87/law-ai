@@ -27,7 +27,7 @@ def _payload(**over: object) -> dict[str, object]:
     base: dict[str, object] = {
         "agent": "legal_analyst",
         "provider": "claude",
-        "model": "claude-sonnet-4-5",
+        "model": "claude-sonnet-5-5",
         "ok": True,
         "input_tokens": 1000,
         "output_tokens": 500,

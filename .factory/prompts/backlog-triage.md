@@ -1,7 +1,7 @@
 ---
 title: Backlog Triage
 description: Verify open BACKLOG items against the actual code and open one reconciliation PR.
-model_hint: claude-sonnet-4-6
+model_hint: claude-sonnet-5-5
 inputs: REPO
 obligations_note: Opens exactly one PR; never merges. Append-only — items move to Done, never deleted.
 ---
