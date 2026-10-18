@@ -43,6 +43,7 @@ vi.mock('@/lib/data', async () => {
       passage: 'The passage body.',
     }),
     guideFor: () => undefined,
+    playbookFor: () => undefined,
     conceptById: () => undefined,
   }
 })
