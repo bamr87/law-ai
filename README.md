@@ -1,5 +1,11 @@
 # Law AI — VS Code Workspace
 
+> Open legal intelligence platform prototype: Django, CrewAI agents and a Neo4j knowledge graph, local-first via Ollama.
+
+[![CI](https://github.com/bamr87/law-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/bamr87/law-ai/actions/workflows/ci.yml) [![Live site](https://img.shields.io/badge/live-bamr87.github.io%2Flaw--ai-2ea44f)](https://bamr87.github.io/law-ai/)
+
+## Overview
+
 **AI-Native Development Environment for Building the Open Legal Intelligence Platform**
 
 This workspace is configured for **GitHub Copilot and Claude Code** as the sanctioned AI development orchestrators (Copilot Chat / Copilot Edits / the GitHub Copilot coding agent, and the Claude Code CLI / IDE extensions). That dev-orchestration layer is independent of the **product runtime** — the LLM that actually answers end users. The runtime is an ordered provider chain (`LLM_PROVIDER_CHAIN`), implemented in `backend/law_ai/core/llm/`: Anthropic Claude is the default (subscription OAuth token, then `ANTHROPIC_API_KEY`), then xAI Grok (subscription OAuth, authorise with `make xai-login`), with local Ollama as the last-tier fallback. Pin `LLM_PROVIDER_CHAIN=ollama` for local-only operation — required for any data under a confidentiality obligation that forbids third-party processing. See [docs/constitution.md](docs/constitution.md) §1 for the full policy.
@@ -82,6 +88,17 @@ Copilot Chat (Agent mode) auto-loads [.github/copilot-instructions.md](.github/c
 
 **Testing Philosophy**: every PR must pass unit tests with ≥75% coverage. Integration tests (real Neo4j/Postgres) and the full LegalBench suite run nightly ([.github/workflows/nightly-tests.yml](.github/workflows/nightly-tests.yml)), or on-demand on a PR carrying the `reasoning-change` label.
 
+## Project structure
+
+| Path | What it is |
+|---|---|
+| `backend/` | Django (ASGI) API, agents, LLM provider chain and ingestion |
+| `frontend/` | Next.js App Router frontend |
+| `lsat-static/` | Static LSAT study site published to GitHub Pages |
+| `specs/`, `docs/` | Feature specs, constitution, architecture and ADRs |
+| `infra/`, `docker-compose*.yml` | Local stack: Postgres, Redis, Neo4j, Ollama and observability |
+| `tests/`, `scripts/`, `tools/` | Repo-level tests and operator scripts |
+
 ## Project Status
 
 Law AI is under active spec-driven development — there is no fixed roadmap snapshot maintained here, because it drifts. For what's shipped, in flight, and planned:
@@ -89,6 +106,15 @@ Law AI is under active spec-driven development — there is no fixed roadmap sna
 - **Shipped features**: numbered spec packages under [`specs/`](specs/) (each `spec.md` + `plan.md` + `tasks.md`), the actual source of truth for what exists.
 - **What's next**: the `## Open` section of [BACKLOG.md](BACKLOG.md).
 - **LegalBench regression gate**: `backend/law_ai/eval/legalbench.py`, run via `make test-legalbench` / `make legalbench-baseline`.
+
+## Development
+
+```bash
+make dev     # full stack: frontend :3000, API :8000/docs
+make test    # backend pytest + frontend vitest
+```
+
+Full commands, conventions and gotchas for humans and AI agents live in [AGENTS.md](AGENTS.md).
 
 ## Contributing
 
@@ -105,3 +131,16 @@ See [AGENTS.md](AGENTS.md) → "Evaluation & Quality Gates (Mandatory)" and "Tes
 **This workspace is designed so that a well-prompted AI coding agent can build 70-80% of Law AI autonomously while maintaining legal-grade quality and auditability.**
 
 Welcome to the future of open legal AI. Let's build it together.
+
+## Changelog
+
+There is no CHANGELOG.md yet; changes are tracked in the [commit history](https://github.com/bamr87/law-ai/commits/main).
+
+## License
+
+No license file has been added yet, so all rights are reserved by default.
+
+---
+
+<!-- bamr87-portfolio-footer -->
+Part of the [bamr87 portfolio](https://github.com/bamr87) — browse every project on [Amr's GitHub profile](https://github.com/bamr87).

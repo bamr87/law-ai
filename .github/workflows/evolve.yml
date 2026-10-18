@@ -8,8 +8,12 @@ name: Evolve (weekly autopilot)
 #   agent — assigning that issue to @copilot will run /evolve in the cloud.
 
 on:
-  schedule:
-    - cron: "0 13 * * 1"
+  # Schedule paused (Actions waste reduction, Oct 14): Actions jobs in this private repo are refused
+  # by the billing block ("recent account payments have failed or your spending limit needs to be
+  # increased"), bamr87/bamr87#268, so every scheduled run failed without running.
+  # To restore once billing is fixed: uncomment the schedule block below (workflow_dispatch still works).
+  # schedule:
+  #   - cron: "0 13 * * 1"
   workflow_dispatch:
 
 permissions:

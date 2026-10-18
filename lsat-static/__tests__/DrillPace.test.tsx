@@ -51,6 +51,7 @@ vi.mock('@/lib/data', () => ({
   sectionMeta: () => SECTION_LR,
   passageById: () => undefined,
   guideFor: () => undefined,
+  playbookFor: () => undefined,
   conceptById: () => undefined,
 }))
 

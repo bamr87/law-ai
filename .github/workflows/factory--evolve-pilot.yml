@@ -8,8 +8,12 @@ on:
         description: Apply changes (leave unchecked for a dry run — plan only)
         type: boolean
         default: false
-  schedule:
-    - cron: 0 15 * * 1
+  # Schedule paused (Actions waste reduction, Oct 14): Actions jobs in this private repo are refused
+  # by the billing block ("recent account payments have failed or your spending limit needs to be
+  # increased"), bamr87/bamr87#268, so every scheduled run failed without running.
+  # To restore once billing is fixed: uncomment the schedule block below (workflow_dispatch still works).
+  # schedule:
+  #   - cron: 0 15 * * 1
 concurrency:
   group: factory--evolve-pilot-${{ github.event.issue.number || github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.run_id }}
   cancel-in-progress: false

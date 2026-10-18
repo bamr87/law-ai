@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom/vitest'
 import { afterAll, afterEach, beforeAll } from 'vitest'
 import { cleanup, configure } from '@testing-library/react'
 import { server } from './mocks/server'
