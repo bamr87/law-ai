@@ -22,7 +22,16 @@ _MODULES = (
 
 
 def _fresh(name: str, monkeypatch: pytest.MonkeyPatch):
+    # Drop the module from sys.modules *and* from its parent package, so
+    # monkeypatch puts both back on teardown. Restoring only sys.modules left
+    # `tests.lsat.test_factory_ollama_integration` (the package attribute)
+    # pointing at the fresh copy, and test_factory_command's
+    # `importlib.reload(mod)` then failed with "module ... not in sys.modules".
+    parent, _, child = name.rpartition(".")
+    package = importlib.import_module(parent)
     monkeypatch.delitem(sys.modules, name, raising=False)
+    if hasattr(package, child):
+        monkeypatch.delattr(package, child)
     return importlib.import_module(name)
 
 
