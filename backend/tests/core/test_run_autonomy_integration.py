@@ -23,9 +23,14 @@ Two deliberate constraints:
   at least one ``llm_call`` with ``ok=True`` and ``provider == "ollama"``.
   What is *not* asserted is anything about the content the model wrote.
 
-Skips cleanly (never fails) unless ``OLLAMA_INTEGRATION_URL`` — or a
-non-loopback ``OLLAMA_BASE_URL`` — points at a reachable Ollama that can run
-the model. ``make test-integration-ollama`` sets that up, and
+Skips cleanly (never fails) unless ``OLLAMA_INTEGRATION_URL`` points at a
+reachable Ollama that can run the model. ``OLLAMA_BASE_URL`` is deliberately
+*not* an opt-in (bamr87/bamr87#253, the same rule BL-20260702-05 gave
+``tests/lsat/test_factory_ollama_integration.py``): docker-compose sets it on
+the ``backend`` service, so honouring it made ``make test-coverage`` run this
+live cycle against the 7B compose default on the nightly's CPU-only runner,
+where every call hit ``OLLAMA_REQUEST_TIMEOUT_S`` and the cycle degraded after
+~12 minutes — twice a night. ``make test-integration-ollama`` sets that up, and
 ``OLLAMA_INTEGRATION_MODEL`` points the run at a smaller pulled model than the
 compose default 7B, which needs ~5 GiB resident and does not fit in a typical
 laptop Docker VM. A test that skips on every box in reach verifies nothing,
@@ -54,15 +59,12 @@ _LOAD_TIMEOUT_S = 180.0
 
 
 def _candidate_url() -> str:
-    explicit = os.getenv("OLLAMA_INTEGRATION_URL", "").strip()
-    if explicit:
-        return explicit
-    env_url = os.getenv("OLLAMA_BASE_URL", "").strip()
-    # settings/test.py pins the closed port; that means "no Ollama", not
-    # "an Ollama on localhost".
-    if env_url and "127.0.0.1:1" not in env_url:
-        return env_url
-    return ""
+    """The Ollama the operator explicitly asked for — ``OLLAMA_INTEGRATION_URL`` only.
+
+    Only ``make test-integration-ollama`` (and the nightly's live-model slice,
+    which calls it with the small model) sets it.
+    """
+    return os.getenv("OLLAMA_INTEGRATION_URL", "").strip()
 
 
 def _integration_model() -> str:

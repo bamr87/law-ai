@@ -27,7 +27,7 @@ def _payload(**over: object) -> dict[str, object]:
     base: dict[str, object] = {
         "agent": "legal_analyst",
         "provider": "claude",
-        "model": "claude-sonnet-4-5",
+        "model": "claude-sonnet-5-5",
         "ok": True,
         "input_tokens": 1000,
         "output_tokens": 500,
@@ -52,7 +52,7 @@ class TestRollup:
             "lsat_content_author",
         ]
         assert {b.key for b in report.by_tier} == {
-            "claude/claude-sonnet-4-5",
+            "claude/claude-sonnet-5-5",
             "ollama/llama3",
         }
         analyst = next(b for b in report.by_agent if b.key == "legal_analyst")
@@ -119,7 +119,7 @@ class TestLlmSpendCommand:
         text = out.getvalue()
         assert "legal_analyst" in text
         assert "lsat_tutor" in text
-        assert "claude/claude-sonnet-4-5" in text
+        assert "claude/claude-sonnet-5-5" in text
         assert "floor, not the bill" in text
 
     def test_json_mode_emits_the_same_rollup(self) -> None:

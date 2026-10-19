@@ -61,7 +61,7 @@ def _llm_result(text: str):
     from law_ai.core.llm.base import LLMResult
 
     return LLMResult(
-        text=text, provider="claude_code", model="claude-opus-5", latency_ms=1.0
+        text=text, provider="claude_code", model="claude-opus-5-5", latency_ms=1.0
     )
 
 
@@ -79,7 +79,7 @@ async def test_run_returns_validated_guide() -> None:
         output = await mod.LSATSolveGuideAuthor().run({"question_id": qid})
 
     assert output.degraded is False
-    assert output.model == "claude_code/claude-opus-5"
+    assert output.model == "claude_code/claude-opus-5-5"
     guide = SolveGuide.model_validate(output.guide.model_dump(by_alias=True))
     # The agent binds the guide to the requested question, not the echoed id.
     assert guide.question_id == qid

@@ -7,7 +7,7 @@ those providers agree on; :mod:`law_ai.core.llm.router` does the routing and
 :mod:`law_ai.core.llm.providers` implements the transports.
 
 The request object is deliberately provider-neutral. Model ids are *not*
-interchangeable across providers (``claude-opus-4-8`` means nothing to Ollama),
+interchangeable across providers (``claude-opus-5-5`` means nothing to Ollama),
 so a caller that needs to pin one passes a per-provider mapping::
 
     LLMRequest(prompt=p, models={"ollama": "mistral:7b-instruct-q4_K_M"})

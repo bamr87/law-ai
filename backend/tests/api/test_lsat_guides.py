@@ -184,7 +184,7 @@ async def test_generate_guide_persists_pending_and_never_serves(
         }
     )
     result = LLMResult(
-        text=payload, provider="claude_code", model="claude-opus-5", latency_ms=1.0
+        text=payload, provider="claude_code", model="claude-opus-5-5", latency_ms=1.0
     )
     with patch.object(mod.llm, "agenerate", new=AsyncMock(return_value=result)):
         res = await client.post("/api/lsat/guides/generate", json={"question_id": qid})
@@ -266,7 +266,7 @@ async def test_generate_guide_attaches_the_reviewer_verdict(
 
     def _result(text: str) -> LLMResult:
         return LLMResult(
-            text=text, provider="claude_code", model="claude-opus-5", latency_ms=1.0
+            text=text, provider="claude_code", model="claude-opus-5-5", latency_ms=1.0
         )
 
     # The author and the reviewer share `law_ai.core.llm`, so the reviewer is

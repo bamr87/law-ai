@@ -39,7 +39,7 @@ def _llm_result(text: str):  # type: ignore[no-untyped-def]
     from law_ai.core.llm.base import LLMResult
 
     return LLMResult(
-        text=text, provider="claude_code", model="claude-opus-5", latency_ms=1.0
+        text=text, provider="claude_code", model="claude-opus-5-5", latency_ms=1.0
     )
 
 
@@ -100,11 +100,11 @@ class TestScoring:
         assert out.overall == pytest.approx(0.85)
         assert out.flagged is False
         assert out.degraded is False
-        assert out.model == "claude_code/claude-opus-5"
+        assert out.model == "claude_code/claude-opus-5-5"
         assert out.prompt_version == mod.PROMPT_VERSION
         assert out.trace_id == "t"
         # Provenance names the real model, never a placeholder.
-        assert log.call_args.kwargs["model"] == "claude_code/claude-opus-5"
+        assert log.call_args.kwargs["model"] == "claude_code/claude-opus-5-5"
 
     @pytest.mark.asyncio
     async def test_weak_draft_is_pre_flagged_but_never_rejected(self) -> None:

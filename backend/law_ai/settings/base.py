@@ -52,7 +52,7 @@ env = environ.Env(
     ANTHROPIC_API_KEY=(str, ""),
     ANTHROPIC_MODEL=(str, ""),
     CLAUDE_CODE_OAUTH_TOKEN=(str, ""),
-    CLAUDE_CODE_MODEL=(str, "claude-opus-5"),
+    CLAUDE_CODE_MODEL=(str, "claude-opus-5-5"),
     # Thinking is on by default on Claude Opus 5 and max_tokens caps thinking
     # *plus* response text, so the old 2048 truncates real answers mid-document.
     CLAUDE_CODE_MAX_TOKENS=(int, 8192),

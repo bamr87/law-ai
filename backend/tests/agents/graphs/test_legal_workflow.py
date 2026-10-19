@@ -392,8 +392,8 @@ async def test_model_label_records_the_serving_provider() -> None:
             self.content = text
             self.response_metadata = {
                 "provider": "claude_code",
-                "model": "claude-opus-5",
-                "model_label": "claude_code/claude-opus-5",
+                "model": "claude-opus-5-5",
+                "model_label": "claude_code/claude-opus-5-5",
             }
 
     class _LabelledLLM:
@@ -406,7 +406,7 @@ async def test_model_label_records_the_serving_provider() -> None:
     from law_ai.agents_runtime.graphs.legal_workflow import _coerce_model_label
 
     assert _coerce_model_label("bare string") == "(provider chain)"
-    assert _coerce_model_label(_LabelledMessage("{}")) == "claude_code/claude-opus-5"
+    assert _coerce_model_label(_LabelledMessage("{}")) == "claude_code/claude-opus-5-5"
 
     async def resolver(citations):  # type: ignore[no-untyped-def]
         return {}

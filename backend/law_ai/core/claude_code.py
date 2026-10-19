@@ -158,8 +158,8 @@ def inactive_reason() -> str | None:
 
 
 def model() -> str:
-    """The configured Claude model id (e.g. ``claude-opus-4-8``)."""
-    return str(getattr(settings, "CLAUDE_CODE_MODEL", "claude-opus-4-8"))
+    """The configured Claude model id (e.g. ``claude-opus-5-5``)."""
+    return str(getattr(settings, "CLAUDE_CODE_MODEL", "claude-opus-5-5"))
 
 
 def model_label() -> str:

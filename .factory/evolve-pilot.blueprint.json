@@ -58,7 +58,7 @@
       },
       "config": {
         "promptRef": ".factory/prompts/evolve-pilot.md",
-        "model": "claude-opus-4-8",
+        "model": "claude-opus-5-5",
         "maxTurns": 40,
         "checks": "python3 scripts/spec_validator.py\npython3 scripts/backlog_lint.py"
       }

@@ -43,7 +43,7 @@ def _job(job_id: str = "mfst-x-job01", mode: str = "items") -> GenerationJob:
             rationale="test",
         ),
         tier="standard",
-        model_hint="claude-sonnet-5",
+        model_hint="claude-sonnet-5-5",
         template_version="lsat_factory_item/1",
         prompt="PROMPT",
     )
@@ -110,7 +110,7 @@ class TestClaudeCodeExecutor:
             captured["agent"] = agent
             return SimpleNamespace(
                 text=json.dumps({"drafts": [_DRAFT]}),
-                model_label="claude_code/claude-sonnet-5",
+                model_label="claude_code/claude-sonnet-5-5",
                 provider="claude_code",
             )
 
@@ -119,11 +119,11 @@ class TestClaudeCodeExecutor:
 
         # One provider only: a fall-through would make the bank unattributable.
         assert captured["providers"] == ("claude_code",)
-        assert captured["models"] == {"claude_code": "claude-sonnet-5"}
+        assert captured["models"] == {"claude_code": "claude-sonnet-5-5"}
         # Items mode pins the response with the structured-output schema.
         assert captured["schema"] is not None
         assert captured["agent"] == "lsat_factory"
-        assert batch.model_label == "claude_code/claude-sonnet-5"
+        assert batch.model_label == "claude_code/claude-sonnet-5-5"
         assert batch.payload["drafts"][0]["correct"] == "B"
 
     @pytest.mark.asyncio
@@ -137,7 +137,7 @@ class TestClaudeCodeExecutor:
             captured["schema"] = request.response_schema
             return SimpleNamespace(
                 text=json.dumps({"drafts": [_DRAFT], "passage": {"title": "x"}}),
-                model_label="claude_code/claude-sonnet-5",
+                model_label="claude_code/claude-sonnet-5-5",
                 provider="claude_code",
             )
 
@@ -364,13 +364,13 @@ class TestDraftFileExecutor:
             "job_id": "mfst-x-job01",
             "drafts": [_DRAFT],
             "passage": {"title": "new game"},
-            "model": "claude_code/claude-haiku-4-5-20251001",
+            "model": "claude_code/claude-haiku-5-5",
         }
         path.write_text(json.dumps(record) + "\n", encoding="utf-8")
         executor = DraftFileExecutor(path)
         assert executor.fulfilled_job_ids() == {"mfst-x-job01"}
         batch = await executor.execute(_job())
-        assert batch.model_label == "claude_code/claude-haiku-4-5-20251001"
+        assert batch.model_label == "claude_code/claude-haiku-5-5"
         assert batch.payload["passage"] == {"title": "new game"}
         with pytest.raises(ExecutionError, match="no record"):
             await executor.execute(_job(job_id="mfst-x-job99"))

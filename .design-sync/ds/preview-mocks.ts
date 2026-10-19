@@ -91,11 +91,11 @@ export const SPECS = {
 export const RUNS = {
   count: 5,
   runs: [
-    { trace_id: 'tr-9f2a41', timestamp: '2026-08-17T09:14:22Z', agent: 'LegalAnalyst', type: 'llm_call', model: 'claude-opus-4', latency_ms: 4120, confidence: 0.87, sources_count: 7 },
-    { trace_id: 'tr-9f2a3d', timestamp: '2026-08-17T09:11:05Z', agent: 'PrecedentHunter', type: 'retrieval', model: 'claude-opus-4', latency_ms: 1880, confidence: 0.79, sources_count: 24 },
+    { trace_id: 'tr-9f2a41', timestamp: '2026-08-17T09:14:22Z', agent: 'LegalAnalyst', type: 'llm_call', model: 'claude-opus-5-5', latency_ms: 4120, confidence: 0.87, sources_count: 7 },
+    { trace_id: 'tr-9f2a3d', timestamp: '2026-08-17T09:11:05Z', agent: 'PrecedentHunter', type: 'retrieval', model: 'claude-opus-5-5', latency_ms: 1880, confidence: 0.79, sources_count: 24 },
     { trace_id: 'tr-9f29c8', timestamp: '2026-08-17T08:58:40Z', agent: 'CitationResolver', type: 'tool_use', model: 'llama3.1:8b', latency_ms: 640, confidence: 0.94, sources_count: 12 },
-    { trace_id: 'tr-9f2988', timestamp: '2026-08-17T08:41:17Z', agent: 'LsatTutor', type: 'llm_call', model: 'claude-opus-4', latency_ms: 2310, confidence: 0.91, sources_count: 3 },
-    { trace_id: 'tr-9f2911', timestamp: '2026-08-17T08:22:03Z', agent: 'LegalAnalyst', type: 'llm_call', model: 'claude-opus-4', latency_ms: 5230, confidence: 0.42, sources_count: 2 },
+    { trace_id: 'tr-9f2988', timestamp: '2026-08-17T08:41:17Z', agent: 'LsatTutor', type: 'llm_call', model: 'claude-opus-5-5', latency_ms: 2310, confidence: 0.91, sources_count: 3 },
+    { trace_id: 'tr-9f2911', timestamp: '2026-08-17T08:22:03Z', agent: 'LegalAnalyst', type: 'llm_call', model: 'claude-opus-5-5', latency_ms: 5230, confidence: 0.42, sources_count: 2 },
   ],
 };
 
@@ -103,10 +103,10 @@ export const METRICS = {
   window_size: 500,
   errors_total: 3,
   agents: [
-    { agent: 'LegalAnalyst', count: 184, error_count: 2, latency_p50_ms: 3980, latency_p95_ms: 7420, avg_confidence: 0.81, success_rate: 0.989, last_seen: '2026-08-17T09:14:22Z', last_trace_id: 'tr-9f2a41', last_model: 'claude-opus-4' },
-    { agent: 'PrecedentHunter', count: 143, error_count: 1, latency_p50_ms: 1760, latency_p95_ms: 3110, avg_confidence: 0.77, success_rate: 0.993, last_seen: '2026-08-17T09:11:05Z', last_trace_id: 'tr-9f2a3d', last_model: 'claude-opus-4' },
+    { agent: 'LegalAnalyst', count: 184, error_count: 2, latency_p50_ms: 3980, latency_p95_ms: 7420, avg_confidence: 0.81, success_rate: 0.989, last_seen: '2026-08-17T09:14:22Z', last_trace_id: 'tr-9f2a41', last_model: 'claude-opus-5-5' },
+    { agent: 'PrecedentHunter', count: 143, error_count: 1, latency_p50_ms: 1760, latency_p95_ms: 3110, avg_confidence: 0.77, success_rate: 0.993, last_seen: '2026-08-17T09:11:05Z', last_trace_id: 'tr-9f2a3d', last_model: 'claude-opus-5-5' },
     { agent: 'CitationResolver', count: 121, error_count: 0, latency_p50_ms: 610, latency_p95_ms: 980, avg_confidence: 0.93, success_rate: 1, last_seen: '2026-08-17T08:58:40Z', last_trace_id: 'tr-9f29c8', last_model: 'llama3.1:8b' },
-    { agent: 'LsatTutor', count: 52, error_count: 0, latency_p50_ms: 2240, latency_p95_ms: 3860, avg_confidence: 0.9, success_rate: 1, last_seen: '2026-08-17T08:41:17Z', last_trace_id: 'tr-9f2988', last_model: 'claude-opus-4' },
+    { agent: 'LsatTutor', count: 52, error_count: 0, latency_p50_ms: 2240, latency_p95_ms: 3860, avg_confidence: 0.9, success_rate: 1, last_seen: '2026-08-17T08:41:17Z', last_trace_id: 'tr-9f2988', last_model: 'claude-opus-5-5' },
   ],
 };
 
@@ -116,7 +116,7 @@ export const METRICS = {
 // and merely hides the panel — a bad shape is worse than no mock).
 export const LOCAL_AI_HEALTH = {
   llm_chain: [
-    { provider: 'claude-oauth', position: 1, configured: true, reachable: true, model: 'claude-opus-4' },
+    { provider: 'claude-oauth', position: 1, configured: true, reachable: true, model: 'claude-opus-5-5' },
     { provider: 'claude-api-key', position: 2, configured: false, reason: 'ANTHROPIC_API_KEY not set' },
     { provider: 'ollama', position: 3, configured: true, reachable: true, model: 'llama3.1:8b' },
   ],

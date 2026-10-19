@@ -27,7 +27,7 @@ from law_ai.core.usage import LLMUsage
 
 def _result(text: str = "ok", provider: str = "claude_code") -> LLMResult:
     return LLMResult(
-        text=text, provider=provider, model="claude-opus-5", latency_ms=1.0
+        text=text, provider=provider, model="claude-opus-5-5", latency_ms=1.0
     )
 
 
@@ -89,7 +89,7 @@ class TestGeneration:
 
         assert isinstance(reply, AIMessage)
         assert reply.content == "the holding"
-        assert reply.response_metadata["model_label"] == "claude_code/claude-opus-5"
+        assert reply.response_metadata["model_label"] == "claude_code/claude-opus-5-5"
         assert reply.response_metadata["fell_back"] is False
         assert agen.call_args.kwargs["agent"] == "legal_workflow"
         assert agen.call_args.kwargs["system"] is None
@@ -184,7 +184,7 @@ class TestUsageMetadata:
         result = LLMResult(
             text="ok",
             provider="claude_code",
-            model="claude-opus-5",
+            model="claude-opus-5-5",
             latency_ms=1.0,
             usage=LLMUsage(input_tokens=100, output_tokens=20),
         )
@@ -257,7 +257,7 @@ def _fake_stream(*chunks: LLMChunk) -> Any:
 
 def _chunk(text: str, first: bool = False) -> LLMChunk:
     return LLMChunk(
-        text=text, provider="claude_code", model="claude-opus-5", first=first
+        text=text, provider="claude_code", model="claude-opus-5-5", first=first
     )
 
 
@@ -284,7 +284,9 @@ class TestStreaming:
         labelled = [p for p in pieces if p.content]
         assert labelled
         for piece in labelled:
-            assert piece.response_metadata["model_label"] == "claude_code/claude-opus-5"
+            assert (
+                piece.response_metadata["model_label"] == "claude_code/claude-opus-5-5"
+            )
 
     async def test_the_chain_receives_the_models_configuration(self) -> None:
         model = ChatProviderChain(

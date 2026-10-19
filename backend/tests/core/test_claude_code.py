@@ -69,8 +69,8 @@ class TestCredentials:
         assert claude_code.is_development() is True
 
     def test_model_label(self, settings) -> None:
-        settings.CLAUDE_CODE_MODEL = "claude-opus-5"
-        assert claude_code.model_label() == "claude_code/claude-opus-5"
+        settings.CLAUDE_CODE_MODEL = "claude-opus-5-5"
+        assert claude_code.model_label() == "claude_code/claude-opus-5-5"
 
     def test_legacy_lsat_provider_pin_is_gone(self) -> None:
         """BL-20260811-22: ``LSAT_LLM_PROVIDER`` was folded into the chain.
@@ -89,7 +89,7 @@ class TestGenerate:
     async def test_builds_oauth_request(self, settings) -> None:
         settings.ANTHROPIC_BASE_URL = "https://api.anthropic.com"
         settings.CLAUDE_CODE_OAUTH_TOKEN = "sk-ant-oat01-test"
-        settings.CLAUDE_CODE_MODEL = "claude-opus-4-8"
+        settings.CLAUDE_CODE_MODEL = "claude-opus-5-5"
         settings.CLAUDE_CODE_MAX_TOKENS = 1024
         route = respx.post(_MESSAGES_URL).mock(return_value=_ok_response("hello"))
 
@@ -101,7 +101,7 @@ class TestGenerate:
         assert req.headers["anthropic-beta"] == "oauth-2025-04-20"
         assert req.headers["anthropic-version"] == "2023-06-01"
         body = json.loads(req.content)
-        assert body["model"] == "claude-opus-4-8"
+        assert body["model"] == "claude-opus-5-5"
         # The Claude Code identity must be the first system block for OAuth tokens.
         assert body["system"][0]["text"] == claude_code.CLAUDE_CODE_IDENTITY
         assert body["system"][1]["text"] == "be terse"

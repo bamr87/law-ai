@@ -38,10 +38,10 @@ MODEL_TIERS: tuple[ModelTier, ...] = ("bulk", "standard", "premium", "judge")
 # Dev-time Claude tier defaults (spec 024 FR-2). Overridable per deployment via
 # LSAT_FACTORY_CLAUDE_TIERS (JSON object tier→model-id) without a code change.
 DEFAULT_CLAUDE_TIER_MODELS: dict[ModelTier, str] = {
-    "bulk": "claude-haiku-4-5-20251001",
-    "standard": "claude-sonnet-5",
-    "premium": "claude-opus-4-8",
-    "judge": "claude-fable-5",
+    "bulk": "claude-haiku-5-5",
+    "standard": "claude-sonnet-5-5",
+    "premium": "claude-opus-5-5",
+    "judge": "claude-fable-5-1",
 }
 
 # Matches the LSAT_FACTORY_DIR settings default: relative to the process cwd

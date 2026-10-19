@@ -212,7 +212,7 @@ describe('TutorPane token streaming', () => {
         type: 'tutor_token',
         question_id: 'lr-001',
         text: 'Contrapositive first.',
-        model: 'claude_code/claude-opus-5',
+        model: 'claude_code/claude-opus-5-5',
         seq: 1,
       }),
     })
@@ -287,7 +287,7 @@ describe('TutorPane token streaming', () => {
         type: 'tutor_token',
         question_id: 'lr-001',
         text: 'Contrapositive first.',
-        model: 'claude_code/claude-opus-5',
+        model: 'claude_code/claude-opus-5-5',
         seq: 1,
       }),
     })
