@@ -99,6 +99,10 @@ Copilot Chat (Agent mode) auto-loads [.github/copilot-instructions.md](.github/c
 | `infra/`, `docker-compose*.yml` | Local stack: Postgres, Redis, Neo4j, Ollama and observability |
 | `tests/`, `scripts/`, `tools/` | Repo-level tests and operator scripts |
 
+## LawMode (imported)
+
+[`lawmode/`](lawmode/) is the former [bamr87/lawmode](https://github.com/bamr87/lawmode) repository, imported here with its full history: an always-on AI legal reviewer for developers that checks code, prompts and commits and gates non-compliant pull requests. It keeps its own README, tooling and commands, which still run from inside `lawmode/`. Its `LawMode Legal Review` workflow (`lawmode/.github/workflows/lawmode.yml`) does not run from this path and is kept as the reference for porting into this repository's workflows; the thin CI, `@claude` and prose-gate callers it carried were dropped because this repository already runs them at the root.
+
 ## Project Status
 
 Law AI is under active spec-driven development — there is no fixed roadmap snapshot maintained here, because it drifts. For what's shipped, in flight, and planned:
