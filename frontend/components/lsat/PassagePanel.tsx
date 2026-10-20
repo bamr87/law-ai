@@ -14,7 +14,14 @@
  * and this drill now pages the way `lsat-static/components/Drill.tsx` does.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 
 import {
   fetchLsatPassage,
@@ -190,10 +197,12 @@ export default function PassagePanel({
 
   // Read the index through a ref so `go` never has to be rebuilt: it is passed
   // into the card as `onNext`/`onPrev`, and a fresh identity every render
-  // would rebind the card's handler on every keystroke.
+  // would rebind the card's handler on every keystroke. Synced in a layout
+  // effect so a strip click or `N` that lands the instant a set renders does
+  // not clamp against the empty stack from before it loaded (law-ai#147).
   const indexRef = useRef(0)
   const lastRef = useRef(0)
-  useEffect(() => {
+  useLayoutEffect(() => {
     indexRef.current = activeIndex
     lastRef.current = shownQuestions.length - 1
   })

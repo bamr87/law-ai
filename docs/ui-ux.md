@@ -22,7 +22,7 @@ This file is the source of truth for **what the UI is today**. The spec is the s
 | LSAT practice (static) | `lsat-static/` | GitHub Pages, `make lsat-export` | Next 16 static export, **no Tailwind** | 7 files under `lsat-static/components/` |
 | Design-sync snapshot | `.design-sync/` | converter bundle only | Synthetic `law-ai-ui` package | Re-exports the 16 above |
 
-The `?` sheet is not only the shell's: a screen registers its own key group with `usePageShortcuts` while it is mounted, so the LSAT drill's A–E / Enter / N are listed beside ⌘K instead of only on the card's hint line (BL-20260901-10).
+The `?` sheet is not only the shell's: a screen registers its own key group with `usePageShortcuts` while it is mounted, so the LSAT drill's A–E / Enter / N are listed beside ⌘K instead of only on the card's hint line (BL-20260901-10). The drill's own bindings come from `useShortcuts` (`frontend/lib/lsat/keyboard.ts`), which attaches its window listener and refreshes its map in `useLayoutEffect` so a key pressed the moment a card appears is never dropped. Any hook that binds shortcuts, or syncs a ref a handler reads, must do the same (law-ai#147).
 
 **Both front ends share one UI contract as of spec 044.** `frontend/ui/base.css` (z-scale, focus ring, motion opt-out) is mirrored byte-for-byte into `lsat-static/app/base.css` — Next refuses to resolve a CSS `@import` outside an app root, so `make ui-sync` copies it and `ux_audit.py` R12 fails the build on drift. The audit itself now covers both apps and their stylesheets.
 
