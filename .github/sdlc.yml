@@ -19,7 +19,7 @@ backlog:
 
 # Optional modules. Always a map of name -> true/false (never a list).
 modules:
-  spec_driven: true       # specs/NNN-slug + BACKLOG.md; gate tools live in scripts/ (spec_validator.py, backlog_lint.py)      # specs/NNN-slug/{spec,plan,tasks}.md + BACKLOG.md + the hub's spec-driven kit tools
+  spec_driven: true       # specs/NNN-slug/{spec,plan,tasks}.md + BACKLOG.md; the gate tools live in scripts/ (spec_validator.py, backlog_lint.py)
   adr: true               # decision log at adr_path (UPS-WORK-04)
   features: true          # features/features.yml (features/v1)
   issue_autopilot: false  # .issues/ (hub templates/issue-autopilot)
