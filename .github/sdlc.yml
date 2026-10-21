@@ -13,13 +13,13 @@ kinds: [api, app]
 tier: experiment              # active | maintenance | experiment | archived (hub _data/standards.yml)
 
 backlog:
-  mode: issues            # issues (default, decision D1) | file
-  # file: BACKLOG.md      # required when mode is file: BACKLOG.md (spec-driven) or _data/backlog.yml
+  mode: file              # decision D1 exception: the append-only BACKLOG.md, linted by scripts/backlog_lint.py in ci.yml
+  file: BACKLOG.md
   mirror_to_issues: false # file mode only: a sync job keeps one issue per open item
 
 # Optional modules. Always a map of name -> true/false (never a list).
 modules:
-  spec_driven: false      # specs/NNN-slug/{spec,plan,tasks}.md + BACKLOG.md + the hub's spec-driven kit tools
+  spec_driven: true       # specs/NNN-slug + BACKLOG.md; gate tools live in scripts/ (spec_validator.py, backlog_lint.py)      # specs/NNN-slug/{spec,plan,tasks}.md + BACKLOG.md + the hub's spec-driven kit tools
   adr: true               # decision log at adr_path (UPS-WORK-04)
   features: true          # features/features.yml (features/v1)
   issue_autopilot: false  # .issues/ (hub templates/issue-autopilot)
