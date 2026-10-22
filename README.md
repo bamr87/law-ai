@@ -1,92 +1,54 @@
-# Law AI — VS Code Workspace
+# Law AI
 
-> Open legal intelligence platform prototype: Django, CrewAI agents and a Neo4j knowledge graph, local-first via Ollama.
+> Open legal intelligence platform: Django, CrewAI and LangGraph agents and a Neo4j knowledge graph, answering with Claude by default and runnable fully local on Ollama.
 
-[![CI](https://github.com/bamr87/law-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/bamr87/law-ai/actions/workflows/ci.yml) [![Live site](https://img.shields.io/badge/live-bamr87.github.io%2Flaw--ai-2ea44f)](https://bamr87.github.io/law-ai/)
+[![CI](https://github.com/bamr87/law-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/bamr87/law-ai/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Live site](https://img.shields.io/badge/live-bamr87.github.io%2Flaw--ai-2ea44f)](https://bamr87.github.io/law-ai/)
 
 ## Overview
 
-**AI-Native Development Environment for Building the Open Legal Intelligence Platform**
+Law AI is an open-source, agent-orchestrated legal-intelligence platform that helps lawyers and law students analyse and master legal content. Agents reason over a Neo4j knowledge graph of cases, statutes and citations with graph-aware retrieval, every model call and retrieval is logged with provenance, and high-stakes steps wait for a human. The design premise is that the legal record reflects who had the resources to shape it, so the system attributes every proposition to its authority and makes that asymmetry visible ([docs/philosophy.md](docs/philosophy.md)).
 
-This workspace is configured for **GitHub Copilot and Claude Code** as the sanctioned AI development orchestrators (Copilot Chat / Copilot Edits / the GitHub Copilot coding agent, and the Claude Code CLI / IDE extensions). That dev-orchestration layer is independent of the **product runtime** — the LLM that actually answers end users. The runtime is an ordered provider chain (`LLM_PROVIDER_CHAIN`), implemented in `backend/law_ai/core/llm/`: Anthropic Claude is the default (subscription OAuth token, then `ANTHROPIC_API_KEY`), then xAI Grok (subscription OAuth, authorise with `make xai-login`), with local Ollama as the last-tier fallback. Pin `LLM_PROVIDER_CHAIN=ollama` for local-only operation — required for any data under a confidentiality obligation that forbids third-party processing. See [docs/constitution.md](docs/constitution.md) §1 for the full policy.
+The model that answers users is an ordered provider chain (`LLM_PROVIDER_CHAIN`, `backend/law_ai/core/llm/`): Claude over a subscription OAuth token, then `ANTHROPIC_API_KEY`, then xAI Grok (after `make xai-login`), then local Ollama. Pin `LLM_PROVIDER_CHAIN=ollama` to keep prompt text on your machine — required for data under a confidentiality obligation that forbids third-party processing ([docs/constitution.md](docs/constitution.md) §1). Which AI tool edits this code is a separate decision: GitHub Copilot and Claude Code are the sanctioned development surfaces.
 
-## Stack
+## Features
 
-- **Backend** — Django 5 (ASGI via daphne), DRF, Channels (WebSocket agent streaming), Celery/Redis (async ingestion), Neo4j (knowledge graph) + Postgres + Redis.
-- **Agents** — CrewAI crews and LangGraph state graphs (`backend/law_ai/agents_runtime/`), running on `ChatProviderChain`, a LangChain `BaseChatModel` wrapping the provider chain above.
-- **Frontend** — Next.js 16 App Router, TypeScript strict, Tailwind v4, Cytoscape.js. Two UI apps (`frontend/`, `lsat-static/`); no shadcn/ui on disk — see [docs/ui-ux.md](docs/ui-ux.md) and [spec 039](specs/039-design-system/spec.md).
-- **Infra** — Docker Compose locally, GitHub Actions in CI.
+- **Analysis Studio** — IRAC-style legal analysis by the LegalAnalyst agent, with persisted runs, LangGraph thread inspection and public share links.
+- **Knowledge Graph** — cases and `CITES` edges in Neo4j, explored in a Cytoscape.js viewer; hybrid lexical + graph-expansion retrieval (GraphRAG).
+- **Agents and autonomy** — a registry of CrewAI crews and LangGraph workflows, live run streams over WebSockets, and a kill-switched autonomy loop whose drafts wait for review.
+- **Matters** — a user-owned workspace for a legal journey: artifacts, authorities, tasks, a calendar, a draft memo and export, including pages scanned with [ocrmd](https://github.com/bamr87/ocrmd).
+- **Ingestion with human review** — CourtListener opinions, Colorado statutes and the Denver municipal code land in a quarantine queue that a person approves.
+- **LSAT module** — practice drills, a knowledge library, step-by-step solve guides, Argumentative Writing evaluation and a deterministic question-synthesis engine, also published as the static [LSAT practice site](https://bamr87.github.io/law-ai/).
+- **Evaluation** — a LegalBench harness with a tracked baseline and a regression gate.
+- **Local AI stack** — Ollama tiers from laptop to multi-GPU server, optional vLLM, Phoenix tracing, Prometheus/Grafana and an air-gapped install bundle.
 
-This is a quick orientation, not the authoritative reference — see [AGENTS.md](AGENTS.md) for the locked tech-stack table and standards.
+## Quick start
 
-## Quick Start (5 minutes to running)
+Needs Docker with Compose. Every command runs in containers through the Makefile.
 
 ```bash
-# 1. Clone / open this folder
-git clone https://github.com/bamr87/law-ai.git
-cd law-ai
-
-# 2. Copy environment
-cp .env.example .env
-
-# 3. Start everything (recommended)
-make dev
-# or: docker compose up --build
-
-# 4. Open http://localhost:3000 (frontend) and http://localhost:8000 (API — see below)
+git clone https://github.com/bamr87/law-ai.git && cd law-ai
+cp .env.example .env     # add CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY, or run on local Ollama
+make dev                 # full stack: frontend http://localhost:3000, API http://localhost:8000
+make migrate             # Django + Neo4j migrations + LangGraph checkpointer (second terminal)
+make test                # backend pytest + frontend vitest + lsat-static vitest, in containers
+make lint                # ruff + black + eslint --fix, in containers
+make typecheck           # mypy --strict (ratcheted) + tsc --noEmit, in containers
+make lint-specs          # host: spec_validator, backlog_lint, ux_audit, test_evolve_audit
 ```
 
-Without Claude credentials in `.env`, the provider chain falls through to the local Ollama tier automatically — you'll still get answers, just from the local model. Add `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) or `ANTHROPIC_API_KEY` to `.env` to use Claude instead.
+Without Claude credentials in `.env`, the chain falls through to the local Ollama tier, so you still get answers from the local model. `http://localhost:8000/` returns a status banner; the API lives under `/api/` — every route is listed in [docs/reference/http-routes.md](docs/reference/http-routes.md), with curl examples in [docs/api-examples.md](docs/api-examples.md).
 
-There's no interactive API schema/docs UI yet — `http://localhost:8000/` returns a root status JSON, and the real routes are under `/api/agents`, `/api/analysis`, `/api/graph`, `/api/lsat` (see `backend/law_ai/urls.py`).
+## Working with AI agents
 
-**Editing without a local Python/Node toolchain**: every dev/test/lint command is sanctioned only via `make …` / `docker compose …` (see [AGENTS.md](AGENTS.md)'s Docker-First Workflow) — there is no supported host-native alternative. If you want your editor's language server wired to the same environment CI uses, open this repo in one of the provided Dev Containers ("Dev Containers: Reopen in Container", then pick one): **Law AI (backend)** ([.devcontainer/devcontainer.json](.devcontainer/devcontainer.json)) attaches to the compose `backend` service for Python — interpreter, pytest discovery, ruff/mypy; **Law AI (frontend)** ([.devcontainer/frontend/devcontainer.json](.devcontainer/frontend/devcontainer.json)) attaches to the compose `frontend` service so ESLint and the TypeScript server use the container's `node_modules` instead of a host one the Docker-first rule forbids. One window sees one tree; reopen in the other container to switch.
+Open the repo in GitHub Copilot (Chat in Agent mode, or assign an issue to `@copilot`) or Claude Code and start with: "Read AGENTS.md, docs/constitution.md and docs/architecture.md first. Then implement [feature] following Law AI standards." Non-trivial work follows the spec-driven chain `/specify` → `/clarify` → `/plan` → `/tasks` → `/implement`, or `/evolve` to pick the next backlog item and ship it; the prompts are in [prompts/](prompts/) and the loop is described in [docs/ao-sdlc.md](docs/ao-sdlc.md). Other AI coding tools (Cursor, Continue.dev, Aider, Codex, Gemini CLI) are not supported. The rules both surfaces follow are in [AGENTS.md](AGENTS.md).
 
-## How to Work with AI Agents Here (Copilot or Claude Code)
+## LawMode (imported)
 
-### Supported Surfaces
+[`lawmode/`](lawmode/) is the former [bamr87/lawmode](https://github.com/bamr87/lawmode) repository, imported with its history: an always-on AI legal reviewer for developers that checks code, prompts and commits and gates non-compliant pull requests. It keeps its own README and commands, which run from inside `lawmode/`. Its `LawMode Legal Review` workflow (`lawmode/.github/workflows/lawmode.yml`) does not run from this path and is kept as the reference for porting.
 
-| Surface | Best For | How to Use |
-|---------|----------|------------|
-| **Copilot Chat — Ask mode** | Q&A about the codebase | `@workspace` + reference [AGENTS.md](AGENTS.md) |
-| **Copilot Chat — Edit / Agent mode** | Multi-file feature work, running [/specify](prompts/specify.md) → [/implement](prompts/implement.md) chains | Open the chat panel, select Agent mode, type `/specify <intent>` or `/evolve` |
-| **GitHub Copilot Coding Agent** | Hands-off cloud cycles | Assign an issue (e.g. the one auto-filed by [.github/workflows/evolve.yml](.github/workflows/evolve.yml)) to `@copilot` |
-| **Inline Copilot completions** | Local typing assistance | Always-on; respects [.github/copilot-instructions.md](.github/copilot-instructions.md) |
-| **Claude Code (CLI / IDE)** | Multi-file feature work, running the AO-SDLC chain + `/evolve` | Open Claude Code in the repo; it auto-loads [CLAUDE.md](CLAUDE.md). Type `/specify <intent>` or `/evolve` |
+## Documentation
 
-Other AI coding tools (Cursor, Continue.dev, Aider, Codex, Gemini CLI) are **not supported** — do not add their config files. Agent prompting lives in [prompts/](prompts/), with surface-specific guides in [.github/copilot-instructions.md](.github/copilot-instructions.md) (Copilot) and [CLAUDE.md](CLAUDE.md) (Claude Code).
-
-### The Golden Rule
-
-**Always start by telling your agent:**
-
-> "Read AGENTS.md, docs/constitution.md, and docs/architecture.md first. Then implement [feature] following Law AI standards."
-
-Copilot Chat (Agent mode) auto-loads [.github/copilot-instructions.md](.github/copilot-instructions.md) and Claude Code auto-loads [CLAUDE.md](CLAUDE.md); both already point to those files.
-
-## Workspace Highlights
-
-- **AGENTS.md** — The constitution for all AI agents working on this project
-- **`.vscode/tasks.json`** — One-click tasks for Docker, testing, LegalBench eval, ingestion
-- **`.vscode/settings.json`** — Strict formatting + type checking enforced on save
-- **`prompts/`** — Reusable prompt templates for the AO-SDLC chain (`specify`, `plan`, `tasks`, `implement`, `evolve`, `new-agent`)
-- **`docs/`** — [architecture.md](docs/architecture.md), [data-model.md](docs/data-model.md), and [agent-roles.md](docs/agent-roles.md), plus the [constitution](docs/constitution.md) (Mermaid diagrams included)
-- **`lsat-static/`** — A separate, independently-built Next.js static export of the LSAT practice module (deployed to GitHub Pages, zero server). It reads a `content.json` snapshot produced from the Dockerized backend via `make lsat-export`; it's not part of the `make dev` stack.
-- **Pre-configured Docker stack** — `backend` + `worker` (Celery) + `frontend` + `postgres` + `neo4j` + `ollama` + `redis` + `phoenix` (OTEL tracing) — see `docker-compose.yml`
-
-## Common Workflows
-
-| Goal                              | Command / Task |
-|-----------------------------------|----------------|
-| Full local environment            | `make dev` (task: `Docker: Start Full Stack`) |
-| Implement new agent role          | `/new-agent` (see [prompts/new-agent.md](prompts/new-agent.md)) |
-| Add new feature                   | AO-SDLC chain — `/specify` → `/clarify` → `/plan` → `/tasks` → `/implement` |
-| **Run all tests + coverage**      | `make test` / `make test-coverage` (task: `Docker: Run All Tests` / `Docker: Coverage Report`) |
-| Run legal reasoning eval          | `make test-legalbench` (task: `Docker: LegalBench Eval`) |
-| Ingest sample data                | task: `Docker: Ingest Sample Data` |
-| Reset everything (fresh start)    | task: `Docker: Reset Local DBs (Dangerous)` |
-
-**Testing Philosophy**: every PR must pass unit tests with ≥75% coverage. Integration tests (real Neo4j/Postgres) and the full LegalBench suite run nightly ([.github/workflows/nightly-tests.yml](.github/workflows/nightly-tests.yml)), or on-demand on a PR carrying the `reasoning-change` label.
+The documentation index is [docs/README.md](docs/README.md): architecture, data model, agent roles, the constitution and philosophy, the LSAT runbooks, the generated [Make-target](docs/reference/make-targets.md) and [route](docs/reference/http-routes.md) references, and the ADRs. What has shipped is recorded in the numbered spec packages under [specs/](specs/); what is next is the `## Open` section of [BACKLOG.md](BACKLOG.md).
 
 ## Project structure
 
@@ -95,54 +57,29 @@ Copilot Chat (Agent mode) auto-loads [.github/copilot-instructions.md](.github/c
 | `backend/` | Django (ASGI) API, agents, LLM provider chain and ingestion |
 | `frontend/` | Next.js App Router frontend |
 | `lsat-static/` | Static LSAT study site published to GitHub Pages |
-| `specs/`, `docs/` | Feature specs, constitution, architecture and ADRs |
+| `lawmode/` | The imported LawMode legal reviewer |
+| `specs/`, `prompts/` | Spec packages and the AO-SDLC prompt chain |
+| `docs/` | Architecture, constitution, runbooks, generated reference and ADRs |
 | `infra/`, `docker-compose*.yml` | Local stack: Postgres, Redis, Neo4j, Ollama and observability |
-| `tests/`, `scripts/`, `tools/` | Repo-level tests and operator scripts |
-
-## LawMode (imported)
-
-[`lawmode/`](lawmode/) is the former [bamr87/lawmode](https://github.com/bamr87/lawmode) repository, imported here with its full history: an always-on AI legal reviewer for developers that checks code, prompts and commits and gates non-compliant pull requests. It keeps its own README, tooling and commands, which still run from inside `lawmode/`. Its `LawMode Legal Review` workflow (`lawmode/.github/workflows/lawmode.yml`) does not run from this path and is kept as the reference for porting into this repository's workflows; the thin CI, `@claude` and prose-gate callers it carried were dropped because this repository already runs them at the root.
-
-## Project Status
-
-Law AI is under active spec-driven development — there is no fixed roadmap snapshot maintained here, because it drifts. For what's shipped, in flight, and planned:
-
-- **Shipped features**: numbered spec packages under [`specs/`](specs/) (each `spec.md` + `plan.md` + `tasks.md`), the actual source of truth for what exists.
-- **What's next**: the `## Open` section of [BACKLOG.md](BACKLOG.md).
-- **LegalBench regression gate**: `backend/law_ai/eval/legalbench.py`, run via `make test-legalbench` / `make legalbench-baseline`.
+| `tests/`, `scripts/`, `tools/` | Repo-level structural tests and operator scripts |
 
 ## Development
 
-```bash
-make dev     # full stack: frontend :3000, API :8000/docs
-make test    # backend pytest + frontend vitest
-```
+Everything runs in Docker via `make` — no host Python or Node toolchain is supported for `backend/` or `frontend/`. For editor tooling, open a Dev Container: **Law AI (backend)** ([.devcontainer/devcontainer.json](.devcontainer/devcontainer.json)) for the Python interpreter, pytest and ruff/mypy, or **Law AI (frontend)** ([.devcontainer/frontend/devcontainer.json](.devcontainer/frontend/devcontainer.json)) for ESLint and TypeScript. Every target, with the VS Code task that runs it, is in [docs/reference/make-targets.md](docs/reference/make-targets.md); commands, conventions and gates for humans and agents are in [AGENTS.md](AGENTS.md).
 
-Full commands, conventions and gotchas for humans and AI agents live in [AGENTS.md](AGENTS.md).
+Pull requests pass `make lint`, `make typecheck`, `make test` (backend coverage ≥ 75%) and `make lint-specs`; reasoning changes also run LegalBench (CI runs it on the `reasoning-change` label and nightly in [nightly-tests.yml](.github/workflows/nightly-tests.yml)).
 
 ## Contributing
 
-All contributions (human or AI-generated) must pass:
-1. `ruff + black + mypy` checks (`make lint` / `make typecheck`)
-2. **Full test suite** (`make test`, task: `Docker: Run All Tests`) with ≥75% coverage
-3. Relevant LegalBench tasks — required on PRs labeled `reasoning-change`, nightly otherwise
-4. Manual review of agent traces for auditability
-
-See [AGENTS.md](AGENTS.md) → "Evaluation & Quality Gates (Mandatory)" and "Testing Standards (Mandatory)" sections.
-
----
-
-**This workspace is designed so that a well-prompted AI coding agent can build 70-80% of Law AI autonomously while maintaining legal-grade quality and auditability.**
-
-Welcome to the future of open legal AI. Let's build it together.
+Read [AGENTS.md](AGENTS.md) and [docs/constitution.md](docs/constitution.md), then follow the fleet's [contributing guide](https://github.com/bamr87/bamr87/blob/main/CONTRIBUTING.md) (this repo has no `CONTRIBUTING.md` of its own). Pull requests fill in [.github/pull_request_template.md](.github/pull_request_template.md): what and why, visual evidence for anything a user can see, the gates you ran, and the follow-ups mirrored into `BACKLOG.md`.
 
 ## Changelog
 
-There is no CHANGELOG.md yet; changes are tracked in the [commit history](https://github.com/bamr87/law-ai/commits/main).
+Notable changes are recorded in [CHANGELOG.md](CHANGELOG.md); the full history is the [commit log](https://github.com/bamr87/law-ai/commits/main).
 
 ## License
 
-No license file has been added yet, so all rights are reserved by default.
+[MIT](LICENSE) © 2026 Amr Abdel-Motaleb.
 
 ---
 
