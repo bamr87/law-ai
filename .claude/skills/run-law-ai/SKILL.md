@@ -154,8 +154,7 @@ which overrides the settings' SQLite test default (env wins over `.env`). A bare
 isn't up. Set `-e PHOENIX_COLLECTOR_ENDPOINT=` (the driver does) to silence it — it's noise, not an error.
 - **`DJANGO_SETTINGS_MODULE` defaults to `law_ai.settings.dev`** (DEBUG=True) via
 `manage.py`/`asgi.py`. Claude/Ollama credentials are read the same way in every environment except `test`, which hard-blanks them (`settings/test.py`).
-- **macOS hosts have no `timeout`** — don't wrap commands in it; rely on the
-  tool/shell timeout instead.
+- **macOS hosts have no `timeout`** — don't wrap commands in it; rely on the tool/shell timeout instead.
 
 ## Troubleshooting
 

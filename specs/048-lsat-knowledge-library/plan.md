@@ -54,22 +54,16 @@ None in any database. `content.json` `schema_version` goes 2 → 3; both consume
 content file. Rejected — long prose in JSON strings is unreviewable in a diff and impossible for an agent to patch surgically, which is the whole point of the maintenance loop.
 - **Hand-rolled restricted parser over a Markdown library.** Alternative: add `markdown-it-py` on
 the backend or `react-markdown` on both clients. Rejected — a general parser's output is HTML, which forces raw-HTML rendering on two clients and a sanitiser on each; and `lsat-static` is deliberately a three-dependency project. The dialect we need is small and closed.
-- **Server-side parse, client-side render.** The parse happens once at load/export; clients receive
-  blocks. Keeps both frontends free of parsing logic and guarantees they agree.
-- **Reuse `proposals.py` rather than a new store.** The HITL review path, audit trail and promotion
-  semantics already exist and are tested; the library adds proposal *kinds*, not a parallel system.
+- **Server-side parse, client-side render.** The parse happens once at load/export; clients receive blocks. Keeps both frontends free of parsing logic and guarantees they agree.
+- **Reuse `proposals.py` rather than a new store.** The HITL review path, audit trail and promotion semantics already exist and are tested; the library adds proposal *kinds*, not a parallel system.
 - **Computed `reading_minutes`.** A declared value drifts the moment an agent expands a section.
 
 ## 5. Provenance & Audit Hook-up
 
-- `LSATLibrarian.run()` writes exactly one `provenance.log_agent_call` per run (agent name, action,
-  target article, model, latency, confidence, degraded flag) — including on the degraded path.
-- The model call itself is logged as `llm_call` by `law_ai.core.llm`; the agent never touches a
-  provider transport.
-- Proposal creation, status transitions and promotion are recorded by `proposals.py` in its
-  append-only JSONL, as they are for questions and guides.
-- Library reads are content reads, not model calls, and are not separately audited — consistent
-  with `/api/lsat/concepts`.
+- `LSATLibrarian.run()` writes exactly one `provenance.log_agent_call` per run (agent name, action, target article, model, latency, confidence, degraded flag) — including on the degraded path.
+- The model call itself is logged as `llm_call` by `law_ai.core.llm`; the agent never touches a provider transport.
+- Proposal creation, status transitions and promotion are recorded by `proposals.py` in its append-only JSONL, as they are for questions and guides.
+- Library reads are content reads, not model calls, and are not separately audited — consistent with `/api/lsat/concepts`.
 
 ## 6. HITL Gates
 

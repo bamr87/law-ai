@@ -19,10 +19,8 @@
 - **Files**:
   - `backend/tests/db/test_citation_resolver_integration.py` (new)
 - **Steps**:
-  1. Import `resolve_citations` and `densify_extraction` from
-     `law_ai.core.neo4j.citation_resolver`.
-  2. Add three `@pytest.mark.integration @pytest.mark.asyncio` tests using the
-     spec-013 fixtures `neo4j_integration_driver` + `clean_neo4j_db`:
+  1. Import `resolve_citations` and `densify_extraction` from `law_ai.core.neo4j.citation_resolver`.
+  2. Add three `@pytest.mark.integration @pytest.mark.asyncio` tests using the spec-013 fixtures `neo4j_integration_driver` + `clean_neo4j_db`:
      - `test_resolve_citations_hits_real_neo4j_alias_match` — seed
        `(:Case {id: 'brown', aliases: ['347 U.S. 483']})`, call
        `resolve_citations(session, ["347 U.S. 483"])`, assert mapping
@@ -35,12 +33,9 @@
        matching alias, call `resolve_citations(session, ["999 U.S. 999"])`
        and assert the mapping value is `None` (AC-3).
 - **Verify**:
-  - `cd backend && pytest -m integration -v -k citation_resolver_integration`
-    exits 0 with three green tests (AC-4).
-  - `cd backend && pytest -q` (no `-m integration`) does **not** collect or
-    run any of the new tests (AC-5).
-  - `mypy law_ai --strict` clean (no production-code changes; tests are
-    not strict-typed).
+  - `cd backend && pytest -m integration -v -k citation_resolver_integration` exits 0 with three green tests (AC-4).
+  - `cd backend && pytest -q` (no `-m integration`) does **not** collect or run any of the new tests (AC-5).
+  - `mypy law_ai --strict` clean (no production-code changes; tests are not strict-typed).
 
 ## T-002 — Wire into `make test-integration` and CI
 
@@ -49,17 +44,13 @@
 - **Status**: `[x]`
 - **Files**:
   - `Makefile` (no change — `test-integration` already runs `pytest -m integration -v`)
-  - `.github/workflows/integration-tests.yml` (no change — runs the same
-    selector on the same paths)
+  - `.github/workflows/integration-tests.yml` (no change — runs the same selector on the same paths)
 - **Steps**:
-  1. Confirm by inspection that the new file is picked up by both entry
-     points (no path filter excludes `tests/db/`).
-  2. Run `make test-integration` locally with Docker available; capture
-     the green output in the PR description.
+  1. Confirm by inspection that the new file is picked up by both entry points (no path filter excludes `tests/db/`).
+  2. Run `make test-integration` locally with Docker available; capture the green output in the PR description.
 - **Verify**:
   - `make test-integration` exits 0 locally.
-  - The "Integration Tests" workflow on GitHub Actions runs the new tests
-    and is green on this PR.
+  - The "Integration Tests" workflow on GitHub Actions runs the new tests and is green on this PR.
 
 ## T-003 — Update BACKLOG.md to mark BL-20260429-10 done
 
@@ -69,8 +60,7 @@
 - **Files**:
   - [BACKLOG.md](../../BACKLOG.md)
 - **Steps**:
-  1. Move `BL-20260429-10` from **Claimed** to **Done** with the resolution
-     line: *"Shipped via specs/014-densify-extraction-integration-tests."*
+  1. Move `BL-20260429-10` from **Claimed** to **Done** with the resolution line: *"Shipped via specs/014-densify-extraction-integration-tests."*
   2. Run `python scripts/backlog_lint.py` — must exit 0.
 - **Verify**:
   - `python scripts/backlog_lint.py` exits 0.

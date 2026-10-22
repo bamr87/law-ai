@@ -168,8 +168,7 @@ Django 5 / Next 16 and the Claude→Ollama provider chain. Marketing pages that 
 
 5. **Two accents, undocumented.** Platform = blue/indigo. LSAT static = amber.
 Keep both as *named* tokens (`--accent-brand`, `--accent-practice`); do not silently pick one.
-6. **Two max-widths.** Platform content is `max-w-7xl`; LSAT is `.wrap` at
-   960px. Different jobs — document them as `--page-max` / `--prose-max`.
+6. **Two max-widths.** Platform content is `max-w-7xl`; LSAT is `.wrap` at 960px. Different jobs — document them as `--page-max` / `--prose-max`.
 7. **Two LSAT products.** `LsatLab` (API-backed, authoring, tutor) vs
 `lsat-static` (offline, `content.json`). Visual language should converge; feature sets should not be merged in the design-system spec.
 8. ~~**Two timers.**~~ — **resolved 2026-09-06 (BL-20260831-15).** The confusion was a name, not a duplicate: `LsatTimer.tsx` exported only a *question* clock while the *section* clock lived elsewhere, so the two files read as rival implementations of one control. `LsatTimer.tsx` is deleted; the platform now has `lsat/QuestionElapsed.tsx` (per question) and `lsat/SectionTimerWidget.tsx` (per section, docked), and the static site's `QuestionElapsed.tsx` / `SectionTimer.tsx` pair them by name. The remaining difference between the two section clocks is styling — Tailwind utilities in the platform, semantic CSS in the static site — which is finding 5's token split, not a second widget.
@@ -187,18 +186,12 @@ spec 042.** The platform LSAT Lab had a `role="tablist"` with dead arrow keys, s
 
 ### Maintainability
 
-13. **No primitive layer.** Every screen re-implements buttons, cards,
-    inputs, pills, empty states as one-off `className` strings.
+13. **No primitive layer.** Every screen re-implements buttons, cards, inputs, pills, empty states as one-off `className` strings.
 14. **God components.** `LsatLab.tsx` and `AgentDashboard.tsx` are each
     >1.4k lines. A design system cannot form while screens own every atom.
-15. **`.design-sync/` is a snapshot, not a system.** Hand-maintained
-    `entry.tsx` / `componentSrcMap` / `dtsPropsFor`; compiled
-    `styles.css` (~915 KB) does not regenerate in CI; Tailwind safelist
-    silently drops any ramp not pre-enumerated. Previews are useful;
-    they must *consume* the future package, not define it.
+15. **`.design-sync/` is a snapshot, not a system.** Hand-maintained `entry.tsx` / `componentSrcMap` / `dtsPropsFor`; compiled `styles.css` (~915 KB) does not regenerate in CI; Tailwind safelist silently drops any ramp not pre-enumerated. Previews are useful; they must *consume* the future package, not define it.
 16. ~~**Unused dependencies** add install/CVE surface for libraries the UI does not call (TanStack Query, framer-motion, lucide-react, xyflow).~~ Closed by BL-20260830-01: all four are gone from `frontend/package.json` and the lockfile. Re-add one only in the commit that first imports it.
-17. **Docs/code drift on the kit itself** (shadcn listed, not present)
-    causes agents to import components that do not exist.
+17. **Docs/code drift on the kit itself** (shadcn listed, not present) causes agents to import components that do not exist.
 
 ---
 
@@ -215,10 +208,8 @@ frontend/ui/
   components/         # 039 — React primitives (Button, Card, Input, …)
 ```
 
-- **Tokens are the source of truth.** `lsat-static/app/globals.css` imports
-  them; `frontend/app/globals.css` maps them into Tailwind v4 `@theme`.
-- **Primitives, not screens.** Nav, disclaimer, choice, timer, card — not
-  Analysis Studio.
+- **Tokens are the source of truth.** `lsat-static/app/globals.css` imports them; `frontend/app/globals.css` maps them into Tailwind v4 `@theme`.
+- **Primitives, not screens.** Nav, disclaimer, choice, timer, card — not Analysis Studio.
 - **No shadcn, no Storybook, no new top-level `packages/`.** First-party,
 MIT-compatible, lives under `frontend/ui/` so AGENTS.md's layout stays canonical. Storybook would be a new framework (constitution §2 + ADR).
 - **Lint the contract.** A structural test fails on raw hex / non-token
@@ -238,14 +229,11 @@ Two scopes are live. **Instance** (`instance:local`) is the seeded default an ad
 
 ## How to change the UI after 039
 
-1. **Token change** — edit `frontend/ui/tokens.css`, update the table in
-   this file, run `make test-frontend`.
+1. **Token change** — edit `frontend/ui/tokens.css`, update the table in this file, run `make test-frontend`.
 2. **New primitive** — add `frontend/ui/components/<Name>.tsx` + a Vitest
 file under `frontend/__tests__/ui/`. Do not put one-off variants in screen files.
-3. **Screen work** — compose primitives. No new hex, no new semantic class
-   that isn't in `semantic.css`.
-4. **UPL** — any surface that shows model-generated legal analysis must
-   render `LegalDisclaimerBanner`; every page keeps the footer.
+3. **Screen work** — compose primitives. No new hex, no new semantic class that isn't in `semantic.css`.
+4. **UPL** — any surface that shows model-generated legal analysis must render `LegalDisclaimerBanner`; every page keeps the footer.
 5. **Authority labelling** — if a control sizes, ranks, or colors nodes by
 citation count or centrality, the legend must say what the number measures (constitution §13). Never "importance."
 6. **Shell work** — compose `PageLayout`, `StickyToolbar`, `Drawer`, and the

@@ -20,12 +20,9 @@
 - **Files**:
   - `backend/law_ai/analysis/urls.py` (read; determine async vs sync path)
 - **Steps**:
-  1. Inspect the actual dispatch path of `_run_analysis`:
-     `AnalysisView.post` → `async_to_sync(_run_analysis)` or direct ASGI async call?
-  2. Confirm `_run_analysis` is `async def` (it is — see `urls.py:30`) and is
-     awaited within a running event loop provided by Daphne.
-  3. Conclude: use `await layer.group_send(group, event)` directly inside
-     `_run_analysis`. Document in a code comment.
+  1. Inspect the actual dispatch path of `_run_analysis`: `AnalysisView.post` → `async_to_sync(_run_analysis)` or direct ASGI async call?
+  2. Confirm `_run_analysis` is `async def` (it is — see `urls.py:30`) and is awaited within a running event loop provided by Daphne.
+  3. Conclude: use `await layer.group_send(group, event)` directly inside `_run_analysis`. Document in a code comment.
 - **Verify**: Code review; no runtime test needed for this task alone.
 
 ## T-002 — Add `_emit_ws_event` helper and wire into `_run_analysis`
@@ -36,15 +33,10 @@
 - **Files**:
   - `backend/law_ai/analysis/urls.py` (edit)
 - **Steps**:
-  1. Add `async def _emit_ws_event(analysis_id: str, payload: dict[str, object]) -> None:`
-     that calls `await layer.group_send(f"agent-run-{analysis_id}", {"type": "agent_event", "payload": payload})`
-     and wraps in `try/except Exception` with `logger.warning` on failure (FR-1).
-  2. After `irac = await ...LegalAnalyst...` completes, call
-     `await _emit_ws_event(analysis_id, {"type": "agent_step", "agent": "LegalAnalyst",
-     "trace_id": irac.trace_id, "latency_ms": ..., "confidence": irac.confidence})` (FR-2).
+  1. Add `async def _emit_ws_event(analysis_id: str, payload: dict[str, object]) -> None:` that calls `await layer.group_send(f"agent-run-{analysis_id}", {"type": "agent_event", "payload": payload})` and wraps in `try/except Exception` with `logger.warning` on failure (FR-1).
+  2. After `irac = await ...LegalAnalyst...` completes, call `await _emit_ws_event(analysis_id, {"type": "agent_step", "agent": "LegalAnalyst", "trace_id": irac.trace_id, "latency_ms": ..., "confidence": irac.confidence})` (FR-2).
   3. After `precedents = await ...PrecedentHunter...` completes, emit `agent_step:PrecedentHunter` (FR-2).
-  4. After both complete, emit `{"type": "complete", "analysis_id": analysis_id,
-     "confidence": confidence, "requires_human_review": requires_human_review}` (FR-3).
+  4. After both complete, emit `{"type": "complete", "analysis_id": analysis_id, "confidence": confidence, "requires_human_review": requires_human_review}` (FR-3).
   5. Log each emit via `provenance.log_agent_call` or equivalent with `event_type="ws_event_sent"` (FR-4).
   6. `AnalysisResponse` schema is unchanged — no new fields added (NFR-BACK-COMPAT-1).
 - **Verify**:
@@ -59,16 +51,14 @@
 - **Files**:
   - `backend/tests/api/test_analysis.py` (edit)
 - **Steps**:
-  1. Add `test_agent_ws_events_emitted` that patches `channels.layers.get_channel_layer`
-     with an `AsyncMock` channel layer mock.
+  1. Add `test_agent_ws_events_emitted` that patches `channels.layers.get_channel_layer` with an `AsyncMock` channel layer mock.
   2. POST to `/api/analysis` with valid text.
   3. Assert `mock_layer.group_send` was called exactly 3× (AC-1).
   4. Assert call #1 payload has `type="agent_step"` and `agent="LegalAnalyst"`.
   5. Assert call #2 payload has `type="agent_step"` and `agent="PrecedentHunter"`.
   6. Assert call #3 payload has `type="complete"` and `analysis_id` set.
   7. Assert HTTP response is 200 with unchanged schema (AC-3).
-  8. Add `test_agent_ws_events_resilient_to_channel_layer_failure`:
-     patch `get_channel_layer` to raise; assert POST still returns 200 (AC-2).
+  8. Add `test_agent_ws_events_resilient_to_channel_layer_failure`: patch `get_channel_layer` to raise; assert POST still returns 200 (AC-2).
 - **Verify**:
   - `docker compose run --rm backend pytest tests/api/test_analysis.py -q` — both new tests pass
 

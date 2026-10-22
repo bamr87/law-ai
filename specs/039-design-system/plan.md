@@ -96,8 +96,7 @@ No new LLM, tool, or graph writes. UPL primitives are UX, not `AuditEvent`s. Con
 ## 6. HITL Gates
 
 - Spec + PR (Level 2).
-- ADR 0006 acceptance by a human maintainer before constitution §2 is
-  edited (constitution last line).
+- ADR 0006 acceptance by a human maintainer before constitution §2 is edited (constitution last line).
 - No runtime `human_approval_required`.
 
 ## 7. Test Strategy
@@ -109,16 +108,13 @@ No new LLM, tool, or graph writes. UPL primitives are UX, not `AuditEvent`s. Con
 - Integration: none (no DBs). `lsat-static` build is the AC-2 check —
 `docker compose run` / Makefile target if one exists for the static app; otherwise document `npm run build` inside the frontend/lsat containers per Docker-first rule.
 - LegalBench: skip.
-- Visual: do not add Playwright screenshots in 039 (harness gap is
-  [BL-20260811-16](../../BACKLOG.md)). Proof is RTL + CSS contract.
+- Visual: do not add Playwright screenshots in 039 (harness gap is [BL-20260811-16](../../BACKLOG.md)). Proof is RTL + CSS contract.
 
 ## 8. Rollout
 
-- No feature flag. Tokens land first (additive `@theme`), then semantic
-  CSS, then primitives, then proof migration, then docs/ADR.
+- No feature flag. Tokens land first (additive `@theme`), then semantic CSS, then primitives, then proof migration, then docs/ADR.
 - Unmigrated screens keep working because Tailwind ramps stay compiled.
-- `.design-sync` stylesheet regenerate is operator-run (existing NOTES)
-  after tokens land; not a Docker gate.
+- `.design-sync` stylesheet regenerate is operator-run (existing NOTES) after tokens land; not a Docker gate.
 - No backfill.
 
 ## 9. Risks & Mitigations

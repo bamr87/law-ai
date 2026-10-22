@@ -12,7 +12,7 @@
 | Document | What it covers |
 | --- | --- |
 | [`AGENTS.md`](../AGENTS.md) | How to build Law AI — an open-source, agent-orchestrated legal-intelligence platform — with the exact commands, layout, rules and gates every agent and contributor follows. |
-| [`CHANGELOG.md`](../CHANGELOG.md) | Release history, written by release-please from the merged pull request titles. |
+| [`CHANGELOG.md`](../CHANGELOG.md) | Release history: the notable changes in each version, newest first. |
 | [`PRD.md`](../PRD.md) | The product requirements for Law AI — problem, users, goals, prioritized features, agent specifications, UX and the roadmap; open work is tracked in [BACKLOG.md](../BACKLOG.md). |
 | [`BACKLOG.md`](../BACKLOG.md) | Law AI's backlog of record: append-only `BL-YYYYMMDD-NN` follow-ups in Open, Claimed and Done, linted by `scripts/backlog_lint.py`. |
 

@@ -10,8 +10,7 @@
 Constitution §2 locks the frontend kit to "Next.js 15 App Router, TypeScript strict, Tailwind, shadcn/ui, Cytoscape.js, TanStack Query." On disk:
 
 - Both UI apps run **Next.js 16**.
-- **shadcn/ui is not installed** — no `components.json`, no Radix, no
-  `components/ui/`.
+- **shadcn/ui is not installed** — no `components.json`, no Radix, no `components/ui/`.
 - **TanStack Query is declared and unused.**
 - Styling is split across two idioms: Tailwind utilities in `frontend/`
 (blue/indigo accent, almost no CSS variables) and a hand-written semantic CSS system in `lsat-static/` (amber accent, 11 tokens). See [docs/ui-ux.md](../ui-ux.md).
@@ -28,8 +27,7 @@ import them. Tailwind v4 `@theme` in `frontend/app/globals.css` maps tokens to u
 Pill) live under `frontend/ui/components/`. Feature screens compose them. No new top-level `packages/` directory.
 3. **Do not add shadcn, Storybook, or a third CSS-in-JS runtime.** Catalog
 is `frontend/ui/README.md` plus Vitest. `.design-sync/` is retargeted as a consumer, not a source of truth.
-4. **Named dual accents.** `--accent-brand` (blue, platform) and
-   `--accent-practice` (amber, LSAT). Dark-only for v1.
+4. **Named dual accents.** `--accent-brand` (blue, platform) and `--accent-practice` (amber, LSAT). Dark-only for v1.
 5. **Documentation.** [docs/ui-ux.md](../ui-ux.md) is the UI source of
 record. Constitution §9 gains a bullet: UI/token/primitive changes update that file.
 
@@ -45,10 +43,8 @@ TanStack Query remains allowed (already listed) but is not required by this ADR;
 **Positive**
 
 - Docs match the repo. Agents stop generating shadcn imports.
-- One token file, two renderers (utilities + semantic classes) — the
-  static LSAT export stays small.
-- Legal-specific primitives (Choice radiogroup, UPL Banner, authority
-  labels) have a home that shadcn would not have given us.
+- One token file, two renderers (utilities + semantic classes) — the static LSAT export stays small.
+- Legal-specific primitives (Choice radiogroup, UPL Banner, authority labels) have a home that shadcn would not have given us.
 - Visual drift becomes a testable contract (no raw hex in migrated files).
 
 **Negative / Risks**
@@ -57,8 +53,7 @@ TanStack Query remains allowed (already listed) but is not required by this ADR;
 ourselves. Mitigated by lifting `QuestionCard`'s radiogroup as the `Choice` primitive and requiring `:focus-visible` on every primitive (spec 039 NFR-A11Y-1).
 - Migrating ~3k lines of god components in one spec would stall. Spec 039
 extracts tokens + primitives and migrates a proof set (NavBar, LegalDisclaimer, QuestionCard); remaining screens are follow-ups.
-- `.design-sync/` compiled CSS will go stale during the cutover. Spec 039
-  retargets it or documents it as preview-only.
+- `.design-sync/` compiled CSS will go stale during the cutover. Spec 039 retargets it or documents it as preview-only.
 
 ## Alternatives Considered
 

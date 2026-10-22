@@ -35,8 +35,7 @@ None. Reads from existing `ingestionapp_pendingreview` table (integration test o
 (NFR-PERF-1). Alternative (`unittest.mock.patch`) is equivalent but less ergonomic in pytest.
 - **`@pytest.mark.django_db(transaction=True)`**: required for the integration
 test (FR-4) to avoid `SynchronousOnlyOperation` when `async_to_sync` wraps `_node_dispatch`. Mirrors the pattern in `tests/ingestion/test_scout_integration.py`.
-- **`CELERY_TASK_ALWAYS_EAGER=True`**: ensures Celery tasks execute inline
-  without a broker for the integration test.
+- **`CELERY_TASK_ALWAYS_EAGER=True`**: ensures Celery tasks execute inline without a broker for the integration test.
 
 ## 5. Test Plan
 

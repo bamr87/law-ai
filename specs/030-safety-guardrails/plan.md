@@ -10,8 +10,7 @@ One component, two presentations, mounted where the risk actually is:
 
 - `LegalDisclaimerFooter` in the frontend **root layout** — every page, no
 per-page opt-in to forget. Body becomes a flex column so the footer sits below content rather than floating mid-page.
-- `LegalDisclaimerBanner` in Analysis Studio, rendered both before a run and
-  next to results, because generated IRAC is where over-reliance happens.
+- `LegalDisclaimerBanner` in Analysis Studio, rendered both before a run and next to results, because generated IRAC is where over-reliance happens.
 - The static LSAT site gets an equivalent footer in its own root layout plus
 `.site-disclaimer` styles, matching that site's plain-CSS conventions (it shares no component code with the main app).
 
@@ -47,8 +46,7 @@ Frontend types catch up with what the backend has returned since spec 026 (`degr
 scope placement, and the production default; existing audit/provenance suites guard Slice B.
 - Frontend: 5 new Analysis Studio tests — disclaimer before a run, disclaimer
 alongside results, degraded reason (and *not* the threshold text), threshold fallback, coverage envelope. Assertions scope to the coverage region because the standing disclaimer shares "absence of results" wording.
-- Gates: full backend suite, `npm test`, `npx tsc --noEmit`, ruff/black,
-  `make lint-specs`.
+- Gates: full backend suite, `npm test`, `npx tsc --noEmit`, ruff/black, `make lint-specs`.
 
 ## Rollback
 

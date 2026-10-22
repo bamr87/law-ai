@@ -40,12 +40,10 @@ The tooltip deliberately says "verify against the official record" rather than i
 Attach the editor to the **same compose service** the Makefile uses, rather than defining a parallel environment that can drift:
 
 - `service: backend`, `workspaceFolder: /app`.
-- `overrideCommand: true` — otherwise the container's daphne command owns
-  the lifecycle and the editor session dies with it.
+- `overrideCommand: true` — otherwise the container's daphne command owns the lifecycle and the editor session dies with it.
 - `python.defaultInterpreterPath: /usr/local/bin/python` — the image
 installs the package with `pip install -e`, so the system interpreter *is* the project environment; there is no venv to point at (which is exactly why the old `./backend/.venv/bin/python` setting was wrong).
-- `PHOENIX_COLLECTOR_ENDPOINT: ""` so in-editor pytest runs don't spew the
-  OTEL export tracebacks that pollute container test output.
+- `PHOENIX_COLLECTOR_ENDPOINT: ""` so in-editor pytest runs don't spew the OTEL export tracebacks that pollute container test output.
 
 ## Test strategy
 

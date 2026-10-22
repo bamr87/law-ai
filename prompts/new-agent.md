@@ -30,8 +30,7 @@ Implement a new agent role called **{AgentName}** (e.g., "ContractRiskAssessor",
    - Add to Orchestrator if it should be part of default workflows
    - Update `docs/agent-roles.md` with new row in the table
 
-5. **Evaluation Gate**:
-   Before finishing, run:
+5. **Evaluation Gate**: Before finishing, run:
    ```bash
    python -m backend.app.eval.legalbench --agent {agent_name}
    ```

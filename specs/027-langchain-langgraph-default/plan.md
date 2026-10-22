@@ -8,8 +8,7 @@ through it, then flip defaults last (so every default-path consumer already sits
 
 1. **Shared transport** — new `backend/law_ai/agents_runtime/llm.py`:
 `build_chat_ollama()` (ChatOllama + `with_retry`: 3 attempts, exponential jitter, transient-error allowlist incl. `ollama.ResponseError`), `generate_text_sync()`, `coerce_text()`, TTL-cached `ollama_available()` + `ollama_available_async()` (shared cache, 1 s probe, 15 s TTL), `LLMUnavailableError` for bare installs, `reset_probe_cache()` test helper.
-2. **LegalWorkflow** — `_default_llm_factory` delegates to
-   `build_chat_ollama()` (drops its private ChatOllama construction).
+2. **LegalWorkflow** — `_default_llm_factory` delegates to `build_chat_ollama()` (drops its private ChatOllama construction).
 3. **LegalAnalyst** — `_run_via_langgraph` gains the resilience boundary:
 async availability probe → degraded `[ENGINE UNAVAILABLE]` refusal (logged `fallback/offline`), try/except around the workflow for ImportError/transport errors → same degraded contract. New module-level `_langgraph_fallback_irac()`.
 4. **Default flip** — `AnalysisRequest.use_langgraph` default `true`;
@@ -23,14 +22,10 @@ this cycle since they touch the same files): phoenix healthcheck exec-form (dist
 
 ## Test strategy
 
-- New `tests/agents/test_llm_runtime.py`: retry wrapper shape, bare-model
-  escape, JSON mode, probe caching (sync + async shared cache).
-- New `TestLangGraphDefaultEngine` in `tests/agents/test_legal_analyst.py`:
-  probe-fail degrade, workflow-crash degrade, request-default assertion.
-- `tests/agents/graphs/test_topic_frontier.py`: transport-error contract via
-  the LangChain seam; StateGraph compilation + run-through-graph tests.
-- Existing suites must stay green unmodified except where they encoded the
-  old defaults/transports.
+- New `tests/agents/test_llm_runtime.py`: retry wrapper shape, bare-model escape, JSON mode, probe caching (sync + async shared cache).
+- New `TestLangGraphDefaultEngine` in `tests/agents/test_legal_analyst.py`: probe-fail degrade, workflow-crash degrade, request-default assertion.
+- `tests/agents/graphs/test_topic_frontier.py`: transport-error contract via the LangChain seam; StateGraph compilation + run-through-graph tests.
+- Existing suites must stay green unmodified except where they encoded the old defaults/transports.
 
 ## Rollback
 

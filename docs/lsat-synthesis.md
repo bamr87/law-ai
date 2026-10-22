@@ -54,8 +54,7 @@ The guard that matters most: **an inconsistent premise set entails everything**,
 
 The assumption families have exact model-theoretic criteria, which is why they sit on this side of the line. Over the premise-satisfying models, with `mask_c` for the conclusion:
 
-- **sufficient** — `mask_choice ⊆ mask_c`: every case where the assumption holds
-  is a case where the conclusion holds, so adding it forces the conclusion.
+- **sufficient** — `mask_choice ⊆ mask_c`: every case where the assumption holds is a case where the conclusion holds, so adding it forces the conclusion.
 - **necessary** — `mask_c ⊆ mask_choice`: every case where the argument succeeds
 is a case where the assumption holds. That is the negation test written as a set inclusion.
 
@@ -252,7 +251,6 @@ The opt-in test was run against the same tier on the same day and **passed** (`1
 ## Guardrails
 
 - Every skeleton and every pack is original (CC0). No real LSAT items.
-- Generation is deterministic: `(schema, domain, seed)` reproduces an item
-  byte-for-byte, so anything in the bank can be regenerated from its provenance.
+- Generation is deterministic: `(schema, domain, seed)` reproduces an item byte-for-byte, so anything in the bank can be regenerated from its provenance.
 - RC passages, main point, tone and method are deliberately **out of scope**:
 their correctness depends on prose judgement no checker can certify, and asserting a key there would be the failure this engine exists to remove.

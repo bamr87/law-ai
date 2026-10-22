@@ -24,41 +24,30 @@ This spec wires the producers: `_run_analysis` in `law_ai/analysis/urls.py` publ
 
 ## 3. Goals
 
-- **G1**: Emit a `{"type":"agent_step","agent":"LegalAnalyst",...}` event
-  to `agent-run-{analysis_id}` after `LegalAnalyst.run()` returns.
-- **G2**: Emit a `{"type":"agent_step","agent":"PrecedentHunter",...}`
-  event after `PrecedentHunter.run()` returns.
-- **G3**: Emit a `{"type":"complete","analysis_id":...}` event when the
-  full pipeline finishes (before the HTTP response returns).
-- **G4**: Keep `POST /api/analysis` response schema and semantics
-  unchanged (backward compatible; no new required fields).
-- **G5**: Wire the `analysis_id` (already in `AnalysisResponse.id`) as the
-  channel group key so clients can subscribe before calling POST.
+- **G1**: Emit a `{"type":"agent_step","agent":"LegalAnalyst",...}` event to `agent-run-{analysis_id}` after `LegalAnalyst.run()` returns.
+- **G2**: Emit a `{"type":"agent_step","agent":"PrecedentHunter",...}` event after `PrecedentHunter.run()` returns.
+- **G3**: Emit a `{"type":"complete","analysis_id":...}` event when the full pipeline finishes (before the HTTP response returns).
+- **G4**: Keep `POST /api/analysis` response schema and semantics unchanged (backward compatible; no new required fields).
+- **G5**: Wire the `analysis_id` (already in `AnalysisResponse.id`) as the channel group key so clients can subscribe before calling POST.
 
 ## 4. Non-Goals
 
-- **NG1**: Moving analysis to a Celery background task (HTTP still blocks;
-  async job queue is a future spec).
-- **NG2**: Streaming individual tokens from Ollama (token-level streaming
-  requires a separate effort to stream Ollama output).
-- **NG3**: Frontend changes — existing `AgentDashboard` already polls
-  `/api/agents/runs`; real-time WebSocket UI is a follow-up.
+- **NG1**: Moving analysis to a Celery background task (HTTP still blocks; async job queue is a future spec).
+- **NG2**: Streaming individual tokens from Ollama (token-level streaming requires a separate effort to stream Ollama output).
+- **NG3**: Frontend changes — existing `AgentDashboard` already polls `/api/agents/runs`; real-time WebSocket UI is a follow-up.
 - **NG4**: Auth on WebSocket connections (tracked in BL-20260430-09).
-- **NG5**: SSE variant of the stream endpoint (tracked as
-  BL-20260429-24 follow-up).
+- **NG5**: SSE variant of the stream endpoint (tracked as BL-20260429-24 follow-up).
 
 ## 5. Functional Requirements
 
 - **FR-1**: `_run_analysis` calls
 `channel_layer.group_send(f"agent-run-{analysis_id}", event)` after each agent step using `async_to_sync` or native async call, depending on whether `_run_analysis` is async. Events are fire-and-forget; if the channel layer is unavailable, the error is logged but does NOT abort the analysis.
-- **FR-2**: The `agent_step` event payload carries:
-  `{"type":"agent_event","payload":{"type":"agent_step","agent":<name>,
+- **FR-2**: The `agent_step` event payload carries: `{"type":"agent_event","payload":{"type":"agent_step","agent":<name>,
   "trace_id":<str|null>,"latency_ms":<float>,"confidence":<float>}}`.
 The outer `type: "agent_event"` key is required by Channels to route to `AgentRunConsumer.agent_event()`.
 - **FR-3**: After both agents finish, emit a `complete` event:
 `{"type":"agent_event","payload":{"type":"complete","analysis_id":<id>, "confidence":<float>,"requires_human_review":<bool>}}`.
-- **FR-4**: Every `group_send` call is logged via `core.provenance`
-  (event type `ws_event_sent`; `source=analysis`; `confidence=1.0`).
+- **FR-4**: Every `group_send` call is logged via `core.provenance` (event type `ws_event_sent`; `source=analysis`; `confidence=1.0`).
 - **FR-5**: If no subscriber is connected (empty group), the `group_send`
 is still called (Channels silently drops it) — no special handling needed.
 - **FR-6**: A unit test in `tests/api/test_analysis.py` patches the
@@ -68,14 +57,10 @@ integration test in `tests/agentsapi/test_consumer.py` must still pass (no consu
 
 ## 6. Non-Functional Requirements
 
-- **NFR-PERF-1**: Each `group_send` adds ≤ 5 ms overhead to the total
-  response latency (Redis call; negligible vs Ollama latency).
-- **NFR-AUDIT-1**: Every `group_send` call logged via `core.provenance`
-  per FR-4.
-- **NFR-SEC-1**: `group_send` payloads contain no PII beyond what the HTTP
-  response already returns (trace IDs, latency, confidence).
-- **NFR-BACK-COMPAT-1**: `AnalysisResponse` schema unchanged; `analysis_id`
-  is already present as `id`. No new required fields.
+- **NFR-PERF-1**: Each `group_send` adds ≤ 5 ms overhead to the total response latency (Redis call; negligible vs Ollama latency).
+- **NFR-AUDIT-1**: Every `group_send` call logged via `core.provenance` per FR-4.
+- **NFR-SEC-1**: `group_send` payloads contain no PII beyond what the HTTP response already returns (trace IDs, latency, confidence).
+- **NFR-BACK-COMPAT-1**: `AnalysisResponse` schema unchanged; `analysis_id` is already present as `id`. No new required fields.
 
 ## 7. Data Model Impact
 
@@ -104,11 +89,9 @@ No new agents. Changes to `law_ai/analysis/urls.py` (`_run_analysis` function) t
 the POST completes, when `POST /api/analysis` is called, then the client receives an `agent_step` event for `LegalAnalyst`, an `agent_step` event for `PrecedentHunter`, and a `complete` event — in that order.
 - **AC-2**: Given the channel layer is unavailable (e.g. Redis down), when
 `POST /api/analysis` is called, then the HTTP response is returned normally (no 500 error); an error is logged but the analysis result is not affected.
-- **AC-3**: The `AnalysisResponse` JSON returned by POST is identical to
-  the pre-spec schema (no new required fields, no field removals).
+- **AC-3**: The `AnalysisResponse` JSON returned by POST is identical to the pre-spec schema (no new required fields, no field removals).
 - **AC-4**: `test_agent_run_consumer_ready_and_group_event` still passes.
-- **AC-5**: `make test-backend` exits 0; coverage on `analysis/urls.py`
-  does not decrease.
+- **AC-5**: `make test-backend` exits 0; coverage on `analysis/urls.py` does not decrease.
 - **AC-6**: `make lint` exits 0.
 
 ## 11. LegalBench Impact
@@ -122,9 +105,7 @@ the POST completes, when `POST /api/analysis` is called, then the client receive
 
 ## 13. Out of Scope / Follow-ups
 
-- SSE streaming variant of `/api/analysis` (BL-20260429-24 partial — SSE
-  not covered here).
-- Moving analysis to a Celery background task for truly async POST
-  (BL-20260429-25).
+- SSE streaming variant of `/api/analysis` (BL-20260429-24 partial — SSE not covered here).
+- Moving analysis to a Celery background task for truly async POST (BL-20260429-25).
 - WebSocket auth / API-key gating on the WS consumer (BL-20260430-09).
 - Frontend real-time progress bar wired to the WS events (BL-20260502-05).

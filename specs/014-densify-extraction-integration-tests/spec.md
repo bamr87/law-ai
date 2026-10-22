@@ -11,12 +11,9 @@
 
 `densify_extraction` (in `backend/law_ai/core/neo4j/citation_resolver.py`) is the function that maps extracted citation strings to real `Case` node IDs via `Case.aliases` in Neo4j. Every ingested opinion's `CITES` edges ultimately depend on it. Its unit tests (in `backend/tests/db/test_citation_resolver.py`) use a hand-rolled `FakeAsyncSession` that never touches a real database, meaning:
 
-1. The Cypher query `RESOLVE_CITATIONS_CYPHER` is never executed against a live
-   Neo4j. Schema drift or index changes could silently break citation resolution.
-2. Idempotency of the mutation (`target_case_id` population) is not exercised
-   end-to-end through an actual `AsyncSession`.
-3. The `NFR-IDEMPOTENT-1` claim in spec 002 ("read-only resolver → idempotent by
-   construction") is only asserted by inspection, not by test.
+1. The Cypher query `RESOLVE_CITATIONS_CYPHER` is never executed against a live Neo4j. Schema drift or index changes could silently break citation resolution.
+2. Idempotency of the mutation (`target_case_id` population) is not exercised end-to-end through an actual `AsyncSession`.
+3. The `NFR-IDEMPOTENT-1` claim in spec 002 ("read-only resolver → idempotent by construction") is only asserted by inspection, not by test.
 
 The unit test file itself documents this gap explicitly:
 
@@ -32,21 +29,15 @@ This spec closes that gap.
 
 ## 3. Goals
 
-- G1: Prove `densify_extraction` correctly resolves citations against a live
-  Neo4j `Case.aliases` list using a real `AsyncSession`.
-- G2: Prove idempotency: running `densify_extraction` twice on the same input
-  produces the same mapping (no duplicate mutations, no state corruption).
-- G3: Prove the no-match path: when no `Case` alias matches the citation string,
-  `target_case_id` remains `None` and no edge is created.
-- G4: All new tests run only when Docker is available (`@pytest.mark.integration`)
-  and reuse the fixture infrastructure added by spec 013.
+- G1: Prove `densify_extraction` correctly resolves citations against a live Neo4j `Case.aliases` list using a real `AsyncSession`.
+- G2: Prove idempotency: running `densify_extraction` twice on the same input produces the same mapping (no duplicate mutations, no state corruption).
+- G3: Prove the no-match path: when no `Case` alias matches the citation string, `target_case_id` remains `None` and no edge is created.
+- G4: All new tests run only when Docker is available (`@pytest.mark.integration`) and reuse the fixture infrastructure added by spec 013.
 
 ## 4. Non-Goals
 
-- NG1: Does not test `commit_extraction` or full `IngestionScout.run_and_commit`
-  — those are covered by spec 013.
-- NG2: Does not add the `scripts/densify_existing.py` backfill script
-  (BL-20260429-11 is a separate item).
+- NG1: Does not test `commit_extraction` or full `IngestionScout.run_and_commit` — those are covered by spec 013.
+- NG2: Does not add the `scripts/densify_existing.py` backfill script (BL-20260429-11 is a separate item).
 - NG3: Does not change the `RESOLVE_CITATIONS_CYPHER` logic.
 
 ## 5. User Stories
@@ -58,30 +49,24 @@ catch Neo4j schema drift before it reaches production, so that `CITES` edges are
 
 ## 6. Functional Requirements
 
-- **FR-1**: Create `backend/tests/db/test_citation_resolver_integration.py` with
-  at least three `@pytest.mark.integration @pytest.mark.asyncio` tests:
+- **FR-1**: Create `backend/tests/db/test_citation_resolver_integration.py` with at least three `@pytest.mark.integration @pytest.mark.asyncio` tests:
   - `test_resolve_citations_hits_real_neo4j_alias_match` (G1, AC-1)
   - `test_densify_extraction_idempotent` (G2, AC-2, NFR-IDEMPOTENT-1)
   - `test_resolve_citations_no_match_returns_none` (G3, AC-3)
-- **FR-2**: Tests use `neo4j_integration_driver` and `clean_neo4j_db` fixtures
-  from `backend/tests/conftest.py` (added by spec 013). No new fixtures required.
+- **FR-2**: Tests use `neo4j_integration_driver` and `clean_neo4j_db` fixtures from `backend/tests/conftest.py` (added by spec 013). No new fixtures required.
 - **FR-3**: Tests must not run as part of the default `pytest` suite; they are
 gated behind `-m integration`. The existing `pyproject.toml` marker declaration covers this — no changes needed.
-- **FR-4**: `make test-integration` (spec 013 Makefile target) must execute the
-  new tests alongside the existing spec 013 suite without additional configuration.
+- **FR-4**: `make test-integration` (spec 013 Makefile target) must execute the new tests alongside the existing spec 013 suite without additional configuration.
 
 ## 7. Non-Functional Requirements
 
-- **NFR-PERF-1**: New integration test file adds ≤ 30 seconds to `make
-  test-integration` total run time (three lightweight Cypher transactions).
-- **NFR-ISOLATION-1**: Each test starts with a clean Neo4j graph via the
-  `clean_neo4j_db` fixture (`MATCH (n) DETACH DELETE n`).
+- **NFR-PERF-1**: New integration test file adds ≤ 30 seconds to `make test-integration` total run time (three lightweight Cypher transactions).
+- **NFR-ISOLATION-1**: Each test starts with a clean Neo4j graph via the `clean_neo4j_db` fixture (`MATCH (n) DETACH DELETE n`).
 - **NFR-IDEMPOTENT-1**: `test_densify_extraction_idempotent` MUST call
 `densify_extraction` twice with the same `ExtractionResult` and assert the mapping is identical on both calls.
 - **NFR-COVERAGE-1**: Backend coverage must not drop below 84% (current 84.03%).
 The new tests exercise the live Cypher path in `citation_resolver.py`; net coverage effect is neutral-to-positive.
-- **NFR-AUDIT-1**: `densify_extraction` already logs via `core.provenance`; no
-  additional provenance wiring required.
+- **NFR-AUDIT-1**: `densify_extraction` already logs via `core.provenance`; no additional provenance wiring required.
 
 ## 8. Data Model Impact
 
@@ -104,21 +89,17 @@ None — `densify_extraction` is a graph utility called by `IngestionScout`, not
 - **AC-3**: `test_resolve_citations_no_match_returns_none` — Given no `Case`
 nodes match the citation string `"999 U.S. 999"`, when `resolve_citations(session, ["999 U.S. 999"])` is called, then the mapping value is `None`.
 - **AC-4**: `pytest -m integration -v` exits 0 with all three new tests green.
-- **AC-5**: `pytest -q` (unit suite, no `-m integration`) completes without
-  collecting or running any of the new tests.
+- **AC-5**: `pytest -q` (unit suite, no `-m integration`) completes without collecting or running any of the new tests.
 
 ## 12. LegalBench Impact
 
-- Tasks affected: none (citation resolver is infrastructure, not a reasoning
-  component).
+- Tasks affected: none (citation resolver is infrastructure, not a reasoning component).
 - Expected delta: 0 pp (no change to model logic).
 
 ## 13. Risks & Open Questions
 
-- **R-1**: The `clean_neo4j_db` fixture uses `MATCH (n) DETACH DELETE n` — proven
-  working by spec 013 infrastructure; low risk.
-- **R-2**: `densify_extraction` requires an active `AsyncSession`; tests will
-  open one via `neo4j_integration_driver.session()` async context manager.
+- **R-1**: The `clean_neo4j_db` fixture uses `MATCH (n) DETACH DELETE n` — proven working by spec 013 infrastructure; low risk.
+- **R-2**: `densify_extraction` requires an active `AsyncSession`; tests will open one via `neo4j_integration_driver.session()` async context manager.
 
 _No open questions — spec 013 resolved the infrastructure questions (custom conftest fixtures, Docker availability) that would have applied here._
 

@@ -40,8 +40,7 @@ import surface (used by `KnowledgeGraph` here, and by future analysis views) and
 
 ## Cross-Cutting Concerns
 
-- **Provenance**: every endpoint records via
-  `provenance.log_graph_query` so the Agent Ops dashboard sees the hits.
+- **Provenance**: every endpoint records via `provenance.log_graph_query` so the Agent Ops dashboard sees the hits.
 - **Audit/HITL**: read-only routes; no HITL needed.
 - **Tests**: ≥ 75% backend (new modules ≥ 80%); ≥ 70% frontend.
 Cytoscape is dynamically imported so vitest renders an empty canvas div — assertions target headings + element count via `data-testid`.
@@ -55,5 +54,4 @@ GraphViewer effect; Next.js code-splits it into a chunk only loaded on `/graph`.
 
 ## Out-of-Scope (Tracked as Follow-ups)
 
-- Path queries, court/date filters, authn/z, WebSocket push, integration
-  test against a real Neo4j (mirrors BL-20260429-10 for resolver).
+- Path queries, court/date filters, authn/z, WebSocket push, integration test against a real Neo4j (mirrors BL-20260429-10 for resolver).

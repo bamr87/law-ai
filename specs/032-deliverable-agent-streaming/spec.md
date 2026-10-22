@@ -17,26 +17,20 @@ The model list was also duplicated between `ollama-bootstrap.sh` and `make local
 
 ## 2. Goals
 
-- G1: A client can actually receive agent events, as they happen
-  (BL-20260810-06).
+- G1: A client can actually receive agent events, as they happen (BL-20260810-06).
 - G2: The WS surface is authenticated whenever the REST surface is.
-- G3: Container readiness means "can serve a request", not "is listening"
-  (BL-20260810-12).
+- G3: Container readiness means "can serve a request", not "is listening" (BL-20260810-12).
 - G4: One source of truth for the Ollama model set.
 
 ## 3. Non-Goals
 
-- NG1: Reconnect/backoff and event replay — a dropped socket loses the
-  in-flight trace; the REST response remains authoritative.
-- NG2: Streaming *token-level* output from the LLM; these are per-agent
-  step events.
-- NG3: Rendering a live trace panel in Analysis Studio — the client
-  primitive ships here; the UI wiring is a follow-up.
+- NG1: Reconnect/backoff and event replay — a dropped socket loses the in-flight trace; the REST response remains authoritative.
+- NG2: Streaming *token-level* output from the LLM; these are per-agent step events.
+- NG3: Rendering a live trace panel in Analysis Studio — the client primitive ships here; the UI wiring is a follow-up.
 
 ## 4. User Stories
 
-- As a user watching an analysis, I want to see each agent finish as it
-  finishes, rather than staring at a spinner until everything completes.
+- As a user watching an analysis, I want to see each agent finish as it finishes, rather than staring at a spinner until everything completes.
 - As an operator, I want `--wait` to mean the model is actually loadable.
 
 ## 5. Functional Requirements
@@ -50,8 +44,7 @@ gather, as that agent completes — not after both finish. The event carries age
 **4400** — rejected, never sanitised, so a client cannot smuggle itself into another run's group.
 - **FR-5**: When `AGENT_API_KEY` is configured the consumer requires it via
 `?api_key=` (browsers cannot set WebSocket handshake headers) or an `X-API-Key` header, closing with **4401** otherwise. With no key configured the socket stays open, matching the REST default-open posture.
-- **FR-6**: Producer and consumer share one `stream_group()` helper so the
-  group name cannot drift between them.
+- **FR-6**: Producer and consumer share one `stream_group()` helper so the group name cannot drift between them.
 - **FR-7**: The Ollama healthcheck verifies the **gate model is pulled**,
 not merely that the server answers; the gate model is the first entry of `OLLAMA_BOOTSTRAP_MODELS`, the same value `ollama-bootstrap.sh` uses.
 - **FR-8**: `OLLAMA_BOOTSTRAP_MODELS` is declared once in compose;
@@ -61,12 +54,9 @@ not merely that the server answers; the gate model is the first entry of `OLLAMA
 
 ## 6. Non-Functional Requirements
 
-- **NFR-SEC-1**: Unauthorized sockets are closed **before** joining the
-  group, so they never receive an event.
-- **NFR-RESILIENCE-1**: WS emission stays fire-and-forget — a Redis outage
-  cannot abort an analysis run (preserves spec 021 AC-2).
-- **NFR-DX-1**: Healthcheck `start_period` accommodates a ~4 GB cold pull
-  (600s) so a first boot is not marked unhealthy while it works correctly.
+- **NFR-SEC-1**: Unauthorized sockets are closed **before** joining the group, so they never receive an event.
+- **NFR-RESILIENCE-1**: WS emission stays fire-and-forget — a Redis outage cannot abort an analysis run (preserves spec 021 AC-2).
+- **NFR-DX-1**: Healthcheck `start_period` accommodates a ~4 GB cold pull (600s) so a first boot is not marked unhealthy while it works correctly.
 
 ## 7. Data Model Impact
 
@@ -84,13 +74,10 @@ None — the agents are unchanged; only when their step events are published.
 
 - **AC-1**: Subscribing to `/ws/agents/<id>`, then posting with that
 `stream_id`, yields two `agent_step` events (one per agent) followed by `complete`, whose `analysis_id` matches the REST response id.
-- **AC-2**: A malformed stream id is rejected at the API boundary (422) and
-  at the socket (close 4400).
-- **AC-3**: With `AGENT_API_KEY` set, an unauthenticated or wrong-key
-  socket is closed 4401; the correct key works via query **and** header.
+- **AC-2**: A malformed stream id is rejected at the API boundary (422) and at the socket (close 4400).
+- **AC-3**: With `AGENT_API_KEY` set, an unauthenticated or wrong-key socket is closed 4401; the correct key works via query **and** header.
 - **AC-4**: With no key configured, the socket connects.
-- **AC-5**: The Ollama healthcheck exits 0 when the gate model is present
-  and exits 1 with a diagnostic when it is not.
+- **AC-5**: The Ollama healthcheck exits 0 when the gate model is present and exits 1 with a diagnostic when it is not.
 - **AC-6**: `newStreamId()` always matches the server's id contract;
 `openAgentStream` resolves only after `ready` and tolerates non-JSON frames.
 
@@ -102,12 +89,10 @@ stops nightly from evaluating against a model-less Ollama, which previously prod
 
 ## 12. Risks & Open Questions
 
-- **R-1**: No reconnect/replay — a client that drops mid-run loses the
-  trace and must fall back to the REST response.
+- **R-1**: No reconnect/replay — a client that drops mid-run loses the trace and must fall back to the REST response.
 - **R-2**: The API key travels in the WS query string, so it can appear in
 proxy/access logs. Acceptable for the current localhost-first posture; per-user tokens (BL-20260811-06) are the real fix.
-- **R-3**: The stricter healthcheck lengthens first-boot time to healthy on
-  a cold volume; `start_period` is set to 600s to accommodate it.
+- **R-3**: The stricter healthcheck lengthens first-boot time to healthy on a cold volume; `start_period` is set to 600s to accommodate it.
 
 ## 13. Out of Scope / Follow-ups
 

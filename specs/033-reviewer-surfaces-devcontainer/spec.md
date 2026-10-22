@@ -20,39 +20,29 @@ returned `verified` per source — the very flag that distinguishes an authority
 
 ## 2. Goals
 
-- G1: Show agents completing as they complete, without making streaming a
-  requirement for the analysis to succeed.
-- G2: Label unverified citations in the UI rather than rendering them
-  indistinguishably from verified ones (§13).
-- G3: Give the editor a first-class environment that *is* the container the
-  Makefile and CI use.
+- G1: Show agents completing as they complete, without making streaming a requirement for the analysis to succeed.
+- G2: Label unverified citations in the UI rather than rendering them indistinguishably from verified ones (§13).
+- G3: Give the editor a first-class environment that *is* the container the Makefile and CI use.
 
 ## 3. Non-Goals
 
 - NG1: Reconnect / event replay (BL-20260811-14).
 - NG2: Streaming the LSAT tutor or autonomy cycles (BL-20260811-15).
-- NG3: A frontend dev container — the backend service is where the
-  host-toolchain conflict actually bites.
+- NG3: A frontend dev container — the backend service is where the host-toolchain conflict actually bites.
 
 ## 4. User Stories
 
-- As a user, I want to see which agent has finished while I wait, so a slow
-  run is legible rather than opaque.
-- As a reviewer, I want unresolved citations visibly flagged, so I check
-  them instead of trusting them.
-- As a contributor, I want IntelliSense and test discovery without
-  installing Python or Node on my host.
+- As a user, I want to see which agent has finished while I wait, so a slow run is legible rather than opaque.
+- As a reviewer, I want unresolved citations visibly flagged, so I check them instead of trusting them.
+- As a contributor, I want IntelliSense and test discovery without installing Python or Node on my host.
 
 ## 5. Functional Requirements
 
-- **FR-1**: Analysis Studio generates a `stream_id`, subscribes via
-  `openAgentStream`, and only then POSTs — the ordering spec 032 requires.
-- **FR-2**: Each `agent_step` renders immediately in a `LiveTrace` panel
-  (agent name, latency, and a `degraded` marker when no engine ran).
+- **FR-1**: Analysis Studio generates a `stream_id`, subscribes via `openAgentStream`, and only then POSTs — the ordering spec 032 requires.
+- **FR-2**: Each `agent_step` renders immediately in a `LiveTrace` panel (agent name, latency, and a `degraded` marker when no engine ran).
 - **FR-3**: Streaming is strictly an enhancement: if the socket fails to
 open, the request proceeds **without** `stream_id` and the REST response remains authoritative. The live panel renders nothing rather than showing an empty "live" box that never fills.
-- **FR-4**: The socket is closed in `finally`, so neither success nor
-  failure leaks a connection.
+- **FR-4**: The socket is closed in `finally`, so neither success nor failure leaks a connection.
 - **FR-5**: Sources render a `verified in graph` badge when
 `verified === true` and an `unverified` badge (with an explanatory tooltip) when `verified === false`; when the field is absent — an older path that never ran the check — no badge is shown rather than guessing.
 - **FR-6**: `.devcontainer/devcontainer.json` attaches VS Code to the
@@ -60,10 +50,8 @@ existing compose `backend` service with `overrideCommand` (so daphne does not ow
 
 ## 6. Non-Functional Requirements
 
-- **NFR-A11Y-1**: The live panel is an `aria-live="polite"` labelled region,
-  so steps are announced without stealing focus.
-- **NFR-RESILIENCE-1**: No streaming failure mode can prevent an analysis
-  from completing.
+- **NFR-A11Y-1**: The live panel is an `aria-live="polite"` labelled region, so steps are announced without stealing focus.
+- **NFR-RESILIENCE-1**: No streaming failure mode can prevent an analysis from completing.
 
 ## 7. Data Model Impact
 
@@ -79,13 +67,10 @@ None.
 
 ## 10. Acceptance Criteria
 
-- **AC-1**: With verification reported, both a `verified in graph` and an
-  `unverified` badge render, and the unresolved citation is still listed.
+- **AC-1**: With verification reported, both a `verified in graph` and an `unverified` badge render, and the unresolved citation is still listed.
 - **AC-2**: With no `verified` field, neither badge renders.
-- **AC-3**: When the stream cannot connect, the analysis still completes and
-  no live panel is rendered.
-- **AC-4**: `devcontainer.json` is valid JSONC targeting the compose
-  `backend` service at `/app`.
+- **AC-3**: When the stream cannot connect, the analysis still completes and no live panel is rendered.
+- **AC-4**: `devcontainer.json` is valid JSONC targeting the compose `backend` service at `/app`.
 
 ## 11. LegalBench Impact
 

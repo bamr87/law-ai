@@ -52,10 +52,8 @@ None. `densify_extraction` is a deterministic graph utility — no LLM call, no 
 
 ## 7. Test Strategy
 
-- **Unit tests**: unchanged — `backend/tests/db/test_citation_resolver.py`
-  continues to use `FakeAsyncSession` for fast, hermetic coverage.
-- **Integration tests**: new file `test_citation_resolver_integration.py`,
-  three tests — see FR-1 in spec.md.
+- **Unit tests**: unchanged — `backend/tests/db/test_citation_resolver.py` continues to use `FakeAsyncSession` for fast, hermetic coverage.
+- **Integration tests**: new file `test_citation_resolver_integration.py`, three tests — see FR-1 in spec.md.
 - **Docker services required**: Neo4j only (Postgres/Redis not used by
 `densify_extraction`). The shared `docker_services` fixture brings up all three but that's a no-op cost when only Neo4j is touched.
 - **LegalBench subset**: none — no reasoning logic touched (NFR-LegalBench).
@@ -80,8 +78,7 @@ async def test_resolve_citations_hits_real_neo4j_alias_match(
 ## 8. Rollout
 
 - Local: `make test-integration` runs the new tests automatically.
-- CI: `.github/workflows/integration-tests.yml` (added by spec 013) already
-  triggers on backend changes — no workflow edits required.
+- CI: `.github/workflows/integration-tests.yml` (added by spec 013) already triggers on backend changes — no workflow edits required.
 - No feature flag, no backfill, no env-var changes.
 
 ## 9. Risks & Mitigations
@@ -94,6 +91,5 @@ async def test_resolve_citations_hits_real_neo4j_alias_match(
 
 ## 10. Estimated Effort
 
-- ~1 agent-hour: write three tests, run locally with `make test-integration`,
-  push, watch CI.
+- ~1 agent-hour: write three tests, run locally with `make test-integration`, push, watch CI.
 - No human pairing required.

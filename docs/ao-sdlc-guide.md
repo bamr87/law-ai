@@ -12,10 +12,8 @@
 
 Version 1 was a vendor-neutral template: hypothetical agent crews, Azure/Jira/Aha! integrations, sample CrewAI snippets, and projected ROI figures. Version 2 is the operating manual for the AO-SDLC **this repo actually runs**. Every claim points at a file, a command, or a gate that will fail if the claim stops being true. Two v1 statements are formally retired:
 
-1. *"Ollama is the product runtime LLM; Claude must never be wired in as the product runtime."*
-   Repealed by the 2026-08-11 amendment to [docs/constitution.md](constitution.md) §1 (spec 034). The product runtime is now an ordered **provider chain** — Claude over a subscription OAuth token, then Claude over `ANTHROPIC_API_KEY`, then local Ollama — implemented in [backend/law_ai/core/llm/](../backend/law_ai/core/llm/). Local-first remains a supported, pinnable configuration, and is **required** for data under confidentiality obligations that forbid third-party processing.
-2. *Aspirational metrics ("10-20x velocity", "81% review improvement").*
-   Replaced by the measurable gates in §7. This guide makes no claim a script cannot check.
+1. *"Ollama is the product runtime LLM; Claude must never be wired in as the product runtime."* Repealed by the 2026-08-11 amendment to [docs/constitution.md](constitution.md) §1 (spec 034). The product runtime is now an ordered **provider chain** — Claude over a subscription OAuth token, then Claude over `ANTHROPIC_API_KEY`, then local Ollama — implemented in [backend/law_ai/core/llm/](../backend/law_ai/core/llm/). Local-first remains a supported, pinnable configuration, and is **required** for data under confidentiality obligations that forbid third-party processing.
+2. *Aspirational metrics ("10-20x velocity", "81% review improvement").* Replaced by the measurable gates in §7. This guide makes no claim a script cannot check.
 
 ---
 
