@@ -1,5 +1,7 @@
 # Law AI — Backlog
 
+> Law AI's backlog of record: append-only `BL-YYYYMMDD-NN` follow-ups in Open, Claimed and Done, linted by `scripts/backlog_lint.py`.
+
 > **Append-only** register of follow-ups discovered during implementation. Every `/implement` cycle MUST append discovered work here in addition to closing the current task. Items graduate from this list into `specs/NNN-*/` via `/specify`.
 >
 > **Format**: One bullet per item, kebab-case ID, status, brief context, link to the spec/PR that surfaced it.

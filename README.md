@@ -1,6 +1,6 @@
 # Law AI
 
-> Open legal intelligence platform: Django, CrewAI and LangGraph agents and a Neo4j knowledge graph, answering with Claude by default and runnable fully local on Ollama.
+> Open legal intelligence platform: Django, LangGraph agents and a Neo4j knowledge graph, answering with Claude by default and runnable fully local on Ollama.
 
 [![CI](https://github.com/bamr87/law-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/bamr87/law-ai/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Live site](https://img.shields.io/badge/live-bamr87.github.io%2Flaw--ai-2ea44f)](https://bamr87.github.io/law-ai/)
 
@@ -14,7 +14,7 @@ The model that answers users is an ordered provider chain (`LLM_PROVIDER_CHAIN`,
 
 - **Analysis Studio** — IRAC-style legal analysis by the LegalAnalyst agent, with persisted runs, LangGraph thread inspection and public share links.
 - **Knowledge Graph** — cases and `CITES` edges in Neo4j, explored in a Cytoscape.js viewer; hybrid lexical + graph-expansion retrieval (GraphRAG).
-- **Agents and autonomy** — a registry of CrewAI crews and LangGraph workflows, live run streams over WebSockets, and a kill-switched autonomy loop whose drafts wait for review.
+- **Agents and autonomy** — a registry of agent classes and LangGraph workflows, live run streams over WebSockets, and a kill-switched autonomy loop whose drafts wait for review.
 - **Matters** — a user-owned workspace for a legal journey: artifacts, authorities, tasks, a calendar, a draft memo and export, including pages scanned with [ocrmd](https://github.com/bamr87/ocrmd).
 - **Ingestion with human review** — CourtListener opinions, Colorado statutes and the Denver municipal code land in a quarantine queue that a person approves.
 - **LSAT module** — practice drills, a knowledge library, step-by-step solve guides, Argumentative Writing evaluation and a deterministic question-synthesis engine, also published as the static [LSAT practice site](https://bamr87.github.io/law-ai/).

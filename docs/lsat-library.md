@@ -1,5 +1,7 @@
 # LSAT Knowledge Library
 
+> The LSAT knowledge library: where articles and the concept catalog live, the entry template and Markdown dialect, search, and the maintenance loop.
+
 The library is the LSAT module's **prose layer**: long-form, cross-linked study material on how the exam is built, what each section demands, how each recurring question family is solved, and how to pace and review. It sits beside the question bank, the solve guides and the writing prompts, and it is what a learner *studies* as opposed to what they *practise against*.
 
 Introduced by [specs/048-lsat-knowledge-library](../specs/048-lsat-knowledge-library/spec.md).

@@ -1,5 +1,7 @@
 # Enterprise App Shell + Scoped Settings — Next.js Architecture
 
+> A generic Next.js design for an enterprise app shell over hierarchical, inheritable settings scopes — the essay spec 040 adapted, not a plan to implement as written.
+
 > **Law AI adaptation:** [specs/040-app-shell](../specs/040-app-shell/spec.md) is what
 > shipped. This essay stays the generic design. 040 maps it onto the locked
 > stack (Django later, no Drizzle/shadcn/Radix; instance-only live scope per

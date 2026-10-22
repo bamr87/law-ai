@@ -46,7 +46,7 @@ Two pytest configs: root [pytest.ini](pytest.ini) drives the dependency-light `t
 | `infra/`, `docker-compose*.yml` | The local stack and its GPU, debug and observability overlays |
 | `components/`, `features/`, `verify/`, `.factory/` | Fleet kits: feedback widget, feature index, verify scenarios, GitFactory blueprints |
 
-Place new code in the matching directory; do not invent top-level locations.
+Put new code in the matching directory; invent no top-level locations.
 
 ## Conventions
 
@@ -65,7 +65,7 @@ The sanctioned AI development surfaces are **GitHub Copilot** (Chat modes, inlin
 
 - **Forbidden in this repo:** Cursor, Continue.dev, Aider, Codex, Gemini CLI, or any other third-party coding agent, and their config files (`.cursorrules`, `.continuerc.json`, `.aider.conf.yml`, …). The only agent configs are `.github/copilot-instructions.md`, `*.instructions.md`, `CLAUDE.md`, `.claude/` and `.mcp.json`.
 - **Dev-time MCP:** [.mcp.json](.mcp.json) wires `law-ai-postgres` (read-only SQL) and `law-ai-neo4j` (Cypher) to the running compose stack, with local compose default credentials. The product runtime takes no MCP dependency (constitution §1).
-- **Two independent layers:** the tool that edits this code and the model that serves end users are separate decisions.
+- **Two layers:** the tool that edits this code and the model that serves users are independent decisions.
 
 ## Docker-First Workflow
 
@@ -74,9 +74,9 @@ All development, testing, linting and one-off commands run inside Docker via `ma
 ## Tech Stack (Non-Negotiable)
 
 - **Backend:** Python 3.12+, Django 5 (ASGI via daphne) + DRF + Channels + Celery, Pydantic v2 domain layer, Neo4j Community + official driver, PostgreSQL + asyncpg, Redis, Eyecite + Blackstone (spaCy).
-- **Agents:** CrewAI + LangChain + LangGraph (core since spec 035). The chain has two sanctioned entry points, both writing the same `llm_call` event: `core.llm.agenerate`/`generate` for plain agent classes, `ChatProviderChain` (`core/llm/langchain.py`) for LangGraph nodes and LCEL ([docs/architecture.md](docs/architecture.md) § Technology Choices Rationale). LangGraph state persists in Postgres via `ensure_checkpointer` (in `make migrate`).
+- **Agents:** plain async agent classes (`crewai` is declared but never imported; `crews/` is a naming holdover) and LangGraph `StateGraph`s on LangChain (core since spec 035). The chain has two sanctioned entry points, both writing the same `llm_call` event: `core.llm.agenerate`/`generate` for plain agent classes, `ChatProviderChain` (`core/llm/langchain.py`) for LangGraph nodes and LCEL ([docs/architecture.md](docs/architecture.md) § Technology Choices Rationale).
 - **Runtime LLM:** `LLM_PROVIDER_CHAIN` — Claude (OAuth), Claude (`ANTHROPIC_API_KEY`), xAI Grok (subscription OAuth, inert until `make xai-login`; [ADR 0007](docs/adr/0007-xai-runtime-provider.md)), then local Ollama ([docs/llm-provider-chain.md](docs/llm-provider-chain.md)).
-- **Not wired yet:** `chromadb` is declared but unused; the planned vector leg is a native Neo4j vector index (BL-20260810-17).
+- **Not wired yet:** `chromadb` (declared, unused); the planned vector leg is a Neo4j vector index (BL-20260810-17).
 - **Frontend:** Next.js App Router (Next 16; constitution §2 still says 15), strict TypeScript, Tailwind v4, Cytoscape.js, WebSockets, plain `fetch` in `frontend/lib/api.ts`. shadcn/ui is constitution-listed but not installed — read [docs/ui-ux.md](docs/ui-ux.md) and [ADR 0006](docs/adr/0006-first-party-design-system.md) before adding UI primitives or a palette. Re-add a removed dependency (`@xyflow/react`, TanStack Query) only in the commit that imports it.
 
 ## Principles and non-negotiables

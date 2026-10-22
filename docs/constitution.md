@@ -1,5 +1,7 @@
 # Law AI — Constitution
 
+> The rules every spec, plan and PR must satisfy to be valid — mission, locked stack, quality gates, provenance, HITL, testing, security, autonomy invariants and jurisprudential honesty.
+
 > Org-wide, non-negotiable standards for every spec, plan, and implementation produced by humans or AI agents in this repo. This is the **first** document any agent reads when running [/specify](../prompts/specify.md), [/plan](../prompts/plan.md), or [/implement](../prompts/implement.md).
 >
 > Higher-level principles, mission, and tech-stack rationale live in [AGENTS.md](../AGENTS.md). This file encodes only the **rules a spec or PR must satisfy to be valid**.

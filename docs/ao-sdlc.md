@@ -1,6 +1,8 @@
 
 # AO-SDLC in Law AI
 
+> How each AO-SDLC phase maps onto this repository's prompts, specs, agents, scripts and CI jobs, and the autonomy level it runs at.
+
 This page maps the [AO-SDLC operating guide](ao-sdlc-guide.md) (v2.0, 2026-08-11) onto the concrete files, agents, and tools in this repository. The v2.0 guide is the **reference**; this page is the **implementation** summary.
 
 Law AI currently operates at **Autonomy Level 2 (Collaborative)** per [docs/constitution.md](constitution.md) §10.

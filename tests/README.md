@@ -1,5 +1,7 @@
 # Repo-wide test entry point
 
+> The root `tests/` suite: dependency-light structural, docs, config and spec checks that run on the host and in CI's repo-structural job, plus opt-in backend and frontend orchestrators.
+
 This top-level `tests/` package is the single command surface for validating the Law AI monorepo. It complements — but does **not** replace — the per-stack suites under [backend/tests/](../backend/tests) and [frontend/__tests__/](../frontend/__tests__).
 
 ## Layers (pytest markers)

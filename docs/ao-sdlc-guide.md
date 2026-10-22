@@ -1,4 +1,7 @@
 # AI Agent-Orchestrated SDLC (AO-SDLC)
+
+> The AO-SDLC operating guide (v2.0): the spec-driven loop, governance, runtime chain, gates and observability as this repository actually enforces them.
+
 ## As Implemented in Law AI — Operating Guide
 
 **Version 2.0 — 2026-08-11** **Supersedes:** v1.0 (2026-04-29, Grok xAI research synthesis — a generic aspirational template) **Status:** This is no longer an outline. Every mechanism described below exists in this repository, is enforced by a script or CI job, and was validated live on 2026-08-11 (see §9).

@@ -1,5 +1,7 @@
 # Law AI — API Examples
 
+> Copy-paste `curl` examples for the public REST endpoints, with the per-scope API keys each router checks.
+
 Quick-reference `curl` examples for every public REST endpoint. All endpoints are prefixed with the base URL (`http://localhost:8000` for local dev). Each router gates on its own optional `<SCOPE>_API_KEY` env var, with the shared `AGENT_API_KEY` as a fallback for every scope (`backend/law_ai/core/auth.py`, spec 009): `AGENT_API_KEY` for `/api/agents`, `ANALYSIS_API_KEY` (or `AGENT_API_KEY`) for `/api/analysis`, `GRAPH_API_KEY` (or `AGENT_API_KEY`) for `/api/graph`, `LSAT_API_KEY` (or `AGENT_API_KEY`) for `/api/lsat`. With no key configured for a scope, that router stays open (local-first dev posture). `GET /health` is never gated.
 
 ---

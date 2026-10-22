@@ -1,5 +1,7 @@
 # Law AI UI / UX
 
+> Every user-facing surface, what actually ships versus what docs once claimed, the token and component inventory, and the design-system contract new UI follows.
+
 > Current-state inventory of every user-facing surface, the two styling
 > idioms that actually ship, and the governance target for a maintainable
 > design system. Constitution §2 still lists `shadcn/ui` as the locked

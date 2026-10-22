@@ -1,5 +1,7 @@
 # Per-attempt answer shuffling
 
+> Why and how a served LSAT question's answer choices are permuted per attempt and graded back through a signed token, on the platform and the static site.
+
 BL-20260606-01. A bank question used to present its key in the same place forever: `lr-014`'s credited answer was `C` on the first attempt, on the tenth, and on the export a learner drilled offline. Position is then a cue, and a cue that has nothing to do with the reasoning is the wrong thing to learn — especially in a tool whose whole premise is repeated passes over a small bank.
 
 So a serve may permute the choices. The permutation is per serve, not per question, and it is never stored.

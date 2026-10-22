@@ -1,5 +1,7 @@
 # Browser end-to-end testing
 
+> The browser end-to-end harness: what the Playwright suite covers that the jsdom unit tests cannot, how to run it, and what it deliberately does not do.
+
 The unit suites stop at the boundary. `frontend/__tests__/` runs in jsdom, which has no layout engine and no `WebSocket`: sticky positioning never sticks, nothing scrolls, and `__tests__/lib/agentStream.test.ts` has to stub the socket with a fake class, so the streaming path is only ever exercised through its fallback. `backend/tests/` never renders anything. Between them sat the whole of what a user actually touches — and, until spec 051, no test crossed from one side to the other.
 
 This page describes the harness that closes that gap: what runs, how to run it, and what it deliberately does not do.

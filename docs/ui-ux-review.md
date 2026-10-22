@@ -1,5 +1,7 @@
 # The UI/UX review loop
 
+> The repeatable UI/UX review pass — the rubric, what counts as visual evidence, and the mechanical `ux_audit.py` contract each fix is promoted into.
+
 > A repeatable pass over Law AI's application shell, navigation, and interaction contract. Run it with `/ux-review` (see [.claude/commands/ux-review.md](../.claude/commands/ux-review.md)), on a `/loop` interval, or by hand. [docs/ui-ux.md](ui-ux.md) records **what the UI is**; this file defines **how we keep it good as the product grows**.
 
 The loop exists because UI quality decays differently from correctness. Nothing fails when a new module forgets a loading state, ships an unnamed `<aside>`, or hard-codes `top-4` on a sticky bar. It just gets slightly worse, in a place nobody owns, until the shell is six idioms in a trench coat. So the review is a scheduled obligation with a mechanical floor, not a taste debate.

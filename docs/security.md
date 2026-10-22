@@ -1,5 +1,7 @@
 # Security Model
 
+> The API-token and session model that gates the `/api/*` routers: threat model, scope matrix, token lifecycle, rate limits, auditability and the production hardening checklist.
+
 > Closes [BL-20260430-10](../BACKLOG.md) and [BL-20260503-16](../BACKLOG.md). Operator-facing manual for the API-token model that gates `/api/agents/*`, `/api/analysis`, `/api/graph/*`, and `/api/lsat/*`. Source of truth: [docs/constitution.md](constitution.md) §4 (provenance/audit) and §8 (security baselines).
 
 ## Threat model summary

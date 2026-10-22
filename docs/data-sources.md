@@ -1,5 +1,7 @@
 # Data Sources
 
+> The open legal corpora Law AI ingests — URL, license, auth, rate limit and status for each — with a sample command for every ingester.
+
 Open, machine-readable corpora used by Law AI.
 
 | Source                    | URL                                                              | License             | Auth          | Rate limit            | Status   |
@@ -43,7 +45,7 @@ Open, machine-readable corpora used by Law AI.
   - **Underlying CRS text** is uncopyrightable U.S. state-government work; redistributable.
   - **Justia commentary / page chrome** is CC-BY 4.0; we do not store commentary, only the section body text we extract.
   - Cached source HTML is provenance-tracked (`source_url` on every node). Any future public dataset export will exclude raw cached HTML.
-- Sample command (Docker-first — see [CLAUDE.md](../CLAUDE.md); never run this bare on the host):
+- Sample command (Docker-first — see [AGENTS.md](../AGENTS.md) § Docker-First Workflow; never run this bare on the host):
   ```bash
   docker compose run --rm backend python scripts/ingest_sample.py --source colorado_statutes --titles 18 --dry-run
   docker compose run --rm backend python scripts/ingest_sample.py --source colorado_statutes --titles 18,42  # commits to Neo4j
@@ -74,7 +76,7 @@ Deferred out of spec 016 as "spec 016.b" and delivered under `BL-20260509-05`. I
 - **Redistribution: false.** Cached source HTML is provenance-tracked (`source_url` on every node) and excluded from any public dataset export. The checked-in test fixture is hand-reduced placeholder prose that pins the markup contract, not a copy of the code.
 - Rate limit: `0.25 rps` — half the Justia adapter's, because this is not a host we have permission to crawl at volume.
 
-- Sample command (Docker-first — see [CLAUDE.md](../CLAUDE.md); never run this bare on the host):
+- Sample command (Docker-first — see [AGENTS.md](../AGENTS.md) § Docker-First Workflow; never run this bare on the host):
   ```bash
   docker compose run --rm backend python scripts/ingest_sample.py --source denver_municipal_code --chapters 38 --chapter-dir backend/tests/ingestion/fixtures/denver --dry-run
   # commit mode: sections go to the HITL queue, not the graph — "committed=0" is correct
