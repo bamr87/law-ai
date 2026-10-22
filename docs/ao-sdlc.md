@@ -1,7 +1,7 @@
 
 # AO-SDLC in Law AI
 
-This page maps the [AO-SDLC operating guide](../AO-SDLC_Outline_Guide.md) (v2.0, 2026-08-11) onto the concrete files, agents, and tools in this repository. The v2.0 guide is the **reference**; this page is the **implementation** summary.
+This page maps the [AO-SDLC operating guide](ao-sdlc-guide.md) (v2.0, 2026-08-11) onto the concrete files, agents, and tools in this repository. The v2.0 guide is the **reference**; this page is the **implementation** summary.
 
 Law AI currently operates at **Autonomy Level 2 (Collaborative)** per [docs/constitution.md](constitution.md) §10.
 
@@ -128,14 +128,14 @@ gh api -X PUT repos/{owner}/{repo}/rulesets/<id> \
 
 The repo-admin role keeps an `always` bypass so the bot PR flows (`evolve.yml`, the factory lines) can still be merged by the owner when a path-filtered check never reports.
 
-AI-augmented review is **planned** as a future job. Nothing in the constitution blocks it today — the prior rule against wiring a closed-source model into the runtime was repealed 2026-08-11 (spec 034); see [AO-SDLC_Outline_Guide.md](../AO-SDLC_Outline_Guide.md) §7 for the current CI job table.
+AI-augmented review is **planned** as a future job. Nothing in the constitution blocks it today — the prior rule against wiring a closed-source model into the runtime was repealed 2026-08-11 (spec 034); see [ao-sdlc-guide.md](ao-sdlc-guide.md) §7 for the current CI job table.
 
 ## What's Intentionally Not Built Yet
 
 These are listed in the framework but are **not** part of this iteration:
 
 - Roadmap-agent crew (Phase 0 automation).
-- Langfuse tracing for agent runs (Arize Phoenix + OpenTelemetry tracing is implemented — see [AO-SDLC_Outline_Guide.md](../AO-SDLC_Outline_Guide.md) §8).
+- Langfuse tracing for agent runs (Arize Phoenix + OpenTelemetry tracing is implemented — see [ao-sdlc-guide.md](ao-sdlc-guide.md) §8).
 - SRE feedback loop (production incident → auto-issue → coding agent).
 - Multi-agent debate via AutoGen.
 - Auggie / GitHub AI quality-review job in CI.

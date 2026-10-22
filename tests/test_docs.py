@@ -121,16 +121,52 @@ def test_autonomy_invariant_i4_matches_the_implementation(repo_root: Path) -> No
     )
 
 
-def test_ao_sdlc_guide_stays_a_redirect_stub(repo_root: Path) -> None:
-    """BL-20260906-38: the stub kept attracting documentation.
+def test_ao_sdlc_guide_has_one_home(repo_root: Path) -> None:
+    """The AO-SDLC operating guide lives at docs/ao-sdlc-guide.md, once.
 
-    `docs/ao-sdlc-guide.md` exists only so old `specs/` links resolve. It must
-    say so in as many words, and name both places real prose goes, or the next
-    agent writes a CI section into a file nobody reads.
+    BL-20260906-38 kept a redirect stub at this path because specs/011 and
+    specs/021 link here, while the v2.0 guide sat at the repo root as
+    `AO-SDLC_Outline_Guide.md`. The fleet docs framework (UPS-DOC-04) moves
+    guides off the root, so the guide itself now occupies the path the old
+    links already name: no stub, no second copy, and docs/ao-sdlc.md (the
+    implementation map) links the reference it summarises.
     """
-    stub = (repo_root / "docs" / "ao-sdlc-guide.md").read_text()
-    assert "not a documentation target" in stub.lower()
-    assert "ao-sdlc.md" in stub and "AO-SDLC_Outline_Guide.md" in stub
+    guide = (repo_root / "docs" / "ao-sdlc-guide.md").read_text(encoding="utf-8")
+    assert "Operating Guide" in guide and "Version 2.0" in guide, (
+        "docs/ao-sdlc-guide.md must be the v2.0 operating guide, not a stub"
+    )
+    assert not (repo_root / "AO-SDLC_Outline_Guide.md").exists(), (
+        "the AO-SDLC guide has one home, docs/ao-sdlc-guide.md; do not restore a root copy"
+    )
+    assert "ao-sdlc-guide.md" in (repo_root / "docs" / "ao-sdlc.md").read_text(encoding="utf-8")
+
+
+# UPS-DOC-04: the root holds docs of record only; plans, proposals, guides and
+# quick references belong under docs/.
+_ROOT_DOCS_OF_RECORD = {
+    "README.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "CHANGELOG.md",
+    "LICENSE.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "CODE_OF_CONDUCT.md",
+    "SCHEMA.md",
+    "PRD.md",
+    "BACKLOG.md",
+}
+
+
+def test_root_holds_docs_of_record_only(repo_root: Path) -> None:
+    """A guide or plan written at the root goes to docs/ (UPS-DOC-04)."""
+    strays = sorted(
+        p.name for p in repo_root.glob("*.md") if p.name not in _ROOT_DOCS_OF_RECORD
+    )
+    assert not strays, (
+        "root Markdown that is not a doc of record — move it under docs/ and "
+        f"fix its inbound links: {strays}"
+    )
 
 
 _MD_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")

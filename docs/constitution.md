@@ -102,7 +102,7 @@ Every change larger than a typo follows the spec workflow:
 
 [/evolve](../prompts/evolve.md) runs this same seven-step chain autonomously end-to-end (BACKLOG scan through implementation), still bound by every gate in this document — most directly §10 Autonomy Level and §11 Continuous Evolution. It runs on a weekly schedule via [.github/workflows/evolve.yml](../.github/workflows/evolve.yml) and on demand from either sanctioned dev surface (§1).
 
-See [docs/ao-sdlc.md](ao-sdlc.md) for how phases map onto Law AI and [AO-SDLC_Outline_Guide.md](../AO-SDLC_Outline_Guide.md) for the full framework reference.
+See [docs/ao-sdlc.md](ao-sdlc.md) for how phases map onto Law AI and [ao-sdlc-guide.md](ao-sdlc-guide.md) for the full framework reference.
 
 ## 8. Security Baselines
 

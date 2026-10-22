@@ -281,7 +281,7 @@ When starting work, read in this order:
 2. [docs/architecture.md](docs/architecture.md) — Full system diagram + component responsibilities
 3. [docs/agent-roles.md](docs/agent-roles.md) — Responsibilities + tool requirements for each agent
 4. [PRD.md](PRD.md) — Full product requirements
-5. [Law_AI_Proposal.md](Law_AI_Proposal.md) — Original technical proposal with Mermaid diagrams
+5. [docs/law-ai-proposal.md](docs/law-ai-proposal.md) — Original technical proposal with Mermaid diagrams
 6. [docs/related-github-repos.md](docs/related-github-repos.md) — Upstream OSS we integrate with
 7. [docs/ui-ux.md](docs/ui-ux.md) — Every user-facing surface, the two styling idioms, and the design-system contract
 

@@ -1,6 +1,6 @@
 # Enterprise App Shell + Scoped Settings — Next.js Architecture
 
-> **Law AI adaptation:** [specs/040-app-shell](specs/040-app-shell/spec.md) is what
+> **Law AI adaptation:** [specs/040-app-shell](../specs/040-app-shell/spec.md) is what
 > shipped. This essay stays the generic design. 040 maps it onto the locked
 > stack (Django later, no Drizzle/shadcn/Radix; instance-only live scope per
 > spec 036 NG3). Do not implement §6's stack table as written.
