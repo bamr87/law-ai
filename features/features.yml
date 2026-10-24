@@ -1,54 +1,107 @@
 # =============================================================================
-# features/features.yml — THE FEATURE INDEX for law-ai
+# features/features.yml — THE FEATURE INDEX for bamr87/law-ai
 # =============================================================================
-# kit: verify v0.1.0 (seeded from bamr87/bamr87 templates/verify/)
+# kit: verify v0.1.0 · governance v0.1.0 (bamr87/bamr87 templates/verify/, templates/governance/)
 #
-# One entry per user-facing capability. This file is what an AI agent reads to
-# know what the product DOES, where it lives, how it is documented, which tests
-# and user scenarios prove it, and what evidence exists that it works. The hub
-# aggregates every repo's copy into its fleet features index
-# (bamr87/bamr87 _data/features_index.yml → /features/) and grades coverage:
-#
-#   covered    ≥1 of `tests` / `scenarios` exists on disk
-#   evidenced  ≥1 `evidence` bundle exists (README + screenshots + report)
-#   verified   `verified.date` is set (by an agent, a human, or CI)
-#
-# Schema: features/v1 — a strict SUPERSET of the shape zer0-mistakes,
-# it-journey, and barodybroject already use, so legacy files validate as-is.
-# Validate: python3 <hub>/tools/features_index.py check .
-#
-# Per feature:
-#   id            required  STABLE id, `^[A-Z0-9]+-[0-9]+$` (prefix per repo, e.g. ZER0-001)
-#   title         required  short name
-#   description   required  one or two sentences — what the user can do
-#   implemented   required  true|false (planned features are welcome — they show as gaps)
-#   surface       optional  ui | api | cli | docs | content | infra (default: ui when `link`
-#                           is a route starting with `/`, else infra)
-#   link          optional  the route (`/settings/`) or file that IS the feature
-#   docs          optional  where it is explained (path or URL)
-#   tags          optional  list
-#   date          optional  YYYY-MM-DD introduced
-#   provenance    optional  { introduced_in, pr, commit, issue }
-#   tests         optional  automated test files that pin it (paths)
-#   scenarios     optional  declarative user scenarios (verify/scenarios/*.yml)
-#   evidence      optional  evidence bundle dirs (test/evidence/<slug>/)
-#   screenshots   optional  direct image paths, when a bundle is overkill
-#   verified      optional  { date, by: agent|human|ci, run: <url> } — last verification
-#   deviations    optional  free text: why a MUST row is waived for this feature
+# One entry per user-facing capability, grounded in this repo's PRD, README and
+# code: what it does, where it lives (`link`), where it is explained (`docs`),
+# its `status` (shipped | partial | planned | deprecated | tbd) and the PRD
+# requirements it serves (`prd:`; TBD = not yet traced). Ids are STABLE: never
+# renumber or reuse one. The PRD's "Feature catalog" block is generated from
+# this file — edit here, then run:
+#   python3 <bamr87/bamr87>/tools/governance_lint.py prd-sync . --write
+# Validate: python3 <hub>/tools/governance_lint.py check .  ·  <hub>/tools/features_index.py check .
+# Schema: features/v1 (field reference: bamr87/bamr87 templates/verify/features.template.yml)
 # =============================================================================
 schema: features/v1
 repo: bamr87/law-ai
 
 features:
-  - id: TODO-001
-    title: "TODO: the first thing a user does here"
-    description: "TODO: replace with the primary user-facing capability of law-ai."
+  - id: LAWAI-001
+    title: "Data ingestion and knowledge graph foundation"
+    description: "Scheduled and on-demand ingestion (CourtListener, CAP bulk), citation extraction and LLM holding/entity extraction into Neo4j with provenance metadata (PRD 5.1)."
     implemented: true
+    status: partial
+    prd: ["§5"]
+    surface: infra
+    link: "backend/law_ai/ingestionapp"
+    docs: "docs/data-model.md"
+  - id: LAWAI-002
+    title: "Core agent crews"
+    description: "Ingestion Scout, Legal Analyst, Precedent Hunter and the LangGraph orchestrator with human-approval gates (PRD 5.2)."
+    implemented: true
+    status: partial
+    prd: ["§5", "§7"]
+    surface: api
+    link: "backend/law_ai/agents_runtime"
+    docs: "docs/agent-roles.md"
+  - id: LAWAI-003
+    title: "Interactive knowledge graph explorer"
+    description: "Cytoscape.js subgraph visualization with expand, filters, citation paths and export (PRD 5.3)."
+    implemented: false
+    status: tbd
+    prd: ["§5"]
     surface: ui
-    link: /
-    docs: README.md
-    tags: [todo]
-    tests: []
-    scenarios:
-      - verify/scenarios/smoke-home.yml
-    evidence: []
+    link: "backend/law_ai/graph"
+    docs: "PRD.md"
+  - id: LAWAI-004
+    title: "Analysis Studio"
+    description: "Split-pane case viewer, live agent chat and trace log, structured output panel, linked graph view; outputs persisted as versioned artifacts (PRD 5.4)."
+    implemented: false
+    status: tbd
+    prd: ["§5", "§8"]
+    surface: ui
+    link: "backend/law_ai/analysis"
+    docs: "PRD.md"
+  - id: LAWAI-005
+    title: "LSAT Learning Lab"
+    description: "Practice sections with AI explanations tied to graph nodes and a performance dashboard by question type (PRD 5.5)."
+    implemented: true
+    status: partial
+    prd: ["§5"]
+    surface: ui
+    link: "backend/law_ai/lsat"
+    docs: "PRD.md"
+  - id: LAWAI-006
+    title: "Matters workspace"
+    description: "Matter-scoped workspaces in the backend `matters` app; maps to PRD Phase 2 user workspaces."
+    implemented: false
+    status: tbd
+    prd: ["§5"]
+    surface: api
+    link: "backend/law_ai/matters"
+    docs: "PRD.md"
+  - id: LAWAI-007
+    title: "Provenance and audit log"
+    description: "Every LLM call, tool call and retrieval goes through law_ai.core.provenance with dual-write JSONL + Postgres audit (constitution §4)."
+    implemented: true
+    status: shipped
+    prd: ["§9"]
+    surface: infra
+    link: "backend/law_ai/audit"
+    docs: "docs/constitution.md"
+  - id: LAWAI-008
+    title: "LegalBench evaluation harness"
+    description: "Centralized LegalBench regression runs pinned to Ollama (constitution §3, §6)."
+    implemented: true
+    status: shipped
+    prd: ["§3"]
+    surface: infra
+    link: "backend/law_ai/eval"
+    docs: "docs/constitution.md"
+  - id: LAWAI-009
+    title: "Multi-agent collaboration and GraphRAG (Phase 2)"
+    description: "Parallel analyst/hunter/logic-weaver crews with shared memory, GraphRAG community summaries, Bluebook export, Discover feed, one-click self-hosting."
+    implemented: false
+    status: planned
+    prd: ["§5"]
+    surface: api
+    docs: "PRD.md"
+  - id: LAWAI-010
+    title: "Expansion (Phase 3)"
+    description: "UK/EU sources, fine-tuned legal LLM, browser/Office plugins, agent marketplace, mobile PWA, empirical research module."
+    implemented: false
+    status: planned
+    prd: ["§5"]
+    surface: ui
+    docs: "PRD.md"
