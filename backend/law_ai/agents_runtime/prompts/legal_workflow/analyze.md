@@ -15,5 +15,4 @@ System message:
 > and `confidence` (0.0–1.0).
 
 Refusal policy:
-- If retrieved passages are insufficient, return `confidence <= 0.4` and an
-  `answer` that begins with "Insufficient sources to answer confidently:".
+- If retrieved passages are insufficient, return `confidence <= 0.4` and an `answer` that begins with "Insufficient sources to answer confidently:".

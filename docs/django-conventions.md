@@ -1,5 +1,7 @@
 # Django Conventions
 
+> How to work inside the `backend/law_ai/` Django package: the settings split, async ORM discipline, Channels routing, Celery naming, migration gotchas and strict typing.
+
 > Closes [BL-20260503-18](../BACKLOG.md). Conventions for working inside the `backend/law_ai/` Django package introduced by [ADR 0001](adr/0001-adopt-django-backend.md). Read alongside [docs/architecture.md](architecture.md) and [AGENTS.md](../AGENTS.md) §"Coding Standards".
 
 ## 1. Settings split

@@ -1,5 +1,7 @@
 # LSAT Solve Guides
 
+> The solve-guide runbook: what a guide is, where it lives, and how guides are backfilled, judged and promoted through the review queue.
+
 A **solve guide** walks one bank question: the steps a strong solver takes, in order, with the board they build as they go. It is not a library article — an article explains a pattern across many questions, a guide is the worked instance of one ([docs/lsat-library.md](lsat-library.md) is the prose layer). They are maintained the same way, through the same HITL proposal queue, which is why the two runbooks used to share a page; this one is the guide half (BL-20260905-55).
 
 Introduced by [specs/045-lsat-solving-aids](../specs/045-lsat-solving-aids/spec.md).

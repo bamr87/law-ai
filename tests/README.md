@@ -1,5 +1,7 @@
 # Repo-wide test entry point
 
+> The root `tests/` suite: dependency-light structural, docs, config and spec checks that run on the host and in CI's repo-structural job, plus opt-in backend and frontend orchestrators.
+
 This top-level `tests/` package is the single command surface for validating the Law AI monorepo. It complements — but does **not** replace — the per-stack suites under [backend/tests/](../backend/tests) and [frontend/__tests__/](../frontend/__tests__).
 
 ## Layers (pytest markers)
@@ -50,5 +52,4 @@ make lint-specs      # spec_validator.py + backlog_lint.py + ux_audit.py + test_
 `node_modules/`, `.venv/`, and `specs/_template/` from collection so this suite never accidentally double-runs the per-stack tests.
 - Backend and frontend orchestrators run as **subprocesses** so each
 stack keeps ownership of its own config, coverage thresholds, and fixtures (per [AGENTS.md](../AGENTS.md) Testing Standards).
-- All tests must remain dependency-light: standard library + `pytest`
-  only. Anything heavier belongs in the per-stack suites.
+- All tests must remain dependency-light: standard library + `pytest` only. Anything heavier belongs in the per-stack suites.

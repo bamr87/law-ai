@@ -1,5 +1,7 @@
 # Law AI — Constitution
 
+> The rules every spec, plan and PR must satisfy to be valid — mission, locked stack, quality gates, provenance, HITL, testing, security, autonomy invariants and jurisprudential honesty.
+
 > Org-wide, non-negotiable standards for every spec, plan, and implementation produced by humans or AI agents in this repo. This is the **first** document any agent reads when running [/specify](../prompts/specify.md), [/plan](../prompts/plan.md), or [/implement](../prompts/implement.md).
 >
 > Higher-level principles, mission, and tech-stack rationale live in [AGENTS.md](../AGENTS.md). This file encodes only the **rules a spec or PR must satisfy to be valid**.
@@ -102,7 +104,7 @@ Every change larger than a typo follows the spec workflow:
 
 [/evolve](../prompts/evolve.md) runs this same seven-step chain autonomously end-to-end (BACKLOG scan through implementation), still bound by every gate in this document — most directly §10 Autonomy Level and §11 Continuous Evolution. It runs on a weekly schedule via [.github/workflows/evolve.yml](../.github/workflows/evolve.yml) and on demand from either sanctioned dev surface (§1).
 
-See [docs/ao-sdlc.md](ao-sdlc.md) for how phases map onto Law AI and [AO-SDLC_Outline_Guide.md](../AO-SDLC_Outline_Guide.md) for the full framework reference.
+See [docs/ao-sdlc.md](ao-sdlc.md) for how phases map onto Law AI and [ao-sdlc-guide.md](ao-sdlc-guide.md) for the full framework reference.
 
 ## 8. Security Baselines
 

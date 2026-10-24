@@ -1,5 +1,7 @@
 # Local AI Stack (Spec 010)
 
+> The operator manual for the local AI substrate — Ollama, LangGraph checkpointers and Phoenix — across laptop, GPU workstation, server and air-gapped installs.
+
 > Companion to [specs/010-local-ai-stack/](../specs/010-local-ai-stack/). This page is the operator-facing manual for running Law AI's LangGraph + Ollama + Phoenix substrate locally.
 
 **LLM selection note.** This page documents the local *infrastructure* (Neo4j, Postgres, Redis, Ollama, Phoenix). It does not, by itself, determine which model answers a request: `LegalWorkflow`'s LLM is `ChatProviderChain`, which tries the constitution-§1 provider chain — Claude (OAuth), then Claude (API key), then xAI Grok, then Ollama — in that order (`LLM_PROVIDER_CHAIN`, default `claude_code,anthropic_api,xai,ollama`). Bringing this stack up does **not** make Ollama the default; it makes Ollama *available* as the chain's last tier. To guarantee every request stays local (required for data under a confidentiality obligation that forbids third-party processing — see [docs/constitution.md](constitution.md) §1), pin the chain explicitly:

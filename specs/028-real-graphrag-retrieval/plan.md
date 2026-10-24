@@ -6,21 +6,16 @@ first (fake Neo4j session — no DB needed), then wire it as the workflow defaul
 
 ## Steps
 
-1. **Create the `tools/` package** AGENTS.md documents but which never
-   existed: `agents_runtime/tools/{__init__,graph_rag}.py`.
+1. **Create the `tools/` package** AGENTS.md documents but which never existed: `agents_runtime/tools/{__init__,graph_rag}.py`.
 2. **Cypher, schema-accurate** — verified against the real node shapes
 before writing: `:Case` has `id/title/court/decided_at/source/ source_url/confidence` (no `jurisdiction` property → filter by lowercase `court` prefix, the convention `list_under_cited_jurisdictions` already uses); `:StatuteSection` carries `jurisdiction_code`. Every statement `LIMIT`-bounded, parameter-bound, and `archived_at IS NULL`.
 3. **`GraphRAGRetriever`**:
-   - `_lexical_cases` → `case_text_fulltext`, with `escape_lucene` on the
-     query and a substring-scan fallback on any index error.
-   - `_lexical_statutes` → `statute_section_text_fulltext` (skipped, not
-     fatal, when unavailable).
+   - `_lexical_cases` → `case_text_fulltext`, with `escape_lucene` on the query and a substring-scan fallback on any index error.
+   - `_lexical_statutes` → `statute_section_text_fulltext` (skipped, not fatal, when unavailable).
    - Expansion → `EXPAND_CITES_CYPHER` over the lexical seed ids.
-   - `_run_logged` wraps every `session.run` with
-     `provenance.log_graph_query`.
+   - `_run_logged` wraps every `session.run` with `provenance.log_graph_query`.
    - Dedup by node id; `last_coverage` published per run.
-   - Top-level `except` → `[]` so a graph fault degrades to the refusal
-     path rather than raising into the API.
+   - Top-level `except` → `[]` so a graph fault degrades to the refusal path rather than raising into the API.
 4. **`RetrievalCoverage.note()`** composes the reviewer-facing caveat:
 empty-corpus wording, result mix, jurisdictions represented, and an explicit absent-jurisdiction warning.
 5. **Wire into `LegalWorkflow`**: `_build_default_retriever()` replaces the

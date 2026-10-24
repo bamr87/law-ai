@@ -1,5 +1,7 @@
 # Data Model
 
+> The Neo4j knowledge-graph schema — nodes, relationships and mandatory provenance properties — and the Postgres quarantine that ingestion writes to.
+
 Law AI's Neo4j knowledge graph + Postgres quarantine. Spec of record for the original opinion-only model: [001-ingest-courtlistener-opinions](../specs/001-ingest-courtlistener-opinions/spec.md). Schema-expansion spec: [015-legal-corpus-schema](../specs/015-legal-corpus-schema/spec.md).
 
 > **Provenance is mandatory.** Every node persisted to Neo4j carries `source`, `source_url`, `confidence`, `ingest_timestamp`, and `agent_version` per [docs/constitution.md](constitution.md) §4. The Pydantic mixin enforcing this lives in [`law_ai.core.schemas.legal_documents.LegalProvenance`](../backend/law_ai/core/schemas/legal_documents.py).

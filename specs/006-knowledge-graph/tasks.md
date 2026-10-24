@@ -16,12 +16,9 @@
   - `backend/app/db/graph_queries.py` (new)
   - `backend/tests/db/test_graph_queries.py` (new)
 - **Steps**:
-  1. Implement `stats`, `list_cases`, `neighborhood` against an
-     `AsyncSession`. Every query bound by `LIMIT $limit`.
-  2. Hermetic tests using a `FakeAsyncSession` (matches the pattern in
-     `tests/db/test_citation_resolver.py`).
-- **Verify**: `pytest backend/tests/db/test_graph_queries.py -q`; module
-  coverage ≥ 80%.
+  1. Implement `stats`, `list_cases`, `neighborhood` against an `AsyncSession`. Every query bound by `LIMIT $limit`.
+  2. Hermetic tests using a `FakeAsyncSession` (matches the pattern in `tests/db/test_citation_resolver.py`).
+- **Verify**: `pytest backend/tests/db/test_graph_queries.py -q`; module coverage ≥ 80%.
 
 ## T-002 — `/api/graph/*` router
 
@@ -33,15 +30,11 @@
   - `backend/app/main.py` (edit — mount router)
   - `backend/tests/api/test_graph.py` (new)
 - **Steps**:
-  1. Three endpoints (`stats`, `cases`, `neighborhood/{case_id}`) all
-     delegating to `graph_queries` via a `_safe_run` wrapper.
-  2. `_open_session` indirection so tests monkeypatch a fake session
-     without spinning up Neo4j.
-  3. Provenance via `provenance.log_graph_query` after each successful
-     call.
+  1. Three endpoints (`stats`, `cases`, `neighborhood/{case_id}`) all delegating to `graph_queries` via a `_safe_run` wrapper.
+  2. `_open_session` indirection so tests monkeypatch a fake session without spinning up Neo4j.
+  3. Provenance via `provenance.log_graph_query` after each successful call.
   4. `available: false` payloads on any exception (NFR-DEGRADE-1).
-- **Verify**: `pytest backend/tests/api/test_graph.py -q`; spec_validator
-  green.
+- **Verify**: `pytest backend/tests/api/test_graph.py -q`; spec_validator green.
 
 ## T-003 — Frontend `/graph` route + Cytoscape
 
@@ -56,10 +49,8 @@
   - `frontend/__tests__/components/KnowledgeGraph.test.tsx` (new — MSW-mocked)
 - **Steps**:
   1. Server shell renders header + `<KnowledgeGraph />`.
-  2. Client component fetches stats + cases on mount, debounced search,
-     auto-selects first case, fetches neighborhood on selection.
-  3. `GraphViewer` dynamically imports `cytoscape` to keep the bundle
-     out of other routes (R-1).
+  2. Client component fetches stats + cases on mount, debounced search, auto-selects first case, fetches neighborhood on selection.
+  3. `GraphViewer` dynamically imports `cytoscape` to keep the bundle out of other routes (R-1).
   4. Banner when any endpoint returns `available: false` (FR-5).
 - **Verify**: `npm test -- --run`; vitest 9/9 pass.
 
@@ -69,8 +60,7 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `BACKLOG.md` (edit — move BL-20260430-05 from Open → Done; append three
-    new follow-ups)
+  - `BACKLOG.md` (edit — move BL-20260430-05 from Open → Done; append three new follow-ups)
 - **Verify**: `python3 scripts/backlog_lint.py` PASS.
 
 ---

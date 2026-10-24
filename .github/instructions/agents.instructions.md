@@ -9,7 +9,7 @@ These rules are mandatory for every file under [backend/law_ai/agents_runtime/](
 
 ## Required Structure
 
-- **Crews** (CrewAI role-based) live in [backend/law_ai/agents_runtime/crews/](../../backend/law_ai/agents_runtime/crews/).
+- **Crews** (plain async agent classes — `crews/` is a naming holdover; `crewai` is declared but never imported) live in [backend/law_ai/agents_runtime/crews/](../../backend/law_ai/agents_runtime/crews/).
 - **Workflows** (LangGraph stateful) live in [backend/law_ai/agents_runtime/graphs/](../../backend/law_ai/agents_runtime/graphs/).
 - **Tools** (currently Neo4j graph retrieval, `graph_rag.py`) live in [backend/law_ai/agents_runtime/tools/](../../backend/law_ai/agents_runtime/tools/). Ingestion source clients (CourtListener, statute scouts, etc.) live under `ingestionapp/sources/` and `ingestionapp/services/` instead — outside this directory's scope.
 - **Prompts** are versioned `.md` or `.txt` files in [backend/law_ai/agents_runtime/prompts/](../../backend/law_ai/agents_runtime/prompts/). Never inline prompt strings in Python code.

@@ -19,10 +19,8 @@ Guidance for AI coding agents (Claude Code, Copilot, Cursor) working in **lawmod
 
 - Conventional Commits: `type(scope): description` (`feat`/`fix`/`docs`/`refactor`/`test`/`chore`/`ci`).
 - Default branch is `main` — branch from it and open a PR; never push to it directly.
-- README-First, README-Last: read the nearest `README.md` before changing a
-  directory, and update it after.
-- Don't suppress type errors (`as any`, `@ts-ignore`, `# type: ignore`) or
-  leave empty exception handlers.
+- README-First, README-Last: read the nearest `README.md` before changing a directory, and update it after.
+- Don't suppress type errors (`as any`, `@ts-ignore`, `# type: ignore`) or leave empty exception handlers.
 
 ## Fleet context
 

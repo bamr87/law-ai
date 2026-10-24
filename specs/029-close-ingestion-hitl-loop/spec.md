@@ -15,32 +15,23 @@ Two related dead ends: `ENABLE_HUMAN_APPROVAL_GATES` appeared only in settings (
 
 ## 2. Goals
 
-- G1: Approving a quarantined item actually commits it to the knowledge
-  graph, through the one sanctioned writer (BL-20260810-03).
-- G2: Every review decision records **who** decided and **why**
-  (BL-20260810-08).
+- G1: Approving a quarantined item actually commits it to the knowledge graph, through the one sanctioned writer (BL-20260810-03).
+- G2: Every review decision records **who** decided and **why** (BL-20260810-08).
 - G3: A failed graph write is visible and retryable, never silently lost.
 - G4: `ENABLE_HUMAN_APPROVAL_GATES` becomes a real, audited control.
-- G5: Operators can see *why* something was quarantined and action it
-  without the Django admin.
+- G5: Operators can see *why* something was quarantined and action it without the Django admin.
 
 ## 3. Non-Goals
 
-- NG1: A frontend quarantine review UI (the CLI + admin are the surfaces
-  here; the web UI remains BL-20260810-03's frontend half).
-- NG2: Bulk auto-approval or any confidence-based auto-commit — that would
-  defeat §5.
-- NG3: Statute/ordinance commit paths (`StatuteScout`) — this spec closes
-  the `:Case` loop; the statute kinds reuse the same row states.
+- NG1: A frontend quarantine review UI (the CLI + admin are the surfaces here; the web UI remains BL-20260810-03's frontend half).
+- NG2: Bulk auto-approval or any confidence-based auto-commit — that would defeat §5.
+- NG3: Statute/ordinance commit paths (`StatuteScout`) — this spec closes the `:Case` loop; the statute kinds reuse the same row states.
 
 ## 4. User Stories
 
-- As a reviewer, I want approving a document to actually add it to the
-  knowledge graph, so my review work has an effect.
-- As an auditor, I want to see who approved what and why, so review
-  decisions are attributable.
-- As an operator, I want a failed commit to be visible and retried, not
-  silently marked approved.
+- As a reviewer, I want approving a document to actually add it to the knowledge graph, so my review work has an effect.
+- As an auditor, I want to see who approved what and why, so review decisions are attributable.
+- As an operator, I want a failed commit to be visible and retried, not silently marked approved.
 
 ## 5. Functional Requirements
 
@@ -65,10 +56,8 @@ idempotently; exposed as Celery task `commit_approved_reviews_task`, the admin a
 
 ## 6. Non-Functional Requirements
 
-- **NFR-AUDIT-1**: Decision, commit, commit-failure, and gate-disable all
-  emit provenance events via `core.provenance`.
-- **NFR-IDEMPOTENT-1**: Re-running a sweep never double-writes; committed
-  rows are filtered out at the query level.
+- **NFR-AUDIT-1**: Decision, commit, commit-failure, and gate-disable all emit provenance events via `core.provenance`.
+- **NFR-IDEMPOTENT-1**: Re-running a sweep never double-writes; committed rows are filtered out at the query level.
 - **NFR-SEC-1**: No new graph writer is introduced — §12 I1 preserved.
 
 ## 7. Data Model Impact
@@ -89,20 +78,16 @@ No HTTP routes. New operator surfaces: Celery task `law_ai.ingestionapp.commit_a
 `IngestionScout.run_and_commit` with `force_commit=True`, sets `committed_at`, and clears `commit_error`.
 - **AC-2**: Rows that are pending or rejected are never committed.
 - **AC-3**: A second sweep after a successful commit is a no-op (idempotent).
-- **AC-4**: A graph failure records `commit_error`, leaves the row approved
-  and uncommitted, and emits `quarantine_commit_failed`.
-- **AC-5**: `commit_approved_review` on an unapproved row raises
-  `ApprovalError`.
-- **AC-6**: `record_decision` persists reviewer + note and emits
-  `quarantine_decision` with the reviewer named.
+- **AC-4**: A graph failure records `commit_error`, leaves the row approved and uncommitted, and emits `quarantine_commit_failed`.
+- **AC-5**: `commit_approved_review` on an unapproved row raises `ApprovalError`.
+- **AC-6**: `record_decision` persists reviewer + note and emits `quarantine_decision` with the reviewer named.
 - **AC-7**: Legacy flat payloads commit correctly.
 - **AC-8**: The Celery task reports `{processed, committed, failed}`.
 
 ## 11. LegalBench Impact
 
 - Tasks affected: none directly (ingestion path, no reasoning change).
-- Expected delta: 0 pp now; indirectly positive over time, since this is
-  the only sanctioned way the corpus behind `precedent_retrieval` grows.
+- Expected delta: 0 pp now; indirectly positive over time, since this is the only sanctioned way the corpus behind `precedent_retrieval` grows.
 
 ## 12. Risks & Open Questions
 

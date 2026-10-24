@@ -1,6 +1,8 @@
 # Enterprise App Shell + Scoped Settings — Next.js Architecture
 
-> **Law AI adaptation:** [specs/040-app-shell](specs/040-app-shell/spec.md) is what
+> A generic Next.js design for an enterprise app shell over hierarchical, inheritable settings scopes — the essay spec 040 adapted, not a plan to implement as written.
+
+> **Law AI adaptation:** [specs/040-app-shell](../specs/040-app-shell/spec.md) is what
 > shipped. This essay stays the generic design. 040 maps it onto the locked
 > stack (Django later, no Drizzle/shadcn/Radix; instance-only live scope per
 > spec 036 NG3). Do not implement §6's stack table as written.
@@ -38,10 +40,8 @@ Instance (global defaults, shipped + admin-editable)
 
 Two viable modelling strategies:
 
-- **Fixed depth** (recommended if levels are named and finite). Explicit FK columns,
-  explicit routes, simplest queries, best type safety.
-- **Arbitrary depth** (folder-like nesting, as in GCP resource hierarchy). Use a
-  materialized path (`ltree` in Postgres) or a closure table. More flexible, more work.
+- **Fixed depth** (recommended if levels are named and finite). Explicit FK columns, explicit routes, simplest queries, best type safety.
+- **Arbitrary depth** (folder-like nesting, as in GCP resource hierarchy). Use a materialized path (`ltree` in Postgres) or a closure table. More flexible, more work.
 
 Model the scope as a **single polymorphic table** either way. A settings resolver that has to branch on scope type is a resolver you'll rewrite.
 
@@ -96,8 +96,7 @@ The resolved value is the **effective setting**. The rule:
 
 1. Walk the ancestor chain from root to the target scope.
 2. The deepest scope holding a value wins…
-3. …unless a **shallower** scope holds a value with `locked = true`, in which case the
-   nearest locked ancestor wins and every descendant is read-only.
+3. …unless a **shallower** scope holds a value with `locked = true`, in which case the nearest locked ancestor wins and every descendant is read-only.
 4. If nothing is set, fall back to the definition's `default`.
 
 Return provenance, never a bare value:
@@ -194,14 +193,11 @@ For arbitrary-depth hierarchies, swap the explicit segments for `s/[...scopePath
 
 ### 4.2 Server/client boundary
 
-- Layouts, settings pages, resolvers: **Server Components**. Settings data never needs to
-  ship a client-side store.
-- Interactive shell pieces (rail collapse, panel toggle, command palette, form fields):
-  small client components, leaf-level.
+- Layouts, settings pages, resolvers: **Server Components**. Settings data never needs to ship a client-side store.
+- Interactive shell pieces (rail collapse, panel toggle, command palette, form fields): small client components, leaf-level.
 - Mutations: **server actions** wrapped in a single `defineSettingAction` helper that does
 permission check → Zod parse against the definition schema → lock check → write → audit → `revalidateTag`. Every setting write goes through this one door.
-- Panel open/closed state lives in `searchParams`, not React state, so the shell is
-  linkable and survives refresh.
+- Panel open/closed state lives in `searchParams`, not React state, so the shell is linkable and survives refresh.
 
 ### 4.3 Module registration
 
@@ -300,31 +296,21 @@ Three states, three distinct treatments: **set here** (plain, with a "reset to i
 
 ## 8. Traps worth naming in advance
 
-1. **Resolving on the client.** Ship effective values from the server. A client-side settings
-   store will drift, and it leaks the shape of scopes the user can't see.
-2. **Hiding instead of disabling.** A control that vanishes teaches nothing. Disable it and
-   say who can change it.
-3. **Overrides that happen by typing.** Focusing an inherited field must not silently create an
-   override row. Require an explicit action, and offer "reset to inherited" as its inverse.
+1. **Resolving on the client.** Ship effective values from the server. A client-side settings store will drift, and it leaks the shape of scopes the user can't see.
+2. **Hiding instead of disabling.** A control that vanishes teaches nothing. Disable it and say who can change it.
+3. **Overrides that happen by typing.** Focusing an inherited field must not silently create an override row. Require an explicit action, and offer "reset to inherited" as its inverse.
 4. **Unbounded ancestor queries.** One recursive CTE per request, not one query per level.
-5. **Cache keyed only by the current scope.** If descendants aren't tagged with their ancestors,
-   an org-level change goes unnoticed by every project below it.
-6. **A settings table with a column per setting.** Every new setting becomes a migration.
-   Key/value + a code registry keeps the schema stable.
-7. **Deleting a scope.** Decide now: cascade values, or orphan and archive? Audit history
-   usually needs to survive the scope it describes.
-8. **Type drift.** A stored `jsonb` value may no longer parse against a changed schema.
-   Parse on read, fall back to the default, and log — never crash the settings page.
+5. **Cache keyed only by the current scope.** If descendants aren't tagged with their ancestors, an org-level change goes unnoticed by every project below it.
+6. **A settings table with a column per setting.** Every new setting becomes a migration. Key/value + a code registry keeps the schema stable.
+7. **Deleting a scope.** Decide now: cascade values, or orphan and archive? Audit history usually needs to survive the scope it describes.
+8. **Type drift.** A stored `jsonb` value may no longer parse against a changed schema. Parse on read, fall back to the default, and log — never crash the settings page.
 
 ---
 
 ## 9. Working with AI on this build
 
-- **Generate the resolver's test table before the resolver.** Inheritance rules are a truth
-  table; hand the model the table and ask for the implementation, not the reverse.
+- **Generate the resolver's test table before the resolver.** Inheritance rules are a truth table; hand the model the table and ask for the implementation, not the reverse.
 - **Give the model the definition file as the contract.** Once `defineSetting` exists, "add a
 data-retention setting at org and project level, lockable" is a one-shot prompt with a predictable diff.
-- **Ask for the failure states first.** Locked, inherited, no-permission, and parse-failure
-  renderings are the ones that get skipped when you prompt for the happy path.
-- **Keep the shell out of feature prompts.** If a prompt about billing requires editing
-  `AppShell`, the registry abstraction has leaked and it's worth fixing before continuing.
+- **Ask for the failure states first.** Locked, inherited, no-permission, and parse-failure renderings are the ones that get skipped when you prompt for the happy path.
+- **Keep the shell out of feature prompts.** If a prompt about billing requires editing `AppShell`, the registry abstraction has leaked and it's worth fixing before continuing.

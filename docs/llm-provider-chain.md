@@ -1,5 +1,7 @@
 # The LLM provider chain (`law_ai.core.llm`)
 
+> Reference for `law_ai.core.llm`: how the ordered provider chain picks a tier and audits every call, and how the Claude, xAI and Ollama tiers are configured.
+
 Every product-runtime model call in Law AI goes through one ordered chain: [`law_ai.core.llm`](../backend/law_ai/core/llm/router.py) tries each provider named in `LLM_PROVIDER_CHAIN` until one is configured and answers, writes an `llm_call` audit event either way, and raises rather than fabricating when the whole chain fails. Per [docs/constitution.md](constitution.md) §1 (amended 2026-08-11, spec 034 and 2026-09-04, spec 050), **Claude is the default product runtime**; xAI Grok is tier 3; local Ollama is the last-tier fallback, not the default.
 
 This page is the chain's reference. Most of it documents the **Claude transport** ([`law_ai.core.claude_code`](../backend/law_ai/core/claude_code.py)), which backs tiers 1–2 and is the fastest path for local dev because OAuth reuses your existing Claude Code subscription — but the chain, not that transport, is the subject. The other tiers have their own pages: xAI Grok in [ADR 0007](adr/0007-xai-runtime-provider.md) / [spec 050](../specs/050-xai-oauth-provider/spec.md), Ollama in [docs/local-ai.md](local-ai.md), which also covers pinning the runtime to Ollama-only when a matter requires it.

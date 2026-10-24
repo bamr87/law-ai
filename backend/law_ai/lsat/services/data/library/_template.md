@@ -60,8 +60,7 @@ Section headings use `##`; subheadings use `###`. A `#` heading is reserved for 
 ### Lists
 
 - A bullet list item.
-- A second item with **strong** text and a [[concept:conditional-reasoning]] reference.
-  A continuation line indented under the item joins it.
+- A second item with **strong** text and a [[concept:conditional-reasoning]] reference. A continuation line indented under the item joins it.
 
 1. An ordered list item.
 2. A second ordered item.

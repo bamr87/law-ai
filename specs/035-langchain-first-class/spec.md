@@ -14,7 +14,7 @@ Spec 034 made the Claude-first provider chain the product runtime, but the LangC
 - LangGraph is the **default analysis engine** (spec 027) and its Postgres checkpointer is provisioned in the container boot chain — yet `langchain-core`, `langchain-ollama`, and both checkpointer packages lived in the *optional* `local-ai` extra. The shipped container only worked because the Dockerfile happened to install the extra; a bare `pip install` produced a package whose default engine could not run.
 - The default engine's LLM was a duck-typed shim (`ChainRunnable`) — not a real LangChain `Runnable` — so LangGraph nodes ran outside LangChain's callback/tracing machinery and nothing else built on LangChain could use the chain.
 - The LangGraph checkpointer was **silently broken in the dev stack**: docker-compose overrides `DATABASE_URL` but the checkpointer reads `POSTGRES_URL`, so the host-oriented `.env` value (localhost) leaked into containers and boot-time schema setup logged a warning and skipped.
-- `AO-SDLC_Outline_Guide.md` was a generic v1 template that still asserted "Claude must never be the product runtime" — repealed by the spec-034 constitution amendment — and described aspirational mechanisms rather than the ones this repo enforces.
+- `AO-SDLC_Outline_Guide.md` (now `docs/ao-sdlc-guide.md`) was a generic v1 template that still asserted "Claude must never be the product runtime" — repealed by the spec-034 constitution amendment — and described aspirational mechanisms rather than the ones this repo enforces.
 - None of the Claude-tier runtime paths had been validated against the live Anthropic API over the operator's OAuth token.
 
 ## 2. Goals
@@ -46,7 +46,7 @@ Spec 034 made the Claude-first provider chain the product runtime, but the LangC
 - **FR-3**: `LegalWorkflow`'s default LLM factory returns `ChatProviderChain` (replacing the duck-typed shim).
 - **FR-4**: docker-compose sets `POSTGRES_URL` on the backend and worker services so the checkpointer reaches the compose Postgres regardless of `.env`.
 - **FR-5**: `validate_claude_code` and the run-agent commands report chain-era state (credentials per tier) instead of the repealed dev-gate fields.
-- **FR-6**: `AO-SDLC_Outline_Guide.md` v2.0 documents the implemented loop, governance, runtime chain, LangChain/LangGraph stack, autonomy mapping, gates, observability, and the validation playbook.
+- **FR-6**: `AO-SDLC_Outline_Guide.md` (now `docs/ao-sdlc-guide.md`) v2.0 documents the implemented loop, governance, runtime chain, LangChain/LangGraph stack, autonomy mapping, gates, observability, and the validation playbook.
 
 ## 6. Non-Functional Requirements
 

@@ -1,5 +1,7 @@
 # LSAT Knowledge Library
 
+> The LSAT knowledge library: where articles and the concept catalog live, the entry template and Markdown dialect, search, and the maintenance loop.
+
 The library is the LSAT module's **prose layer**: long-form, cross-linked study material on how the exam is built, what each section demands, how each recurring question family is solved, and how to pace and review. It sits beside the question bank, the solve guides and the writing prompts, and it is what a learner *studies* as opposed to what they *practise against*.
 
 Introduced by [specs/048-lsat-knowledge-library](../specs/048-lsat-knowledge-library/spec.md).
@@ -50,12 +52,9 @@ Articles are authored as Markdown because that is what a human reviews in a diff
 
 That single decision buys three things:
 
-- no Markdown dependency in either frontend (`lsat-static/` has three
-  dependencies in total, and it stays that way);
-- no `dangerouslySetInnerHTML` anywhere, so no sanitiser is needed
-  (`tests/test_lsat_site.py` asserts it);
-- one rendering contract, so a block type cannot ship to the platform app and
-  silently vanish from the offline site.
+- no Markdown dependency in either frontend (`lsat-static/` has three dependencies in total, and it stays that way);
+- no `dangerouslySetInnerHTML` anywhere, so no sanitiser is needed (`tests/test_lsat_site.py` asserts it);
+- one rendering contract, so a block type cannot ship to the platform app and silently vanish from the offline site.
 
 The dialect is **closed**. Anything the parser does not recognise is an error naming the file, never markup passed through to a client.
 
@@ -190,11 +189,8 @@ Each article appears once, under the first signal that named it, and `--limit` (
 
 ## Guardrails
 
-- **Original (CC0) only.** No real LSAT items, LSAC explanations, or commercial
-  preparation material — reproduced, quoted, or closely paraphrased.
-- **Study aid, not legal advice**, and no article may claim a score outcome.
-  `tests/lsat/test_library_corpus.py` asserts both.
+- **Original (CC0) only.** No real LSAT items, LSAC explanations, or commercial preparation material — reproduced, quoted, or closely paraphrased.
+- **Study aid, not legal advice**, and no article may claim a score outcome. `tests/lsat/test_library_corpus.py` asserts both.
 - **Structural claims cite a source.** An `orientation` or `section-guide`
 article without a reference fails the corpus test — the failure mode that matters is an agent confidently describing a format LSAC changed.
-- **Nothing an agent writes reaches a learner** without a human promoting a
-  specific proposal id.
+- **Nothing an agent writes reaches a learner** without a human promoting a specific proposal id.

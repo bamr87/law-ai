@@ -1,11 +1,14 @@
 # Law AI
+
+> The product requirements for Law AI — problem, users, goals, prioritized features, agent specifications, UX and the roadmap; open work is tracked in [BACKLOG.md](BACKLOG.md).
+
 ## Product Requirements Document (PRD)
 
 **Version:** 1.0  
 **Date:** April 29, 2026  
 **Status:** Draft for Review  
 **Owner:** Product Team (AI Legal Systems Initiative)  
-**Related:** [Technical Proposal](Law_AI_Proposal.md) | [Architecture](docs/architecture.md) | [Constitution](docs/constitution.md)
+**Related:** [Technical Proposal](docs/law-ai-proposal.md) | [Architecture](docs/architecture.md) | [Constitution](docs/constitution.md)
 
 ---
 

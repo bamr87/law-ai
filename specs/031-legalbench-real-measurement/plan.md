@@ -14,8 +14,7 @@ Each defect made the same category error: **conflating "no signal" with "a bad s
 (`parents[2]` = the backend dir). `loaders`, `report`, and `legalbench` all consume it; the CWD-relative literals are gone. Same bug class the TestSynthesizer fix hit in spec 026, so the same remedy.
 2. **Error accounting in `run_eval`** — per-item `error` field, `errored`
 and `scored` counts per subset, accuracy over `scored` (not `n`). All-items-failed raises `EvalInfrastructureError`; the CLI maps it to exit **2** so CI can distinguish it from exit 1 (regression).
-3. **Determinism** — `options: {temperature: 0, seed: 0}` on the Ollama
-   call. A 1 pp policy against sampled decoding measures noise.
+3. **Determinism** — `options: {temperature: 0, seed: 0}` on the Ollama call. A 1 pp policy against sampled decoding measures noise.
 4. **History + baseline** — `report._append_history` writes one JSONL row
 per run; `update_baseline()` writes `baseline.json` but refuses when any subset is synthetic; `check_regression()` applies the §3 1 pp tolerance. `_load_baseline` accepts three shapes (full report, `accuracies` envelope, bare mapping) so old files keep working.
 5. **Synthetic honesty** — `loaders.is_synthetic()`, a `synthetic` flag on

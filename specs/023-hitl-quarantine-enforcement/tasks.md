@@ -24,8 +24,7 @@
   2. Patch `scout.run_and_commit` with `mocker.patch`.
   3. Call `_node_dispatch` and capture `call_args`.
   4. Assert `call_kwargs["force_quarantine"] is True`.
-- **Verify**: Satisfied by existing `test_force_quarantine_passed_when_adapter_requires_approval`
-  (added under BL-20260511-30 / spec 020); asserts `kwargs["force_quarantine"] is True`.
+- **Verify**: Satisfied by existing `test_force_quarantine_passed_when_adapter_requires_approval` (added under BL-20260511-30 / spec 020); asserts `kwargs["force_quarantine"] is True`.
 
 ## T-002 — Add unit test: dispatch summary records committed=False when force_quarantine=True
 
@@ -48,8 +47,7 @@
 - **Files**:
   - `backend/tests/agents/graphs/test_topic_frontier.py`
 - **Steps**:
-  1. In `test_sets_human_approval_when_adapter_requires_it`, add:
-     `scout.run_and_commit.assert_called_once_with(ANY, force_quarantine=True)`.
+  1. In `test_sets_human_approval_when_adapter_requires_it`, add: `scout.run_and_commit.assert_called_once_with(ANY, force_quarantine=True)`.
   2. Change mock return to `{"committed": False, "pending": True}` (correct value).
 - **Verify**: existing test still passes with the new assertion added.
 
@@ -65,10 +63,7 @@
   2. Set `CELERY_TASK_ALWAYS_EAGER=True` via `settings` fixture.
   3. Create adapter stub with `requires_human_approval=True`, returning one `RawDoc`.
   4. Call `_node_dispatch` via `async_to_sync` (sync test body).
-  5. Assert the `PendingReview` row exists. **Correction**: scout's `OpinionExtractor`
-     hardcodes `source="courtlistener"` and stores the doc URL as the row PK, so the
-     lookup is `PendingReview.objects.filter(pk=raw_doc.source_url).exists()`, not
-     `filter(source=...)` as originally drafted in FR-4.
+  5. Assert the `PendingReview` row exists. **Correction**: scout's `OpinionExtractor` hardcodes `source="courtlistener"` and stores the doc URL as the row PK, so the lookup is `PendingReview.objects.filter(pk=raw_doc.source_url).exists()`, not `filter(source=...)` as originally drafted in FR-4.
   6. Assert dispatch summary entry has `committed=False`.
 - **Verify**: `docker compose run --rm backend pytest tests/agents/graphs/test_topic_frontier.py::test_requires_human_approval_produces_pending_review_row -m integration -v` passes.
 
@@ -78,8 +73,7 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**: none (gate only)
-- **Result**: `make test-backend` green (coverage 81.76% ≥ 75%); `make lint` exit 0
-  (ruff + black clean on the test file; 8 pre-existing frontend warnings, 0 errors).
+- **Result**: `make test-backend` green (coverage 81.76% ≥ 75%); `make lint` exit 0 (ruff + black clean on the test file; 8 pre-existing frontend warnings, 0 errors).
 - **Steps**:
   1. Run `make test-backend` — must exit 0.
   2. Run `make lint` — must exit 0.

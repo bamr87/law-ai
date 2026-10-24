@@ -19,5 +19,4 @@ Claude Code is a sanctioned dev-time surface for this repo (see [AGENTS.md](../A
 wildcards, so it never auto-approves command categories. If you want fewer prompts for `make`/`git`/`docker compose`, add your own `allow` rules via `/permissions` (they land in `.claude/settings.local.json`, which is gitignored).
 - **Hooks apply to future sessions.** Claude Code loads `.claude/settings.json` at session
 start; a session that begins before this file exists won't pick it up until reload (`/hooks`) or restart.
-- **Canonical guide precedence:** [AGENTS.md](../AGENTS.md) is the source of truth; the
-  commands here defer to [`prompts/`](../prompts); do not duplicate standards into this dir.
+- **Canonical guide precedence:** [AGENTS.md](../AGENTS.md) is the source of truth; the commands here defer to [`prompts/`](../prompts); do not duplicate standards into this dir.

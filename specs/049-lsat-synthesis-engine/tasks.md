@@ -20,12 +20,8 @@
 - **Status**: `[x]`
 - **Files**: `backend/law_ai/lsat/synth/logic.py` (new)
 - **Steps**:
-  1. Statement AST: propositional (`Atom`, `Not`, `And`, `Or`, `Implies`), monadic
-     (`All`, `No`, `Some`, `NotAll`, `Most`, `AtLeast`, `Exactly`), ordering (`Before`,
-     `Immediately`, `Adjacent`, `AtSlot`, `NotAtSlot`), grouping (`InGroup`, `SameGroup`,
-     `DiffGroup`, `GroupSize`).
-  2. `PropSpace`, `RegionSpace` (Venn-region count vectors), `OrderSpace`, `AssignSpace`,
-     each enumerating exhaustively and refusing to exceed a declared bound.
+  1. Statement AST: propositional (`Atom`, `Not`, `And`, `Or`, `Implies`), monadic (`All`, `No`, `Some`, `NotAll`, `Most`, `AtLeast`, `Exactly`), ordering (`Before`, `Immediately`, `Adjacent`, `AtSlot`, `NotAtSlot`), grouping (`InGroup`, `SameGroup`, `DiffGroup`, `GroupSize`).
+  2. `PropSpace`, `RegionSpace` (Venn-region count vectors), `OrderSpace`, `AssignSpace`, each enumerating exhaustively and refusing to exceed a declared bound.
   3. Document each space's bound and why it decides the forms the schemas use.
 - **Verify**: `docker compose run --rm backend pytest tests/lsat/test_synth_logic.py -q --no-cov`.
 
@@ -59,8 +55,7 @@ restrictive modifier), groups, ordering settings and entity names; validate on l
 - **Owner**: @bamr87
 - **Status**: `[x]`
 - **Files**: `backend/law_ai/lsat/synth/schemas.py` (new)
-- **Steps**: at least 12 schemas across the provable families, each declaring its space, premise builder,
-  credited answer, distractors, required per-choice status, archetype id, difficulty band and proof kind.
+- **Steps**: at least 12 schemas across the provable families, each declaring its space, premise builder, credited answer, distractors, required per-choice status, archetype id, difficulty band and proof kind.
 - **Verify**: `tests/lsat/test_synth_schemas.py`.
 
 ---
@@ -73,10 +68,8 @@ restrictive modifier), groups, ordering settings and entity names; validate on l
 - **Owner**: @bamr87
 - **Status**: `[x]`
 - **Files**: `backend/law_ai/lsat/synth/realize.py` (new)
-- **Steps**: formal item + domain pack → `Question` and a proof-derived `SolveGuide` with typed
-  representations; deterministic in `(schema, domain, seed)`.
-- **Verify**: `tests/lsat/test_synth_realize.py`, including a cross-domain word-disjointness case and
-  `validate_guide_quality` on every emitted guide.
+- **Steps**: formal item + domain pack → `Question` and a proof-derived `SolveGuide` with typed representations; deterministic in `(schema, domain, seed)`.
+- **Verify**: `tests/lsat/test_synth_realize.py`, including a cross-domain word-disjointness case and `validate_guide_quality` on every emitted guide.
 
 ## T-021 — Verification report and quality gates
 
@@ -84,8 +77,7 @@ restrictive modifier), groups, ordering settings and entity names; validate on l
 - **Owner**: @bamr87
 - **Status**: `[x]`
 - **Files**: `backend/law_ai/lsat/synth/verify.py` (new)
-- **Steps**: per-choice status, premise satisfiability, single-entailed-choice, no equivalent choices, no
-  duplicate surface, choice-length band, key-position spread across a batch.
+- **Steps**: per-choice status, premise satisfiability, single-entailed-choice, no equivalent choices, no duplicate surface, choice-length band, key-position spread across a batch.
 - **Verify**: `tests/lsat/test_synth_verify.py`, including a deliberately broken skeleton.
 
 ## T-022 — Generator orchestration
@@ -94,8 +86,7 @@ restrictive modifier), groups, ordering settings and entity names; validate on l
 - **Owner**: @bamr87
 - **Status**: `[x]`
 - **Files**: `backend/law_ai/lsat/synth/generate.py` (new)
-- **Steps**: `SynthItem` with full provenance; per-skeleton proof caching; batch generation with key-position
-  balancing; a `sweep` that reports every failure.
+- **Steps**: `SynthItem` with full provenance; per-skeleton proof caching; batch generation with key-position balancing; a `sweep` that reports every failure.
 - **Verify**: `tests/lsat/test_synth_generate.py`.
 
 ---
@@ -116,18 +107,15 @@ restrictive modifier), groups, ordering settings and entity names; validate on l
 - **Owner**: @bamr87
 - **Status**: `[x]`
 - **Files**: `backend/law_ai/lsat/factory/executors.py` (edit)
-- **Verify**: `tests/lsat/test_synth_executor.py` — a job is fulfilled with no network and its drafts reach
-  the HITL queue through the existing gates.
+- **Verify**: `tests/lsat/test_synth_executor.py` — a job is fulfilled with no network and its drafts reach the HITL queue through the existing gates.
 
 ## T-032 — The bounded direct-write exemption
 
 - **Refs**: FR-15, AC-8, AC-10
 - **Owner**: @bamr87
 - **Status**: `[x]`
-- **Files**: `backend/law_ai/lsat/synth/generate.py` (edit), `backend/law_ai/settings/base.py`,
-  `docs/lsat-synthesis.md` (new)
-- **Steps**: promotion re-runs verification itself; refuses structural proofs; refuses when the setting is
-  off; audits every success with the proof summary.
+- **Files**: `backend/law_ai/lsat/synth/generate.py` (edit), `backend/law_ai/settings/base.py`, `docs/lsat-synthesis.md` (new)
+- **Steps**: promotion re-runs verification itself; refuses structural proofs; refuses when the setting is off; audits every success with the proof summary.
 - **Verify**: `tests/lsat/test_synth_promote.py`; all four gates pass.
 
 ---
