@@ -92,7 +92,7 @@ All responses are JSON; no auth.
 ## 12. Risks & Open Questions
 
 - **R-1**: JSONL is not transactional. Concurrent writes could interleave bytes. Mitigation: use `open(..., "a", buffering=1)` and write `json.dumps(...) + "\n"` atomically per call (POSIX append is atomic for writes ≤ `PIPE_BUF`). Document the small-event constraint; revisit when events exceed 4 KB.
-- **R-2**: BACKLOG.md format drift could break the parser. Mitigation: parser uses the same regex as [scripts/backlog_lint.py](../../scripts/backlog_lint.py) so any drift is caught by the existing CI gate.
+- **R-2**: BACKLOG.md format drift could break the parser. Mitigation: parser uses the same regex as `scripts/backlog_lint.py` so any drift is caught by the existing CI gate.
 
 ## 13. Out of Scope / Follow-ups
 

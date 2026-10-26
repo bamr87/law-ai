@@ -1,6 +1,6 @@
 # Tasks: LSAT Item Synthesis Engine
 
-> Each task references one or more `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`. CI's [spec_validator.py](../../scripts/spec_validator.py) enforces that every requirement is referenced by at least one task.
+> Each task references one or more `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`. CI's `spec_validator.py` enforces that every requirement is referenced by at least one task.
 
 ## Conventions
 

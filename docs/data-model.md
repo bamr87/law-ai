@@ -258,7 +258,7 @@ Every autonomy cycle has always emitted paired `autonomy_cycle.start` / `autonom
 | Field                     | Type                    | Notes                                                                     |
 | ------------------------- | ----------------------- | ------------------------------------------------------------------------- |
 | `cycle_id`                | text, indexed           | The id shared with this run's provenance events — row and trail join on it |
-| `kind`                    | text, indexed           | `test_pillar` · `corpus_growth` · `digest` · `lsat_*` · …                   |
+| `kind`                    | text, indexed           | `corpus_growth` · `digest` · `lsat_*` · … (`test_pillar` rows predate ADR 0008)                   |
 | `source`                  | text                    | Adapter name for `corpus_growth`; blank otherwise                          |
 | `started_at` / `ended_at` | datetime                | `started_at` is indexed and is what the digest window filters on           |
 | `status`                  | `CharField(16)`         | `ok` · `error` · `disabled` · `replayed`                                    |

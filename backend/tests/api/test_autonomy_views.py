@@ -158,47 +158,6 @@ async def test_history_rejects_an_out_of_range_limit(client: AsyncClient) -> Non
 
 
 # ---------------------------------------------------------------------------
-# Lowest coverage
-# ---------------------------------------------------------------------------
-async def test_coverage_reports_absence_when_no_xml_exists(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(
-        "law_ai.eval.coverage_audit.load_coverage_report", lambda *a, **k: []
-    )
-    res = await client.get("/api/agents/autonomy/lowest-coverage")
-
-    assert res.status_code == 200
-    body = res.json()
-    assert body["available"] is False
-    assert body["modules"] == []
-    assert body["warn_threshold"] == 75.0
-
-
-async def test_coverage_returns_the_five_worst_modules_ascending(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from law_ai.eval.coverage_audit import CoverageRecord
-
-    records = [
-        CoverageRecord(pct=float(p), module=f"law_ai/m{i}.py", missing_lines=[1, 2])
-        for i, p in enumerate([10, 40, 62, 70, 74, 80, 90])
-    ]
-    monkeypatch.setattr(
-        "law_ai.eval.coverage_audit.load_coverage_report", lambda *a, **k: records
-    )
-
-    res = await client.get("/api/agents/autonomy/lowest-coverage")
-    body = res.json()
-
-    assert body["available"] is True
-    assert body["count"] == 5
-    assert [m["pct"] for m in body["modules"]] == [10.0, 40.0, 62.0, 70.0, 74.0]
-    assert body["modules"][0]["severity"] == "high"
-    assert body["modules"][-1]["severity"] == "med"
-
-
-# ---------------------------------------------------------------------------
 # Recent quarantine
 # ---------------------------------------------------------------------------
 async def test_quarantine_reports_absence_when_the_db_is_down(
@@ -269,7 +228,6 @@ async def test_quarantine_returns_the_ten_newest(
     "endpoint",
     [
         "/api/agents/autonomy/legalbench-history",
-        "/api/agents/autonomy/lowest-coverage",
         "/api/agents/autonomy/recent-quarantine",
         "/api/agents/autonomy/runs",
     ],

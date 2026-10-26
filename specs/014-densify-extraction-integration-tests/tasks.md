@@ -1,7 +1,7 @@
 # Tasks: Docker-Backed Integration Tests for `densify_extraction`
 
 > Each task references one or more `FR-*` / `NFR-*` / `AC-*` IDs from
-> [spec.md](spec.md). CI's [scripts/spec_validator.py](../../scripts/spec_validator.py)
+> [spec.md](spec.md). CI's `scripts/spec_validator.py`
 > enforces that every requirement is referenced by at least one task.
 
 ## Conventions
@@ -93,8 +93,8 @@
 ## Follow-ups Discovered
 
 > Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a
-> `BL-YYYYMMDD-NN` id. CI ([scripts/spec_validator.py](../../scripts/spec_validator.py))
-> checks this section exists. CI ([scripts/backlog_lint.py](../../scripts/backlog_lint.py))
+> `BL-YYYYMMDD-NN` id. CI (`scripts/spec_validator.py`)
+> checks this section exists. CI (`scripts/backlog_lint.py`)
 > checks the BACKLOG mirror.
 
 - **BL-20260526-01** — *test-gap, low* — Add a mutation variant test seeding two cases with overlapping aliases to assert `head(collect(c.id))` determinism matches BL-20260429-12 (spec-002 follow-up). _Surfaced in:_ specs/014-densify-extraction-integration-tests.

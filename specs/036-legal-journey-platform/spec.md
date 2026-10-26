@@ -4,7 +4,7 @@
 - **Status**: planned
 - **Owner**: @bamr87
 - **Created**: 2026-08-17
-- **Roadmap Epic**: whole-legal-journey platform (user directive 2026-08-17; [PRD](../../PRD.md) §5 Phase 2 "user workspaces, project folders", §8.1 Dashboard/Library)
+- **Roadmap Epic**: whole-legal-journey platform (user directive 2026-08-17; [PRD](../../docs/prd.md) §5 Phase 2 "user workspaces, project folders", §8.1 Dashboard/Library)
 - **Constitution Compliance**: confirmed against [docs/constitution.md](../../docs/constitution.md) — no amendment required; §1 (local-first reachable, no third vendor), §4 (provenance, soft-delete), §5 (HITL on new agent output paths), §13 (power-aware outputs) each addressed below
 
 ## 1. Problem & Motivation
@@ -19,7 +19,7 @@ The goal set for this epic — *a platform that facilitates the whole legal jour
 
 ## 2. Origin & Background
 
-**Origin.** User directive (2026-08-17): "build a platform that can facilitate the whole legal journey." Roadmap anchors: [PRD](../../PRD.md) §5 Phase 2 (workspaces, project folders, export), §8.1 (Dashboard, Library, persistent tabs per matter); [Law_AI_Proposal](../../Law_AI_Proposal.md) collaboration layer.
+**Origin.** User directive (2026-08-17): "build a platform that can facilitate the whole legal journey." Roadmap anchors: [PRD](../../docs/prd.md) §5 Phase 2 (workspaces, project folders, export), §8.1 (Dashboard, Library, persistent tabs per matter); [Law_AI_Proposal](../../docs/history/2026-04-proposal.md) collaboration layer.
 
 **Backlog items claimed by this spec** (moved to `## Claimed` in [BACKLOG.md](../../BACKLOG.md)):
 

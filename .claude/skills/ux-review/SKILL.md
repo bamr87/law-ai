@@ -9,7 +9,7 @@ A pass ends in **one merged improvement**, never a list of complaints. If you fi
 
 ## Ground rules
 
-- Docker-first. Every test/lint/typecheck runs through `make` ([CLAUDE.md](../../../CLAUDE.md)). The three host-stdlib gates (`scripts/ux_audit.py`, `scripts/spec_validator.py`, `scripts/backlog_lint.py`) are the only exceptions.
+- Docker-first. Every test/lint/typecheck runs through `make` ([CLAUDE.md](../../../CLAUDE.md)). The host-stdlib gates (`scripts/ux_audit.py`, and the fleet's spec validator + backlog lint that `make lint-specs` runs through `tools/fleet-kit.sh`) are the only exceptions.
 - Presentation, not product. Changing what the app claims about legal authority, weakening a UPL disclaimer, HITL gate, or provenance surface, adding a runtime npm dependency, or redesigning a feature's information model are **stop conditions** — surface them to a human instead.
 - No new dependencies. The shell is first-party on purpose (spec 039 ADR 0006).
 
@@ -42,7 +42,7 @@ Report the scores as a short table before you touch code.
 
 Take the lowest dimension; break ties by safety (D8) first, then first-run path, then blast radius. Scope it so it lands in one reviewable diff.
 
-- Non-trivial → run the AO-SDLC chain (`/specify → /clarify → /plan → /tasks → /implement`) and write the spec package under `specs/NNN-slug/`.
+- Non-trivial → run the fleet's spec-driven chain (`/spec-driven:specify → :clarify → :plan → :tasks → :implement`, the plugin enabled in `.claude/settings.json`) and write the spec package under `specs/NNN-slug/`.
 - One-file fix → skip the spec package, keep every gate.
 
 Compose the existing primitives rather than adding new ones: `PageLayout`, `StickyToolbar`, `Drawer`, `useShellScroll`, `.shell-scroll`, `.shell-panel-scroll`, `.focus-ring`, the `--z-*` scale. Register new destinations in `frontend/lib/modules/catalog.ts` — never teach `AppShell.tsx` about a route.
@@ -61,7 +61,7 @@ This is the step that makes the loop converge instead of cycling. If the fix cou
 make lint && make typecheck && make test && make lint-specs
 ```
 
-Then, per constitution §11: populate `## Follow-ups Discovered` in the spec's `tasks.md`, mirror each item into [BACKLOG.md](../../../BACKLOG.md) as `BL-YYYYMMDD-NN` (`python3 scripts/next_backlog_id.py` for the next id), copy those bullets into the PR body, append a row to the pass log, and update [docs/ui-ux.md](../../../docs/ui-ux.md) if the UI changed (constitution §9).
+Then, per constitution §11: populate `## Follow-ups Discovered` in the spec's `tasks.md`, mirror each item into [BACKLOG.md](../../../BACKLOG.md) as `BL-YYYYMMDD-NN` (`python3 "$(tools/fleet-kit.sh)/tools/next_backlog_id.py" --root .` for the next id), copy those bullets into the PR body, append a row to the pass log, and update [docs/ui-ux.md](../../../docs/ui-ux.md) if the UI changed (constitution §9).
 
 ## Running it on a loop
 

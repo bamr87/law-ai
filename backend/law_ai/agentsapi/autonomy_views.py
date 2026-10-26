@@ -1,12 +1,12 @@
 """Read-only autonomy panels for the operator dashboard (BL-20260511-03).
 
-Four questions an operator asks about a self-driving repo, none of which had
-an answer outside a container shell before this module:
+Three questions an operator asks about a self-driving repo, none of which had
+an answer outside a container shell before this module (the fourth, "where is
+the code thinnest?", left with the test pillar on 2026-10-26 — ADR 0008 — the
+repo's own coverage is the fleet hub's concern, not a product surface):
 
 * **Is the benchmark moving?** — ``/api/agents/autonomy/legalbench-history``
   reads the append-only ``history.jsonl`` the eval harness writes.
-* **Where is the code thinnest?** — ``/api/agents/autonomy/lowest-coverage``
-  ranks ``coverage.xml`` ascending and returns the worst five.
 * **What is waiting on a human?** — ``/api/agents/autonomy/recent-quarantine``
   returns the ten newest ``PendingReview`` rows.
 * **Did the loop actually run?** — ``/api/agents/autonomy/runs`` returns the
@@ -15,9 +15,9 @@ an answer outside a container shell before this module:
 Every view is **read-only**: no LLM call, no graph write, no cycle trigger.
 They sit behind the same ``RequireAgent`` gate as the rest of ``/api/agents/*``.
 
-Absence is reported, never crashed (constitution §4). ``history.jsonl`` and
-``coverage.xml`` are CI/container artifacts that legitimately do not exist on
-a fresh checkout, and Postgres may be down; each view then returns its normal
+Absence is reported, never crashed (constitution §4). ``history.jsonl`` is a
+CI/container artifact that legitimately does not exist on a fresh checkout,
+and Postgres may be down; each view then returns its normal
 envelope with an empty list and an ``available: false`` flag so the UI can say
 "no data yet" instead of rendering a 500.
 """
@@ -80,7 +80,6 @@ def _parse_limit(raw: str | None, *, default: int, lo: int, hi: int) -> int:
 #: Panel sizes named by the backlog item: a sparkline, a top-5, a last-10.
 HISTORY_DEFAULT = 20
 HISTORY_MAX = 200
-COVERAGE_LIMIT = 5
 QUARANTINE_LIMIT = 10
 #: Cycles per page for the runs panel (BL-20260906-23). Bounded like the
 #: history panel: this reads a table an operator can grow without limit.
@@ -187,42 +186,6 @@ class AutonomyLegalbenchHistoryView(_Base):
         )
 
 
-class AutonomyCoverageView(_Base):
-    """The five thinnest-tested modules — the autonomy test pillar's targets."""
-
-    def get(self, request, *args, **kwargs):  # type: ignore[no-untyped-def]
-        from law_ai.eval.coverage_audit import (
-            COVERAGE_ERROR_THRESHOLD,
-            COVERAGE_WARN_THRESHOLD,
-            load_coverage_report,
-        )
-
-        try:
-            records = load_coverage_report()
-        except Exception as exc:  # pragma: no cover - parser already degrades
-            logger.warning("coverage report unreadable: %s", exc)
-            records = []
-
-        modules = [
-            {
-                "module": rec.module,
-                "pct": round(rec.pct, 2),
-                "severity": rec.severity,
-                "missing_lines": rec.missing_lines[:20],
-            }
-            for rec in records[:COVERAGE_LIMIT]
-        ]
-        return Response(
-            {
-                "available": bool(records),
-                "modules": modules,
-                "count": len(modules),
-                "warn_threshold": COVERAGE_WARN_THRESHOLD,
-                "error_threshold": COVERAGE_ERROR_THRESHOLD,
-            }
-        )
-
-
 class AutonomyRunsView(_Base):
     """The last N autonomy cycles: kind, status, duration (BL-20260906-23).
 
@@ -325,11 +288,6 @@ urlpatterns = [
         "autonomy/legalbench-history",
         AutonomyLegalbenchHistoryView.as_view(),
         name="agents-autonomy-legalbench-history",
-    ),
-    path(
-        "autonomy/lowest-coverage",
-        AutonomyCoverageView.as_view(),
-        name="agents-autonomy-lowest-coverage",
     ),
     path(
         "autonomy/runs",

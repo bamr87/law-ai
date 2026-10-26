@@ -2,7 +2,7 @@
 
 > **Superseded (2026-09-05, BL-20260716-11).** Tasks T-002…T-005 below built the buildless `frontend/public/lsat-practice/` files, which no longer exist; the exporter and drift-gate tasks still describe live code. Current architecture: [docs/lsat-static.md](../../docs/lsat-static.md). Kept as the historical record — the `[x]` markers record what was done in 2026-07, not what exists today.
 
-> Each task references `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`; [spec_validator.py](../../scripts/spec_validator.py) enforces full coverage.
+> Each task references `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`; `spec_validator.py` enforces full coverage.
 
 ## Conventions
 

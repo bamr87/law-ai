@@ -62,14 +62,6 @@ curl http://localhost:8000/api/agents/specs
 # Returns [{id, status}, ...] parsed from each specs/NNN-slug/spec.md's "## Status" line
 ```
 
-### Proposed tests awaiting review
-```bash
-curl http://localhost:8000/api/agents/proposed-tests
-# Returns {count, files: [{name, path, module, size, mtime, skip_marked}], available}
-```
-
-Read-only, and the directory it lists is fixed (`backend/tests/autonomy/proposed/`) — no path parameter is accepted, because a caller-supplied one would turn this into an arbitrary-file-listing primitive. `available` is `false` when the directory does not exist yet. Nothing here promotes, un-skips, edits or deletes a proposal: the autonomy loop drafts, a human moves the file in a PR (BL-20260511-17, constitution I1/I5).
-
 ### Local AI health
 ```bash
 curl http://localhost:8000/api/agents/health/local-ai

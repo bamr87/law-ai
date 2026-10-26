@@ -1,6 +1,6 @@
 # Tasks: Composite-widget keyboard accessibility
 
-> Each task references `FR-*` / `NFR-*` / `AC-*` IDs from [spec.md](spec.md). CI's [spec_validator.py](../../scripts/spec_validator.py) enforces that every requirement is referenced by at least one task.
+> Each task references `FR-*` / `NFR-*` / `AC-*` IDs from [spec.md](spec.md). CI's `spec_validator.py` enforces that every requirement is referenced by at least one task.
 
 ## Conventions
 

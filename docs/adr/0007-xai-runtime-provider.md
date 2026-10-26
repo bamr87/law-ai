@@ -7,7 +7,7 @@
 
 ## Context
 
-[ADR 0005](0005-claude-default-runtime.md) replaced the Ollama-only runtime with an ordered provider chain and, in the same breath, closed the door behind it: "Only Anthropic and Ollama are sanctioned; adding OpenAI, Gemini, or any other provider needs a further amendment to §1." That clause was restated verbatim in [CLAUDE.md](../../CLAUDE.md), [AGENTS.md](../../AGENTS.md), [AO-SDLC_Outline_Guide.md](../../AO-SDLC_Outline_Guide.md), and the `constitution-reviewer` agent, which was instructed to reject any spec adding a third vendor.
+[ADR 0005](0005-claude-default-runtime.md) replaced the Ollama-only runtime with an ordered provider chain and, in the same breath, closed the door behind it: "Only Anthropic and Ollama are sanctioned; adding OpenAI, Gemini, or any other provider needs a further amendment to §1." That clause was restated verbatim in [CLAUDE.md](../../CLAUDE.md), [AGENTS.md](../../AGENTS.md), [AO-SDLC_Outline_Guide.md](../spec-driven.md), and the `constitution-reviewer` agent, which was instructed to reject any spec adding a third vendor.
 
 The owner asked to wire xAI into the runtime. A repo-wide search confirmed **no xAI wiring exists** — the only `xai`/`grok` strings in the tree are two lines of document history recording that an early version of the AO-SDLC guide was drafted with Grok. So this is a policy question before it is an engineering one, and §1 named its own amendment as the way through. This ADR is that amendment.
 

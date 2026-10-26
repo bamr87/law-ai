@@ -4,7 +4,7 @@ The ratchet is what let CI drop ``continue-on-error`` from ``mypy law_ai
 --strict``: it is the only thing standing between "the strict count may not
 grow" and a silently-rotting gate. It has to be tested somewhere, and it cannot
 be tested in the backend suite — it is a host stdlib script, like
-``spec_validator.py`` and ``backlog_lint.py``, so it lives here with the rest of
+``ux_audit.py`` and the fleet's spec gate, so it lives here with the rest of
 the repo-wide checks.
 
 Stdlib + pytest only, per ``tests/conftest.py``: nothing here imports Django,

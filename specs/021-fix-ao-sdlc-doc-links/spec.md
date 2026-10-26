@@ -11,7 +11,7 @@
 
 Two coupled defects were found while running `/evolve`:
 
-1. **The evolution gate is RED.** `scripts/backlog_lint.py` fails with `duplicate id BL-20260511-01`: the id is used twice in [BACKLOG.md](../../BACKLOG.md) — once for the canonical spec-017 follow-up (line 109, *infra*, Cypher migration runner) and once for an orphaned auto-discovered *doc-gap* (line 27). Because [/evolve](../../prompts/evolve.md) step 5 requires `backlog_lint` to exit 0, **no evolution cycle can pass its gates until this is fixed.**
+1. **The evolution gate is RED.** `scripts/backlog_lint.py` fails with `duplicate id BL-20260511-01`: the id is used twice in [BACKLOG.md](../../BACKLOG.md) — once for the canonical spec-017 follow-up (line 109, *infra*, Cypher migration runner) and once for an orphaned auto-discovered *doc-gap* (line 27). Because `/spec-driven:evolve` step 5 requires `backlog_lint` to exit 0, **no evolution cycle can pass its gates until this is fixed.**
 
 2. **The orphan flags a real cross-platform bug.** That doc-gap reads "Author missing doc `docs/AO-SDLC.md`. Referenced by AGENTS.md but file does not exist." The file *does* exist — as lowercase `docs/ao-sdlc.md` — so the item is a false "missing doc". The true defect is **case-mismatched links**: governing docs link to `docs/AO-SDLC.md` / `docs/AO-SDLC-guide.md` (uppercase) while the files are lowercase. These resolve on case-insensitive filesystems (macOS dev) but **404 on case-sensitive ones (Linux / CI / Docker / GitHub's rendered Markdown)**. A repo-wide scan finds exactly **7** such case-only mismatches, all AO-SDLC.
 

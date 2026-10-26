@@ -20,6 +20,7 @@ ADRs are the canonical place to record decisions that **deviate from or amend** 
 | 0005  | [Claude-default LLM provider chain](0005-claude-default-runtime.md) | accepted | §1 (product-runtime LLM policy) |
 | 0006  | [First-party design system](0006-first-party-design-system.md) | proposed | §2 (drop shadcn/ui lock), §9 (docs/ui-ux.md) |
 | 0007  | [xAI as a sanctioned runtime provider](0007-xai-runtime-provider.md) | accepted | §1 (product-runtime LLM policy — vendor closure), §2 (tech stack) |
+| 0008  | [Retire the test pillar](0008-retire-test-pillar.md) | accepted | §12 (I5 retired); amends 0003 (Pillar A removed) |
 
 `0002` was never assigned an ADR; the sequence intentionally jumps 0001 → 0003 rather than renumbering later entries.
 

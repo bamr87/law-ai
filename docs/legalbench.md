@@ -132,7 +132,7 @@ The LegalBench **dataset** is released under [CC BY 4.0](https://creativecommons
 3. **Block-on-regression:** the gated run (`make test-legalbench-gate`, i.e. `--check-regression`) fails if any tracked subset regresses by more than 1 pp against `baseline.json`.
 4. Improvements ≥ 1 pp on any subset must be accompanied by an updated baseline entry in this file.
 
-**When this actually runs:** the scored, gated run above does not fire on every PR — it runs weekly via the `legalbench` step in [nightly-tests.yml](../.github/workflows/nightly-tests.yml) (cadence was cut from daily after runner disk exhaustion). The `legalbench` job in [ci.yml](../.github/workflows/ci.yml) only runs on PRs labelled `reasoning-change`, and only verifies the harness itself (`pytest tests/eval` — paths, scoring, regression-gate logic), not a live scored run; PR runners cannot host the multi-GB Ollama model the harness requires. See [docs/ao-sdlc.md](ao-sdlc.md) for the full CI/nightly gate sequencing — that doc is canonical for *when* this gate fires, this section is canonical for *what* it checks and how to run it yourself.
+**When this actually runs:** the scored, gated run above does not fire on every PR — it runs weekly via the `legalbench` step in [nightly-tests.yml](../.github/workflows/nightly-tests.yml) (cadence was cut from daily after runner disk exhaustion). The `legalbench` job in [ci.yml](../.github/workflows/ci.yml) only runs on PRs labelled `reasoning-change`, and only verifies the harness itself (`pytest tests/eval` — paths, scoring, regression-gate logic), not a live scored run; PR runners cannot host the multi-GB Ollama model the harness requires. See [docs/ao-sdlc.md](spec-driven.md) for the full CI/nightly gate sequencing — that doc is canonical for *when* this gate fires, this section is canonical for *what* it checks and how to run it yourself.
 
 ## Adding a new subset
 
@@ -164,5 +164,5 @@ The backlog item that asked for this loop named `LegalAnalyst` as the predictor.
 
 - [docs/agent-roles.md](agent-roles.md) — which agents the subsets exercise.
 - [docs/local-ai.md](local-ai.md) — the local Ollama + Phoenix substrate; Phoenix traces LangGraph/CrewAI agent calls, not LegalBench runs (see above).
-- [docs/ao-sdlc.md](ao-sdlc.md) — when the LegalBench gate fires in CI vs. nightly.
+- [docs/spec-driven.md](spec-driven.md) — the gates around the loop, including when the LegalBench gate fires in CI vs. nightly.
 - [docs/constitution.md](constitution.md) §1 (Ollama pinning for the harness), §3, §6 (quality and testing gates).
