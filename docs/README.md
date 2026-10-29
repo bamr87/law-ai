@@ -47,6 +47,7 @@
 | [`docs/ui-ux-review.md`](ui-ux-review.md) | The repeatable UI/UX review pass — the rubric, what counts as visual evidence, and the mechanical `ux_audit.py` contract each fix is promoted into. |
 | [`docs/ui-ux.md`](ui-ux.md) | Every user-facing surface, what actually ships versus what docs once claimed, the token and component inventory, and the design-system contract new UI follows. |
 | [`docs/adr/`](adr/README.md) | The index and format of Law AI's Architecture Decision Records — the decisions that amend or deviate from the constitution. |
+| [`docs/amendments/`](amendments/README.md) | The append-only log of changes to [the constitution](constitution.md), one numbered record per amendment. |
 
 ### `docs/reference/`
 
