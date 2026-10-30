@@ -87,7 +87,7 @@ class TestRunRowLifecycle:
             raise RuntimeError("boom")
 
         with pytest.raises(RuntimeError, match="boom"):
-            autonomy.run_cycle("test_pillar", boom)
+            autonomy.run_cycle("digest", boom)
 
         row = AutonomyRun.objects.order_by("-started_at").first()
         assert row is not None
@@ -102,7 +102,7 @@ class TestRunRowLifecycle:
         from law_ai.audit.models import AutonomyRun
 
         monkeypatch.setattr(settings, "AUTONOMY_ENABLED", False)
-        result = autonomy.run_cycle("test_pillar", lambda _: "should-not-run")
+        result = autonomy.run_cycle("digest", lambda _: "should-not-run")
 
         row = AutonomyRun.objects.get(cycle_id=result["cycle_id"])
         assert row.status == "disabled"
@@ -134,7 +134,7 @@ class TestBestEffortWrites:
     ) -> None:
         monkeypatch.setattr(settings, "AUTONOMY_ENABLED", True)
 
-        result = autonomy.run_cycle("test_pillar", lambda _: {"ok": True})
+        result = autonomy.run_cycle("digest", lambda _: {"ok": True})
 
         assert result["status"] == "ok"
         assert result["result"] == {"ok": True}
@@ -197,7 +197,7 @@ class TestDigestReadsTheTable:
         # Outside the [yesterday 00:00, today 00:00) window.
         AutonomyRun.objects.create(
             cycle_id="cid-out",
-            kind="test_pillar",
+            kind="lsat_content",
             started_at=anchor,
             status="ok",
             duration_ms=1.0,

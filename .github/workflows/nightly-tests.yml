@@ -2,8 +2,8 @@ name: Nightly Tests & Autonomy
 
 # Runs weekly on Monday at 06:00 UTC.  Also triggerable manually with an
 # optional `dry_run` flag that skips the expensive Docker steps (coverage,
-# LegalBench, synthesis) while still validating spec/backlog gates and
-# opening the PR.
+# LegalBench, the live-model slice) while still validating spec/backlog gates
+# and opening the PR.
 #
 # NOTE: cadence was reduced from daily to weekly after 37/37 scheduled runs
 # failed on hosted-runner disk exhaustion (0 MB free during `docker compose
@@ -21,7 +21,7 @@ on:
     inputs:
       dry_run:
         description: >
-          Skip expensive steps (coverage, LegalBench, synthesis).
+          Skip expensive steps (coverage, LegalBench, the live-model slice).
           Spec/backlog gates + PR plumbing still run so you can test the workflow.
         type: boolean
         default: false
@@ -277,144 +277,49 @@ jobs:
           retention-days: 14
 
       # ------------------------------------------------------------------
-      # Spec / BACKLOG validators (host stdlib only — no container needed).
+      # Spec / BACKLOG validators — the hub's spec-driven kit, resolved by
+      # tools/fleet-kit.sh (a cached sparse clone of bamr87/bamr87 on the
+      # runner; a parent hub checkout on a laptop). Host stdlib only, no
+      # container. CI's PR-time gate is the same kit through the reusable
+      # spec-gate.yml; the `backlog-triage` job below is its stale report.
       # ------------------------------------------------------------------
+      - name: Resolve the fleet's spec-driven kit
+        id: kit
+        run: echo "dir=$(tools/fleet-kit.sh)" >> "$GITHUB_OUTPUT"
+
       - name: Validate spec & backlog gates
-        run: |
-          python3 scripts/spec_validator.py
-          python3 scripts/backlog_lint.py
-
-      # ------------------------------------------------------------------
-      # Governance triage issue (BL-20260503-14) — the hosted half.
-      #
-      # The item asked for a Celery beat job, and there is one:
-      # `governance-triage` in backend/law_ai/celery.py runs BOTH validators
-      # through law_ai.core.governance and files the same issue when
-      # GOVERNANCE_TRIAGE_GITHUB_* are configured. This step is the copy that
-      # runs where a token already exists, for deployments that run no worker
-      # at all (and for this repo, which does not). Both write the same title
-      # under the same label and comment rather than duplicate, so running
-      # both is idempotent rather than noisy.
-      #
-      # Overlap with BL-20260429-09, recorded rather than left implicit: the
-      # monthly LLM line (.github/workflows/factory--backlog-triage.yml) reads
-      # the backlog and *proposes new work* — it is generative and costs a
-      # model call. This weekly step is mechanical: it runs the two stdlib
-      # validators and reports what they said. They are not duplicates; see
-      # docs/ao-sdlc.md § "Two backlog triage lines".
-      #
-      # Neither script can redden the run: --stale-report always exits 0, and
-      # the spec validator's exit code is captured rather than propagated
-      # (the gate step above is what fails a bad spec). The gh calls are
-      # explicitly tolerated too — GitHub being briefly unavailable must not
-      # fail a nightly whose tests all passed.
-      # ------------------------------------------------------------------
-      - name: Open a governance triage issue when a validator has something to say
-        if: ${{ github.event_name == 'schedule' && !cancelled() }}
-        continue-on-error: true
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TITLE: "backlog: stale open items need triage"
+          KIT: ${{ steps.kit.outputs.dir }}
         run: |
-          set +e
-          python3 scripts/backlog_lint.py --stale-report --stale-days 60 \
-            > stale.md
-          python3 scripts/spec_validator.py > specs.md 2>&1
-          spec_status=$?
-          set -e
+          python3 "$KIT/tools/spec_validator.py" --root . --strict
+          python3 "$KIT/tools/backlog_lint.py" --root .
 
-          stale=1
-          grep -q '^No ## Open items older than' stale.md && stale=0
-
-          if [ "$stale" -eq 0 ] && [ "$spec_status" -eq 0 ]; then
-            echo "Backlog is triaged and specs are consistent; no issue needed."
-            exit 0
-          fi
-
-          {
-            cat stale.md
-            echo
-            echo "## Spec consistency (scripts/spec_validator.py)"
-            echo
-            if [ "$spec_status" -eq 0 ]; then
-              echo "Clean."
-            else
-              echo '```'
-              cat specs.md
-              echo '```'
-            fi
-          } > triage.md
-
-          # Deliberately NOT `gh issue list --search`: the title contains a
-          # colon, which GitHub search reads as a qualifier, so the lookup
-          # misses and every run opens another issue. Filter by label and
-          # match the title locally instead.
-          existing=$(gh issue list --state open --label backlog-triage \
-            --json number,title \
-            --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty") || existing=""
-          if [ -n "$existing" ]; then
-            echo "Updating existing issue #$existing"
-            gh issue comment "$existing" --body-file triage.md || true
-          else
-            gh label create backlog-triage \
-              --description "Spec/backlog drift flagged by the nightly run" \
-              --color ededed 2>/dev/null || true
-            gh issue create --title "$TITLE" --label backlog-triage \
-              --body-file triage.md || true
-          fi
+      # The weekly stale-backlog triage issue (BL-20260503-14) is the
+      # `backlog-triage` job at the bottom of this workflow: the hub's reusable
+      # spec gate with `stale-report` + `file-issue`, replacing both the
+      # hand-rolled step that lived here and the `governance-triage` Celery
+      # beat job the backend used to run over a bind-mounted repo.
 
       # ------------------------------------------------------------------
-      # Discovery audit — reads backend/coverage.xml + var/legalbench/.
-      # Appends new BL-* entries to BACKLOG.md when regressions are found.
+      # Discovery audit — the kit's evolve_audit.py (TODO/FIXME scan, docs
+      # AGENTS.md names that are missing, a coverage shortfall read from
+      # backend/coverage.xml). Appends new BL-* entries to BACKLOG.md; the
+      # draft PR below carries them. A LegalBench regression no longer
+      # routes through here: `make test-legalbench-gate` above already fails
+      # the run on a >1 pp drop (spec 031).
       # ------------------------------------------------------------------
       - name: Run discovery audit
         id: audit
+        env:
+          KIT: ${{ steps.kit.outputs.dir }}
         run: |
-          python3 scripts/evolve_audit.py | tee audit.out
-          # Detect a LegalBench severity:high item in this run's output.
-          if grep -qE '\*, high\*' audit.out; then
-            echo "regression=true"  >> "$GITHUB_OUTPUT"
-          else
-            echo "regression=false" >> "$GITHUB_OUTPUT"
-          fi
+          python3 "$KIT/tools/evolve_audit.py" --root . --coverage-xml backend/coverage.xml | tee audit.out
           # Track whether BACKLOG.md was modified so we can include it in the PR.
           if git diff --quiet BACKLOG.md; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true"  >> "$GITHUB_OUTPUT"
           fi
-
-      # Fail the workflow when a LegalBench regression is detected (constitution §8).
-      - name: Fail on LegalBench severity:high regression
-        if: steps.audit.outputs.regression == 'true'
-        run: |
-          echo "::error::evolve_audit detected a LegalBench severity:high regression — see audit.out artifact"
-          cat audit.out
-          exit 1
-
-      # ------------------------------------------------------------------
-      # Autonomy — synthesise proposed test files for lowest-coverage modules.
-      # Uses make autonomy-run KIND=test_pillar (RUN_BACKEND_FULL → needs infra).
-      # ------------------------------------------------------------------
-      - name: Run autonomy test synthesis
-        if: ${{ !inputs.dry_run }}
-        # AUTONOMY_ENABLED must be set explicitly here: compose defaults it to
-        # False (constitution §12 I3 kill-switch), so without this env the
-        # synthesis step was a silent no-op on every scheduled run.
-        # test_pillar needs no source allow-list (that gates corpus_growth).
-        env:
-          AUTONOMY_ENABLED: "True"
-        run: make autonomy-run KIND=test_pillar
-
-      # ------------------------------------------------------------------
-      # Inventory proposed test files added by the synthesis step.
-      # ------------------------------------------------------------------
-      - name: Count proposed test files
-        id: proposed
-        run: |
-          count=$(find backend/tests/autonomy/proposed -name "*.proposed.py" 2>/dev/null | wc -l | tr -d ' ')
-          echo "count=$count" >> "$GITHUB_OUTPUT"
-          echo "Proposed test files: $count"
 
       # ------------------------------------------------------------------
       # Compose the autonomy digest for THIS run (BL-20260511-19).
@@ -458,7 +363,6 @@ jobs:
             cat audit.out 2>/dev/null || echo "(no audit output)"
             echo '```'
             echo ""
-            echo "Proposed test files: ${{ steps.proposed.outputs.count }}"
           } >> "$GITHUB_STEP_SUMMARY" || true
 
       # ------------------------------------------------------------------
@@ -524,43 +428,55 @@ jobs:
           if-no-files-found: ignore
 
       # ------------------------------------------------------------------
-      # Open a draft PR when there are new proposed test files or BACKLOG
-      # updates.  All proposed tests carry @pytest.mark.skip so nothing
-      # breaks until a human reviews and promotes them.
+      # Open a draft PR when the discovery audit appended BACKLOG entries.
+      # (Proposed test files rode this PR until the test pillar was retired
+      # on 2026-10-26, ADR 0008.)
       #
       # `!env.ACT` keeps `make nightly-dry-run` (nektos/act, which sets
       # ACT=true) from pushing a branch to the real repo while an engineer is
       # smoke-testing the workflow locally — BL-20260511-18.
       # ------------------------------------------------------------------
       - name: Open draft PR
-        if: >-
-          !env.ACT &&
-          (steps.audit.outputs.changed == 'true' ||
-           steps.proposed.outputs.count != '0')
+        if: ${{ !env.ACT && steps.audit.outputs.changed == 'true' }}
         uses: peter-evans/create-pull-request@v8
         with:
           branch: nightly/auto-${{ github.run_id }}
-          title: "chore(nightly): proposed tests + BACKLOG audit"
+          title: "chore(nightly): BACKLOG audit"
           draft: true
-          commit-message: "chore(nightly): proposed tests + BACKLOG updates from nightly run"
+          commit-message: "chore(nightly): BACKLOG updates from nightly run"
           body: |
             Automated nightly run from `.github/workflows/nightly-tests.yml`.
 
             | Signal | Value |
             |---|---|
-            | Proposed test files | ${{ steps.proposed.outputs.count }} |
             | BACKLOG updated | ${{ steps.audit.outputs.changed }} |
-            | LegalBench regression | ${{ steps.audit.outputs.regression }} |
 
-            **Proposed tests** (if any) are under `backend/tests/autonomy/proposed/`.
-            All are decorated with `@pytest.mark.skip("autonomy-proposed")`.
-            Review each file, remove the skip decorator, and move to the
-            appropriate test module before merging.
-
-            **BACKLOG entries** (if any) are appended under `## Open` in `BACKLOG.md`.
+            **BACKLOG entries** are appended under `## Open` in `BACKLOG.md` by the
+            discovery audit (the fleet kit's `evolve_audit.py`).
 
             See the `audit-${{ github.run_id }}` artifact for the full discovery
             audit output.
           labels: |
             autonomy
             nightly
+
+  # ------------------------------------------------------------------
+  # Weekly backlog triage (BL-20260503-14), by reference: the hub's reusable
+  # spec gate with the stale report on, filing or updating ONE idempotent
+  # `backlog-triage` issue when an `## Open` item is older than 60 days or a
+  # spec is inconsistent. Schedule only — a dispatch (and `make
+  # nightly-dry-run` under act) never files an issue. The caller declares
+  # the write permission; the reusable workflow inherits and cannot widen it.
+  # ------------------------------------------------------------------
+  backlog-triage:
+    name: Backlog triage
+    if: ${{ github.event_name == 'schedule' }}
+    permissions:
+      contents: read
+      issues: write
+    uses: bamr87/bamr87/.github/workflows/spec-gate.yml@v2
+    with:
+      strict: false
+      stale-report: true
+      stale-days: 60
+      file-issue: true

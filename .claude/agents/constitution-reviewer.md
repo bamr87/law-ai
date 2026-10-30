@@ -19,7 +19,7 @@ Read [docs/constitution.md](../../docs/constitution.md), [AGENTS.md](../../AGENT
 5. **Open-source / privacy** — no new proprietary *code* dependency; the product-runtime LLM is the ordered `LLM_PROVIDER_CHAIN` (Claude OAuth → Claude API key → Ollama, constitution §1) — Claude as the sanctioned default is not a violation. Flag a spec that removes Ollama as the chain's last tier, or that adds a vendor beyond Anthropic/xAI/Ollama without a constitution §1 amendment. xAI was sanctioned 2026-09-04 (ADR 0007) and implemented in spec 050 as default tier 3, subscription-OAuth only — flag any spec that adds an `XAI_API_KEY` auth tier, which the amendment does not cover.
 6. **Docker-first** — no host invocations of pytest / ruff / mypy / black / pip / npm / `python manage.py` introduced into scripts, docs, or CI (the `host-*` targets are emergency-only).
 7. **Agent contract** — any new agent implements `run(input: dict) -> dict` with a Pydantic output and ships a test under `backend/tests/agents/`.
-8. **Continuous-evolution loop (§11)** — if this closes an `/implement` cycle: `tasks.md` ends with a populated `## Follow-ups Discovered`, each item is mirrored into `BACKLOG.md` as `BL-YYYYMMDD-NN`, and the PR body copies the new bullets. `python3 scripts/spec_validator.py` and `python3 scripts/backlog_lint.py` are expected to pass.
+8. **Continuous-evolution loop (§11)** — if this closes a `/spec-driven:implement` cycle: `tasks.md` ends with a populated `## Follow-ups Discovered`, each item is mirrored into `BACKLOG.md` as `BL-YYYYMMDD-NN`, and the PR body copies the new bullets. `make lint-specs` (the fleet's spec validator and backlog lint, resolved by `tools/fleet-kit.sh`) is expected to pass.
 
 ## Output
 

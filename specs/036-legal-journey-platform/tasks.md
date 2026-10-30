@@ -1,6 +1,6 @@
 # Tasks: Legal journey platform — the matter spine
 
-> Each task references `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`. CI's [spec_validator.py](../../scripts/spec_validator.py) enforces that every requirement in `spec.md` is referenced by at least one task. Docker-first: every gate below runs via `make` / `docker compose run --rm` ([AGENTS.md](../../AGENTS.md)).
+> Each task references `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`. CI's `spec_validator.py` enforces that every requirement in `spec.md` is referenced by at least one task. Docker-first: every gate below runs via `make` / `docker compose run --rm` ([AGENTS.md](../../AGENTS.md)).
 
 ## Conventions
 
@@ -210,7 +210,7 @@
 
 ## Follow-ups Discovered
 
-> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI ([scripts/spec_validator.py](../../scripts/spec_validator.py)) checks this section exists. CI ([scripts/backlog_lint.py](../../scripts/backlog_lint.py)) checks the BACKLOG mirror.
+> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI (`scripts/spec_validator.py`) checks this section exists. CI (`scripts/backlog_lint.py`) checks the BACKLOG mirror.
 
 - BL-20260817-01 — feature, med — Matter data portability & account deletion: user-initiated full matter export (JSON bundle of artifacts + timeline) and an account-deletion path that honors PROTECT FKs and the soft-delete audit rules — a privacy obligation once user-owned matters hold client facts.
 - BL-20260817-02 — feature, med — Action-stage deadline & task tracking: matter tasks with due dates, reminders, and a calendar surface; the action stage currently only records what users log as artifacts.

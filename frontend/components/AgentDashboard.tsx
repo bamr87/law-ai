@@ -1,6 +1,5 @@
 'use client'
 
-import ProposedTestReview from '@/components/ProposedTestReview'
 import {
   fetchAgentMetrics,
   fetchAgents,
@@ -278,10 +277,6 @@ export default function AgentDashboard() {
         error={state.gaps.error}
         gaps={state.gaps.data?.gaps ?? []}
       />
-
-      {/* What the autonomy loop drafted and is waiting on a human for
-          (BL-20260511-17) */}
-      <ProposedTestReview />
 
       {/* Per-agent metrics */}
       <MetricsPanel

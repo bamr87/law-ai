@@ -19,26 +19,25 @@ REQUIRED_DOCS = [
     "docs/agent-roles.md",
     "docs/constitution.md",
     "docs/philosophy.md",
-    "docs/ao-sdlc.md",
+    "docs/spec-driven.md",
+    "docs/prd.md",
     "docs/data-model.md",
     "docs/data-sources.md",
     "docs/related-github-repos.md",
     "docs/ui-ux.md",
 ]
 
-REQUIRED_PROMPTS = [
-    "prompts/specify.md",
-    "prompts/clarify.md",
-    "prompts/plan.md",
-    "prompts/tasks.md",
-    "prompts/implement.md",
-    "prompts/evolve.md",
-    "prompts/new-agent.md",
-    "prompts/implement-feature.md",
+# Repo-specific agent commands. The spec-driven chain (/specify … /evolve) is
+# NOT here: since 2026-10-25 it is the fleet hub's `spec-driven` Claude Code
+# plugin, enabled from .claude/settings.json (docs/spec-driven.md).
+REQUIRED_COMMANDS = [
+    ".claude/commands/new-agent.md",
+    ".claude/commands/implement-feature.md",
+    ".claude/commands/ux-review.md",
 ]
 
 
-@pytest.mark.parametrize("relpath", REQUIRED_DOCS + REQUIRED_PROMPTS)
+@pytest.mark.parametrize("relpath", REQUIRED_DOCS + REQUIRED_COMMANDS)
 def test_doc_exists_and_nontrivial(repo_root: Path, relpath: str) -> None:
     path = repo_root / relpath
     assert path.is_file(), f"missing documentation file: {relpath}"
@@ -121,28 +120,63 @@ def test_autonomy_invariant_i4_matches_the_implementation(repo_root: Path) -> No
     )
 
 
-def test_ao_sdlc_guide_has_one_home(repo_root: Path) -> None:
-    """The AO-SDLC operating guide lives at docs/ao-sdlc-guide.md, once.
+def test_spec_driven_loop_is_consumed_by_reference(repo_root: Path) -> None:
+    """2026-10-25: the AO-SDLC machinery moved to the fleet hub.
 
-    BL-20260906-38 kept a redirect stub at this path because specs/011 and
-    specs/021 link here, while the v2.0 guide sat at the repo root as
-    `AO-SDLC_Outline_Guide.md`. The fleet docs framework (UPS-DOC-04) moves
-    guides off the root, so the guide itself now occupies the path the old
-    links already name: no stub, no second copy, and docs/ao-sdlc.md (the
-    implementation map) links the reference it summarises.
+    This repo keeps its content (specs/, BACKLOG.md, docs/constitution.md) and
+    consumes the loop by reference: the `spec-driven` plugin from the hub's
+    marketplace, the reusable spec-gate.yml in CI, and tools/fleet-kit.sh for
+    `make lint-specs`. A vendored copy creeping back is the regression this
+    guards against — it is how three divergent forks of the validator
+    appeared across the fleet the first time.
     """
-    guide = (repo_root / "docs" / "ao-sdlc-guide.md").read_text(encoding="utf-8")
-    assert "Operating Guide" in guide and "Version 2.0" in guide, (
-        "docs/ao-sdlc-guide.md must be the v2.0 operating guide, not a stub"
+    import json
+
+    settings = json.loads((repo_root / ".claude" / "settings.json").read_text())
+    assert settings.get("enabledPlugins", {}).get("spec-driven@bamr87") is True, (
+        ".claude/settings.json must enable the spec-driven@bamr87 plugin"
     )
-    assert not (repo_root / "AO-SDLC_Outline_Guide.md").exists(), (
-        "the AO-SDLC guide has one home, docs/ao-sdlc-guide.md; do not restore a root copy"
+    assert "bamr87" in settings.get("extraKnownMarketplaces", {}), (
+        ".claude/settings.json must declare the bamr87 marketplace"
     )
-    assert "ao-sdlc-guide.md" in (repo_root / "docs" / "ao-sdlc.md").read_text(encoding="utf-8")
+    sdlc = (repo_root / ".github" / "sdlc.yml").read_text()
+    assert "spec_driven: true" in sdlc and "file: BACKLOG.md" in sdlc, (
+        ".github/sdlc.yml must declare the spec-driven module and the file backlog"
+    )
+    ci = (repo_root / ".github" / "workflows" / "ci.yml").read_text()
+    assert "uses: bamr87/bamr87/.github/workflows/spec-gate.yml@v" in ci, (
+        "ci.yml must call the hub's reusable spec-gate.yml (pinned to a major tag)"
+    )
+    for stray in (
+        "scripts/spec_validator.py",
+        "scripts/backlog_lint.py",
+        "scripts/next_backlog_id.py",
+        "scripts/pick_backlog_item.py",
+        "scripts/evolve_audit.py",
+        "prompts",
+        ".claude/hooks/gate-check.sh",
+        ".claude/commands/specify.md",
+        ".claude/commands/evolve.md",
+        "AO-SDLC_Outline_Guide.md",
+        ".factory",
+    ):
+        assert not (repo_root / stray).exists(), (
+            f"{stray} is back: the spec-driven machinery lives in the hub "
+            "(bamr87/bamr87 templates/spec-driven), never vendored here"
+        )
+    resolver = repo_root / "tools" / "fleet-kit.sh"
+    assert resolver.is_file() and resolver.stat().st_mode & 0o111, (
+        "tools/fleet-kit.sh (the one vendored kit file) must exist and be executable"
+    )
+    makefile = (repo_root / "Makefile").read_text()
+    assert "tools/fleet-kit.sh" in makefile and "spec_validator.py" in makefile, (
+        "make lint-specs must run the kit's validator through tools/fleet-kit.sh"
+    )
 
 
 # UPS-DOC-04: the root holds docs of record only; plans, proposals, guides and
-# quick references belong under docs/.
+# quick references belong under docs/.  The PRD moved to docs/prd.md when the
+# spec-driven loop became the hub's, so the root no longer carries it either.
 _ROOT_DOCS_OF_RECORD = {
     "README.md",
     "AGENTS.md",
@@ -153,7 +187,6 @@ _ROOT_DOCS_OF_RECORD = {
     "SECURITY.md",
     "CODE_OF_CONDUCT.md",
     "SCHEMA.md",
-    "PRD.md",
     "BACKLOG.md",
 }
 
@@ -272,27 +305,6 @@ def test_layout_preferences_are_documented_as_user_scoped(repo_root: Path) -> No
             "scope story (BL-20260905-10) has to survive doc edits."
         )
 
-
-def test_proposed_tests_endpoint_is_documented(repo_root: Path) -> None:
-    """BL-20260906-56 — the autonomy review route must be findable in the docs.
-
-    ``GET /api/agents/proposed-tests`` shipped with BL-20260511-17 but was
-    listed nowhere alongside the other ``/api/agents`` reads, so a reviewer
-    looking for what the loop has drafted had to read ``urls.py``. Pin both
-    the curl reference and the architecture note.
-    """
-    docs = repo_root / "docs"
-    for relpath in ("api-examples.md", "architecture.md"):
-        text = (docs / relpath).read_text(encoding="utf-8")
-        assert "/api/agents/proposed-tests" in text, (
-            f"docs/{relpath} no longer documents GET /api/agents/proposed-tests "
-            "(AgentProposedTestsView in backend/law_ai/agentsapi/urls.py)."
-        )
-    examples = (docs / "api-examples.md").read_text(encoding="utf-8")
-    assert "backend/tests/autonomy/proposed/" in examples, (
-        "docs/api-examples.md must name the fixed directory the endpoint "
-        "globs — that the path is not a request parameter is the point."
-    )
 
 
 _CODE_FENCE_RE = re.compile(r"^\s*(```|~~~)")

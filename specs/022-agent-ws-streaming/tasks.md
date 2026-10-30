@@ -1,7 +1,7 @@
 # Tasks: Agent WebSocket Streaming — Live Progress from LegalAnalyst & PrecedentHunter
 
 > Each task must reference one or more `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`.
-> CI's [spec_validator.py](../../scripts/spec_validator.py) enforces that every
+> CI's `spec_validator.py` enforces that every
 > requirement in `spec.md` is referenced by at least one task.
 
 ## Conventions

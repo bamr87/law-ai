@@ -9,17 +9,20 @@ type: app
 #   app -> [app]   library -> [lib]   site -> [site]   docs -> [content]
 #   demo -> [site]   control-plane -> [site, hub]   fork -> [fork]
 # List more when the repo is several things at once, e.g. [app, api] or [lib, cli].
-kinds: [api, app]
-tier: experiment              # active | maintenance | experiment | archived (hub _data/standards.yml)
+kinds: [api, app]             # the platform is a Django API + Next.js apps at once
+tier: experiment              # active | maintenance | experiment | archived (hub _data/standards.yml);
+                              # matches the hub registry's `status: experiment`
 
 backlog:
-  mode: file              # decision D1 exception: the append-only BACKLOG.md, linted by scripts/backlog_lint.py in ci.yml
+  mode: file              # decision D1 exception: the append-only BACKLOG.md, linted in CI
   file: BACKLOG.md
   mirror_to_issues: false # file mode only: a sync job keeps one issue per open item
 
 # Optional modules. Always a map of name -> true/false (never a list).
 modules:
-  spec_driven: true       # specs/NNN-slug/{spec,plan,tasks}.md + BACKLOG.md; the gate tools live in scripts/ (spec_validator.py, backlog_lint.py)
+  spec_driven: true       # specs/NNN-slug/{spec,plan,tasks}.md + BACKLOG.md, gated BY REFERENCE through
+                          # the hub's reusable spec-gate.yml and the spec-driven Claude Code plugin
+                          # (docs/spec-driven.md); nothing from the kit is vendored except tools/fleet-kit.sh
   adr: true               # decision log at adr_path (UPS-WORK-04)
   features: true          # features/features.yml (features/v1)
   issue_autopilot: false  # .issues/ (hub templates/issue-autopilot)
