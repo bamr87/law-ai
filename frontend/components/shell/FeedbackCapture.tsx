@@ -23,7 +23,7 @@ export default function FeedbackCapture() {
     // than assumed: `next/dist/client/script.js` branches on
     // `strategy === 'beforeInteractive'` with appDir, and the production build
     // emits the preload for this file into <head>.
-    // eslint-disable-next-line @next/next/no-before-interactive-script-outside-document
+     
     <Script src="/fleet-feedback-capture.js" strategy="beforeInteractive" />
   )
 }

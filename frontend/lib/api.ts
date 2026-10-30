@@ -812,30 +812,6 @@ export function fetchSpecs() {
   return getJson<{ specs: SpecInfo[]; count: number }>('/api/agents/specs')
 }
 
-/** One `*.proposed.py` the autonomy loop drafted and nobody has ruled on. */
-export interface ProposedTest {
-  name: string
-  /** Repo-relative path, so a reviewer can open it locally. */
-  path: string
-  /** File stem of the module under test (dots written as underscores). */
-  module: string
-  size: number
-  mtime: string
-  /** False means the skip decorator is missing — it would run if merged. */
-  skip_marked: boolean
-}
-
-export interface ProposedTestsResponse {
-  count: number
-  files: ProposedTest[]
-  /** False when the proposals directory does not exist in this checkout. */
-  available: boolean
-}
-
-export function fetchProposedTests() {
-  return getJson<ProposedTestsResponse>('/api/agents/proposed-tests')
-}
-
 /** One provider tier in LLM_PROVIDER_CHAIN, in the order it is tried. */
 export interface LLMProviderStatus {
   provider: string
@@ -2731,21 +2707,6 @@ export interface AutonomyLegalbenchHistory {
   count: number
 }
 
-export interface AutonomyCoverageModule {
-  module: string
-  pct: number
-  severity: 'high' | 'med' | 'ok'
-  missing_lines: number[]
-}
-
-export interface AutonomyCoverage {
-  available: boolean
-  modules: AutonomyCoverageModule[]
-  count: number
-  warn_threshold: number
-  error_threshold: number
-}
-
 export interface AutonomyQuarantineDoc {
   id: string
   source: string
@@ -2767,10 +2728,6 @@ export function fetchAutonomyLegalbenchHistory(limit = 20) {
   return getJson<AutonomyLegalbenchHistory>(
     `/api/agents/autonomy/legalbench-history?limit=${limit}`,
   )
-}
-
-export function fetchAutonomyCoverage() {
-  return getJson<AutonomyCoverage>('/api/agents/autonomy/lowest-coverage')
 }
 
 export function fetchAutonomyQuarantine() {

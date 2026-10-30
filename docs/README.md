@@ -13,7 +13,6 @@
 | --- | --- |
 | [`AGENTS.md`](../AGENTS.md) | How to build Law AI — an open-source, agent-orchestrated legal-intelligence platform — with the exact commands, layout, rules and gates every agent and contributor follows. |
 | [`CHANGELOG.md`](../CHANGELOG.md) | Release history: the notable changes in each version, newest first. |
-| [`PRD.md`](../PRD.md) | The product requirements for Law AI — problem, users, goals, prioritized features, agent specifications, UX and the roadmap; open work is tracked in [BACKLOG.md](../BACKLOG.md). |
 | [`BACKLOG.md`](../BACKLOG.md) | Law AI's backlog of record: append-only `BL-YYYYMMDD-NN` follow-ups in Open, Claimed and Done, linted by `scripts/backlog_lint.py`. |
 
 ### `docs/`
@@ -21,16 +20,14 @@
 | Document | What it covers |
 | --- | --- |
 | [`docs/agent-roles.md`](agent-roles.md) | Every agent that exists or is planned — its status (Live, Stub, Not started), responsibilities, tools and the module that implements it. |
-| [`docs/ao-sdlc-guide.md`](ao-sdlc-guide.md) | The AO-SDLC operating guide (v2.0): the spec-driven loop, governance, runtime chain, gates and observability as this repository actually enforces them. |
-| [`docs/ao-sdlc.md`](ao-sdlc.md) | How each AO-SDLC phase maps onto this repository's prompts, specs, agents, scripts and CI jobs, and the autonomy level it runs at. |
 | [`docs/api-examples.md`](api-examples.md) | Copy-paste `curl` examples for the public REST endpoints, with the per-scope API keys each router checks. |
+| [`docs/app-shell-architecture.md`](app-shell-architecture.md) | A generic Next.js design for an enterprise app shell over hierarchical, inheritable settings scopes — the essay spec 040 adapted, not a plan to implement as written. |
 | [`docs/architecture.md`](architecture.md) | The system diagram, component responsibilities, data flow, autonomy loop, scanned-page intake, LSAT delivery channel and the rationale behind each technology choice. |
 | [`docs/constitution.md`](constitution.md) | The rules every spec, plan and PR must satisfy to be valid — mission, locked stack, quality gates, provenance, HITL, testing, security, autonomy invariants and jurisprudential honesty. |
 | [`docs/data-model.md`](data-model.md) | The Neo4j knowledge-graph schema — nodes, relationships and mandatory provenance properties — and the Postgres quarantine that ingestion writes to. |
 | [`docs/data-sources.md`](data-sources.md) | The open legal corpora Law AI ingests — URL, license, auth, rate limit and status for each — with a sample command for every ingester. |
 | [`docs/django-conventions.md`](django-conventions.md) | How to work inside the `backend/law_ai/` Django package: the settings split, async ORM discipline, Channels routing, Celery naming, migration gotchas and strict typing. |
 | [`docs/e2e-testing.md`](e2e-testing.md) | The browser end-to-end harness: what the Playwright suite covers that the jsdom unit tests cannot, how to run it, and what it deliberately does not do. |
-| [`docs/law-ai-proposal.md`](law-ai-proposal.md) | The original April 2026 technical proposal, kept as a historical record — its architecture section is out of date, so read architecture.md for the current system. |
 | [`docs/legalbench.md`](legalbench.md) | How the LegalBench harness runs and scores the tracked subsets, how the real data is cached, and how the baseline and regression gate decide a pass. |
 | [`docs/llm-provider-chain.md`](llm-provider-chain.md) | Reference for `law_ai.core.llm`: how the ordered provider chain picks a tier and audits every call, and how the Claude, xAI and Ollama tiers are configured. |
 | [`docs/local-ai.md`](local-ai.md) | The operator manual for the local AI substrate — Ollama, LangGraph checkpointers and Phoenix — across laptop, GPU workstation, server and air-gapped installs. |
@@ -40,13 +37,21 @@
 | [`docs/lsat-solve-guides.md`](lsat-solve-guides.md) | The solve-guide runbook: what a guide is, where it lives, and how guides are backfilled, judged and promoted through the review queue. |
 | [`docs/lsat-static.md`](lsat-static.md) | The architecture of the static LSAT site — how practice content reaches the GitHub Pages export, what gates it, and which specs shaped it. |
 | [`docs/lsat-synthesis.md`](lsat-synthesis.md) | The deterministic item-synthesis engine: skeletons whose keys a finite-model checker proves, domain packs that vary the surface, and difficulty that is measured rather than declared. |
-| [`docs/nextjs-scoped-app-shell-architecture.md`](nextjs-scoped-app-shell-architecture.md) | A generic Next.js design for an enterprise app shell over hierarchical, inheritable settings scopes — the essay spec 040 adapted, not a plan to implement as written. |
 | [`docs/philosophy.md`](philosophy.md) | What we believe law *is*, what that makes a legal-intelligence system responsible for, and which of those beliefs are binding rules rather than opinions. |
+| [`docs/prd.md`](prd.md) | The product requirements for Law AI — problem, users, goals, prioritized features, agent specifications, UX and the roadmap; open work is tracked in [BACKLOG.md](BACKLOG.md). |
 | [`docs/related-github-repos.md`](related-github-repos.md) | Open-source projects, by category, that Law AI can build on for agents, legal NLP, knowledge graphs, GraphRAG, data pipelines, benchmarks and visualization. |
 | [`docs/security.md`](security.md) | The API-token and session model that gates the `/api/*` routers: threat model, scope matrix, token lifecycle, rate limits, auditability and the production hardening checklist. |
+| [`docs/spec-driven.md`](spec-driven.md) | Law AI runs the fleet's spec-driven SDLC loop (AO-SDLC) **by reference**. |
 | [`docs/ui-ux-review.md`](ui-ux-review.md) | The repeatable UI/UX review pass — the rubric, what counts as visual evidence, and the mechanical `ux_audit.py` contract each fix is promoted into. |
 | [`docs/ui-ux.md`](ui-ux.md) | Every user-facing surface, what actually ships versus what docs once claimed, the token and component inventory, and the design-system contract new UI follows. |
 | [`docs/adr/`](adr/README.md) | The index and format of Law AI's Architecture Decision Records — the decisions that amend or deviate from the constitution. |
+| [`docs/amendments/`](amendments/README.md) | The append-only log of numbered amendments to the law-ai constitution, with their status. |
+
+### `docs/history/`
+
+| Document | What it covers |
+| --- | --- |
+| [`docs/history/2026-04-proposal.md`](history/2026-04-proposal.md) | The original April 2026 technical proposal, kept as a historical record — its architecture section is out of date, so read architecture.md for the current system. |
 
 ### `docs/reference/`
 

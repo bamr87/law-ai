@@ -1,5 +1,17 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "extraKnownMarketplaces": {
+    "bamr87": {
+      "source": {
+        "source": "github",
+        "repo": "bamr87/bamr87",
+        "sparsePaths": [".claude-plugin", "templates/spec-driven"]
+      }
+    }
+  },
+  "enabledPlugins": {
+    "spec-driven@bamr87": true
+  },
   "permissions": {
     "deny": [
       "Bash(pytest:*)",
@@ -28,18 +40,6 @@
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh\"",
             "timeout": 15
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/gate-check.sh\"",
-            "timeout": 30
           }
         ]
       }

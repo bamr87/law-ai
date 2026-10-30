@@ -2,7 +2,7 @@
 
 > The rules every spec, plan and PR must satisfy to be valid — mission, locked stack, quality gates, provenance, HITL, testing, security, autonomy invariants and jurisprudential honesty.
 
-> Org-wide, non-negotiable standards for every spec, plan, and implementation produced by humans or AI agents in this repo. This is the **first** document any agent reads when running [/specify](../prompts/specify.md), [/plan](../prompts/plan.md), or [/implement](../prompts/implement.md).
+> Org-wide, non-negotiable standards for every spec, plan, and implementation produced by humans or AI agents in this repo. This is the **first** document any agent reads when running `/spec-driven:specify`, `/spec-driven:plan`, or `/spec-driven:implement` (the fleet's spec-driven plugin; see [spec-driven.md](spec-driven.md)).
 >
 > Higher-level principles, mission, and tech-stack rationale live in [AGENTS.md](../AGENTS.md). This file encodes only the **rules a spec or PR must satisfy to be valid**.
 
@@ -95,16 +95,16 @@ LegalBench scoring itself is **not** a per-agent, per-PR obligation: it runs cen
 Every change larger than a typo follows the spec workflow:
 
 1. Author creates `specs/NNN-feature-slug/` from [specs/_template](../specs/_template).
-2. Run [/specify](../prompts/specify.md) → fills `spec.md`.
-3. Run [/clarify](../prompts/clarify.md) → resolves open questions in-place.
-4. Run [/plan](../prompts/plan.md) → fills `plan.md`.
-5. Run [/tasks](../prompts/tasks.md) → fills `tasks.md`.
-6. Open PR with all four files. CI runs [scripts/spec_validator.py](../scripts/spec_validator.py) drift gate.
-7. Run [/implement](../prompts/implement.md) per task; PRs reference `specs/NNN-...` in description.
+2. Run `/spec-driven:specify` → fills `spec.md`.
+3. Run `/spec-driven:clarify` → resolves open questions in-place.
+4. Run `/spec-driven:plan` → fills `plan.md`.
+5. Run `/spec-driven:tasks` → fills `tasks.md`.
+6. Open PR with all four files. CI runs the fleet's spec gate (the hub's `spec_validator.py --strict`, by reference through the reusable `spec-gate.yml`; `make lint-specs` locally).
+7. Run `/spec-driven:implement` per task; PRs reference `specs/NNN-...` in description.
 
-[/evolve](../prompts/evolve.md) runs this same seven-step chain autonomously end-to-end (BACKLOG scan through implementation), still bound by every gate in this document — most directly §10 Autonomy Level and §11 Continuous Evolution. It runs on a weekly schedule via [.github/workflows/evolve.yml](../.github/workflows/evolve.yml) and on demand from either sanctioned dev surface (§1).
+The chain is the fleet hub's `spec-driven` Claude Code plugin, not a copy in this repo (amended 2026-10-25). `/spec-driven:evolve` runs this same seven-step chain autonomously end-to-end (BACKLOG scan through implementation), still bound by every gate in this document — most directly §10 Autonomy Level and §11 Continuous Evolution — on demand from a sanctioned dev surface (§1); the scheduled form is the hub's weekly `repo-evolution.yml`, which this repo opts into through the fleet registry, never a workflow of its own.
 
-See [docs/ao-sdlc.md](ao-sdlc.md) for how phases map onto Law AI and [ao-sdlc-guide.md](ao-sdlc-guide.md) for the full framework reference.
+See [spec-driven.md](spec-driven.md) for how the loop maps onto Law AI and the hub's [docs/SPEC-DRIVEN.md](https://github.com/bamr87/bamr87/blob/main/docs/SPEC-DRIVEN.md) for the framework reference.
 
 ## 8. Security Baselines
 
@@ -135,9 +135,9 @@ Two of three prerequisites already exist in the codebase. This is not a promotio
 
 The repo must always grow forward. Every implementation cycle MUST end with explicit follow-ups so future agents and humans inherit a richer task graph than they started with.
 
-- **Every `tasks.md`** ends with a `## Follow-ups Discovered` section. CI ([scripts/spec_validator.py](../scripts/spec_validator.py)) enforces this.
-- **Every follow-up** is mirrored into [BACKLOG.md](../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI ([scripts/backlog_lint.py](../scripts/backlog_lint.py)) enforces format and forbids deletion of historical entries (move to `## Done` instead).
-- **Every `/specify`** must first scan `BACKLOG.md` and reference any matching `BL-*` items in spec §2; matched items move from `## Open` to `## Claimed`.
+- **Every `tasks.md`** ends with a `## Follow-ups Discovered` section. CI (the fleet spec gate's `spec_validator.py`) enforces this.
+- **Every follow-up** is mirrored into [BACKLOG.md](../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI (the fleet spec gate's `backlog_lint.py`) enforces format and forbids deletion of historical entries (move to `## Done` instead).
+- **Every `/spec-driven:specify`** must first scan `BACKLOG.md` and reference any matching `BL-*` items in spec §2; matched items move from `## Open` to `## Claimed`.
 - **"No follow-ups"** is allowed only with an explicit justification line (`_none — justified: <reason>_`) preserved in the PR description.
 - **Mission drift guard.** Follow-ups MUST be consistent with §1 Mission Alignment, §2 Tech Stack, and §4 Provenance. Items proposing a third LLM vendor beyond Anthropic and Ollama (§1), frameworks not listed in §2, or removal of provenance must be rejected at triage.
 - **Refactor budget.** At least one `refactor` or `tech-debt` BACKLOG item should be promoted into `specs/` for every three feature specs shipped, to prevent rot.
@@ -151,7 +151,7 @@ Recorded by [docs/adr/0003-autonomy-orchestrator.md](adr/0003-autonomy-orchestra
 - **I2 — Closed source registry.** Recursion expands within `law_ai.ingestionapp.sources.SOURCE_REGISTRY` whose member name appears in `AUTONOMY_ALLOWED_SOURCES`. Adding a new adapter is its own `/specify` cycle (preserves §5).
 - **I3 — Kill-switch.** A single settings flag (`AUTONOMY_ENABLED`, default `False`) short-circuits every loop with one provenance event (`event_type='autonomy_disabled'`). Operators must explicitly opt-in per environment.
 - **I4 — One audited entry point.** Every cycle is invoked through `law_ai.core.autonomy.run_cycle()` and emits paired `autonomy_cycle.start` + `autonomy_cycle.end` provenance events, and is additionally projected into the queryable `audit.AutonomyRun` row that the digest and the ops surfaces read ([docs/data-model.md](data-model.md)). Passing `--cycle-id` makes the entry point idempotent: a cycle whose id has already ended is *replayed* — the recorded result is returned with `replayed: true` and one `autonomy_cycle.replayed` event, and the runner is not invoked a second time ([docs/local-ai.md](local-ai.md)). The daily digest under `AUTONOMY_DIGEST_DIR` is the canonical human-review surface.
-- **I5 — Propose-only test synthesis.** Autonomy-generated tests land as `*.proposed.py` decorated with `@pytest.mark.skip("autonomy-proposed")`. Reviewers must explicitly un-skip.
+- **I5 — Propose-only test synthesis (retired 2026-10-26, [ADR 0008](adr/0008-retire-test-pillar.md)).** The loop no longer synthesises tests for this repo's own modules: proposing changes to the codebase is the fleet hub's job (its weekly repo-evolution loop and issue pipeline), and everything those propose still lands as a draft PR a human merges (I1). Should test synthesis ever return, it returns under the original rule — `*.proposed.py` decorated with `@pytest.mark.skip("autonomy-proposed")`, never un-skipped by a machine.
 - **I6 — Provenance preserved.** Every adapter dispatch records `{adapter_name, query, items_returned, items_quarantined}`; every LLM call goes through `law_ai.core.provenance` (preserves §4).
 
 Promotion to Level 3 — even for narrow change classes — requires a separate ADR amending §10 and these invariants.

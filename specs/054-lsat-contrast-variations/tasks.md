@@ -1,6 +1,6 @@
 # Tasks: LSAT Contrast Variations and the Agent Quality Loop
 
-> Each task must reference one or more `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`. CI's [spec_validator.py](../../scripts/spec_validator.py) enforces that every requirement in `spec.md` is referenced by at least one task.
+> Each task must reference one or more `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`. CI's `spec_validator.py` enforces that every requirement in `spec.md` is referenced by at least one task.
 
 ## Conventions
 
@@ -107,7 +107,7 @@
 
 ## Follow-ups Discovered
 
-> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI ([scripts/spec_validator.py](../../scripts/spec_validator.py)) checks this section exists. CI ([scripts/backlog_lint.py](../../scripts/backlog_lint.py)) checks the BACKLOG mirror.
+> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI (`scripts/spec_validator.py`) checks this section exists. CI (`scripts/backlog_lint.py`) checks the BACKLOG mirror.
 
 - BL-20260908-01 — feature, med — `lsat-static` parity for the contrast panel (the bundle now carries `variation_of` and `contrast_note`; the static drill does not render them).
 - BL-20260908-02 — feature, med — Wire the revise loop into the main content factory: give `LSATContentAuthor` a `critique` input and call `author_with_review` from `factory/judge.py` behind a `FactoryConfig.revise_enabled` flag.

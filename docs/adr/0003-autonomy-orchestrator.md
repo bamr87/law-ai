@@ -1,13 +1,13 @@
 # ADR 0003 — Autonomy Orchestrator (Two-Pillar Loop, Strict Level-2)
 
-- **Status**: accepted
+- **Status**: accepted — amended by [ADR 0008](0008-retire-test-pillar.md) (2026-10-26): Pillar A, the test synthesis, is retired; Pillar B, the digest and the LSAT pillars stand
 - **Date**: 2026-05-11
 - **Spec**: [specs/018-autonomous-framework](../../specs/018-autonomous-framework/spec.md)
 - **Constitution clauses amended**: [§10 Autonomy Level](../constitution.md#10-autonomy-level), new [§12 Autonomy Loop Invariants](../constitution.md#12-autonomy-loop-invariants)
 
 ## Context
 
-The repo's only autonomous loop today is the weekly `/evolve` audit ([scripts/evolve_audit.py](../../scripts/evolve_audit.py) + [.github/workflows/evolve.yml](../../.github/workflows/evolve.yml)) that appends BACKLOG candidates from grep + coverage parsing. It does not measure reasoning quality (the [backend/law_ai/eval/](../../backend/law_ai/eval/) LegalBench harness referenced from [docs/legalbench.md](../legalbench.md) is empty), and it does not grow the corpus — every ingestion run is hand-driven via `make ingest`.
+The repo's only autonomous loop today is the weekly `/evolve` audit (`scripts/evolve_audit.py` + `.github/workflows/evolve.yml` — both moved to the fleet hub's spec-driven kit on 2026-10-25, see [docs/spec-driven.md](../spec-driven.md)) that appends BACKLOG candidates from grep + coverage parsing. It does not measure reasoning quality (the [backend/law_ai/eval/](../../backend/law_ai/eval/) LegalBench harness referenced from [docs/legalbench.md](../legalbench.md) is empty), and it does not grow the corpus — every ingestion run is hand-driven via `make ingest`.
 
 Legal content is effectively unbounded: statutes, regulations, opinions, and citations expand daily across jurisdictions. We need a sustained, auditable loop that (a) measures reasoning quality continuously and proposes test coverage for low-coverage modules, and (b) walks the existing knowledge graph for orphan citations / under-cited jurisdictions and dispatches *known* sources to fill the gaps.
 

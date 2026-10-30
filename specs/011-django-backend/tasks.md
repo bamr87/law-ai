@@ -2,7 +2,7 @@
 
 > **Historical note (2026-09-05, BL-20260602-04).** `backend/app/` was the pre-Django FastAPI package. It was deleted by this spec's own T-016; the Django project package lives at `backend/law_ai/`. Every `backend/app/...` path below is therefore rendered as inline code, not as a link — the files it names no longer exist, and the ~110 dead hrefs 404'd on every platform. The text is otherwise unedited: it records the migration as it was specified.
 
-> Each task references one or more `FR-*` / `NFR-*` / `AC-*` IDs from [spec.md](spec.md). [scripts/spec_validator.py](../../scripts/spec_validator.py) enforces full coverage.
+> Each task references one or more `FR-*` / `NFR-*` / `AC-*` IDs from [spec.md](spec.md). `scripts/spec_validator.py` enforces full coverage.
 >
 > Sequence: T-001 must merge first (constitutional gate). T-002 → T-016 land on a long-lived `feat/011-django-backend` branch with green CI per commit; T-016 (legacy delete) is the cutover commit.
 
@@ -23,7 +23,7 @@
   - `docs/adr/0001-adopt-django-backend.md` (new — first ADR; create `docs/adr/` directory and a brief `docs/adr/README.md` index)
   - [docs/constitution.md](../../docs/constitution.md) §2 backend stack and §11 mission-drift guard
   - [AGENTS.md](../../AGENTS.md) "Tech Stack (Non-Negotiable)" + Quick Reference rows (uvicorn → daphne) + "Project Structure" (`backend/app/` → `backend/law_ai/`)
-  - [PRD.md](../../PRD.md) backend stack mention
+  - [PRD.md](../../docs/prd.md) backend stack mention
   - [.github/copilot-instructions.md](../../.github/copilot-instructions.md) FastAPI references
   - [docs/architecture.md](../../docs/architecture.md), [docs/local-ai.md](../../docs/local-ai.md), [docs/agent-roles.md](../../docs/agent-roles.md) — surgical edits to file paths only
 - **Steps**:
@@ -350,7 +350,7 @@
 
 ## Follow-ups Discovered
 
-> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI ([scripts/spec_validator.py](../../scripts/spec_validator.py)) checks this section exists. CI ([scripts/backlog_lint.py](../../scripts/backlog_lint.py)) checks the BACKLOG mirror.
+> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI (`scripts/spec_validator.py`) checks this section exists. CI (`scripts/backlog_lint.py`) checks the BACKLOG mirror.
 
 - BL-20260503-09 — feature, med — Real Channels producers for `/ws/agents/{run_id}`: stream `LegalAnalyst` → `PrecedentHunter` progress events from `analysis/views.py` so the consumer skeleton lands in T-010 gets traffic. Resolves overlap with [BL-20260429-24](../../BACKLOG.md).
 - BL-20260503-10 — feature, med — Django admin actions on `ingestionapp.PendingReview` (`approve`, `reject`, `re-extract`) + matching `core.tasks` to apply the decision back to Neo4j. Resolves overlap with [BL-20260429-15](../../BACKLOG.md).

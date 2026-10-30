@@ -50,7 +50,7 @@ Take the lowest-scoring dimension. Break the tie with, in order: a safety obliga
 
 ### 4. Fix it through the normal chain
 
-Non-trivial work goes through AO-SDLC (`/specify → /clarify → /plan → /tasks → /implement`). A one-file fix does not need a spec package, but it does need the same gates: `make lint`, `make typecheck`, `make test`, `make lint-specs`, and a §11 follow-up mirrored into [BACKLOG.md](../BACKLOG.md).
+Non-trivial work goes through the fleet's spec-driven chain (`/spec-driven:specify → :clarify → :plan → :tasks → :implement`, [spec-driven.md](spec-driven.md)). A one-file fix does not need a spec package, but it does need the same gates: `make lint`, `make typecheck`, `make test`, `make lint-specs`, and a §11 follow-up mirrored into [BACKLOG.md](../BACKLOG.md).
 
 **Promote the fix into the floor.** If the fix could regress silently, it earns a rule in `scripts/ux_audit.py` or a test in `frontend/__tests__/shell/`. This is what moves a dimension from 2 to 3, and it is the part of the loop most worth doing.
 
@@ -137,7 +137,7 @@ Limits worth knowing, stated so nobody over-reads the gate. The body check is a 
 
 ## The mechanical contract
 
-`scripts/ux_audit.py` enforces the structural rules — stdlib only, no container, runs in CI's Spec Drift Gate (which has no path filter, so it covers static-site-only changes too) and in `make lint-specs`.
+`scripts/ux_audit.py` enforces the structural rules — stdlib only, no container, runs in CI's `UI/UX Shell Contract` job (which has no path filter, so it covers static-site-only changes too) and in `make lint-specs`.
 
 **It audits both front ends.** The universal rules (R3–R6, R9–R11) hold everywhere: a landmark needs a name and a control needs a label in either app. The shell rules (R1, R2, R7, R8) describe chrome `lsat-static` does not have and are checked on `frontend/` only — holding a surface to rules it structurally cannot satisfy teaches everyone to ignore the audit. R4 and R9 additionally read stylesheets, because the static site writes its whole layout in CSS rather than in class strings.
 

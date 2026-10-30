@@ -345,12 +345,11 @@ If your compose project is not named `law-ai` (compose derives it from the direc
 
 Spec 018 adds a scheduled autonomy loop that runs inside the same Docker stack. It is **disabled by default** (`AUTONOMY_ENABLED=false`). Operators activate it by setting `AUTONOMY_ENABLED=true` in their environment.
 
-Three beat entries are registered in `law_ai/celery.py`:
+The autonomy beat entries registered in `law_ai/celery.py` include (the nightly test-synthesis entry was retired on 2026-10-26, [ADR 0008](adr/0008-retire-test-pillar.md)):
 
 | Beat entry | Schedule | Kind | Notes |
 |---|---|---|---|
 | `autonomy-content-sweep` | every 6 h | `corpus_growth` | Fetches new docs via allowed source adapters; routes through `IngestionScout`. |
-| `autonomy-nightly-tests` | 06:00 UTC daily | `test_pillar` | Synthesises proposed tests via `TestSynthesizer`; writes `*.proposed.py` files pending human review. |
 | `autonomy-daily-digest` | 07:00 UTC daily | `digest` | Aggregates last 24 h of `autonomy_*` audit events into `var/autonomy/digest-YYYY-MM-DD.md`, then delivers it to any configured channel. Runs `law_ai.core.tasks.compose_digest_task` (not the generic `autonomy_cycle`): the digest is a pure audit-log query, so a dropped connection would otherwise write an empty-but-successful file — transient `OperationalError`/`InterfaceError` is retried three times with exponential backoff (BL-20260511-23). |
 
 ### Digest delivery
@@ -368,7 +367,7 @@ Every cycle passes through `law_ai.core.autonomy.run_cycle`, which emits paired 
 
 ```bash
 # Trigger a cycle manually (dry-run to preview without side-effects)
-make autonomy-run KIND=corpus_growth  # or test_pillar / digest
+make autonomy-run KIND=corpus_growth  # or digest / lsat_content / …
 make manage CMD='run_autonomy --kind digest --dry-run'
 ```
 
