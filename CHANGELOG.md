@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.1](https://github.com/bamr87/law-ai/compare/v0.2.0...v0.2.1) (2026-10-30)
+
+
+### Fixed
+
+* **docs:** add the summary line the docs index lint requires to amendments/README ([c896150](https://github.com/bamr87/law-ai/commit/c896150e5c800cbea1ef649ccc9e376d3d1611e8))
+
+
+### Changed
+
+* consume the fleet's spec-driven loop by reference; move root docs; retire the test pillar (ADR 0008) ([3d04e45](https://github.com/bamr87/law-ai/commit/3d04e455bab60637f508ce56ffbb4789fc943d67))
+
 ## [0.2.0](https://github.com/bamr87/law-ai/compare/v0.1.0...v0.2.0) (2026-10-24)
 
 
