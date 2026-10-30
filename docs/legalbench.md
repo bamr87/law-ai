@@ -1,5 +1,7 @@
 # LegalBench Evaluation Harness
 
+> How the LegalBench harness runs and scores the tracked subsets, how the real data is cached, and how the baseline and regression gate decide a pass.
+
 > Living evaluation manual for Law AI. The harness lives in [backend/law_ai/eval/](../backend/law_ai/eval/) and is invoked through the `Docker: LegalBench Eval` VS Code task (or `make test-legalbench`).
 
 ## Purpose
@@ -23,7 +25,7 @@ Additional subsets (e.g. `contract_nli`, `definitions`, `causation`) can be enab
 
 **One-liner (VS Code):** run the `Docker: LegalBench Eval` task, or `make test-legalbench` from a shell.
 
-**CLI equivalent** (Docker-first — see [CLAUDE.md](../CLAUDE.md); never run this bare on the host):
+**CLI equivalent** (Docker-first — see [AGENTS.md](../AGENTS.md) § Docker-First Workflow; never run this bare on the host):
 
 ```bash
 docker compose run --rm backend python -m law_ai.eval.legalbench \

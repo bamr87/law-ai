@@ -174,6 +174,34 @@ def test_spec_driven_loop_is_consumed_by_reference(repo_root: Path) -> None:
     )
 
 
+# UPS-DOC-04: the root holds docs of record only; plans, proposals, guides and
+# quick references belong under docs/.  The PRD moved to docs/prd.md when the
+# spec-driven loop became the hub's, so the root no longer carries it either.
+_ROOT_DOCS_OF_RECORD = {
+    "README.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "CHANGELOG.md",
+    "LICENSE.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "CODE_OF_CONDUCT.md",
+    "SCHEMA.md",
+    "BACKLOG.md",
+}
+
+
+def test_root_holds_docs_of_record_only(repo_root: Path) -> None:
+    """A guide or plan written at the root goes to docs/ (UPS-DOC-04)."""
+    strays = sorted(
+        p.name for p in repo_root.glob("*.md") if p.name not in _ROOT_DOCS_OF_RECORD
+    )
+    assert not strays, (
+        "root Markdown that is not a doc of record — move it under docs/ and "
+        f"fix its inbound links: {strays}"
+    )
+
+
 _MD_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 
 

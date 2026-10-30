@@ -1,5 +1,7 @@
 # Law AI
 
+> The original April 2026 technical proposal, kept as a historical record — its architecture section is out of date, so read architecture.md for the current system.
+
 **AI Agent Orchestration for Legal Intelligence**
 
 *Technical Proposal & Architecture Document*

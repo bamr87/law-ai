@@ -1,5 +1,7 @@
 # LSAT Question-Type Playbooks
 
+> LSAT question-type playbooks: how each type is recognised and solved, how bank items get their type stamp, and the Diagnose-first exercise, contrast variations and judge-driven rewrites built on them.
+
 A **playbook** is how one LSAT question type is recognised and solved: the stem phrasing that gives it away, the task in one line, the strategies that apply, the method as steps, and the traps planted in its wrong answers. Playbooks are the answer key and the teaching content for the lab's **Diagnose first** exercise, which asks a learner to name a question's type and strategy before the answer choices appear. Introduced by [specs/053-lsat-question-diagnosis](../specs/053-lsat-question-diagnosis/spec.md).
 
 Playbooks sit between two existing layers. A solve guide ([docs/lsat-solve-guides.md](lsat-solve-guides.md)) walks one question; a library article ([docs/lsat-library.md](lsat-library.md)) explains a family in prose. A playbook is the structured pattern for one archetype, keyed to the factory taxonomy, and it is data rather than prose so the exercise can mark against it.

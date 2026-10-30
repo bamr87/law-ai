@@ -38,8 +38,7 @@ Each subset takes the head of each task's test split, capped at `DEFAULT_MAX_ITE
 - **Repository**: https://github.com/HazyResearch/legalbench
 - **Code license**: MIT License (covers the LegalBench harness and task wrapper code)
 - **Dataset license**: CC BY 4.0 (covers the task data/items used for evaluation)
-- **Citation**: Guha et al. (2023) "LegalBench: A Collaboratively Built Benchmark for
-  Measuring Legal Reasoning in Large Language Models."
+- **Citation**: Guha et al. (2023) "LegalBench: A Collaboratively Built Benchmark for Measuring Legal Reasoning in Large Language Models."
 - **Notes**: Tasks in this subset are drawn from publicly available legal
 reasoning exercises. Individual tasks may have their own sub-licenses documented in the LegalBench task registry at `legalbench/tasks/`. Verify per task before distributing cached data.
 
@@ -50,16 +49,14 @@ reasoning exercises. Individual tasks may have their own sub-licenses documented
 - **Code license**: MIT License (covers the LegalBench harness and task wrapper code)
 - **Dataset license**: CC BY 4.0 (covers the task data/items used for evaluation)
 - **Citation**: Same as `core_reasoning` above.
-- **Notes**: Fact patterns are synthetic or drawn from public-domain judicial opinions.
-  Court opinions in the United States are not protected by copyright (17 U.S.C. § 105).
+- **Notes**: Fact patterns are synthetic or drawn from public-domain judicial opinions. Court opinions in the United States are not protected by copyright (17 U.S.C. § 105).
 
 ### contract_nli
 
 - **Source**: LegalBench benchmark; original NLI data from ContractNLI (Koreeda & Manning 2021)
 - **Repository**: https://github.com/HazyResearch/legalbench
 - **License**: MIT License (LegalBench wrapper); ContractNLI data CC BY 4.0
-- **Notes**: Do not redistribute the raw contract text outside of the LegalBench
-  framework without verifying the CC BY 4.0 attribution requirements.
+- **Notes**: Do not redistribute the raw contract text outside of the LegalBench framework without verifying the CC BY 4.0 attribution requirements.
 
 ### definitions
 
@@ -67,8 +64,7 @@ reasoning exercises. Individual tasks may have their own sub-licenses documented
 - **Repository**: https://github.com/HazyResearch/legalbench
 - **Code license**: MIT License (covers the LegalBench harness and task wrapper code)
 - **Dataset license**: CC BY-SA 4.0 — both mapped tasks (`definition_classification`, `definition_extraction`) declare share-alike in their task READMEs, unlike the rest of the tracked subsets. Verified 2026-09-05 against the pinned revision; admissible only because we never redistribute the cached items.
-- **Notes**: Legal definitions are derived from public-domain legal dictionaries
-  and statutory text.
+- **Notes**: Legal definitions are derived from public-domain legal dictionaries and statutory text.
 
 ### causation
 
@@ -83,10 +79,8 @@ reasoning exercises. Individual tasks may have their own sub-licenses documented
 ## Policy
 
 1. Only commit `items.jsonl` caches after confirming the corresponding entry above.
-2. If a new subset is added to `legalbench.ALLOWED_SUBSETS`, add its entry here
-   **first**, before populating the cache or recording a baseline.
-3. This file is checked by `make lint-specs` via `spec_validator.py` (the spec
-   references this path in T-002).
+2. If a new subset is added to `legalbench.ALLOWED_SUBSETS`, add its entry here **first**, before populating the cache or recording a baseline.
+3. This file is checked by `make lint-specs` via `spec_validator.py` (the spec references this path in T-002).
 
 4. The per-task licence check in `law_ai/eval/fetch.py` enforces rule 1 mechanically. Widening `ALLOWED_LICENCES` requires a licence review recorded above, not just a code change.
 

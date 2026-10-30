@@ -294,24 +294,13 @@
   - `lsat-static/app/page.tsx`, `lsat-static/app/globals.css`
   - `lsat-static/components/{Overview,PassagePanel}.tsx`
 - **Steps**:
-  1. Compact the nav: seven full-length destinations wrapped a second row at
-     *every* width once Writing was added, pushing the header to 101px on
-     desktop and 136px on a phone and desynchronising the `--site-header-h`
-     offset the sticky drill head and passage column hang from. Section codes
-     carry the sections; `aria-label` and `title` keep the full names.
-  2. Make the row scroll rather than wrap, pull the active destination into
-     view on change, and fade the trailing edge only while it overflows
-     (ResizeObserver, so rotation does not leave a stale answer).
-  3. Add an entrance animation per destination — fade above 820px where the
-     passage column is sticky (an animated `transform` would create a
-     containing block and break sticky), fade-and-rise below.
-  4. Raise every control to the 44px touch guideline at phone widths and on
-     coarse pointers; honour `prefers-reduced-motion` for all of it.
+  1. Compact the nav: seven full-length destinations wrapped a second row at *every* width once Writing was added, pushing the header to 101px on desktop and 136px on a phone and desynchronising the `--site-header-h` offset the sticky drill head and passage column hang from. Section codes carry the sections; `aria-label` and `title` keep the full names.
+  2. Make the row scroll rather than wrap, pull the active destination into view on change, and fade the trailing edge only while it overflows (ResizeObserver, so rotation does not leave a stale answer).
+  3. Add an entrance animation per destination — fade above 820px where the passage column is sticky (an animated `transform` would create a containing block and break sticky), fade-and-rise below.
+  4. Raise every control to the 44px touch guideline at phone widths and on coarse pointers; honour `prefers-reduced-motion` for all of it.
 - **Verify**:
-  - At 390px: header 136px → 85px, no control under 44px, no horizontal
-    overflow, nav scrolls with the active pill in view.
-  - At 1280px: header 61px against the 60px `--site-header-h` token, one nav
-    row, passage column still `position: sticky`.
+  - At 390px: header 136px → 85px, no control under 44px, no horizontal overflow, nav scrolls with the active pill in view.
+  - At 1280px: header 61px against the 60px `--site-header-h` token, one nav row, passage column still `position: sticky`.
   - `make ux-audit` and `make lsat-static-build` both clean.
 
 ---
@@ -323,28 +312,15 @@
 - **Status**: `[x]`
 - **Files**: `lsat-static/app/page.tsx`, `lsat-static/app/globals.css`
 - **Steps**:
-  1. Three header states on a scroll listener — `top` (brand row + nav strip),
-     `condensed` (brand row collapses once the page moves), `hidden` (the bar
-     slides away past a screenful). Scrolling up returns to `condensed` at any
-     depth, so the nav is one upward flick away rather than a scroll home.
-  2. Direction-keyed with a 6px dead zone (momentum and rubber-banding both
-     jitter) and rAF-throttled on a passive listener.
-  3. Animate `transform`, never `top` or `height`: a transform does not
-     reflow, so content underneath never shifts, and no sticky offset is
-     hand-written (`ux_audit.py` R9).
-  4. Scope the CSS to `max-width: 819px`. Above that the drill head and
-     passage column are sticky at offsets keyed off `--site-header-h`, and a
-     moving header would desynchronise both.
-  5. Escape hatches: any focus landing inside a hidden header restores it (a
-     browser will not reliably scroll a transformed sticky element into view),
-     and a destination change resets scroll and returns the header.
+  1. Three header states on a scroll listener — `top` (brand row + nav strip), `condensed` (brand row collapses once the page moves), `hidden` (the bar slides away past a screenful). Scrolling up returns to `condensed` at any depth, so the nav is one upward flick away rather than a scroll home.
+  2. Direction-keyed with a 6px dead zone (momentum and rubber-banding both jitter) and rAF-throttled on a passive listener.
+  3. Animate `transform`, never `top` or `height`: a transform does not reflow, so content underneath never shifts, and no sticky offset is hand-written (`ux_audit.py` R9).
+  4. Scope the CSS to `max-width: 819px`. Above that the drill head and passage column are sticky at offsets keyed off `--site-header-h`, and a moving header would desynchronise both.
+  5. Escape hatches: any focus landing inside a hidden header restores it (a browser will not reliably scroll a transformed sticky element into view), and a destination change resets scroll and returns the header.
 - **Verify** (measured in a real browser at 390x844 and 1280x900):
-  - 390px: 85px at rest → 60px condensed at 60px of scroll → off-screen
-    (`top: -61`) past 220px → back to 60px condensed on an upward flick →
-    85px at the top.
+  - 390px: 85px at rest → 60px condensed at 60px of scroll → off-screen (`top: -61`) past 220px → back to 60px condensed on an upward flick → 85px at the top.
   - Focus on a nav button while hidden restores the bar to `top: 0`.
-  - 1280px: class still changes, but `transform: none`, `top: 0`, height 61px
-    — the wide layout is untouched.
+  - 1280px: class still changes, but `transform: none`, `top: 0`, height 61px — the wide layout is untouched.
   - `make ux-audit` and `make lsat-static-build` clean.
 
 ---
@@ -360,26 +336,13 @@
   - `lsat-static/components/{Drill,QuestionCard,Writing}.tsx`
   - `lsat-static/components/solve/SolveAssist.tsx`
 - **Steps**:
-  1. A shared `useShortcuts` hook with three invariants: never steal a
-     keystroke from a text field (the writing editor is a 35-minute essay),
-     never double-fire (skip an event a component handler already
-     `preventDefault`ed), never shadow the browser (bare keys only; `mod+` and
-     an explicit `allowWhileTyping` list are the two opt-ins).
-  2. Bind every step of a drill: `A`–`E` select from anywhere on the page,
-     `Enter` checks then advances, `N`/`P` move between questions, `H` opens
-     and walks the hints, `J`/`K` move within revealed hints, `R` reveals the
-     final step once graded.
-  3. Bind Writing: `O` opens the first prompt, `T` starts/pauses the clock,
-     `Ctrl`/`⌘`+`Enter` submits from inside the editor, `M` toggles the model
-     response, `Escape` leaves the field and then the workspace.
-  4. Global `[` / `]` for section movement (arrows stay with the radiogroup)
-     and `?` for the reference dialog, with modal suspension so the page
-     behind the dialog stops answering keys.
-  5. Discoverability: a `?` dialog with focus trap and focus restore, a footer
-     affordance, and `aria-keyshortcuts` on the controls the bindings drive.
+  1. A shared `useShortcuts` hook with three invariants: never steal a keystroke from a text field (the writing editor is a 35-minute essay), never double-fire (skip an event a component handler already `preventDefault`ed), never shadow the browser (bare keys only; `mod+` and an explicit `allowWhileTyping` list are the two opt-ins).
+  2. Bind every step of a drill: `A`–`E` select from anywhere on the page, `Enter` checks then advances, `N`/`P` move between questions, `H` opens and walks the hints, `J`/`K` move within revealed hints, `R` reveals the final step once graded.
+  3. Bind Writing: `O` opens the first prompt, `T` starts/pauses the clock, `Ctrl`/`⌘`+`Enter` submits from inside the editor, `M` toggles the model response, `Escape` leaves the field and then the workspace.
+  4. Global `[` / `]` for section movement (arrows stay with the radiogroup) and `?` for the reference dialog, with modal suspension so the page behind the dialog stops answering keys.
+  5. Discoverability: a `?` dialog with focus trap and focus restore, a footer affordance, and `aria-keyshortcuts` on the controls the bindings drive.
 - **Verify** (driven with real key events in a browser at 1280x900 and 390x844):
-  - LR, RC, and LG each complete a question by keyboard alone: select → check
-    → hint → advance.
+  - LR, RC, and LG each complete a question by keyboard alone: select → check → hint → advance.
   - `Enter` checks, then advances; with nothing selected it is a no-op.
   - `H` walks 1→2→3, `J`/`K` move within revealed steps, `R` jumps to 5 of 5.
   - Typing `n p t m o a h ] [ ?` inside the writing editor changes nothing.

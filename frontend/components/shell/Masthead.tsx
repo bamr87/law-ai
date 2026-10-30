@@ -54,16 +54,19 @@ export default function Masthead({
     >
       <Link
         href="/"
-        aria-label="Law AI home"
         className="tap-target flex shrink-0 items-center gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
       >
-        {/* The mark stays 32px; the link around it is the 44px target. */}
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-bold text-white">
+        {/* The mark stays 32px; the link around it is the 44px target. The
+         * visible mark and wordmark are aria-hidden and the name comes from
+         * the sr-only text: an aria-label that differs from the visible text
+         * trips axe's label-content-name-mismatch (WCAG 2.5.3). */}
+        <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-bold text-white">
           LA
         </span>
-        <span className="hidden text-lg font-semibold tracking-tight sm:inline">
+        <span aria-hidden="true" className="hidden text-lg font-semibold tracking-tight sm:inline">
           Law<span className="text-blue-400"> AI</span>
         </span>
+        <span className="sr-only">Law AI home</span>
       </Link>
 
       {modulesMenu}
@@ -115,11 +118,13 @@ export default function Masthead({
         <button
           type="button"
           onClick={onOpenPalette}
-          aria-label="Open command palette"
+          aria-keyshortcuts="Meta+K Control+K"
           className="tap-target flex items-center justify-center gap-2 rounded-md border border-slate-700 px-2.5 text-xs text-slate-400 transition hover:border-blue-500/40 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
         >
           <span aria-hidden="true">⌕</span>
-          <kbd className="hidden font-mono text-[10px] text-slate-400 sm:inline">
+          <span className="sr-only">Open command palette</span>
+          {/* A visual hint only; the shortcut is exposed via aria-keyshortcuts. */}
+          <kbd aria-hidden="true" className="hidden font-mono text-[10px] text-slate-400 sm:inline">
             ⌘K
           </kbd>
         </button>

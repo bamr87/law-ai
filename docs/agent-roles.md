@@ -1,10 +1,12 @@
 # Law AI — Agent Roles & Specifications
 
+> Every agent that exists or is planned — its status (Live, Stub, Not started), responsibilities, tools and the module that implements it.
+
 This document defines every agent that exists or is planned for Law AI. All agents must follow the rules in `AGENTS.md`.
 
 Status markers used below: **Live** (real implementation, exercised by tests), **Stub** (class exists and is wired up, but the core logic is an honest no-op placeholder), **Not started** (no code anywhere in the repo). This mirrors the actual set under [backend/law_ai/agents_runtime/crews/](../backend/law_ai/agents_runtime/crews/) and [backend/law_ai/agents_runtime/graphs/](../backend/law_ai/agents_runtime/graphs/), and the registered set in [backend/law_ai/agents_runtime/registry.py](../backend/law_ai/agents_runtime/registry.py).
 
-Runtime LLM note: every "Live" agent below that calls an LLM does so through the shared provider chain in `law_ai.core.llm` — Claude over OAuth, then Claude over `ANTHROPIC_API_KEY`, then xAI Grok over a subscription OAuth token (inert until `make xai-login`), then local Ollama as the last-tier fallback (`LLM_PROVIDER_CHAIN`, specs 034 and 050; see [CLAUDE.md](../CLAUDE.md) "Runtime LLM policy" and [docs/constitution.md](constitution.md) §1).
+Runtime LLM note: every "Live" agent below that calls an LLM does so through the shared provider chain in `law_ai.core.llm` — Claude over OAuth, then Claude over `ANTHROPIC_API_KEY`, then xAI Grok over a subscription OAuth token (inert until `make xai-login`), then local Ollama as the last-tier fallback (`LLM_PROVIDER_CHAIN`, specs 034 and 050; see [llm-provider-chain.md](llm-provider-chain.md) and [docs/constitution.md](constitution.md) §1).
 
 **Privileged-data pin.** The first three tiers send prompt text off the host, so `LLM_PROVIDER_CHAIN=ollama` is the **only** configuration that keeps it local — and it is **required**, not optional, for any matter under a confidentiality obligation that forbids third-party processing ([docs/constitution.md](constitution.md) §1, [ADR 0005](adr/0005-claude-default-runtime.md), [ADR 0007](adr/0007-xai-runtime-provider.md)). Pin it before running any agent below over privileged material; every call records which tier actually served it as an `llm_call` `AuditEvent`, so the pin is verifiable after the fact. The LegalBench harness is pinned to Ollama independently, so eval scores stay comparable ([docs/architecture.md](architecture.md#component-responsibilities)). None of these agents are CrewAI `Crew`/`Agent`/`Task` objects — despite the `crews/` directory name, they are plain Python classes with an async `run()`; no file under `agents_runtime/crews/` imports `crewai`.
 

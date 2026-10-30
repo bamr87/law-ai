@@ -11,7 +11,7 @@
 - [x] **T-005** — Refresh `validate_claude_code`, `run_legal_analyst`, `run_lsat_author` gate output for the chain era. (**FR-5**)
 - [x] **T-006** — Rebuild the backend image; verify langchain-core/langgraph/checkpointers import in the fresh container. (**FR-1**)
 - [x] **T-007** — Live OAuth validation: probe, tutor E2E, IRAC analyst, LangGraph+checkpointer E2E, chain health endpoint. (**NFR-VALID-1**)
-- [x] **T-008** — Reimplement `AO-SDLC_Outline_Guide.md` as v2.0, grounded in the implemented system, with the validation playbook. (**FR-6**)
+- [x] **T-008** — Reimplement `AO-SDLC_Outline_Guide.md` (now `docs/ao-sdlc-guide.md`) as v2.0, grounded in the implemented system, with the validation playbook. (**FR-6**)
 - [x] **T-009** — Tests: `tests/core/test_llm_langchain.py` (9 cases). 
 - [x] **T-010** — Gates: ruff/format clean on changed files; mypy no new errors; backend suites green; spec_validator + backlog_lint pass.
 

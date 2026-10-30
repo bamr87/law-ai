@@ -1,5 +1,7 @@
 # The LSAT static site (`lsat-static/`)
 
+> The architecture of the static LSAT site — how practice content reaches the GitHub Pages export, what gates it, and which specs shaped it.
+
 The LSAT module ships to learners through two surfaces. The platform Lab (`frontend/`, `/lsat`) talks to `/api/lsat/*` and carries everything that needs a backend: the tutor, authoring, the HITL proposals queue, validation. The **static site** is a serverless snapshot of the practice content — a Next.js app built with `output: 'export'` and published to GitHub Pages, with the whole question bank imported at build time so the published site makes zero network calls for content.
 
 This document is the architecture-level description of that channel: what the app is, how content reaches it, what gates it, and which specs shaped it. The operator quickstart (local dev, npm scripts, deliberate divergences, the bundle-shard trigger) lives in [lsat-static/README.md](../lsat-static/README.md) and is not repeated here.

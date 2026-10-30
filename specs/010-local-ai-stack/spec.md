@@ -4,12 +4,12 @@
 - **Status**: shipped
 - **Owner**: @copilot
 - **Created**: 2026-05-02
-- **Roadmap Epic**: [local-ai-plan.md](../../docs/history/2026-04-local-ai-plan.md)
+- **Roadmap Epic**: `local-ai-plan.md` (a raw planning note, deleted 2026-10-22 as superseded by this spec and [docs/local-ai.md](../../docs/local-ai.md); see git history)
 - **Constitution Compliance**: confirmed against [docs/constitution.md](../../docs/constitution.md) §1 (open-source, privacy-first, local), §2 (tech stack: Ollama + LangGraph), §3 (provenance), §11 (continuous evolution). Phase 7 of the source plan (Continue.dev / PearAI / Aider) is explicitly removed because [AGENTS.md](../../AGENTS.md) "Development Orchestration" forbids non-Copilot coding agents.
 
 ## 1. Problem & Motivation
 
-[local-ai-plan.md](../../docs/history/2026-04-local-ai-plan.md) sketches a fully local, agent-orchestrated stack (Ollama → LangGraph → Postgres/Redis checkpointers → self-hosted API/Studio → Phoenix). Today the repo only ships the Ollama container in [docker-compose.yml](../../docker-compose.yml) and lists `langgraph` + `ollama` in [backend/pyproject.toml](../../backend/pyproject.toml) but no LangGraph workflow runs against a real Ollama model with durable state. Agents in `backend/app/agents/crews/` carry TODOs (BL-20260430-03, BL-20260430-04) precisely because the local LLM substrate is incomplete.
+`local-ai-plan.md` (since deleted; see git history) sketched a fully local, agent-orchestrated stack (Ollama → LangGraph → Postgres/Redis checkpointers → self-hosted API/Studio → Phoenix). Today the repo only ships the Ollama container in [docker-compose.yml](../../docker-compose.yml) and lists `langgraph` + `ollama` in [backend/pyproject.toml](../../backend/pyproject.toml) but no LangGraph workflow runs against a real Ollama model with durable state. Agents in `backend/app/agents/crews/` carry TODOs (BL-20260430-03, BL-20260430-04) precisely because the local LLM substrate is incomplete.
 
 This spec lands the **smallest defensible local-AI substrate** so the rest of the roadmap (LegalAnalyst, PrecedentHunter, IngestionScout HITL) can stop stubbing LLM calls.
 

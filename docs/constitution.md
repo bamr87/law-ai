@@ -1,5 +1,7 @@
 # Law AI — Constitution
 
+> The rules every spec, plan and PR must satisfy to be valid — mission, locked stack, quality gates, provenance, HITL, testing, security, autonomy invariants and jurisprudential honesty.
+
 > Org-wide, non-negotiable standards for every spec, plan, and implementation produced by humans or AI agents in this repo. This is the **first** document any agent reads when running `/spec-driven:specify`, `/spec-driven:plan`, or `/spec-driven:implement` (the fleet's spec-driven plugin; see [spec-driven.md](spec-driven.md)).
 >
 > Higher-level principles, mission, and tech-stack rationale live in [AGENTS.md](../AGENTS.md). This file encodes only the **rules a spec or PR must satisfy to be valid**.
@@ -173,3 +175,13 @@ Limits, so this clause is not misread: it authorizes labelling, not filtering. D
 ---
 
 **Amendments to this constitution require an ADR in `docs/adr/` and review by a human maintainer.**
+
+## 14. Amendments
+
+The rule above stands: amending this constitution needs an ADR in `docs/adr/` (when the change is architectural) **and** review by a human maintainer. From 2026-10-21 every amendment is also recorded as a numbered record in [docs/amendments/](amendments/) (`NNNN-kebab-slug.md`, from [0000-template.md](amendments/0000-template.md); fleet governance kit, bamr87/bamr87 `templates/governance/`):
+
+1. **Propose**: a PR adds the record (`Status: proposed`) and the edit to this file, naming what it affects (sections here, PRD sections, feature ids in [features/features.yml](../features/features.yml)) and the ADR it cites.
+2. **Ratify**: the maintainer merging the PR ratifies it (`Status: ratified`, `Ratified by:` the PR). Agents never approve or merge their own amendment.
+3. **Supersede**: a later record replaces an earlier one; ratified records are never edited, and numbers are never reused.
+
+The inline amendments already in this file (§1 "amended 2026-08-11, spec 034" and "amended 2026-09-04, ADR 0007") predate the log and stay where they are; [0001](amendments/0001-ratify-constitution.md) ratifies this document with them.

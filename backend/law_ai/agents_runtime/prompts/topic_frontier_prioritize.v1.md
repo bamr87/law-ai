@@ -12,10 +12,8 @@ You are a legal research assistant helping to prioritize gaps in a legal knowled
 
 You will receive a JSON object with two keys:
 
-- `orphan_citations`: a list of citation strings that exist in the graph as `:Citation` nodes
-  but do **not** yet resolve to a `:Case` node.
-- `under_cited_jurisdictions`: a list of jurisdiction tags (e.g. `"us-co"`, `"us-9th"`) that
-  have fewer than 5 `:Case` nodes in the graph.
+- `orphan_citations`: a list of citation strings that exist in the graph as `:Citation` nodes but do **not** yet resolve to a `:Case` node.
+- `under_cited_jurisdictions`: a list of jurisdiction tags (e.g. `"us-co"`, `"us-9th"`) that have fewer than 5 `:Case` nodes in the graph.
 
 ## Task
 

@@ -1,0 +1,108 @@
+# =============================================================================
+# features/features.yml — THE FEATURE INDEX for bamr87/law-ai
+# =============================================================================
+# kit: verify v0.1.0 · governance v0.1.0 (bamr87/bamr87 templates/verify/, templates/governance/)
+#
+# One entry per user-facing capability, grounded in this repo's PRD, README and
+# code: what it does, where it lives (`link`), where it is explained (`docs`),
+# its `status` (shipped | partial | planned | deprecated | tbd) and the PRD
+# requirements it serves (`prd:`; TBD = not yet traced). Ids are STABLE: never
+# renumber or reuse one. The PRD's "Feature catalog" block is generated from
+# this file — edit here, then run:
+#   python3 <bamr87/bamr87>/tools/governance_lint.py prd-sync . --write
+# Validate: python3 <hub>/tools/governance_lint.py check .  ·  <hub>/tools/features_index.py check .
+# Schema: features/v1 (field reference: bamr87/bamr87 templates/verify/features.template.yml)
+# =============================================================================
+schema: features/v1
+repo: bamr87/law-ai
+prd: docs/prd.md      # the PRD moved under docs/ on 2026-10-25; governance_lint find_prd reads this key
+
+features:
+  - id: LAWAI-001
+    title: "Data ingestion and knowledge graph foundation"
+    description: "Scheduled and on-demand ingestion (CourtListener, CAP bulk), citation extraction and LLM holding/entity extraction into Neo4j with provenance metadata (PRD 5.1)."
+    implemented: true
+    status: partial
+    prd: ["§5"]
+    surface: infra
+    link: "backend/law_ai/ingestionapp"
+    docs: "docs/data-model.md"
+  - id: LAWAI-002
+    title: "Core agent crews"
+    description: "Ingestion Scout, Legal Analyst, Precedent Hunter and the LangGraph orchestrator with human-approval gates (PRD 5.2)."
+    implemented: true
+    status: partial
+    prd: ["§5", "§7"]
+    surface: api
+    link: "backend/law_ai/agents_runtime"
+    docs: "docs/agent-roles.md"
+  - id: LAWAI-003
+    title: "Interactive knowledge graph explorer"
+    description: "Cytoscape.js subgraph visualization with expand, filters, citation paths and export (PRD 5.3)."
+    implemented: false
+    status: tbd
+    prd: ["§5"]
+    surface: ui
+    link: "backend/law_ai/graph"
+    docs: "docs/prd.md"
+  - id: LAWAI-004
+    title: "Analysis Studio"
+    description: "Split-pane case viewer, live agent chat and trace log, structured output panel, linked graph view; outputs persisted as versioned artifacts (PRD 5.4)."
+    implemented: false
+    status: tbd
+    prd: ["§5", "§8"]
+    surface: ui
+    link: "backend/law_ai/analysis"
+    docs: "docs/prd.md"
+  - id: LAWAI-005
+    title: "LSAT Learning Lab"
+    description: "Practice sections with AI explanations tied to graph nodes and a performance dashboard by question type (PRD 5.5)."
+    implemented: true
+    status: partial
+    prd: ["§5"]
+    surface: ui
+    link: "backend/law_ai/lsat"
+    docs: "docs/prd.md"
+  - id: LAWAI-006
+    title: "Matters workspace"
+    description: "Matter-scoped workspaces in the backend `matters` app; maps to PRD Phase 2 user workspaces."
+    implemented: false
+    status: tbd
+    prd: ["§5"]
+    surface: api
+    link: "backend/law_ai/matters"
+    docs: "docs/prd.md"
+  - id: LAWAI-007
+    title: "Provenance and audit log"
+    description: "Every LLM call, tool call and retrieval goes through law_ai.core.provenance with dual-write JSONL + Postgres audit (constitution §4)."
+    implemented: true
+    status: shipped
+    prd: ["§9"]
+    surface: infra
+    link: "backend/law_ai/audit"
+    docs: "docs/constitution.md"
+  - id: LAWAI-008
+    title: "LegalBench evaluation harness"
+    description: "Centralized LegalBench regression runs pinned to Ollama (constitution §3, §6)."
+    implemented: true
+    status: shipped
+    prd: ["§3"]
+    surface: infra
+    link: "backend/law_ai/eval"
+    docs: "docs/constitution.md"
+  - id: LAWAI-009
+    title: "Multi-agent collaboration and GraphRAG (Phase 2)"
+    description: "Parallel analyst/hunter/logic-weaver crews with shared memory, GraphRAG community summaries, Bluebook export, Discover feed, one-click self-hosting."
+    implemented: false
+    status: planned
+    prd: ["§5"]
+    surface: api
+    docs: "docs/prd.md"
+  - id: LAWAI-010
+    title: "Expansion (Phase 3)"
+    description: "UK/EU sources, fine-tuned legal LLM, browser/Office plugins, agent marketplace, mobile PWA, empirical research module."
+    implemented: false
+    status: planned
+    prd: ["§5"]
+    surface: ui
+    docs: "docs/prd.md"

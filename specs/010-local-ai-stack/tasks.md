@@ -206,7 +206,7 @@
 
 > Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id.
 
-- BL-20260502-01 — feature, med — Self-host LangGraph API + Studio container (`langchain/langgraph-api`) so designers can step through `LegalWorkflow` runs visually. Phase 5 of [local-ai-plan.md](../../docs/history/2026-04-local-ai-plan.md); deferred per NG1.
+- BL-20260502-01 — feature, med — Self-host LangGraph API + Studio container (`langchain/langgraph-api`) so designers can step through `LegalWorkflow` runs visually. Phase 5 of `local-ai-plan.md` (since deleted); deferred per NG1.
 - BL-20260502-02 — infra, med — Linux + NVIDIA workstation tier: GPU runtime in compose, optional vLLM service, default model upgraded to `llama3.1:70b-q4_K_M`. Phase 2 / 3 of source plan; deferred per NG2.
 - BL-20260502-03 — infra, low — Server / multi-GPU tier with Prometheus + Grafana for token/sec, GPU util, queue depth. Phase 8 of source plan; deferred per NG5.
 - BL-20260502-04 — feature, med — Backfill `LegalAnalyst` (BL-20260430-03) and `PrecedentHunter` (BL-20260430-04) onto `LegalWorkflow` once parity proven on LegalBench.

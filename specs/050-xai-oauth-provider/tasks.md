@@ -14,7 +14,7 @@
 - [x] **T-008** — `xai_login` (device-code default, `--loopback`, `--status`) and `validate_xai` management commands + `make xai-login` / `make validate-xai`. (**FR-9**)
 - [x] **T-009** — Tests under `backend/tests/core/`: polling branches, credential store round-trip + rotation, 401 retry, chain skip when unconfigured, and a guard that the test settings leave the tier unreachable. (**AC-1**, **AC-2**, **AC-3**, **AC-4**, **AC-5**)
 - [x] **T-011** — `XaiExecutor` for the LSAT content factory, routed through the chain pinned to `xai`, registered as `--executor xai`; tests in `backend/tests/lsat/test_factory_executors.py`. (**FR-12**)
-- [x] **T-010** — Docs: flip ADR 0007 status to accepted/implemented, drop the "authorised, not yet implemented" language from constitution §1, refresh the chain listings in `AGENTS.md`, `CLAUDE.md`, `AO-SDLC_Outline_Guide.md` §4.1, `README.md`, `PRD.md`. (**FR-1**)
+- [x] **T-010** — Docs: flip ADR 0007 status to accepted/implemented, drop the "authorised, not yet implemented" language from constitution §1, refresh the chain listings in `AGENTS.md`, `CLAUDE.md`, `AO-SDLC_Outline_Guide.md` (now `docs/ao-sdlc-guide.md`) §4.1, `README.md`, `PRD.md`. (**FR-1**)
 
 ## Follow-ups Discovered
 

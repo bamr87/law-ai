@@ -18,12 +18,9 @@
 - **Files**:
   - `backend/scripts/init-db.sh` (modify)
 - **Steps**:
-  1. Change `NEO4J_MIGRATIONS="$REPO_ROOT/app/db/neo4j_migrations"` to
-     `NEO4J_MIGRATIONS="$REPO_ROOT/law_ai/core/neo4j/migrations"`.
-  2. Remove the `PG_MIGRATIONS` variable and the `for f in "$PG_MIGRATIONS"/*.sql` loop
-     entirely.
-  3. Add `DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-law_ai.settings.dev}"` export
-     before the `manage.py` call.
+  1. Change `NEO4J_MIGRATIONS="$REPO_ROOT/app/db/neo4j_migrations"` to `NEO4J_MIGRATIONS="$REPO_ROOT/law_ai/core/neo4j/migrations"`.
+  2. Remove the `PG_MIGRATIONS` variable and the `for f in "$PG_MIGRATIONS"/*.sql` loop entirely.
+  3. Add `DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-law_ai.settings.dev}"` export before the `manage.py` call.
   4. Replace the removed Postgres block with:
      ```bash
      echo "==> Applying Postgres migrations (Django)"
@@ -49,13 +46,10 @@
 - **Owner**: @copilot
 - **Status**: `[x]`
 - **Files**:
-  - `tests/test_configs.py` (extend) _or_ `tests/test_init_db.py` (new if a new file is
-    cleaner)
+  - `tests/test_configs.py` (extend) _or_ `tests/test_init_db.py` (new if a new file is cleaner)
 - **Steps**:
-  1. Use `subprocess.run(["bash", "-n", "backend/scripts/init-db.sh"])` and assert exit 0
-     (AC-4).
-  2. Read `backend/scripts/init-db.sh` as text and assert neither `app/db/neo4j_migrations`
-     nor `app/db/postgres_migrations` appears (AC-3).
+  1. Use `subprocess.run(["bash", "-n", "backend/scripts/init-db.sh"])` and assert exit 0 (AC-4).
+  2. Read `backend/scripts/init-db.sh` as text and assert neither `app/db/neo4j_migrations` nor `app/db/postgres_migrations` appears (AC-3).
   3. Assert `manage.py migrate` appears in the script text (AC-2).
 - **Verify**:
   - `cd /Users/bamr87/law-ai && pytest tests/test_configs.py -q` (or `test_init_db.py`) green.

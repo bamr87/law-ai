@@ -20,14 +20,12 @@ after:   client picks stream_id ─► WS subscribe ─► ready
                             complete      → emit ─────┘
 ```
 
-1. `stream_id` on `AnalysisRequest`, pattern-validated by Pydantic so a bad
-   value is a 422 rather than a weird group name.
+1. `stream_id` on `AnalysisRequest`, pattern-validated by Pydantic so a bad value is a 422 rather than a weird group name.
 2. `_run_step()` wraps each agent inside the `gather`, emitting that
 agent's event the moment it finishes. This is what makes the trace *incremental* rather than a batch delivered at the end.
 3. Consumer: reject non-conforming ids (close 4400) and unauthenticated
 sockets (close 4401) **before** `group_add`, so a rejected client never receives an event. Key accepted via query string (browsers cannot set handshake headers) or `X-API-Key`.
-4. `stream_group()` lives in the consumer module and is imported by the
-   producer, so the two cannot disagree about the group name.
+4. `stream_group()` lives in the consumer module and is imported by the producer, so the two cannot disagree about the group name.
 
 ## Slice B — Readiness that means something (FR-7, FR-8)
 
@@ -47,8 +45,7 @@ sockets (close 4401) **before** `group_add`, so a rejected client never receives
 wrong key / valid via query / valid via header / open when unset, and an **end-to-end** test that subscribes, posts through the real ASGI app, and asserts two `agent_step` events plus `complete` with a matching `analysis_id`; plus a 422 test for a bad `stream_id` at the API boundary.
 - Healthcheck verified live in the running container: exit 0 with the gate
 model present, exit 1 with a diagnostic when `OLLAMA_BOOTSTRAP_MODELS` points at a model that isn't pulled, and `docker inspect` reporting `healthy`.
-- Frontend: 7 tests over the stream client, including that a step frame
-  alone does not resolve the promise and that non-JSON frames are ignored.
+- Frontend: 7 tests over the stream client, including that a step frame alone does not resolve the promise and that non-JSON frames are ignored.
 
 ## Rollback
 

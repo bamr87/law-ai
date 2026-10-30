@@ -17,39 +17,30 @@ Never "repair" a question by writing the part that is missing. Never normalise a
 Fix only scanning damage you are certain of: a broken hyphenation across a line break, a stray line number in the margin, `1` read as `l`. Do not paraphrase, summarise, condense, or improve.
 2. **Exactly 5 answer choices** labelled A, B, C, D, E, in that order. If the page
 text does not contain all five, return no draft for that item and say which labels you found in `notes`.
-3. **The answer key.** Prep books usually print the key elsewhere. Set
-   `key_source` to:
-   - `printed` — the page itself states the credited answer (an answer line, a bold
-     letter, a marked choice). Copy it.
+3. **The answer key.** Prep books usually print the key elsewhere. Set `key_source` to:
+   - `printed` — the page itself states the credited answer (an answer line, a bold letter, a marked choice). Copy it.
    - `inferred` — it does not, and you worked the question out yourself.
 Never claim `printed` for a key you reasoned to. A reviewer treats the two differently.
 4. **The explanation.** If the page prints one, copy it and set
 `explanation_source: printed`. Otherwise write your own reasoning — why the credited choice is right and one short clause per distractor — and set `explanation_source: inferred`.
 5. **Section** is one of `LR`, `RC`, `LG`, judged from what is on the page:
    - `LR` — a short argument or stimulus followed by one question.
-   - `RC` — a question about a long passage that the page shares with other
-     questions.
+   - `RC` — a question about a long passage that the page shares with other questions.
    - `LG` — a game setup with numbered constraints, or a question about one.
-6. **Difficulty** is one of `intro`, `easy`, `med`, `hard`, `elite`. Judge it; when
-   you have no basis, use `med`.
-7. `concepts` must be drawn from the supplied concept catalog ids. Use `[]` rather
-   than inventing an id.
+6. **Difficulty** is one of `intro`, `easy`, `med`, `hard`, `elite`. Judge it; when you have no basis, use `med`.
+7. `concepts` must be drawn from the supplied concept catalog ids. Use `[]` rather than inventing an id.
 8. `confidence` (0-1) is how sure you are that the draft **matches the page**, not
 how good the question is. Score the transcription, not the item. A page with `==marked==` disagreements or missing text scores low.
-9. `source_excerpt` — quote the first line of the item as it appears on the page, so
-   a reviewer can find it without opening the scan.
+9. `source_excerpt` — quote the first line of the item as it appears on the page, so a reviewer can find it without opening the scan.
 10. Return JSON **only** matching the schema below. No markdown fences. No prose.
 
 ## Reading a scanned page
 
 - `==word==[^ocrmd-n]` marks a spot where the two readings **disagreed**. The word
 shown is one of two candidates. Keep the text, drop the marks, and lower `confidence`. If a disagreement lands inside a choice you are copying, name it in `notes`.
-- A page may hold several questions. Extract only the one the request asks for; if
-  the request names none, extract every complete item on the page.
-- Marginal line numbers (`5`, `10`, `15` down the left of an RC passage), running
-  heads, and printed page numbers are not part of the item.
-- A question whose passage or game setup lives on another page still gives you a
-  usable stem and choices: extract them and note the missing context in `notes`.
+- A page may hold several questions. Extract only the one the request asks for; if the request names none, extract every complete item on the page.
+- Marginal line numbers (`5`, `10`, `15` down the left of an RC passage), running heads, and printed page numbers are not part of the item.
+- A question whose passage or game setup lives on another page still gives you a usable stem and choices: extract them and note the missing context in `notes`.
 
 ## Output schema
 

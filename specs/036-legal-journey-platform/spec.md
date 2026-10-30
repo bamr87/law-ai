@@ -19,7 +19,7 @@ The goal set for this epic — *a platform that facilitates the whole legal jour
 
 ## 2. Origin & Background
 
-**Origin.** User directive (2026-08-17): "build a platform that can facilitate the whole legal journey." Roadmap anchors: [PRD](../../docs/prd.md) §5 Phase 2 (workspaces, project folders, export), §8.1 (Dashboard, Library, persistent tabs per matter); [Law_AI_Proposal](../../docs/history/2026-04-proposal.md) collaboration layer.
+**Origin.** User directive (2026-08-17): "build a platform that can facilitate the whole legal journey." Roadmap anchors: [PRD](../../docs/prd.md) §5 Phase 2 (workspaces, project folders, export), §8.1 (Dashboard, Library, persistent tabs per matter); [Law AI proposal](../../docs/history/2026-04-proposal.md) collaboration layer.
 
 **Backlog items claimed by this spec** (moved to `## Claimed` in [BACKLOG.md](../../BACKLOG.md)):
 

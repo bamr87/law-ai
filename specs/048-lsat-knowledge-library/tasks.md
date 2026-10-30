@@ -21,14 +21,10 @@
 - **Files**:
   - `backend/law_ai/lsat/services/library.py` (new)
 - **Steps**:
-  1. Model `Article`, `ArticleKind`, `ArticleLevel`, `ReviewStatus`, `Track`, the `Block`
-     discriminated union and `Span`.
-  2. Write the restricted frontmatter parser (scalars, inline lists, block lists, nested
-     reference objects) — no YAML dependency, strict on anything else.
-  3. Write the block parser: `##`/`###` headings, paragraphs, bullet and ordered lists,
-     `> [!variant]` callouts, pipe tables, fenced notation blocks.
-  4. Write the inline parser: strong, emphasis, code, external link, `[[concept:…]]`,
-     `[[article:…]]`, `[[question:…]]`.
+  1. Model `Article`, `ArticleKind`, `ArticleLevel`, `ReviewStatus`, `Track`, the `Block` discriminated union and `Span`.
+  2. Write the restricted frontmatter parser (scalars, inline lists, block lists, nested reference objects) — no YAML dependency, strict on anything else.
+  3. Write the block parser: `##`/`###` headings, paragraphs, bullet and ordered lists, `> [!variant]` callouts, pipe tables, fenced notation blocks.
+  4. Write the inline parser: strong, emphasis, code, external link, `[[concept:…]]`, `[[article:…]]`, `[[question:…]]`.
   5. Reject a declared `reading_minutes`; compute it from the body word count.
 - **Verify**:
   - `docker compose run --rm backend pytest tests/lsat/test_library_parser.py -q --no-cov` passes.
@@ -43,11 +39,8 @@
   - `backend/law_ai/lsat/services/library.py` (edit)
   - `backend/tests/lsat/test_library.py` (new)
 - **Steps**:
-  1. `load_library()` / `load_tracks()` as lazy `lru_cache` loaders resolving `bank.DATA_DIR`
-     through the bank module so test sandboxes redirect them.
-  2. Enforce: unique ids matching filenames; every concept/article/question reference resolves;
-     acyclic prerequisites; ≥3 `##` sections; ≥1 worked-example callout; a key-takeaways list;
-     non-empty summary.
+  1. `load_library()` / `load_tracks()` as lazy `lru_cache` loaders resolving `bank.DATA_DIR` through the bank module so test sandboxes redirect them.
+  2. Enforce: unique ids matching filenames; every concept/article/question reference resolves; acyclic prerequisites; ≥3 `##` sections; ≥1 worked-example callout; a key-takeaways list; non-empty summary.
   3. Add `public_article_view()` (index rows carry no body) and `reset_library_caches()`.
   4. One failing-case test per rule, each asserting the file name appears in the message.
 - **Verify**: `docker compose run --rm backend pytest tests/lsat/test_library.py -q --no-cov` passes.
@@ -64,11 +57,8 @@
 - **Files**:
   - `backend/law_ai/lsat/services/data/library/*.md` (new)
 - **Steps**:
-  1. Orientation and scoring; a deep dive per section; the LR question families; RC technique;
-     LG board technique; the writing method; pacing/guessing/strategy; blind review and error
-     logging; logic foundations.
-  2. Every article: original (CC0), study-aid framing, worked example, key takeaways, concept
-     links, and a reference on any structural claim about the exam.
+  1. Orientation and scoring; a deep dive per section; the LR question families; RC technique; LG board technique; the writing method; pacing/guessing/strategy; blind review and error logging; logic foundations.
+  2. Every article: original (CC0), study-aid framing, worked example, key takeaways, concept links, and a reference on any structural claim about the exam.
 - **Verify**: `docker compose run --rm backend pytest tests/lsat/test_library_corpus.py -q --no-cov` passes.
 
 ## T-011 — Curated reading tracks
@@ -79,8 +69,7 @@
 - **Files**:
   - `backend/law_ai/lsat/services/data/library_tracks.json` (new)
   - `backend/law_ai/lsat/services/library.py` (edit — `load_tracks`, computed durations)
-- **Steps**: author the tracks, validate every id against the library, compute durations from the
-  member articles, and reject a track that lists an article before its prerequisite.
+- **Steps**: author the tracks, validate every id against the library, compute durations from the member articles, and reject a track that lists an article before its prerequisite.
 - **Verify**: covered by `tests/lsat/test_library.py::TestTracks`.
 
 ## T-012 — Concept ↔ article linkage
@@ -106,8 +95,7 @@
   - `backend/law_ai/lsat/urls.py` (edit)
   - `backend/law_ai/lsat/services/library.py` (edit — `search_library()`)
   - `backend/tests/lsat/test_library_api.py` (new)
-- **Steps**: index with filters, detail with resolved cross-references, tracks, ranked search with
-  snippets and a 422 on a too-short query, and the health endpoint.
+- **Steps**: index with filters, detail with resolved cross-references, tracks, ranked search with snippets and a 422 on a too-short query, and the health endpoint.
 - **Verify**: `docker compose run --rm backend pytest tests/lsat/test_library_api.py -q --no-cov` passes.
 
 ## T-021 — Export the library into the static artifact
@@ -182,8 +170,7 @@ navigation, reading-position persistence, and a block renderer covering every bl
   - `backend/law_ai/agents_runtime/crews/lsat_librarian.py` (new)
   - `backend/law_ai/agents_runtime/prompts/lsat_librarian.v1.md` (new)
   - `backend/tests/agents/test_lsat_librarian.py` (new)
-- **Verify**: each action returns a validated output; degraded path returns confidence 0.0 and
-  still writes a provenance event.
+- **Verify**: each action returns a validated output; degraded path returns confidence 0.0 and still writes a provenance event.
 
 ## T-042 — HITL gate + `lsat_library` command + schedule
 
@@ -195,8 +182,7 @@ navigation, reading-position persistence, and a block renderer covering every bl
   - `backend/law_ai/lsat/services/proposals.py` (edit — library proposal kinds + promotion)
   - `Makefile` (edit), `backend/law_ai/settings/base.py` (edit — beat entry)
   - `docs/lsat-library.md` (new)
-- **Verify**: `make lint`, `make typecheck`, `make test`, `make lint-specs` all pass; `review`
-  writes nothing under `data/library/`.
+- **Verify**: `make lint`, `make typecheck`, `make test`, `make lint-specs` all pass; `review` writes nothing under `data/library/`.
 
 ---
 

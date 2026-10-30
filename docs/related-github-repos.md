@@ -1,5 +1,7 @@
 # Related GitHub Repositories for Law AI
 
+> Open-source projects, by category, that Law AI can build on for agents, legal NLP, knowledge graphs, GraphRAG, data pipelines, benchmarks and visualization.
+
 **Goal**: Identify mature, open-source projects that provide building blocks for Law AI's core capabilities (multi-agent orchestration, legal NLP, knowledge graphs, GraphRAG, legal data pipelines, benchmarks, and visualization). These can be **directly leveraged, forked, or integrated** to accelerate development and avoid reinventing the wheel.
 
 This document organizes repos by category with:

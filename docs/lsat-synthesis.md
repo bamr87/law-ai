@@ -1,5 +1,7 @@
 # LSAT Item Synthesis Engine
 
+> The deterministic item-synthesis engine: skeletons whose keys a finite-model checker proves, domain packs that vary the surface, and difficulty that is measured rather than declared.
+
 A second way to grow the question bank: **derive the item from a formal model, prove the key, and vary only the surface.**
 
 The spec 024 factory prompts a model for an item and a human checks it. This engine builds an item from a skeleton whose credited answer a finite-model checker *proves* is entailed and whose distractors it proves are not. Nothing about the logic is left to a language model, so nothing about the logic can be wrong — and because the words come from swappable dataset "domain packs", one proved skeleton yields as many distinct items as there are domains and seeds.
@@ -52,8 +54,7 @@ The guard that matters most: **an inconsistent premise set entails everything**,
 
 The assumption families have exact model-theoretic criteria, which is why they sit on this side of the line. Over the premise-satisfying models, with `mask_c` for the conclusion:
 
-- **sufficient** — `mask_choice ⊆ mask_c`: every case where the assumption holds
-  is a case where the conclusion holds, so adding it forces the conclusion.
+- **sufficient** — `mask_choice ⊆ mask_c`: every case where the assumption holds is a case where the conclusion holds, so adding it forces the conclusion.
 - **necessary** — `mask_c ⊆ mask_choice`: every case where the argument succeeds
 is a case where the assumption holds. That is the negation test written as a set inclusion.
 
@@ -250,7 +251,6 @@ The opt-in test was run against the same tier on the same day and **passed** (`1
 ## Guardrails
 
 - Every skeleton and every pack is original (CC0). No real LSAT items.
-- Generation is deterministic: `(schema, domain, seed)` reproduces an item
-  byte-for-byte, so anything in the bank can be regenerated from its provenance.
+- Generation is deterministic: `(schema, domain, seed)` reproduces an item byte-for-byte, so anything in the bank can be regenerated from its provenance.
 - RC passages, main point, tone and method are deliberately **out of scope**:
 their correctness depends on prose judgement no checker can certify, and asserting a key there would be the failure this engine exists to remove.
