@@ -15,8 +15,9 @@ pytestmark = pytest.mark.smoke
 REQUIRED_FILES = [
     "AGENTS.md",
     "README.md",
-    "PRD.md",
     "BACKLOG.md",
+    "docs/prd.md",
+    ".github/sdlc.yml",
     "Makefile",
     "docker-compose.yml",
     ".env.example",
@@ -28,8 +29,9 @@ REQUIRED_FILES = [
     "frontend/package.json",
     "frontend/tsconfig.json",
     "frontend/postcss.config.js",
-    "scripts/spec_validator.py",
-    "scripts/backlog_lint.py",
+    "scripts/ux_audit.py",
+    "tools/fleet-kit.sh",
+    "specs/_review_questions.json",
 ]
 
 REQUIRED_DIRS = [
@@ -48,10 +50,12 @@ REQUIRED_DIRS = [
     "frontend/lib",
     "frontend/__tests__",
     "docs",
-    "prompts",
+    "docs/adr",
     "scripts",
     "specs",
+    "specs/_template",
     "tests",
+    "tools",
 ]
 
 

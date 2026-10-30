@@ -38,7 +38,7 @@ def _make_runs() -> None:
         ("digest", "ok", 0),
         ("corpus_growth", "ok", 1),
         ("corpus_growth", "error", 2),
-        ("test_pillar", "disabled", 3),
+        ("lsat_content", "disabled", 3),
     ]
     for kind, status, offset in rows:
         started = base + timedelta(minutes=offset)
@@ -69,7 +69,7 @@ def test_returns_every_cycle_newest_first() -> None:
     assert body["count"] == 4
     # Newest first: the operator's question is "what just happened".
     assert [r["kind"] for r in body["runs"]] == [
-        "test_pillar",
+        "lsat_content",
         "corpus_growth",
         "corpus_growth",
         "digest",

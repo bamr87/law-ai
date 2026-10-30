@@ -1,6 +1,6 @@
 # Tasks: {Feature Name}
 
-> Each task must reference one or more `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`. CI's [spec_validator.py](../../scripts/spec_validator.py) enforces that every requirement in `spec.md` is referenced by at least one task.
+> Each task must reference one or more `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`. CI's spec gate (the fleet's `spec_validator.py`, by reference) enforces that every requirement in `spec.md` is referenced by at least one task.
 
 ## Conventions
 
@@ -49,6 +49,6 @@
 
 ## Follow-ups Discovered
 
-> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI ([scripts/spec_validator.py](../../scripts/spec_validator.py)) checks this section exists. CI ([scripts/backlog_lint.py](../../scripts/backlog_lint.py)) checks the BACKLOG mirror.
+> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI's spec gate (`spec_validator.py`) checks this section exists and (`backlog_lint.py`) checks the BACKLOG mirror; `make lint-specs` runs both locally.
 
 - _none_  <!-- replace with bullets like: "BL-YYYYMMDD-NN — feature, med — short description." -->

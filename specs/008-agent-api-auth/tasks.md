@@ -91,7 +91,7 @@
 
 ## Follow-ups Discovered
 
-> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI ([scripts/spec_validator.py](../../scripts/spec_validator.py)) checks this section exists. CI ([scripts/backlog_lint.py](../../scripts/backlog_lint.py)) checks the BACKLOG mirror.
+> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI (`scripts/spec_validator.py`) checks this section exists. CI (`scripts/backlog_lint.py`) checks the BACKLOG mirror.
 
 - **BL-20260430-07** — *feature, med* — Move the agent-ops API key out of the browser bundle by introducing a Next.js route handler (`app/agents/api/[...path]/route.ts`) that proxies `/api/agents/*` from the server, so `NEXT_PUBLIC_AGENT_API_KEY` can be replaced with a server-only `AGENT_API_KEY`. _Surfaced in:_ specs/008-agent-api-auth (R-2).
 - **BL-20260430-08** — *feature, med* — Extend `require_api_key` (or add per-router variants) to gate `/api/analysis`, `/api/graph`, and `/api/lsat`. Today only `/api/agents/*` is protected. _Surfaced in:_ specs/008-agent-api-auth (NG3).

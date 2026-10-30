@@ -100,7 +100,7 @@
 
 ## Follow-ups Discovered
 
-> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI ([scripts/spec_validator.py](../../scripts/spec_validator.py)) checks this section exists. CI ([scripts/backlog_lint.py](../../scripts/backlog_lint.py)) checks the BACKLOG mirror.
+> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI (`scripts/spec_validator.py`) checks this section exists. CI (`scripts/backlog_lint.py`) checks the BACKLOG mirror.
 
 - **BL-20260430-11** — *test-gap, low* — Add a Playwright smoke test that toggles `AGENT_API_KEY`/`NEXT_PUBLIC_AGENT_API_KEY` and verifies all four pages (`/agents`, `/analysis`, `/graph`, `/lsat`) load end-to-end against a Docker stack. _Surfaced in:_ specs/009-extend-api-auth.
 - **BL-20260430-12** — *infra, low* — Have `app/main.py` lifespan refuse to start when `ENVIRONMENT="production"` and `AGENT_API_KEY` is unset (today it only warns). Promotes the dev-friendly default into a production guard rail. _Surfaced in:_ specs/009-extend-api-auth.

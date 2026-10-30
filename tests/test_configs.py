@@ -219,18 +219,35 @@ def _workflow_check_contexts(repo_root: Path) -> set[str]:
 
     A check context is the job's `name:` when it has one, and its job id
     otherwise — which is why `oneline` (no `name:` key) is the context for
-    markdown-oneline.yml.
+    markdown-oneline.yml. A job that `uses:` a reusable workflow reports one
+    context per job the called workflow defines, named
+    `"<caller name> / <called job name>"`; the called job names live in the
+    hub, so the ones this repo relies on are pinned in REUSABLE_JOB_NAMES.
     """
     from tests.conftest import require_yaml
-    
+
     yaml = require_yaml()
 
     contexts: set[str] = set()
     for path in (repo_root / ".github" / "workflows").glob("*.yml"):
         data = yaml.safe_load(path.read_text()) or {}
         for job_id, job in (data.get("jobs") or {}).items():
-            contexts.add(str((job or {}).get("name") or job_id))
+            name = str((job or {}).get("name") or job_id)
+            uses = str((job or {}).get("uses") or "").split("@")[0]
+            if uses:
+                for called in REUSABLE_JOB_NAMES.get(uses, ()):
+                    contexts.add(f"{name} / {called}")
+            else:
+                contexts.add(name)
     return contexts
+
+
+# The job names inside the hub's reusable workflows this repo calls. A rename
+# on the hub side orphans the ruleset exactly like a local rename would; keep
+# this in step with bamr87/bamr87 .github/workflows/<file>.yml `jobs.*.name`.
+REUSABLE_JOB_NAMES = {
+    "bamr87/bamr87/.github/workflows/spec-gate.yml": ("Spec gate",),
+}
 
 
 def test_required_status_checks_match_real_jobs(repo_root: Path) -> None:
@@ -289,7 +306,7 @@ def test_ruleset_covers_the_four_gates_the_backlog_item_names(
         c["context"] for c in checks["parameters"]["required_status_checks"]
     }
     assert {
-        "Spec Drift Gate",
+        "Spec Drift Gate / Spec gate",
         "Backend Lint + Type-check",
         "Backend Tests + Coverage",
         "oneline",
@@ -418,26 +435,46 @@ def test_local_ai_extra_is_the_telemetry_one(repo_root: Path) -> None:
     )
 
 
-def test_evolve_workflow_has_an_opt_out_kill_switch(repo_root: Path) -> None:
-    """BL-20260818-02: idling the weekly autopilot must not need a file edit.
+def test_no_per_repo_autopilot_workflows_remain(repo_root: Path) -> None:
+    """2026-10-25: the weekly evolve audit and the GitFactory lines moved out.
 
-    Opt-*out* on purpose — an unset `vars.EVOLVE_ENABLED` is the empty string,
-    which is `!= 'false'`, so the default stays "runs". A default-OFF gate
-    (gitorio's convention) would silently idle live automation, which
-    specs/038-framework-hardening declined as NG1.
+    `evolve.yml` (BL-20260818-02's opt-out kill switch lived on it) and the
+    three `factory--*.yml` lines were this repo's own SDLC automation. The
+    fleet hub runs that loop now — `repo-evolution.yml` (opt-in per repo via
+    the registry's `auto_evolve`), `repo-scout.yml`, the issue pipeline — and
+    the nightly's `backlog-triage` job is the hub's reusable spec gate. A
+    per-repo autopilot workflow reappearing here is the drift this guards.
+    """
+    workflows = repo_root / ".github" / "workflows"
+    strays = sorted(
+        p.name for p in workflows.glob("*.yml")
+        if p.name == "evolve.yml" or p.name.startswith("factory--")
+    )
+    assert not strays, f"per-repo SDLC automation is the hub's job now: {strays}"
+    assert not (repo_root / ".factory").exists(), ".factory/ blueprints were retired with the lines"
+
+
+def test_nightly_backlog_triage_is_the_fleet_gate(repo_root: Path) -> None:
+    """The stale-backlog issue (BL-20260503-14) is filed by the hub's gate.
+
+    It replaced a hand-rolled `gh issue` step and the backend's
+    `governance-triage` beat job. It must stay schedule-only (a dispatch or a
+    `make nightly-dry-run` under act must never file an issue) and must be the
+    caller that declares `issues: write` — a reusable workflow cannot widen
+    the permissions it inherits.
     """
     from tests.conftest import require_yaml
-    
+
     yaml = require_yaml()
 
-    path = repo_root / ".github" / "workflows" / "evolve.yml"
-    guard = yaml.safe_load(path.read_text())["jobs"]["audit"]["if"]
-    assert "vars.EVOLVE_ENABLED" in guard, (
-        f"evolve.yml's audit job needs an EVOLVE_ENABLED guard; got {guard!r}"
-    )
-    assert "!=" in guard and "'false'" in guard, (
-        "the guard must be opt-out (`!= 'false'`), not opt-in — an opt-in "
-        f"guard silently idles the live weekly run. Got {guard!r}"
+    data = yaml.safe_load((repo_root / ".github" / "workflows" / "nightly-tests.yml").read_text())
+    job = data["jobs"]["backlog-triage"]
+    assert job["uses"].startswith("bamr87/bamr87/.github/workflows/spec-gate.yml@v")
+    assert job["with"]["stale-report"] is True and job["with"]["file-issue"] is True
+    assert "schedule" in job["if"], "backlog-triage must be schedule-only"
+    assert job["permissions"]["issues"] == "write"
+    assert "governance" not in (repo_root / "backend" / "law_ai" / "celery.py").read_text(), (
+        "the governance-triage beat job was retired in favour of the fleet gate"
     )
 
 

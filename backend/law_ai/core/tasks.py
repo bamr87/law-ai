@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import Any
 
 from celery import shared_task
@@ -35,7 +34,7 @@ def persist_audit_event(event: dict[str, Any]) -> None:
 
 
 @shared_task(name="law_ai.core.tasks.autonomy_cycle", ignore_result=False)
-def autonomy_cycle(kind: str = "test_pillar", **kwargs: Any) -> dict[str, Any]:
+def autonomy_cycle(kind: str = "digest", **kwargs: Any) -> dict[str, Any]:
     """Celery task that wraps :func:`law_ai.core.autonomy.run_cycle`.
 
     This is the single entry-point task used by the beat schedule defined in
@@ -120,49 +119,3 @@ def compose_digest_task(self: Any, **kwargs: Any) -> dict[str, Any]:
 
     payload: dict[str, Any] = {"kind": "digest", **kwargs}
     return autonomy.run_cycle("digest", _runner, payload=payload)
-
-
-@shared_task(  # type: ignore[untyped-decorator]
-    name="law_ai.core.tasks.governance_triage", ignore_result=False
-)
-def governance_triage(stale_days: int = 60) -> dict[str, Any]:
-    """Periodic spec + backlog triage (BL-20260503-14).
-
-    Runs ``scripts/spec_validator.py`` and ``scripts/backlog_lint.py`` over the
-    checked-out repo and, when a GitHub credential is configured, keeps one
-    idempotent triage issue up to date. See :mod:`law_ai.core.governance`.
-
-    Not routed through ``autonomy_cycle`` and not on the ``autonomy`` queue:
-    reading two validators and reporting what they said is not an autonomous
-    *decision*, and it has to keep working on an instance with
-    ``AUTONOMY_ENABLED=false``.
-    """
-    from django.conf import settings
-
-    from law_ai.core.governance import run_triage
-    from law_ai.core.provenance import provenance
-
-    result = run_triage(
-        Path(settings.REPO_ROOT),
-        stale_days=stale_days,
-        repo=getattr(settings, "GOVERNANCE_TRIAGE_GITHUB_REPO", ""),
-        token=getattr(settings, "GOVERNANCE_TRIAGE_GITHUB_TOKEN", ""),
-    )
-    provenance.log_event(
-        "governance_triage",
-        {
-            "source": "beat",
-            "repo_available": result["repo_available"],
-            "backlog_stale": result["backlog_stale"],
-            "spec_ok": result["spec_ok"],
-            "issue": result["issue"],
-        },
-    )
-    if result["needs_triage"]:
-        logger.warning(
-            "governance triage: backlog_stale=%s spec_ok=%s issue=%s",
-            result["backlog_stale"],
-            result["spec_ok"],
-            result["issue"],
-        )
-    return result

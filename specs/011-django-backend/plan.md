@@ -45,7 +45,7 @@ The dashed arrows are the only persistence paths owned by Django. Solid arrows f
 |-------|---------------|--------|
 | Constitution | [docs/constitution.md](../../docs/constitution.md) §2, §11 | Amend tech stack + drift guard |
 | ADR | `docs/adr/0001-adopt-django-backend.md` (new) | Record amendment + rationale |
-| Top-level docs | [AGENTS.md](../../AGENTS.md), [PRD.md](../../PRD.md), [.github/copilot-instructions.md](../../.github/copilot-instructions.md) | Replace FastAPI references |
+| Top-level docs | [AGENTS.md](../../AGENTS.md), [PRD.md](../../docs/prd.md), [.github/copilot-instructions.md](../../.github/copilot-instructions.md) | Replace FastAPI references |
 | Deps | [backend/pyproject.toml](../../backend/pyproject.toml) | Swap fastapi/uvicorn → django/drf/channels/celery/daphne; move jose/passlib to `[future-auth]` |
 | Project skeleton | `backend/manage.py`, `backend/law_ai/{settings/{base,dev,test,prod}.py, urls.py, asgi.py, wsgi.py, celery.py}` | New |
 | Apps | `backend/law_ai/{core,audit,analysis,graph,lsat,ingestionapp,agentsapi,agents_runtime}/` | New (each `apps.py`, `urls.py`, `views.py`, `models.py`, `tasks.py`, `consumers.py` as needed) |
@@ -75,7 +75,7 @@ The dashed arrows are the only persistence paths owned by Django. Solid arrows f
 - **Neo4j migrations** — unchanged. The two existing files under `backend/app/db/neo4j_migrations/` (`001_case_constraints.cypher`, `002_case_aliases.cypher`) move to `backend/law_ai/core/neo4j/migrations/` and the runner remains a thin shell script invoked from `backend/scripts/init-db.sh`.
 - **LangGraph checkpointer** — owned by the library; FR-13 isolates it in schema `langgraph` via the new `manage.py ensure_checkpointer` command.
 
-All migrations are idempotent and forward-only (Constitution §3 of [ao-sdlc-guide.md](../../docs/ao-sdlc-guide.md)).
+All migrations are idempotent and forward-only (Constitution §3 of [ao-sdlc-guide.md](../../docs/spec-driven.md)).
 
 ## 4. Tech Choices & Alternatives
 

@@ -382,18 +382,6 @@ export const autonomyHandlers = [
       ],
     }),
   ),
-  http.get('http://localhost:8000/api/agents/autonomy/lowest-coverage', () =>
-    HttpResponse.json({
-      available: true,
-      count: 2,
-      warn_threshold: 75.0,
-      error_threshold: 65.0,
-      modules: [
-        { module: 'law_ai/core/xai.py', pct: 41.2, severity: 'high', missing_lines: [10, 11] },
-        { module: 'law_ai/graph/urls.py', pct: 71.5, severity: 'med', missing_lines: [4] },
-      ],
-    }),
-  ),
   http.get('http://localhost:8000/api/agents/autonomy/recent-quarantine', () =>
     HttpResponse.json({
       available: true,
@@ -546,26 +534,6 @@ export const reviewQueueHandlers = [
     }),
   ),
 ]
-
-/**
- * Proposed-test review queue (BL-20260511-17). The default is one pending
- * file, because "the dashboard renders the queue" is the interesting case;
- * the empty and error states are set per test.
- */
-export const proposedTestsFixture = {
-  count: 1,
-  available: true,
-  files: [
-    {
-      name: 'law_ai_eval_scoring__autonomy.proposed.py',
-      path: 'backend/tests/autonomy/proposed/law_ai_eval_scoring__autonomy.proposed.py',
-      module: 'law_ai_eval_scoring',
-      size: 512,
-      mtime: '2026-09-05T12:00:00Z',
-      skip_marked: true,
-    },
-  ],
-}
 
 /**
  * Argumentative Writing fixtures (BL-20260901-09).
@@ -763,9 +731,6 @@ export const handlers = [
 
   ...autonomyHandlers,
   ...reviewQueueHandlers,
-  http.get('http://localhost:8000/api/agents/proposed-tests', () =>
-    HttpResponse.json(proposedTestsFixture),
-  ),
   // The app's own ticket route (BL-20260430-07). `openAgentStream` asks for
   // one before every socket; with no key configured the answer is "none
   // needed", which is what the test environment models.

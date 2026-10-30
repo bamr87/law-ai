@@ -139,3 +139,7 @@ ds-bundle/
 
 # nektos/act local workflow runs (make nightly-dry-run) — BL-20260511-18
 .act-artifacts/
+
+# The fleet's spec-driven kit, cached by tools/fleet-kit.sh when this repo is
+# not checked out inside the bamr87/bamr87 hub (a sparse clone; never source)
+.fleet/

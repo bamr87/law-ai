@@ -4,7 +4,7 @@
 - **Status**: shipped
 - **Owner**: @bamr87
 - **Created**: 2026-08-30
-- **Roadmap Epic**: [nextjs-scoped-app-shell-architecture.md](../../docs/nextjs-scoped-app-shell-architecture.md) adapted to Law AI; PRD §8.1 dashboard chrome
+- **Roadmap Epic**: [nextjs-scoped-app-shell-architecture.md](../../docs/app-shell-architecture.md) adapted to Law AI; PRD §8.1 dashboard chrome
 - **Constitution Compliance**: confirmed against [docs/constitution.md](../../docs/constitution.md). No Drizzle/Prisma, no Radix/shadcn, no org/team tables (spec 036 NG3). Settings engine is pure TypeScript (no React). Shell is Next.js App Router + Tailwind, first-party components.
 
 ## 1. Problem & Motivation
