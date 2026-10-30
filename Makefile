@@ -3,7 +3,7 @@
 	test-integration test-integration-ollama test-e2e test-e2e-typecheck test-e2e-down \
 	test-legalbench test-legalbench-gate legalbench-cache legalbench-baseline \
 	lint lint-root format typecheck mypy-baseline migrate ingest densify-backfill backfill-embeddings \
-	evolve-audit lint-specs ux-audit ui-sync nightly-dry-run \
+	fleet-kit lint-specs ux-audit ui-sync nightly-dry-run \
 	autonomy-run autonomy-status autonomy-stop \
 	local-ai-up local-ai-down local-ai-pull local-ai-pull-small local-ai-verify \
 	local-ai-health validate-claude-code \
@@ -117,7 +117,7 @@ help:
 	@echo ""
 	@echo "Autonomy (Spec 018 — requires AUTONOMY_ENABLED=true):"
 	@echo "  make autonomy-run KIND=corpus_growth SOURCE=courtlistener  - one cycle (also accepts AUTONOMY_KIND/SOURCE)"
-	@echo "  make autonomy-run KIND=test_pillar BUDGET=10               - pillar A"
+	@echo "  make autonomy-run KIND=digest                               - compose + deliver the digest"
 	@echo "  make autonomy-status                                       - show beat schedule"
 	@echo "  make autonomy-stop                                         - stop consuming from autonomy queue (does NOT purge)"
 	@echo ""
@@ -211,9 +211,7 @@ test-coverage:
 test-smoke:
 	$(RUN_BACKEND) pytest -m "not integration and not legalbench"
 
-test-specs:
-	python3 scripts/spec_validator.py
-	python3 scripts/backlog_lint.py
+test-specs: lint-specs
 
 test-integration:
 	$(DC) up -d neo4j postgres redis --wait
@@ -413,24 +411,25 @@ mypy-baseline:
 # Spec/backlog/UX validators (lightweight — host only, no container)
 # ---------------------------------------------------------------------------
 
+# The spec gate is the fleet's, consumed by reference: bamr87/bamr87
+# templates/spec-driven (the spec validator and the backlog lint, stdlib only),
+# resolved by tools/fleet-kit.sh — the parent hub checkout when this repo is
+# checked out inside the hub as a submodule, else a cached sparse clone under
+# .fleet/ (gitignored). Nothing from the kit is vendored here; CI runs the same
+# tools through the hub's reusable spec-gate.yml (docs/spec-driven.md).
+# Lazy (`=`, not `:=`) so the resolver only runs for the targets that need it.
+FLEET_KIT = $(shell tools/fleet-kit.sh)
+
+fleet-kit:
+	tools/fleet-kit.sh --update
+
 lint-specs:
-	@# BL-20260906-48: --strict makes the constitution §13 review-question
-	@# WARN lines fail the gate instead of scrolling past unread.
-	python3 scripts/spec_validator.py --strict
-	python3 scripts/backlog_lint.py
+	@# --strict (BL-20260906-48): the constitution §13 review-question
+	@# WARN lines (specs/_review_questions.json) fail the gate instead of
+	@# scrolling past unread.
+	python3 "$(FLEET_KIT)/tools/spec_validator.py" --root . --strict
+	python3 "$(FLEET_KIT)/tools/backlog_lint.py" --root .
 	python3 scripts/ux_audit.py
-	@# BL-20260511-14: scripts/evolve_audit.py is the fourth validator in this
-	@# family, and its coverage/LegalBench scanners are exercised by
-	@# tests/test_evolve_audit.py. That file is deliberately dependency-light
-	@# (stdlib + pytest, no Django, no Docker) so it can run right here, next
-	@# to the three scripts above, instead of only inside CI's repo-structural
-	@# job. pytest is the one non-stdlib thing this target needs; say so
-	@# plainly rather than dying in a traceback.
-	@python3 -c "import pytest" 2>/dev/null || { \
-	  echo "lint-specs: this gate now runs tests/test_evolve_audit.py, which needs pytest on the host interpreter."; \
-	  echo "            Install it (python3 -m pip install --user pytest) or run the same checks in Docker with 'make test-smoke'."; \
-	  exit 1; }
-	python3 -m pytest tests/test_evolve_audit.py -q
 
 # The mechanical half of the /ux-review loop. `--list` prints the rules.
 ux-audit:
@@ -454,16 +453,14 @@ ui-sync:
 	@echo "frontend/__tests__/contracts/solveAssist.contract.ts -> lsat-static/__tests__/contracts/solveAssist.contract.ts"
 
 
-evolve-audit:
-	python3 scripts/evolve_audit.py
-	$(MAKE) lint-specs
-
 # Smoke-test the nightly workflow locally with nektos/act instead of burning a
 # real `gh workflow run nightly-tests.yml -f dry_run=true` dispatch
 # (BL-20260511-18). Only the dry_run path is exercised: the Docker-heavy steps
 # are guarded by `if: ${{ !inputs.dry_run }}` and the PR step by `!env.ACT`, so
-# a local run validates the spec/backlog gates, the stale-backlog reporter and
-# the discovery audit without touching the remote. Defaults live in .actrc.
+# a local run validates the spec/backlog gates (the hub kit, fetched by
+# tools/fleet-kit.sh inside the act container) and the discovery audit without
+# touching the remote; the `backlog-triage` job is schedule-only and never
+# runs here. Defaults live in .actrc.
 #
 # Needs `act` on the host (`brew install act`) — the one sanctioned non-`make`
 # host tool, because act *is* the Docker runner. Pass ARGS='-n' to list steps
@@ -779,7 +776,8 @@ legal-analyst-demo:
 # ---------------------------------------------------------------------------
 # Spec 018 T-009: Autonomy management targets
 # ---------------------------------------------------------------------------
-# KIND   — cycle kind: test_pillar | corpus_growth | digest  (default: test_pillar)
+# KIND   — cycle kind: corpus_growth | digest | lsat_content | lsat_factory |
+#          lsat_library | lsat_cross_check | commit_approved  (default: digest)
 # SOURCE — source adapter name (corpus_growth only; must be in AUTONOMY_ALLOWED_SOURCES)
 # BUDGET — max docs per cycle (optional integer)
 # DRY_RUN— set to --dry-run to print without executing
@@ -788,7 +786,7 @@ legal-analyst-demo:
 ifdef KIND
 AUTONOMY_KIND := $(KIND)
 else
-AUTONOMY_KIND ?= test_pillar
+AUTONOMY_KIND ?= digest
 endif
 ifdef SOURCE
 AUTONOMY_SOURCE := $(SOURCE)

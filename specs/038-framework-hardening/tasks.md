@@ -1,6 +1,6 @@
 # Tasks: AO-SDLC Framework Hardening (gitorio backport)
 
-> Each task must reference one or more `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`. CI's [spec_validator.py](../../scripts/spec_validator.py) enforces that every requirement in `spec.md` is referenced by at least one task.
+> Each task must reference one or more `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`. CI's `spec_validator.py` enforces that every requirement in `spec.md` is referenced by at least one task.
 
 ## Conventions
 
@@ -70,7 +70,7 @@
 
 ## Follow-ups Discovered
 
-> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI ([scripts/spec_validator.py](../../scripts/spec_validator.py)) checks this section exists. CI ([scripts/backlog_lint.py](../../scripts/backlog_lint.py)) checks the BACKLOG mirror.
+> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI (`scripts/spec_validator.py`) checks this section exists. CI (`scripts/backlog_lint.py`) checks the BACKLOG mirror.
 
 - BL-20260818-02 — infra, low — Maintainer decision: default-OFF kill-switch gate on evolve.yml (gitorio's `*_ENABLED` convention) — deliberately NOT backported because it would silently idle live weekly automation.
 - BL-20260818-03 — tech-debt, low — Retire the stale `.claude/worktrees/cranky-burnell-fd2782/` worktree now that its scripts/tests/skills are promoted or superseded (the asdlc-* SKILL.md variants remain unique to it).

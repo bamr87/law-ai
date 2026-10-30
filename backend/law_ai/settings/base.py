@@ -202,11 +202,6 @@ env = environ.Env(
     # Repo root for BACKLOG.md + specs/ (outside the backend/ volume mount in Docker).
     # Set REPO_ROOT=/repo in docker-compose when mounting the full repo at /repo.
     REPO_ROOT=(str, ""),
-    # Governance triage (BL-20260503-14). Both default to "off": the weekly
-    # beat job still runs both validators and logs what they said, it just has
-    # nowhere to file an issue. The token is a bearer secret — env only.
-    GOVERNANCE_TRIAGE_GITHUB_REPO=(str, ""),
-    GOVERNANCE_TRIAGE_GITHUB_TOKEN=(str, ""),
 )
 
 env.read_env(str(BASE_DIR / ".env"), overwrite=False)
@@ -412,18 +407,11 @@ AUTONOMY_DIGEST_EMAIL_TO: list[str] = env.list("AUTONOMY_DIGEST_EMAIL_TO")
 AUTONOMY_DIGEST_EMAIL_FROM: str = env("AUTONOMY_DIGEST_EMAIL_FROM")
 EMAIL_BACKEND: str = env("EMAIL_BACKEND")
 
-# Repo root for BACKLOG.md / specs/ — populated by REPO_ROOT env var when
+# Repo root (the API-contract fixture, the autonomy proposals dir) — populated by REPO_ROOT env var when
 # the full repo is mounted (e.g. ./:/repo in docker-compose). Falls back to
 # three directories above BASE_DIR for host/venv runs.
 _repo_root_env: str = env("REPO_ROOT")
 REPO_ROOT: Path = Path(_repo_root_env) if _repo_root_env else BASE_DIR.parent
-
-# Governance triage (BL-20260503-14): the weekly `governance-triage` beat job
-# opens/updates one issue when spec_validator or backlog_lint has something to
-# say. Unset = report to the log and provenance only.
-GOVERNANCE_TRIAGE_GITHUB_REPO: str = env("GOVERNANCE_TRIAGE_GITHUB_REPO")
-GOVERNANCE_TRIAGE_GITHUB_TOKEN: str = env("GOVERNANCE_TRIAGE_GITHUB_TOKEN")
-
 
 # ---------------------------------------------------------------------------
 # Django configuration

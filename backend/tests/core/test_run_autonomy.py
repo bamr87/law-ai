@@ -18,7 +18,6 @@ from django.core.management.base import CommandError
 # a conscious edit rather than silent drift into the schedule.
 NON_AUTONOMY_BEATS = {
     "matter-task-reminders": "law_ai.matters.sweep_task_reminders",
-    "governance-triage": "law_ai.core.tasks.governance_triage",
 }
 
 
@@ -47,7 +46,7 @@ class TestRunAutonomyBasic:
         dj.AUTONOMY_ENABLED = False  # type: ignore[assignment]
         out = StringIO()
         # No exception = exit 0
-        call_command("run_autonomy", "--kind", "test_pillar", stdout=out)
+        call_command("run_autonomy", "--kind", "digest", stdout=out)
         assert "disabled" in out.getvalue().lower()
 
     def test_dry_run_prints_payload(self) -> None:
@@ -84,7 +83,7 @@ class TestRunAutonomyBasic:
         call_command(
             "run_autonomy",
             "--kind",
-            "test_pillar",
+            "digest",
             "--dry-run",
             stdout=out,
         )
@@ -98,20 +97,18 @@ class TestRunAutonomyBasic:
         fake_result = {
             "status": "ok",
             "cycle_id": "test-cycle-1",
-            "result": {"proposed_tests": 0},
+            "result": {"digest_path": "var/autonomy/digest-2026-10-26.md"},
         }
 
         with patch(
             "law_ai.core.autonomy.run_cycle", return_value=fake_result
         ) as mock_run:
-            call_command("run_autonomy", "--kind", "test_pillar", stdout=out)
+            call_command("run_autonomy", "--kind", "digest", stdout=out)
 
         mock_run.assert_called_once()
         call_args = mock_run.call_args
-        assert call_args.args[0] == "test_pillar"
-        assert (
-            "test_pillar" in out.getvalue().lower() or "cycle" in out.getvalue().lower()
-        )
+        assert call_args.args[0] == "digest"
+        assert "digest" in out.getvalue().lower() or "cycle" in out.getvalue().lower()
 
     @pytest.mark.usefixtures("_autonomy_enabled")
     def test_run_cycle_corpus_growth_kind(self) -> None:
@@ -172,7 +169,7 @@ class TestCeleryAutonomyTask:
         """When AUTONOMY_ENABLED=False the task returns status=disabled."""
         from law_ai.core.tasks import autonomy_cycle
 
-        result = autonomy_cycle(kind="test_pillar")
+        result = autonomy_cycle(kind="digest")
         assert result["status"] == "disabled"
 
     def test_beat_schedule_keys_present(self) -> None:
@@ -180,7 +177,8 @@ class TestCeleryAutonomyTask:
 
         schedule = app.conf.beat_schedule
         assert "autonomy-content-sweep" in schedule
-        assert "autonomy-nightly-tests" in schedule
+        # The nightly test-synthesis entry was retired on 2026-10-26 (ADR 0008).
+        assert "autonomy-nightly-tests" not in schedule
         assert "autonomy-daily-digest" in schedule
 
     def test_beat_tasks_point_at_autonomy_cycle(self) -> None:
@@ -296,7 +294,6 @@ class TestSharedDispatchTable:
 
         assert calls["corpus_growth"] == {"source": "courtlistener", "budget": 3}
         assert calls["digest"] == {"window_to_now": True}
-        assert calls["test_pillar"] == {"budget": 3}
         assert calls["commit_approved"] == {"budget": 3}
 
 

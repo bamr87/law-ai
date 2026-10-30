@@ -1,6 +1,6 @@
 # Tasks: Ingest CourtListener Opinions
 
-> Every requirement in [spec.md](spec.md) — `FR-1..6`, `NFR-PERF-1`, `NFR-SEC-1`, `NFR-AUDIT-1`, `NFR-HITL-1`, `NFR-IDEMPOTENT-1`, `AC-1..5` — must be referenced by at least one task. CI ([scripts/spec_validator.py](../../scripts/spec_validator.py)) enforces this.
+> Every requirement in [spec.md](spec.md) — `FR-1..6`, `NFR-PERF-1`, `NFR-SEC-1`, `NFR-AUDIT-1`, `NFR-HITL-1`, `NFR-IDEMPOTENT-1`, `AC-1..5` — must be referenced by at least one task. CI (`scripts/spec_validator.py`) enforces this.
 
 ---
 

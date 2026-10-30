@@ -1,6 +1,6 @@
 # Tasks: Local AI Stack (Ollama + LangGraph + Checkpointers + Phoenix)
 
-> Each task references one or more `FR-*` / `NFR-*` / `AC-*` IDs from [spec.md](spec.md). [scripts/spec_validator.py](../../scripts/spec_validator.py) enforces full coverage.
+> Each task references one or more `FR-*` / `NFR-*` / `AC-*` IDs from [spec.md](spec.md). `scripts/spec_validator.py` enforces full coverage.
 
 ## Conventions
 

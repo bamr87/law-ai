@@ -1,11 +1,9 @@
 'use client'
 
 import {
-  fetchAutonomyCoverage,
   fetchAutonomyLegalbenchHistory,
   fetchAutonomyQuarantine,
   fetchAutonomyRuns,
-  type AutonomyCoverage,
   type AutonomyLegalbenchHistory,
   type AutonomyLegalbenchSeries,
   type AutonomyQuarantine,
@@ -16,16 +14,18 @@ import { useCallback, useEffect, useState } from 'react'
 /**
  * Read-only autonomy dashboard (BL-20260511-03).
  *
- * Four questions about a self-driving repo that previously had no answer
- * outside a container shell: is the benchmark moving, where is the code
- * thinnest, what is waiting on a human, and — since BL-20260906-23 — did the
- * loop actually run. Every panel is a *view*: nothing here triggers a cycle,
- * approves a document, or calls a model.
+ * Three questions about a self-driving repo that previously had no answer
+ * outside a container shell: is the benchmark moving, what is waiting on a
+ * human, and — since BL-20260906-23 — did the loop actually run. Every panel
+ * is a *view*: nothing here triggers a cycle, approves a document, or calls a
+ * model. (The "where is the code thinnest?" panel left with the test pillar
+ * on 2026-10-26, ADR 0008: the repo's own test coverage is the fleet hub's
+ * concern, not a product surface.)
  *
  * Each panel reports absence explicitly (constitution §13). `history.jsonl`
- * and `coverage.xml` are CI artifacts a fresh checkout does not have, and the
- * honest rendering of that is "not measured yet", never an empty chart that
- * reads as a score of zero.
+ * is a CI artifact a fresh checkout does not have, and the honest rendering
+ * of that is "not measured yet", never an empty chart that reads as a score
+ * of zero.
  */
 
 interface PanelState<T> {
@@ -43,7 +43,6 @@ const initial = <T,>(): PanelState<T> => ({
 export default function AutonomyDashboard() {
   const [history, setHistory] =
     useState<PanelState<AutonomyLegalbenchHistory>>(initial)
-  const [coverage, setCoverage] = useState<PanelState<AutonomyCoverage>>(initial)
   const [quarantine, setQuarantine] =
     useState<PanelState<AutonomyQuarantine>>(initial)
   const [runs, setRuns] = useState<PanelState<AutonomyRuns>>(initial)
@@ -67,7 +66,6 @@ export default function AutonomyDashboard() {
     }
     await Promise.all([
       run(() => fetchAutonomyLegalbenchHistory(), setHistory),
-      run(fetchAutonomyCoverage, setCoverage),
       run(fetchAutonomyQuarantine, setQuarantine),
       run(() => fetchAutonomyRuns(), setRuns),
     ])
@@ -101,14 +99,6 @@ export default function AutonomyDashboard() {
         state={history}
       >
         <LegalbenchPanel data={history.data} />
-      </Panel>
-
-      <Panel
-        title="Lowest-coverage modules"
-        subtitle="The five thinnest-tested modules — the nightly test pillar's targets."
-        state={coverage}
-      >
-        <CoveragePanel data={coverage.data} />
       </Panel>
 
       <Panel
@@ -297,67 +287,6 @@ export function Sparkline({ series }: { series: AutonomyLegalbenchSeries }) {
         />
       ))}
     </svg>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Coverage
-// ---------------------------------------------------------------------------
-
-function CoveragePanel({ data }: { data: AutonomyCoverage | null }) {
-  if (!data || !data.available || data.modules.length === 0) {
-    return (
-      <Unavailable what="no coverage.xml on disk. Run `make test-coverage`." />
-    )
-  }
-  return (
-    <table className="w-full text-left text-sm">
-      <caption className="sr-only">
-        Five lowest-coverage modules, ascending
-      </caption>
-      <thead>
-        <tr className="text-xs uppercase tracking-wide text-slate-400">
-          <th scope="col" className="pb-2 font-medium">
-            Module
-          </th>
-          <th scope="col" className="pb-2 font-medium">
-            Coverage
-          </th>
-          <th scope="col" className="pb-2 font-medium">
-            Severity
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.modules.map((mod) => (
-          <tr key={mod.module} className="border-t border-slate-800">
-            <td className="py-1.5 font-mono text-xs text-slate-300">
-              {mod.module}
-            </td>
-            <td className="py-1.5 font-mono text-xs text-slate-200">
-              {mod.pct.toFixed(1)}%
-            </td>
-            <td className="py-1.5">
-              <SeverityBadge severity={mod.severity} />
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )
-}
-
-function SeverityBadge({ severity }: { severity: string }) {
-  const tone =
-    severity === 'high'
-      ? 'border-red-500/40 bg-red-500/10 text-red-300'
-      : severity === 'med'
-        ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-        : 'border-slate-700 bg-slate-800/50 text-slate-400'
-  return (
-    <span className={`rounded border px-1.5 py-0.5 text-xs ${tone}`}>
-      {severity}
-    </span>
   )
 }
 

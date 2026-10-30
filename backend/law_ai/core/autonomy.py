@@ -390,7 +390,7 @@ def run_cycle(
     Parameters
     ----------
     cycle_type:
-        Free-form label for the loop (e.g. ``"test_pillar"``,
+        Free-form label for the loop (e.g. ``"lsat_content"``,
         ``"corpus_growth"``, ``"digest"``). Recorded on every event so
         operators can filter the audit log.
     runner:

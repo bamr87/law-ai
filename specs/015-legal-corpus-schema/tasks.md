@@ -1,6 +1,6 @@
 # Tasks: Legal Corpus Schema
 
-> Each task references one or more `FR-*` / `NFR-*` / `AC-*` IDs from [spec.md](spec.md). CI's [spec_validator.py](../../scripts/spec_validator.py) enforces coverage.
+> Each task references one or more `FR-*` / `NFR-*` / `AC-*` IDs from [spec.md](spec.md). CI's `spec_validator.py` enforces coverage.
 
 ## Conventions
 

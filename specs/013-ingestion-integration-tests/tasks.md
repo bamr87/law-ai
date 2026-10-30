@@ -1,6 +1,6 @@
 # Tasks: 013 — Docker-Backed Integration Tests for IngestionScout
 
-> Each task must reference one or more `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`. CI's [spec_validator.py](../../scripts/spec_validator.py) enforces that every requirement in `spec.md` is referenced by at least one task.
+> Each task must reference one or more `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`. CI's `spec_validator.py` enforces that every requirement in `spec.md` is referenced by at least one task.
 
 ## Conventions
 
@@ -118,7 +118,7 @@
 
 ## Follow-ups Discovered
 
-> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI ([scripts/spec_validator.py](../../scripts/spec_validator.py)) checks this section exists. CI ([scripts/backlog_lint.py](../../scripts/backlog_lint.py)) checks the BACKLOG mirror.
+> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI (`scripts/spec_validator.py`) checks this section exists. CI (`scripts/backlog_lint.py`) checks the BACKLOG mirror.
 
 _none — justified: T-001 through T-005 implementations were straightforward and followed spec/plan exactly. T-001 deviated from plan.md by using HTTP health check (wget) for neo4j instead of Bolt (cypher-shell), which is more reliable during container startup. T-002 added fixtures with optional asyncpg import guard. T-003 created three integration tests per requirements. T-004 added Makefile target completing in ~8.7s (well under 2-min NFR-PERF-1). T-005 created GitHub Actions workflow with path-based filtering (NFR-CI-COST-1), 15-minute timeout (NFR-PERF-1 + buffer), and proper teardown with docker compose down -v in always() block. Local Neo4j auth issues were expected and will be resolved by fresh CI containers. No refactoring or additional work needed._
 

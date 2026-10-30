@@ -29,13 +29,9 @@ app.conf.beat_schedule = {
         "kwargs": {"kind": "corpus_growth", "budget": 25},
         "options": {"queue": "autonomy"},
     },
-    # Pillar A — nightly test synthesis (06:00 UTC).
-    "autonomy-nightly-tests": {
-        "task": "law_ai.core.tasks.autonomy_cycle",
-        "schedule": crontab(hour=6, minute=0),
-        "kwargs": {"kind": "test_pillar"},
-        "options": {"queue": "autonomy"},
-    },
+    # Pillar A (nightly test synthesis for this repo's own modules) was retired
+    # on 2026-10-26 (ADR 0008): proposing changes to the codebase is the fleet
+    # hub's job, not a product beat entry.
     # Pillar C — daily autonomy digest (07:00 UTC, spec 018 T-010).
     # BL-20260511-23: this is the one entry that does NOT use the generic
     # `autonomy_cycle` task. The digest is a pure audit-log query, so a
@@ -111,24 +107,6 @@ app.conf.beat_schedule = {
     "matter-task-reminders": {
         "task": "law_ai.matters.sweep_task_reminders",
         "schedule": 3600,
-    },
-    # Repo governance — weekly spec + backlog triage (Monday 08:00 UTC,
-    # BL-20260503-14). Runs scripts/spec_validator.py AND
-    # scripts/backlog_lint.py over the mounted repo and, when
-    # GOVERNANCE_TRIAGE_GITHUB_* are configured, keeps one idempotent triage
-    # issue up to date. CI runs both validators against the diff in front of
-    # it; nothing was watching the parts nobody diffs — a spec left
-    # inconsistent for a month, an `## Open` item untouched since spring.
-    #
-    # Not on the autonomy queue and not routed through `autonomy_cycle`: this
-    # takes no autonomous action, and it must keep working on an instance with
-    # AUTONOMY_ENABLED=false. It needs the repo bind-mounted (REPO_ROOT=/repo)
-    # and says so plainly in the log when it is not — "could not look" is
-    # never reported as "found nothing".
-    "governance-triage": {
-        "task": "law_ai.core.tasks.governance_triage",
-        "schedule": crontab(hour=8, minute=0, day_of_week=1),
-        "kwargs": {"stale_days": 60},
     },
 }
 app.conf.beat_schedule_filename = "celerybeat-schedule"

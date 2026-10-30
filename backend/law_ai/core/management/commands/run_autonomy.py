@@ -31,14 +31,13 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Run one autonomy cycle (test_pillar, corpus_growth, or digest)."
+    help = "Run one autonomy cycle (corpus_growth, digest, or one of the lsat_* kinds)."
 
     def add_arguments(self, parser: Any) -> None:
         parser.add_argument(
             "--kind",
-            default="test_pillar",
+            default="digest",
             choices=[
-                "test_pillar",
                 "corpus_growth",
                 "digest",
                 "lsat_content",
@@ -47,7 +46,7 @@ class Command(BaseCommand):
                 "lsat_cross_check",
                 "commit_approved",
             ],
-            help="Kind of cycle to run (default: test_pillar).",
+            help="Kind of cycle to run (default: digest).",
         )
         parser.add_argument(
             "--source",
@@ -205,53 +204,8 @@ class Command(BaseCommand):
 
 
 # ---------------------------------------------------------------------------
-# Sub-runners (T-004, T-007)
+# Sub-runners (T-007 and the later pillars; the test pillar left with ADR 0008)
 # ---------------------------------------------------------------------------
-
-
-def _run_test_pillar(context: dict[str, Any], *, budget: int | None) -> dict[str, Any]:
-    """Invoke TestSynthesizer for the lowest-coverage modules (T-004).
-
-    Reads coverage data via ``law_ai.eval.coverage_audit``, then calls
-    :class:`~law_ai.agents_runtime.crews.test_synthesizer.TestSynthesizer`
-    for each under-threshold module up to *budget*.
-    """
-    from law_ai.agents_runtime.crews.test_synthesizer import (
-        ProposedTestInput,
-        TestSynthesizer,
-    )
-    from law_ai.eval.coverage_audit import (
-        COVERAGE_WARN_THRESHOLD,
-        load_coverage_report,
-    )
-
-    records = load_coverage_report()
-    below = [r for r in records if r.pct < COVERAGE_WARN_THRESHOLD]
-    if not below:
-        logger.info(
-            "test_pillar: no modules below %.0f%% threshold", COVERAGE_WARN_THRESHOLD
-        )
-        return {"proposed_tests": 0, "budget": budget}
-
-    limit = budget if budget is not None else len(below)
-    synth = TestSynthesizer()
-    proposed = 0
-
-    for rec in below[:limit]:
-        try:
-            inp = ProposedTestInput(
-                module_path=rec.module,
-                missing_lines=rec.missing_lines[:20],
-            )
-            synth.run(inp)
-            proposed += 1
-        except Exception as exc:
-            logger.warning(
-                "test_pillar: TestSynthesizer failed for %s: %s", rec.module, exc
-            )
-
-    context["proposed_tests"] = proposed
-    return {"proposed_tests": proposed, "budget": budget}
 
 
 async def _topic_frontier_cycle(factory: Any) -> Any:
@@ -685,7 +639,6 @@ def _run_lsat_cross_check(
 #: carried a ruff PLR0911 suppression. Adding a pillar is now one entry here
 #: plus one ``--kind`` choice above.
 AUTONOMY_RUNNERS: dict[str, Callable[..., dict[str, Any]]] = {
-    "test_pillar": _run_test_pillar,
     "corpus_growth": _run_corpus_growth,
     "digest": _run_digest,
     "lsat_content": _run_lsat_content,
