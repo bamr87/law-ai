@@ -41,15 +41,15 @@ def test_run_cycle_short_circuits_when_disabled(
         called["runner"] = True
         return "should-not-run"
 
-    result = autonomy.run_cycle("test_pillar", runner, payload={"a": 1})
+    result = autonomy.run_cycle("digest", runner, payload={"a": 1})
 
     assert called["runner"] is False
     assert result["status"] == "disabled"
-    assert result["cycle_type"] == "test_pillar"
+    assert result["cycle_type"] == "digest"
     events = _events(audit_path)
     assert len(events) == 1
     assert events[0]["type"] == "autonomy_disabled"
-    assert events[0]["cycle_type"] == "test_pillar"
+    assert events[0]["cycle_type"] == "digest"
     assert events[0]["details"] == {"a": 1}
 
 
@@ -91,7 +91,7 @@ def test_run_cycle_records_error_status_on_exception(
         raise RuntimeError("boom")
 
     with pytest.raises(RuntimeError, match="boom"):
-        autonomy.run_cycle("test_pillar", runner)
+        autonomy.run_cycle("digest", runner)
 
     events = _events(audit_path)
     end = events[-1]
@@ -191,8 +191,8 @@ def test_a_fresh_cycle_id_runs_normally(
         runs.append("ran")
         return "ok"
 
-    autonomy.run_cycle("test_pillar", runner, cycle_id="cid-a")
-    autonomy.run_cycle("test_pillar", runner, cycle_id="cid-b")
+    autonomy.run_cycle("digest", runner, cycle_id="cid-a")
+    autonomy.run_cycle("digest", runner, cycle_id="cid-b")
 
     assert runs == ["ran", "ran"]
     assert [e["type"] for e in _events(audit_path)].count("autonomy_cycle.end") == 2
@@ -209,8 +209,8 @@ def test_no_cycle_id_never_replays(
         runs.append("ran")
         return "ok"
 
-    autonomy.run_cycle("test_pillar", runner)
-    autonomy.run_cycle("test_pillar", runner)
+    autonomy.run_cycle("digest", runner)
+    autonomy.run_cycle("digest", runner)
 
     assert runs == ["ran", "ran"]
     assert "autonomy_cycle.replayed" not in [e["type"] for e in _events(audit_path)]
@@ -221,10 +221,10 @@ def test_kill_switch_wins_over_replay(
 ) -> None:
     """A deployment switched off after a run stays off for the same id."""
     monkeypatch.setattr(settings, "AUTONOMY_ENABLED", True)
-    autonomy.run_cycle("test_pillar", lambda _: "ok", cycle_id="cid-switch")
+    autonomy.run_cycle("digest", lambda _: "ok", cycle_id="cid-switch")
 
     monkeypatch.setattr(settings, "AUTONOMY_ENABLED", False)
-    result = autonomy.run_cycle("test_pillar", lambda _: "ok", cycle_id="cid-switch")
+    result = autonomy.run_cycle("digest", lambda _: "ok", cycle_id="cid-switch")
 
     assert result["status"] == "disabled"
     assert result.get("replayed") is None
@@ -241,9 +241,9 @@ def test_replay_carries_the_prior_error_forward(
         raise RuntimeError("boom")
 
     with pytest.raises(RuntimeError, match="boom"):
-        autonomy.run_cycle("test_pillar", boom, cycle_id="cid-err")
+        autonomy.run_cycle("digest", boom, cycle_id="cid-err")
 
-    result = autonomy.run_cycle("test_pillar", boom, cycle_id="cid-err")
+    result = autonomy.run_cycle("digest", boom, cycle_id="cid-err")
 
     assert result["status"] == "error"
     assert result["replayed"] is True
@@ -358,7 +358,7 @@ def test_the_stream_id_arrives_from_the_payload_too(
     monkeypatch.setattr(settings, "AUTONOMY_ENABLED", True)
 
     result = autonomy.run_cycle(
-        "test_pillar", lambda context: {"ok": True}, payload={"stream_id": "run-kw"}
+        "digest", lambda context: {"ok": True}, payload={"stream_id": "run-kw"}
     )
 
     assert {group for group, _ in ws_capture.sends} == {"agent-run-run-kw"}
@@ -390,7 +390,7 @@ def test_no_stream_id_emits_nothing(
 ) -> None:
     monkeypatch.setattr(settings, "AUTONOMY_ENABLED", True)
 
-    autonomy.run_cycle("test_pillar", lambda context: {"ok": True})
+    autonomy.run_cycle("digest", lambda context: {"ok": True})
 
     assert ws_capture.sends == []
 
@@ -409,7 +409,7 @@ def test_a_dead_channel_layer_never_fails_a_cycle(
     monkeypatch.setattr(streaming, "get_channel_layer", _explode)
 
     result = autonomy.run_cycle(
-        "test_pillar", lambda context: {"ok": True}, stream_id="run-no-redis"
+        "digest", lambda context: {"ok": True}, stream_id="run-no-redis"
     )
 
     assert result["status"] == "ok"

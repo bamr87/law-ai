@@ -34,7 +34,7 @@ flowchart LR
   Orchestrator --> Digest[backend/var/autonomy/digest-DATE.md]
 ```
 
-Reuses the same `peter-evans/create-pull-request` action and the `gh issue create` pattern already used by [.github/workflows/evolve.yml](../../.github/workflows/evolve.yml).
+Reuses the same `peter-evans/create-pull-request` action and the `gh issue create` pattern already used by `.github/workflows/evolve.yml`.
 
 ## 2. Component Changes
 

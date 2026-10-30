@@ -89,7 +89,7 @@
 - **Files**:
   - `.github/workflows/nightly-tests.yml` (new)
 - **Steps**:
-  1. Clone shape from [evolve.yml](../../.github/workflows/evolve.yml). Cron `0 6 * * *` + `workflow_dispatch`.
+  1. Clone shape from `evolve.yml`. Cron `0 6 * * *` + `workflow_dispatch`.
   2. Steps: `make test-coverage` → `make test-legalbench` → `python3 scripts/evolve_audit.py` → call `python manage.py run_autonomy --kind test_pillar` → open draft PR with `peter-evans/create-pull-request@v6`.
   3. Fail-on-regression: if `evolve_audit.py` adds any LegalBench `severity:high` item, exit non-zero.
 - **Verify**: `gh workflow run nightly-tests.yml -f dry_run=true` (or local `act -W ...`) opens a draft PR with at least one `*.proposed.py` and zero merged commits.

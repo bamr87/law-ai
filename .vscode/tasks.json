@@ -217,7 +217,7 @@
       "label": "Autonomy: Run Cycle (dry-run)",
       "detail": "One autonomy cycle with --dry-run (requires AUTONOMY_ENABLED=True in .env to run for real)",
       "type": "shell",
-      "command": "make autonomy-run KIND=test_pillar DRY_RUN=--dry-run",
+      "command": "make autonomy-run KIND=digest DRY_RUN=--dry-run",
       "group": "build",
       "presentation": {
         "echo": true,

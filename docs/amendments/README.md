@@ -1,6 +1,8 @@
 <!-- kit: governance v0.1.0 -->
 # Amendments — law-ai
 
+> The append-only log of numbered amendments to the law-ai constitution, with their status.
+
 The append-only log of changes to [the constitution](../constitution.md). Process: constitution § 8.
 
 - File name: `NNNN-kebab-slug.md`, next free number, never reused. Copy [0000-template.md](0000-template.md).

@@ -1,6 +1,6 @@
 # Tasks: LSAT Content Factory
 
-> Each task references `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`; [spec_validator.py](../../scripts/spec_validator.py) enforces full coverage.
+> Each task references `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`; `spec_validator.py` enforces full coverage.
 
 ## Conventions
 

@@ -15,6 +15,7 @@
 # =============================================================================
 schema: features/v1
 repo: bamr87/law-ai
+prd: docs/prd.md      # the PRD moved under docs/ on 2026-10-25; governance_lint find_prd reads this key
 
 features:
   - id: LAWAI-001
@@ -43,7 +44,7 @@ features:
     prd: ["§5"]
     surface: ui
     link: "backend/law_ai/graph"
-    docs: "PRD.md"
+    docs: "docs/prd.md"
   - id: LAWAI-004
     title: "Analysis Studio"
     description: "Split-pane case viewer, live agent chat and trace log, structured output panel, linked graph view; outputs persisted as versioned artifacts (PRD 5.4)."
@@ -52,7 +53,7 @@ features:
     prd: ["§5", "§8"]
     surface: ui
     link: "backend/law_ai/analysis"
-    docs: "PRD.md"
+    docs: "docs/prd.md"
   - id: LAWAI-005
     title: "LSAT Learning Lab"
     description: "Practice sections with AI explanations tied to graph nodes and a performance dashboard by question type (PRD 5.5)."
@@ -61,7 +62,7 @@ features:
     prd: ["§5"]
     surface: ui
     link: "backend/law_ai/lsat"
-    docs: "PRD.md"
+    docs: "docs/prd.md"
   - id: LAWAI-006
     title: "Matters workspace"
     description: "Matter-scoped workspaces in the backend `matters` app; maps to PRD Phase 2 user workspaces."
@@ -70,7 +71,7 @@ features:
     prd: ["§5"]
     surface: api
     link: "backend/law_ai/matters"
-    docs: "PRD.md"
+    docs: "docs/prd.md"
   - id: LAWAI-007
     title: "Provenance and audit log"
     description: "Every LLM call, tool call and retrieval goes through law_ai.core.provenance with dual-write JSONL + Postgres audit (constitution §4)."
@@ -96,7 +97,7 @@ features:
     status: planned
     prd: ["§5"]
     surface: api
-    docs: "PRD.md"
+    docs: "docs/prd.md"
   - id: LAWAI-010
     title: "Expansion (Phase 3)"
     description: "UK/EU sources, fine-tuned legal LLM, browser/Office plugins, agent marketplace, mobile PWA, empirical research module."
@@ -104,4 +105,4 @@ features:
     status: planned
     prd: ["§5"]
     surface: ui
-    docs: "PRD.md"
+    docs: "docs/prd.md"

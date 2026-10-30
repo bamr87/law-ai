@@ -1,6 +1,6 @@
 # Tasks: LSAT Question-Type Diagnosis
 
-> Each task must reference one or more `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`. CI's [spec_validator.py](../../scripts/spec_validator.py) enforces that every requirement in `spec.md` is referenced by at least one task.
+> Each task must reference one or more `FR-*` / `NFR-*` / `AC-*` IDs from `spec.md`. CI's `spec_validator.py` enforces that every requirement in `spec.md` is referenced by at least one task.
 
 ## Conventions
 
@@ -141,7 +141,7 @@
 
 ## Follow-ups Discovered
 
-> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI ([scripts/spec_validator.py](../../scripts/spec_validator.py)) checks this section exists. CI ([scripts/backlog_lint.py](../../scripts/backlog_lint.py)) checks the BACKLOG mirror.
+> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI (`scripts/spec_validator.py`) checks this section exists. CI (`scripts/backlog_lint.py`) checks the BACKLOG mirror.
 
 - BL-20260907-16 — feature, med — `lsat-static` parity for the diagnosis exercise and the playbooks page: export the playbook catalog into `content.json`, mirror `DiagnoseStep` and `PlaybookBrowser` under `lsat-static/components/`, and extend the drift gate.
 - BL-20260907-17 — feature, med — Per-choice trap tagging: when spec 047 FR-17's per-choice rationales land, tag each distractor with a trap id from `playbooks.json` so post-grade feedback can say which trap a wrong answer fell for, and the stats can rank traps as well as types.
