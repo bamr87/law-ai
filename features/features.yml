@@ -106,3 +106,59 @@ features:
     prd: ["§5"]
     surface: ui
     docs: "docs/prd.md"
+  - id: LAWAI-011
+    title: "Global norm taxonomy and ontology"
+    description: "Ontology for every tier of law and governance across legal families and international bodies, aligned to LKIF-Core and Akoma Ntoso (epic Phase 1)."
+    implemented: false
+    status: planned
+    prd: ["§5.6", "§5.6.1"]
+    surface: infra
+    docs: "docs/legal-ai-governance-framework.md"
+  - id: LAWAI-012
+    title: "Open legal corpus adoption plan"
+    description: "Global licence/coverage matrix and ELI/ECLI mapping for open legal corpora (epic Phase 2)."
+    implemented: false
+    status: planned
+    prd: ["§5.6.2"]
+    surface: infra
+    docs: "docs/legal-ai-governance-framework.md"
+  - id: LAWAI-013
+    title: "AI governance register"
+    description: "Dated, source-linked register of in-force and emerging AI laws, executive actions, standards and principles worldwide (epic Phase 3)."
+    implemented: false
+    status: planned
+    prd: ["§5.6.3", "§5.6.7"]
+    surface: api
+    docs: "docs/legal-ai-governance-framework.md"
+  - id: LAWAI-014
+    title: "Obligation and control crosswalk"
+    description: "LegalRuleML-style obligation model and EU AI Act / NIST AI RMF / ISO/IEC 42001 / national-law crosswalk (epic Phase 4)."
+    implemented: false
+    status: planned
+    prd: ["§5.6.4", "§5.6.7"]
+    surface: api
+    docs: "docs/legal-ai-governance-framework.md"
+  - id: LAWAI-015
+    title: "Bounded rules-as-code pilots"
+    description: "Catala/OpenFisca encodings of closed provisions, linked to source text and tested (epic Phase 5)."
+    implemented: false
+    status: planned
+    prd: ["§5.6.5", "§5.6.8"]
+    surface: infra
+    docs: "docs/legal-ai-governance-framework.md"
+  - id: LAWAI-016
+    title: "Temporal validity and horizon scanning"
+    description: "Bitemporal as-of queries and a tracked pipeline of emerging law (epic Phase 6)."
+    implemented: false
+    status: planned
+    prd: ["§5.6.5"]
+    surface: api
+    docs: "docs/legal-ai-governance-framework.md"
+  - id: LAWAI-017
+    title: "Governance-as-code fleet worked example"
+    description: "The bamr87 fleet's constitution, amendments, traceability and review gates modelled as an instance of the framework (epic Phase 7)."
+    implemented: false
+    status: planned
+    prd: ["§5.6.6"]
+    surface: infra
+    docs: "docs/legal-ai-governance-framework.md"

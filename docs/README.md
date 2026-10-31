@@ -28,6 +28,7 @@
 | [`docs/data-sources.md`](data-sources.md) | The open legal corpora Law AI ingests — URL, license, auth, rate limit and status for each — with a sample command for every ingester. |
 | [`docs/django-conventions.md`](django-conventions.md) | How to work inside the `backend/law_ai/` Django package: the settings split, async ORM discipline, Channels routing, Celery naming, migration gotchas and strict typing. |
 | [`docs/e2e-testing.md`](e2e-testing.md) | The browser end-to-end harness: what the Playwright suite covers that the jsdom unit tests cannot, how to run it, and what it deliberately does not do. |
+| [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | The epic for a global, machine-readable framework of law, governance, policy and procedure — including the in-force and emerging legal regime for AI models — with a build-vs-adopt survey of rules-as-code, legal-LLM and open-data prior art… |
 | [`docs/legalbench.md`](legalbench.md) | How the LegalBench harness runs and scores the tracked subsets, how the real data is cached, and how the baseline and regression gate decide a pass. |
 | [`docs/llm-provider-chain.md`](llm-provider-chain.md) | Reference for `law_ai.core.llm`: how the ordered provider chain picks a tier and audits every call, and how the Claude, xAI and Ollama tiers are configured. |
 | [`docs/local-ai.md`](local-ai.md) | The operator manual for the local AI substrate — Ollama, LangGraph checkpointers and Phoenix — across laptop, GPU workstation, server and air-gapped installs. |

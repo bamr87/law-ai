@@ -130,6 +130,35 @@ Legal professionals and students face:
 - Mobile PWA with offline graph subset sync.
 - Empirical legal research module (regression analysis on case outcomes, citation network metrics).
 
+### Phase 4 – Foundational Legal & AI Governance Framework (Epic)
+
+#### 5.6 Foundational Legal & AI Governance Framework
+A global, machine-readable model of law, governance, policy and procedure, with a register of in-force and emerging AI-governance law. Epic: [legal-ai-governance-framework.md](legal-ai-governance-framework.md).
+
+#### 5.6.1 Global norm taxonomy and ontology
+Represent every tier of norm (treaty, constitution, statute, regulation, case law, guidance, standard, policy, procedure) for all legal families and international bodies, aligned to LKIF-Core and Akoma Ntoso, with mandatory issuer, jurisdiction, date, binding-force and coverage metadata.
+
+#### 5.6.2 Open legal corpus adoption
+Adopt existing open corpora and identifiers (ELI, ECLI, Akoma Ntoso) on every continent before building ingesters; record licence, API and coverage per source; ingestion stays behind HITL quarantine.
+
+#### 5.6.3 AI governance register
+Maintain a dated, source-linked register of binding AI laws, executive actions, standards and principles across jurisdictions and international bodies, labelling binding vs. voluntary and in-force vs. pending.
+
+#### 5.6.4 Obligation and control crosswalk
+Normalise obligations (actor, trigger, deontic modality, deadline, sanction) LegalRuleML-style and crosswalk them across instruments (e.g. EU AI Act, NIST AI RMF, ISO/IEC 42001, national laws), each mapping cited and HITL-approved.
+
+#### 5.6.5 Temporal validity, horizon scanning and bounded rules-as-code
+Bitemporal validity on every norm with "as of" queries; track emerging bills, consultations and standards; executable encodings (Catala/OpenFisca) only for bounded provisions, linked to source text and tested.
+
+#### 5.6.6 Governance-as-code worked example
+Model the bamr87 agent fleet's constitution, amendments, traceability, review gate and overseer harness as an instance of the framework and map it to AI-governance obligations.
+
+#### 5.6.7 Grounded interpretation guardrail
+Every AI interpretation of a norm cites retrieved, existing authority, passes citation verification, carries jurisdiction and as-of labels, and routes high-stakes output through HITL.
+
+#### 5.6.8 Interpretation evaluation
+Regressions in legal interpretation are gated on LegalBench (and CaseHOLD where relevant) plus a hallucinated-citation rate metric.
+
 ---
 
 ## Feature catalog
@@ -149,6 +178,13 @@ Every user-facing capability has a stable id in the feature catalog [`features/f
 | [LAWAI-008](../features/features.yml) | LegalBench evaluation harness | shipped | [`backend/law_ai/eval`](../backend/law_ai/eval) · [`docs/constitution.md`](constitution.md) | §3 |
 | [LAWAI-009](../features/features.yml) | Multi-agent collaboration and GraphRAG (Phase 2) | planned | [`docs/prd.md`](prd.md) | §5 |
 | [LAWAI-010](../features/features.yml) | Expansion (Phase 3) | planned | [`docs/prd.md`](prd.md) | §5 |
+| [LAWAI-011](../features/features.yml) | Global norm taxonomy and ontology | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6, §5.6.1 |
+| [LAWAI-012](../features/features.yml) | Open legal corpus adoption plan | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.2 |
+| [LAWAI-013](../features/features.yml) | AI governance register | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.3, §5.6.7 |
+| [LAWAI-014](../features/features.yml) | Obligation and control crosswalk | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.4, §5.6.7 |
+| [LAWAI-015](../features/features.yml) | Bounded rules-as-code pilots | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.5, §5.6.8 |
+| [LAWAI-016](../features/features.yml) | Temporal validity and horizon scanning | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.5 |
+| [LAWAI-017](../features/features.yml) | Governance-as-code fleet worked example | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.6 |
 
 **Requirement → feature trace**
 
@@ -159,6 +195,15 @@ Every user-facing capability has a stable id in the feature catalog [`features/f
 | §8 | LAWAI-004 |
 | §9 | LAWAI-007 |
 | §3 | LAWAI-008 |
+| §5.6 | LAWAI-011 |
+| §5.6.1 | LAWAI-011 |
+| §5.6.2 | LAWAI-012 |
+| §5.6.3 | LAWAI-013 |
+| §5.6.7 | LAWAI-013, LAWAI-014 |
+| §5.6.4 | LAWAI-014 |
+| §5.6.5 | LAWAI-015, LAWAI-016 |
+| §5.6.8 | LAWAI-015 |
+| §5.6.6 | LAWAI-017 |
 <!-- features:end -->
 
 ## 6. Technical Requirements & Architecture
