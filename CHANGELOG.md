@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.2](https://github.com/bamr87/law-ai/compare/v0.2.1...v0.2.2) (2026-11-10)
+
+
+### Documentation
+
+* **epic:** Foundational Legal & AI Governance Framework — epic doc, PRD §5.6, LAWAI-011..017 ([2236687](https://github.com/bamr87/law-ai/commit/223668790931be237b5f7f520c832a7d675519c3))
+* **lawmode:** fill the agent-guide template for the absorbed lawmode/ tree ([fc30aff](https://github.com/bamr87/law-ai/commit/fc30aff2aa375fcb793b9af987fc9f5cb51bc452))
+
 ## [0.2.1](https://github.com/bamr87/law-ai/compare/v0.2.0...v0.2.1) (2026-10-30)
 
 
