@@ -2,17 +2,17 @@
 
 Guidance for AI coding agents (Claude Code, Copilot, Cursor) working in **lawmode**.
 
-<!-- TODO: one paragraph — what this project is, who it serves, and what "done" looks like here. -->
+LawMode.ai is a dormant MVP of an always-on AI legal reviewer for developers: a Python package and CLI (`lawmode/`), plus a VS Code extension (`vscode-extension/`), that runs a multi-chain legal-reasoning pipeline over code, prompts and commits and writes auditable review artifacts. It was imported into `bamr87/law-ai` with full history in #174 and now lives here as a subdirectory with its own tooling; the parent repo's [AGENTS.md](../AGENTS.md) and [docs/constitution.md](../docs/constitution.md) govern it. Its LLM providers are OpenAI and xAI (`lawmode/llm/`), outside law-ai's Anthropic-default runtime. "Done" here means documentation-only or test-backed changes that keep `make test` green in this directory; whether to revive, fold into law-ai proper, or retire LawMode is an open decision for the maintainer, so do not start feature work without a spec.
 
 ## Stack & commands
 
-<!-- TODO: fill in the real commands; delete rows that don't apply. -->
+Run from `lawmode/` (see its [Makefile](Makefile)):
 
 ```bash
-# install dependencies:
-# run the dev server / build:
-# run tests:
-# lint:
+make install        # pip install -e ".[dev]"
+make test           # pytest tests/ -v (tests/integration/ call live xAI/OpenAI APIs and need keys)
+make lint           # ruff check + mypy
+make docker-build   # build the LawMode image; make docker-run to run it
 ```
 
 ## Conventions
@@ -24,4 +24,4 @@ Guidance for AI coding agents (Claude Code, Copilot, Cursor) working in **lawmod
 
 ## Fleet context
 
-This repo is one of ~40 managed by the [bamr87/bamr87 dash](https://github.com/bamr87/bamr87) (registry: `_data/projects.yml`; tiered baseline: `docs/STANDARDS.md`). It is vendored there as a git submodule: commit and push changes **here** first — the hub only bumps its pointer afterwards. Shared CI, release, schema, and agent kits are seeded from the hub's `templates/`; prefer adopting those over hand-rolling equivalents.
+The standalone `bamr87/lawmode` repository no longer resolves; this directory inside [bamr87/law-ai](https://github.com/bamr87/law-ai) is the copy of record. Fleet standards from the [bamr87/bamr87 hub](https://github.com/bamr87/bamr87) apply through law-ai: its PRD ([docs/prd.md](../docs/prd.md)), feature catalog ([features/features.yml](../features/features.yml)), constitution and amendments. Branch from law-ai `main`, open a draft PR, and record follow-ups in law-ai's [BACKLOG.md](../BACKLOG.md).
