@@ -329,7 +329,17 @@ jobs:
       # 06:00 UTC run would contain none of the events the same run just
       # produced. Infra is still up here and AUTONOMY_ENABLED must be set
       # explicitly (compose defaults it to False per constitution §12 I3).
+      #
+      # Migrate first (BL-20261018-03). The coverage run above migrates only
+      # pytest-django's own `test_`-prefixed database; nothing in this job ever
+      # migrated the compose `law_ai` database the digest reads, so every
+      # digest logged `relation "audit_auditevent" does not exist` and
+      # rendered an error note instead of the run's events.
       # ------------------------------------------------------------------
+      - name: Migrate the database the digest reads
+        if: ${{ !inputs.dry_run && always() }}
+        run: make migrate
+
       - name: Compose autonomy digest
         id: digest
         if: ${{ !inputs.dry_run && always() }}

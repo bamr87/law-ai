@@ -159,6 +159,37 @@ def test_the_ollama_slice_runs_last_before_teardown(repo_root: Path) -> None:
     )
 
 
+def test_the_nightly_migrates_the_database_before_the_digest(
+    repo_root: Path,
+) -> None:
+    """BL-20261018-03: the digest read a database nothing had migrated.
+
+    ``make test-coverage`` migrates only pytest-django's throwaway test
+    database, so the compose ``law_ai`` database that ``make autonomy-run
+    KIND=digest`` queries had no tables, and every nightly digest logged
+    ``relation "audit_auditevent" does not exist``.
+    """
+    job = _yaml(repo_root, ".github/workflows/nightly-tests.yml")["jobs"]["nightly"]
+    steps = _steps(job)
+    digest_at = _index_of(steps, "make autonomy-run KIND=digest")
+    migrate = [
+        i
+        for i, step in enumerate(steps[:digest_at])
+        if "make migrate" in str(step.get("run", ""))
+    ]
+    assert migrate, (
+        "no step runs `make migrate` before the autonomy digest; the digest "
+        "would query an unmigrated database"
+    )
+    step = steps[migrate[-1]]
+    assert step.get("if") == steps[digest_at].get("if"), (
+        "the migrate step must run whenever the digest does (same `if:`), or "
+        "a failed earlier step skips it and the digest is back to no tables"
+    )
+    teardown_at = _index_of(steps, "docker compose down")
+    assert digest_at < teardown_at
+
+
 def test_the_ollama_slice_defaults_to_a_model_a_runner_can_hold(
     repo_root: Path,
 ) -> None:
