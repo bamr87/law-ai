@@ -80,7 +80,7 @@ jobs:
     # every other job in this workflow transitively needs the gate — the
     # UPS-WORK-07 shape the hub's conformance checker measures.
     needs: changes
-    uses: bamr87/bamr87/.github/workflows/spec-gate.yml@v2
+    uses: bamr87/bamr87/.github/workflows/spec-gate.yml@47a46197fb96818b34058d77aecfc4b1996b2922  # hub main as of 2026-11-10; pinned until the hub v2 tag carries spec-gate.yml (law-ai#191, bamr87/bamr87#457)
     with:
       strict: true
 

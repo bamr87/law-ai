@@ -39,10 +39,10 @@
 | [`docs/lsat-static.md`](lsat-static.md) | The architecture of the static LSAT site — how practice content reaches the GitHub Pages export, what gates it, and which specs shaped it. |
 | [`docs/lsat-synthesis.md`](lsat-synthesis.md) | The deterministic item-synthesis engine: skeletons whose keys a finite-model checker proves, domain packs that vary the surface, and difficulty that is measured rather than declared. |
 | [`docs/philosophy.md`](philosophy.md) | What we believe law *is*, what that makes a legal-intelligence system responsible for, and which of those beliefs are binding rules rather than opinions. |
-| [`docs/prd.md`](prd.md) | The product requirements for Law AI — problem, users, goals, prioritized features, agent specifications, UX and the roadmap; open work is tracked in [BACKLOG.md](BACKLOG.md). |
+| [`docs/prd.md`](prd.md) | The product requirements for Law AI — problem, users, goals, prioritized features, agent specifications, UX and the roadmap; open work is tracked in [BACKLOG.md](../BACKLOG.md). |
 | [`docs/related-github-repos.md`](related-github-repos.md) | Open-source projects, by category, that Law AI can build on for agents, legal NLP, knowledge graphs, GraphRAG, data pipelines, benchmarks and visualization. |
 | [`docs/security.md`](security.md) | The API-token and session model that gates the `/api/*` routers: threat model, scope matrix, token lifecycle, rate limits, auditability and the production hardening checklist. |
-| [`docs/spec-driven.md`](spec-driven.md) | Law AI runs the fleet's spec-driven SDLC loop (AO-SDLC) **by reference**. |
+| [`docs/spec-driven.md`](spec-driven.md) | How Law AI runs the fleet's spec-driven SDLC loop by reference: what this repo keeps, which gates enforce it, and where the shared machinery lives in the hub. |
 | [`docs/ui-ux-review.md`](ui-ux-review.md) | The repeatable UI/UX review pass — the rubric, what counts as visual evidence, and the mechanical `ux_audit.py` contract each fix is promoted into. |
 | [`docs/ui-ux.md`](ui-ux.md) | Every user-facing surface, what actually ships versus what docs once claimed, the token and component inventory, and the design-system contract new UI follows. |
 | [`docs/adr/`](adr/README.md) | The index and format of Law AI's Architecture Decision Records — the decisions that amend or deviate from the constitution. |
