@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/bamr87/law-ai/compare/v0.2.2...v0.2.3) (2026-11-11)
+
+
+### Fixed
+
+* **ci:** pin spec-gate to a hub commit SHA so CI runs again ([#215](https://github.com/bamr87/law-ai/issues/215)) ([b735817](https://github.com/bamr87/law-ai/commit/b735817a83c37f6295059503f5300e6a41523286))
+
 ## [0.2.2](https://github.com/bamr87/law-ai/compare/v0.2.1...v0.2.2) (2026-11-10)
 
 
