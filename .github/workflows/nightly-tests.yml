@@ -484,7 +484,11 @@ jobs:
     permissions:
       contents: read
       issues: write
-    uses: bamr87/bamr87/.github/workflows/spec-gate.yml@v2
+    # Pinned to the same hub commit as ci.yml (#215): the hub's v2 tag predates
+    # spec-gate.yml, and GitHub resolves every `uses:` at parse time, so an
+    # unresolvable ref refuses even a workflow_dispatch that skips this job.
+    # Move back to @v2 once the tag carries the file (bamr87/bamr87#457).
+    uses: bamr87/bamr87/.github/workflows/spec-gate.yml@47a46197fb96818b34058d77aecfc4b1996b2922  # hub main as of 2026-11-10
     with:
       strict: false
       stale-report: true
