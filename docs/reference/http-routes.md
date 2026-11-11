@@ -3,7 +3,7 @@
 
 > Every route the Django backend serves, grouped by mount, with the methods its view defines and the first line of the view's docstring — generated from the URLconf.
 
-94 HTTP routes across 12 mounts, read statically from `backend/law_ai/urls.py` and the modules it includes. Authentication and per-scope API keys are described in [api-examples.md](../api-examples.md), which carries the curl examples, and [security.md](../security.md). Change a route in its `urls.py`, then run `python3 scripts/gen_route_reference.py`.
+92 HTTP routes across 12 mounts, read statically from `backend/law_ai/urls.py` and the modules it includes. Authentication and per-scope API keys are described in [api-examples.md](../api-examples.md), which carries the curl examples, and [security.md](../security.md). Change a route in its `urls.py`, then run `python3 scripts/gen_route_reference.py`.
 
 ## `/`
 
@@ -51,9 +51,7 @@ Also mounted without the trailing slash (`/api/agents`), so the bare prefix reso
 | `/api/agents/backlog` | GET | `AgentBacklogView` |  |
 | `/api/agents/specs` | GET | `AgentSpecsView` |  |
 | `/api/agents/health/local-ai` | GET | `LocalAIHealthView` |  |
-| `/api/agents/proposed-tests` | GET | `AgentProposedTestsView` | Tests the autonomy loop has drafted and no human has ruled on yet. |
 | `/api/agents/autonomy/legalbench-history` | GET | `AutonomyLegalbenchHistoryView` | Accuracy over time, one series per LegalBench subset. |
-| `/api/agents/autonomy/lowest-coverage` | GET | `AutonomyCoverageView` | The five thinnest-tested modules — the autonomy test pillar's targets. |
 | `/api/agents/autonomy/runs` | GET | `AutonomyRunsView` | The last N autonomy cycles: kind, status, duration (BL-20260906-23). |
 | `/api/agents/autonomy/recent-quarantine` | GET | `AutonomyQuarantineView` | The ten newest quarantined documents still waiting on a human (§5). |
 

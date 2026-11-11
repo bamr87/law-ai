@@ -1,6 +1,6 @@
 # Tasks: Commit the first real LegalBench baseline
 
-> Each task references `FR-*` / `NFR-*` / `AC-*` IDs from [spec.md](spec.md). CI's [spec_validator.py](../../scripts/spec_validator.py) enforces that every requirement is referenced by at least one task.
+> Each task references `FR-*` / `NFR-*` / `AC-*` IDs from [spec.md](spec.md). CI's `spec_validator.py` enforces that every requirement is referenced by at least one task.
 
 ## Conventions
 
@@ -128,7 +128,7 @@
 
 ## Follow-ups Discovered
 
-> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI ([scripts/spec_validator.py](../../scripts/spec_validator.py)) checks this section exists. CI ([scripts/backlog_lint.py](../../scripts/backlog_lint.py)) checks the BACKLOG mirror.
+> Append-only. Mirror each item into [BACKLOG.md](../../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI (`scripts/spec_validator.py`) checks this section exists. CI (`scripts/backlog_lint.py`) checks the BACKLOG mirror.
 
 - BL-20261018-01 — feature, med — Extend the gated LegalBench set beyond `core_reasoning`/`precedent_retrieval` to the already-fetchable `contract_nli`, `definitions` (CC BY-SA 4.0) and `causation` subsets, each with its own baseline row, once spec 056's hosted run proves the CPU budget.
 - BL-20261018-02 — feature, low — A non-gating reference lane that scores the same items on `claude-sonnet-5-5` through `law_ai.core.llm` with a pinned single-tier `LLM_PROVIDER_CHAIN`; needs an ADR amending constitution §1 ("LegalBench does not route through the chain"), the `ANTHROPIC_API_KEY` secret, and a per-run cost cap (spec 056 OQ-3).

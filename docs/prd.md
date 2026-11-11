@@ -1,6 +1,6 @@
 # Law AI
 
-> The product requirements for Law AI — problem, users, goals, prioritized features, agent specifications, UX and the roadmap; open work is tracked in [BACKLOG.md](BACKLOG.md).
+> The product requirements for Law AI — problem, users, goals, prioritized features, agent specifications, UX and the roadmap; open work is tracked in [BACKLOG.md](../BACKLOG.md).
 
 ## Product Requirements Document (PRD)
 
