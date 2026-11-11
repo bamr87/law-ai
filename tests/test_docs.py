@@ -144,8 +144,14 @@ def test_spec_driven_loop_is_consumed_by_reference(repo_root: Path) -> None:
         ".github/sdlc.yml must declare the spec-driven module and the file backlog"
     )
     ci = (repo_root / ".github" / "workflows" / "ci.yml").read_text()
-    assert "uses: bamr87/bamr87/.github/workflows/spec-gate.yml@v" in ci, (
-        "ci.yml must call the hub's reusable spec-gate.yml (pinned to a major tag)"
+    # A full commit SHA counts beside the major tag: the hub's pin policy
+    # (UPS-WORK-10) takes either, and ci.yml is on a SHA until the hub's v2 tag
+    # carries spec-gate.yml (law-ai#191, bamr87/bamr87#457).
+    assert re.search(
+        r"uses: bamr87/bamr87/\.github/workflows/spec-gate\.yml@(v\d|[0-9a-f]{40}\b)", ci
+    ), (
+        "ci.yml must call the hub's reusable spec-gate.yml (pinned to a major tag "
+        "or a full commit SHA, never a branch)"
     )
     for stray in (
         "scripts/spec_validator.py",

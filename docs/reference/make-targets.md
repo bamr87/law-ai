@@ -103,7 +103,7 @@
 | Command | What it does | VS Code task |
 | --- | --- | --- |
 | `make autonomy-run KIND=corpus_growth SOURCE=courtlistener` | one cycle (also accepts AUTONOMY_KIND/SOURCE) | Autonomy: Run Cycle (dry-run) |
-| `make autonomy-run KIND=test_pillar BUDGET=10` | pillar A | Autonomy: Run Cycle (dry-run) |
+| `make autonomy-run KIND=digest` | compose + deliver the digest | Autonomy: Run Cycle (dry-run) |
 | `make autonomy-status` | show beat schedule | Autonomy: Beat Status |
 | `make autonomy-stop` | stop consuming from autonomy queue (does NOT purge) |  |
 
@@ -128,7 +128,7 @@ Helpers and companions of the targets above. The note is the first sentence of t
 | `make test-e2e-typecheck` | Type-checks the specs against the Playwright/axe types, which only exist in the e2e image — the app's own `tsc --noEmit` excludes frontend/e2e. |  |
 | `make test-legalbench-gate` | CI form: fails the build when a listed subset drops more than 1 pp against backend/var/legalbench/baseline.json (constitution §3). |  |
 | `make legalbench-baseline` | Record the current accuracies as the tracked baseline. |  |
-| `make evolve-audit` |  | Evolve: Discovery Audit |
+| `make fleet-kit` |  |  |
 | `make local-ai-verify` | Is the configured gate model actually present? |  |
 | `make logs-gpu` |  |  |
 | `make local-ai-down-gpu` |  |  |

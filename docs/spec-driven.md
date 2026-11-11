@@ -1,5 +1,7 @@
 # The spec-driven loop in Law AI
 
+> How Law AI runs the fleet's spec-driven SDLC loop by reference: what this repo keeps, which gates enforce it, and where the shared machinery lives in the hub.
+
 Law AI runs the fleet's spec-driven SDLC loop (AO-SDLC) **by reference**. The machinery — the `/specify → /clarify → /plan → /tasks → /implement` chain, the `/evolve` autopilot, the spec and backlog gates, the discovery audit — lives in the bamr87 fleet hub as the `spec-driven` kit ([bamr87/bamr87 templates/spec-driven](https://github.com/bamr87/bamr87/tree/main/templates/spec-driven); operating guide: [bamr87/bamr87 docs/SPEC-DRIVEN.md](https://github.com/bamr87/bamr87/blob/main/docs/SPEC-DRIVEN.md)). This repo carries only what is Law AI's: the specs, the backlog, the constitution, the review question, and the product gates around them. This page is the map from the fleet loop onto this repo.
 
 It replaces the former `AO-SDLC_Outline_Guide.md` (v2.0, 2026-08-11, whose generic half is now the hub doc and whose runtime half lives in [architecture.md](architecture.md) and [llm-provider-chain.md](llm-provider-chain.md)) and `docs/ao-sdlc.md`. Law AI operates at **Autonomy Level 2 (Collaborative)** per [constitution.md](constitution.md) §10: agents draft, humans approve at the spec gate and the PR gate.
