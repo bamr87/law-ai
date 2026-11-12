@@ -166,7 +166,18 @@ features:
     title: "lawmode legal-risk review for code (folded in)"
     description: "The imported lawmode reviewer as a law-ai app: make lawmode-scan and the VS Code extension, eight legal-risk chains on LLM_PROVIDER_CHAIN with provenance, high/critical findings to HITL, under law-ai CI (spec 057, decision #226)."
     implemented: false
-    status: planned
+    # In progress (spec 057 P1 of P5 landed: the law_ai.lawmode app on the provider chain).
+    # `partial` is this schema's in-progress value — `in-progress` is not in features/v1
+    # and fails governance_lint. Flips to shipped + implemented: true after P5 (#241).
+    status: partial
     prd: ["§5.8"]
     surface: cli
+    link: "backend/law_ai/lawmode"
     docs: "docs/lawmode-migration.md"
+    tests:
+      - backend/tests/lawmode/test_schemas.py
+      - backend/tests/lawmode/test_policy.py
+      - backend/tests/lawmode/test_settings_validation.py
+      - backend/tests/lawmode/test_review.py
+      - backend/tests/lawmode/test_artifacts.py
+      - backend/tests/lawmode/test_no_foreign_providers.py
