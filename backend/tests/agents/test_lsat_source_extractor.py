@@ -293,14 +293,16 @@ class TestEndpoint:
         resp = client.post("/api/lsat/intake/ocr", {"source_text": ""}, format="json")
         assert resp.status_code == 422
 
-    def test_intake_writes_an_audit_event(
-        self, client, tmp_path, settings, monkeypatch
-    ) -> None:
+    def test_intake_writes_an_audit_event(self, client, tmp_path, settings) -> None:
         """BL-20260905-37: the record() call used to be a swallowed TypeError."""
         from law_ai.core import audit_jsonl as audit_store
 
         settings.LSAT_PROPOSALS_DIR = str(tmp_path)
-        monkeypatch.setattr(settings, "AUDIT_PATH", str(tmp_path / "audit.jsonl"))
+        # Through pytest-django's wrapper, never monkeypatch.setattr on it:
+        # monkeypatch's undo runs after the wrapper's teardown and re-enables
+        # an override nothing disables, leaking `<LazySettings "None">` into
+        # every later test (BL-20261018-03, 646 setup errors).
+        settings.AUDIT_PATH = str(tmp_path / "audit.jsonl")
         with patch(
             "law_ai.core.llm.agenerate",
             new=AsyncMock(return_value=_llm_result(_extract_payload())),

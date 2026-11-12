@@ -469,7 +469,12 @@ def test_nightly_backlog_triage_is_the_fleet_gate(repo_root: Path) -> None:
 
     data = yaml.safe_load((repo_root / ".github" / "workflows" / "nightly-tests.yml").read_text())
     job = data["jobs"]["backlog-triage"]
-    assert job["uses"].startswith("bamr87/bamr87/.github/workflows/spec-gate.yml@v")
+    # A major tag or a full commit SHA (UPS-WORK-10), never a branch: the call
+    # sits on the same pin as ci.yml until the hub's v2 tag carries
+    # spec-gate.yml (law-ai#192, bamr87/bamr87#457).
+    assert re.fullmatch(
+        r"bamr87/bamr87/\.github/workflows/spec-gate\.yml@(v\d+|[0-9a-f]{40})", job["uses"]
+    ), f"backlog-triage must pin spec-gate.yml to a major tag or a commit SHA, got {job['uses']}"
     assert job["with"]["stale-report"] is True and job["with"]["file-issue"] is True
     assert "schedule" in job["if"], "backlog-triage must be schedule-only"
     assert job["permissions"]["issues"] == "write"
