@@ -162,3 +162,35 @@ features:
     prd: ["§5.6.6"]
     surface: infra
     docs: "docs/legal-ai-governance-framework.md"
+  - id: LAWAI-018
+    title: "LSAT Section (exam) mode"
+    description: "Timed section with no feedback until it ends: flag, question map, changeable answers, end-of-section review and blind review (deep dive 2026-11-12, #229)."
+    implemented: false
+    status: planned
+    prd: ["§5.7", "§5.7.1"]
+    surface: ui
+    docs: "docs/lsat-static.md"
+  - id: LAWAI-019
+    title: "LSAT performance by question type"
+    description: "Per-archetype accuracy and timing quadrants with a weakest-type drill in the practice dashboard (deep dive 2026-11-12, #230)."
+    implemented: false
+    status: planned
+    prd: ["§5.7.2"]
+    surface: ui
+    docs: "docs/lsat-static.md"
+  - id: LAWAI-020
+    title: "External citation verification"
+    description: "CourtListener Citation Lookup API check for citations the graph cannot resolve; 404/300 to HITL, provenance-logged, feeding the hallucinated-citation metric (deep dive 2026-11-12, #231)."
+    implemented: false
+    status: planned
+    prd: ["§5.7.3", "§5.6.7", "§5.6.8"]
+    surface: api
+    docs: "docs/data-sources.md"
+  - id: LAWAI-021
+    title: "GraphRAG retrieval benchmark"
+    description: "LegalBench-RAG character-level precision/recall for the GraphRAG retriever, no LLM in the loop, weekly with a baseline (deep dive 2026-11-12, #232)."
+    implemented: false
+    status: planned
+    prd: ["§5.7.4"]
+    surface: infra
+    docs: "docs/legalbench.md"
