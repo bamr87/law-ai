@@ -194,3 +194,11 @@ features:
     prd: ["§5.7.4"]
     surface: infra
     docs: "docs/legalbench.md"
+  - id: LAWAI-022
+    title: "lawmode legal-risk review for code (folded in)"
+    description: "The imported lawmode reviewer as a law-ai app: make lawmode-scan and the VS Code extension, eight legal-risk chains on LLM_PROVIDER_CHAIN with provenance, high/critical findings to HITL, under law-ai CI (spec 057, decision #226)."
+    implemented: false
+    status: planned
+    prd: ["§5.8"]
+    surface: cli
+    docs: "docs/lawmode-migration.md"
