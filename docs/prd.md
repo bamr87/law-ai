@@ -190,7 +190,7 @@ Every user-facing capability has a stable id in the feature catalog [`features/f
 | [LAWAI-015](../features/features.yml) | Bounded rules-as-code pilots | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.5, §5.6.8 |
 | [LAWAI-016](../features/features.yml) | Temporal validity and horizon scanning | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.5 |
 | [LAWAI-017](../features/features.yml) | Governance-as-code fleet worked example | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.6 |
-| [LAWAI-022](../features/features.yml) | lawmode legal-risk review for code (folded in) | planned | [`docs/lawmode-migration.md`](lawmode-migration.md) | §5.8 |
+| [LAWAI-022](../features/features.yml) | lawmode legal-risk review for code (folded in) | partial | [`backend/law_ai/lawmode`](../backend/law_ai/lawmode) · [`docs/lawmode-migration.md`](lawmode-migration.md) | §5.8 |
 
 **Requirement → feature trace**
 

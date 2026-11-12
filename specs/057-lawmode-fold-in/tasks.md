@@ -12,11 +12,12 @@ Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md) · Inventory: [docs/lawmode
 ## T-001 — P1: `law_ai.lawmode` app on the provider chain
 
 - **Refs**: FR-1, FR-2, NFR-QUAL-1, NFR-DEP-1, AC-6
-- **Owner**: Claude Code (handoff issue)
-- **Status**: `[ ]`
+- **Owner**: Claude Code (handoff issue [#237](https://github.com/bamr87/law-ai/issues/237))
+- **Status**: `[x]`
 - **Files**: `backend/law_ai/lawmode/{__init__,apps,schemas,policy}.py`, `backend/law_ai/lawmode/services/{review,artifacts}.py`, `backend/law_ai/lawmode/disclaimer.md`, `backend/law_ai/settings/base.py`, `backend/tests/lawmode/`
 - **Steps**: port models/config/core from `lawmode/lawmode/`; route the single-call path through `law_ai.core.llm`; add `LAWMODE_MODELS` validation (Anthropic: `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5` only; no OpenAI).
 - **Verify**: `make lint && make typecheck && make test`; AC-6 test.
+- **Stories**: US2 and US5 met for the backend code that exists; US3 in part (gated findings are `unreviewed` and nothing passes or fails a change; the queue item is T-002); US1 foundation only (no command until T-004); US6 held (`lawmode/` unchanged). Per-story status and what P1 settled for later phases: [docs/lawmode-migration.md § Progress](../../docs/lawmode-migration.md#progress).
 
 ## T-002 — P2: `code_legal_review` graph, prompts, provenance, HITL
 
@@ -84,3 +85,7 @@ Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md) · Inventory: [docs/lawmode
 - BL-20261112-10 — feature, low — Per-repository `.lawmode/policy.yaml` overrides for `lawmode_scan`; needs PyYAML as a direct dependency with a licence and security note (constitution §8).
 - BL-20261112-11 — feature, low — Optional PR-review workflow that runs `lawmode_scan` on law-ai pull requests and posts findings after HITL approval; needs Amr's OK (pull-requests: write, hosted-provider secrets; public-repo standard runners only, $0).
 - BL-20261112-12 — feature, low — Package and publish the VS Code extension (Marketplace / Open VSX) once P5 ships; publishing is an external action that needs Amr's OK.
+- BL-20261112-13 — feature, med — `LawmodeReviewer.review_code` (`backend/law_ai/lawmode/services/review.py`) sends its whole input as one prompt, with no size cap and no chunking, so a large file, diff or directory will overrun the serving tier's context or time out and surface only as `ReviewUnavailableError`. Spec 057 P4's `lawmode_scan` must review per file (or chunk) and report anything it skipped or cut as `not_run` — never truncate silently, and never count an unreviewed file as no findings. Surfaced by T-001 (P1).
+- BL-20261112-14 — tech-debt, med — The code under a lawmode review is untrusted input wrapped in `<source_code>` tags (`prompts/lawmode/review.v1.md`). Code that contains the closing tag, or comments written as instructions, can steer the reply — most plausibly into returning no findings. Add a per-call random delimiter that the P2 `code_legal_review` nodes share, and an adversarial fixture test that a planted instruction does not empty the `risks` array. Surfaced by T-001 (P1).
+- BL-20261112-15 — doc-gap, low — Spec 057 `plan.md` §8 and handoff issues #237 / #241 say `LAWAI-022` moves `planned → in-progress`, but `in-progress` is not a `features/v1` status (`shipped | partial | planned | deprecated | tbd`) and fails the hub's `governance_lint.py check`. P1 recorded `partial` with a comment in `features/features.yml`. Amend the plan's wording through a spec amendment, or ask the hub to add the status. Surfaced by T-001 (P1).
+- BL-20261112-16 — tech-debt, low — `LLM_PRICE_TABLE=` set but blank — or any malformed JSON in it — stops settings import with a raw `json.JSONDecodeError` from `env.json` (`backend/law_ai/settings/base.py`). `LAWMODE_MODELS` avoids this by staying a string that `law_ai.lawmode.policy` parses into an `ImproperlyConfigured` naming the setting, and by treating blank as unset; give `LLM_PRICE_TABLE` the same treatment. Surfaced by T-001 (P1).
