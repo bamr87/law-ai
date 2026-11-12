@@ -12,13 +12,15 @@ from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
 
+from law_ai.core.version import get_version
+
 
 def root(_request: object) -> JsonResponse:
     """Service banner for the API root."""
     return JsonResponse(
         {
             "message": "Law AI - Open Legal Intelligence Platform",
-            "version": "0.1.0",
+            "version": get_version(),
             "status": "operational",
             "docs": "/admin/doc/",
             "agents": "/api/agents",
@@ -33,6 +35,9 @@ urlpatterns = [
     # URL shape is stable for existing clients.
     path("health", include("law_ai.core.urls_health")),
     path("health/", include("law_ai.core.urls_health")),
+    # Release version + build provenance (UPS-BE-11); open like /health.
+    path("version", include("law_ai.core.urls_version")),
+    path("version/", include("law_ai.core.urls_version")),
     # Session accounts (spec 036 FR-2 / BL-20260503-13). Additive: the
     # X-API-Key path is unchanged and these routes are AllowAny.
     path("api/auth/", include("law_ai.core.urls_auth")),

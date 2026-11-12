@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 
 from law_ai.core.neo4j.driver import get_neo4j_driver
 from law_ai.core.neo4j.queries import get_last_ingest_at
+from law_ai.core.version import get_version
 
 logger = logging.getLogger("law_ai.health")
 
@@ -44,7 +45,7 @@ class HealthView(APIView):
             {
                 "status": "healthy",
                 "service": "law_ai-backend",
-                "version": "0.1.0",
+                "version": get_version(),
                 "last_ingest_at": last_ingest_at,
             }
         )
