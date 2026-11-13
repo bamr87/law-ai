@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
+import tomllib
 from importlib import metadata
+from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -84,3 +87,19 @@ def test_get_version_falls_back_to_unknown(monkeypatch) -> None:
     monkeypatch.setattr(version_module.metadata, "version", _missing)
 
     assert version_module.get_version() == "unknown"
+
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_MANIFEST = _REPO_ROOT / ".release-please-manifest.json"
+
+
+@pytest.mark.skipif(
+    not _MANIFEST.is_file(), reason="needs the full repo (no release manifest)"
+)
+def test_package_manifests_match_the_release() -> None:
+    release = json.loads(_MANIFEST.read_text())["."]
+    pyproject = tomllib.loads((_REPO_ROOT / "backend/pyproject.toml").read_text())
+    package = json.loads((_REPO_ROOT / "frontend/package.json").read_text())
+
+    assert pyproject["project"]["version"] == release
+    assert package["version"] == release

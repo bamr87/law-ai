@@ -24,7 +24,7 @@ def get_version() -> str:
     Example::
 
         >>> get_version()  # doctest: +SKIP
-        '0.2.1'
+        '0.3.0'
     """
     try:
         return metadata.version(DISTRIBUTION)
