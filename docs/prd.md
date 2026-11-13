@@ -159,6 +159,11 @@ Every AI interpretation of a norm cites retrieved, existing authority, passes ci
 #### 5.6.8 Interpretation evaluation
 Regressions in legal interpretation are gated on LegalBench (and CaseHOLD where relevant) plus a hallucinated-citation rate metric.
 
+### Developer legal-risk tooling
+
+#### 5.8 lawmode: legal-risk review for code, folded into law-ai
+The imported `lawmode/` reviewer becomes a first-class law-ai feature (decision on [#226](https://github.com/bamr87/law-ai/issues/226), relayed from Amr via Grok Bot, 2026-11-12: fold in — not revived standalone, not retired). A developer scans a path or a diff with `make lawmode-scan` or the VS Code extension and gets advisory legal-risk findings (licence, privacy, accessibility, copyright, security, regulatory, per jurisdiction), each citing its authority and a mitigation. Every model call goes through `LLM_PROVIDER_CHAIN` with provenance; lawmode keeps no provider client and no model default of its own (no OpenAI; Anthropic overrides limited to `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`). Critical and high findings go to the HITL queue instead of blocking or passing a change. The code runs under law-ai CI (`make lint`, `make typecheck`, `make test`, coverage). Retiring the old `lawmode/` tree is a later step that needs Amr's OK. Plan: [docs/lawmode-migration.md](lawmode-migration.md); spec: [specs/057-lawmode-fold-in](../specs/057-lawmode-fold-in/spec.md).
+
 ---
 
 ## Feature catalog
@@ -185,6 +190,7 @@ Every user-facing capability has a stable id in the feature catalog [`features/f
 | [LAWAI-015](../features/features.yml) | Bounded rules-as-code pilots | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.5, §5.6.8 |
 | [LAWAI-016](../features/features.yml) | Temporal validity and horizon scanning | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.5 |
 | [LAWAI-017](../features/features.yml) | Governance-as-code fleet worked example | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.6 |
+| [LAWAI-022](../features/features.yml) | lawmode legal-risk review for code (folded in) | partial | [`backend/law_ai/lawmode`](../backend/law_ai/lawmode) · [`docs/lawmode-migration.md`](lawmode-migration.md) | §5.8 |
 
 **Requirement → feature trace**
 
@@ -204,6 +210,7 @@ Every user-facing capability has a stable id in the feature catalog [`features/f
 | §5.6.5 | LAWAI-015, LAWAI-016 |
 | §5.6.8 | LAWAI-015 |
 | §5.6.6 | LAWAI-017 |
+| §5.8 | LAWAI-022 |
 <!-- features:end -->
 
 ## 6. Technical Requirements & Architecture

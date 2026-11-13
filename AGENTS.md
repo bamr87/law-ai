@@ -154,6 +154,7 @@ law-ai/                                 # workspace root (GitHub slug stays `law
 │       ├── ingestionapp/               # Quarantine ORM models + Celery tasks + source clients + the ocrmd plug-in
 │       ├── lsat/                       # /api/lsat/* router + question banks (services/data/)
 │       ├── matters/                    # the legal-journey platform (matters, scanned intake)
+│       ├── lawmode/                    # spec 057: the folded lawmode legal-risk review for code (schemas, policy, review service; no router yet)
 │       └── eval/                       # LegalBench harness
 │   ├── scripts/                        # Operator scripts (ingest_sample.py, init-db.sh, ollama-bootstrap.sh)
 │   └── tests/                          # pytest suite mirroring the package layout
