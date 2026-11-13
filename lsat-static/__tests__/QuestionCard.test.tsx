@@ -191,3 +191,39 @@ describe('QuestionCard radiogroup', () => {
     expect(screen.getByLabelText('Time on this question')).toHaveTextContent('0:42')
   })
 })
+
+/**
+ * The header pills (law-ai#224): `type` is a legacy copy of `section` in the
+ * shipped bank, so the middle pill shows the archetype's playbook name
+ * instead, and drops out when no archetype is stamped.
+ */
+describe('QuestionCard header pills', () => {
+  function pills(container: HTMLElement): string[] {
+    return Array.from(container.querySelectorAll('.qcard-meta .pill')).map(
+      (el) => el.textContent?.trim() ?? '',
+    )
+  }
+
+  beforeEach(() => {
+    resetOrders()
+  })
+
+  it('shows the archetype playbook name, not the section twice', () => {
+    const q: Question = {
+      ...QUESTION,
+      id: 'rc-test-pill',
+      section: 'RC',
+      type: 'RC',
+      archetype: 'rc-main-point',
+    }
+    const { container } = render(<QuestionCard question={q} index={0} total={1} />)
+    expect(pills(container)).toEqual(['RC', 'Main Point', 'medium'])
+    expect(pills(container).filter((p) => p === 'RC')).toHaveLength(1)
+  })
+
+  it('renders only section and difficulty when no archetype is stamped', () => {
+    const q: Question = { ...QUESTION, id: 'lr-test-nopill', type: 'LR', archetype: null }
+    const { container } = render(<QuestionCard question={q} index={0} total={1} />)
+    expect(pills(container)).toEqual(['LR', 'medium'])
+  })
+})

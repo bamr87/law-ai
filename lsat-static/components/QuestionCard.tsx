@@ -4,6 +4,7 @@ import ConceptRefs from './solve/ConceptRefs'
 import SolveAssist from './solve/SolveAssist'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Question } from '@/lib/types'
+import { playbookFor } from '@/lib/data'
 import { recordAttempt } from '@/lib/progress'
 import { useShortcuts } from '@/lib/keyboard'
 import { nextRovingIndex } from '@/lib/rovingFocus'
@@ -148,6 +149,8 @@ export default function QuestionCard({
     }
   }
 
+  const archetypeName = playbookFor(question.archetype)?.name
+
   return (
     <article
       ref={cardRef}
@@ -161,7 +164,10 @@ export default function QuestionCard({
     >
       <div className="qcard-meta">
         <span className="pill">{question.section}</span>
-        <span className="pill pill-muted">{question.type}</span>
+        {/* The question type is its archetype (spec 053 stamp). `type` is a
+            legacy copy of `section` in the exported bank (law-ai#224), so it
+            is not shown; no stamp means no pill. */}
+        {archetypeName && <span className="pill pill-muted">{archetypeName}</span>}
         <span className="pill pill-muted">{question.difficulty}</span>
         <span className="qcard-count">
           {index + 1} / {total}
