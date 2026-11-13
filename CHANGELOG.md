@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.3.0](https://github.com/bamr87/law-ai/compare/v0.2.3...v0.3.0) (2026-11-12)
+
+
+### Added
+
+* **lawmode:** law_ai.lawmode app on the provider chain (P1) ([f018341](https://github.com/bamr87/law-ai/commit/f0183411965c96747138b6f2d028466dcafe5887))
+* **lawmode:** law_ai.lawmode app on the provider chain (P1) ([ef79435](https://github.com/bamr87/law-ai/commit/ef79435d37e049b33cb4fea0ddc2e998a1b236d9))
+* **lawmode:** law_ai.lawmode app on the provider chain (P1) ([#243](https://github.com/bamr87/law-ai/issues/243)) ([f018341](https://github.com/bamr87/law-ai/commit/f0183411965c96747138b6f2d028466dcafe5887))
+
+
+### Fixed
+
+* **e2e:** move the e2e image and lsat-static to Playwright 1.65.0 ([2120967](https://github.com/bamr87/law-ai/commit/2120967382d8ac5ba85813c0e2a44e218fbbd4a8))
+* **e2e:** move the e2e image and lsat-static to Playwright 1.65.0 ([5385fb0](https://github.com/bamr87/law-ai/commit/5385fb0a1065542953235bf4467a8168e317bcaf))
+* **tests:** green the nightly coverage run and migrate before the autonomy digest ([6570be8](https://github.com/bamr87/law-ai/commit/6570be86280409e6ad03e259d2de58e0b926c879))
+
+
+### Documentation
+
+* **images:** visual evidence for the Playwright 1.65.0 bump ([#219](https://github.com/bamr87/law-ai/issues/219)) ([a08df85](https://github.com/bamr87/law-ai/commit/a08df85f3f39a26f8d699d69f7a69647a6918fc4))
+* **spec-057:** plan — fold lawmode into law-ai (PRD §5.8, LAWAI-022) ([40efa99](https://github.com/bamr87/law-ai/commit/40efa9917732872a873e8e3921ae15a472d86b5e))
+* **spec-057:** plan for folding lawmode into law-ai (PRD §5.8, LAWAI-022) ([337bff5](https://github.com/bamr87/law-ai/commit/337bff51f9c0b178d0f88c96e409b8723cdb3ecd))
+
 ## [0.2.3](https://github.com/bamr87/law-ai/compare/v0.2.2...v0.2.3) (2026-11-11)
 
 

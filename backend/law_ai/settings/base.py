@@ -202,6 +202,11 @@ env = environ.Env(
     # Repo root for BACKLOG.md + specs/ (outside the backend/ volume mount in Docker).
     # Set REPO_ROOT=/repo in docker-compose when mounting the full repo at /repo.
     REPO_ROOT=(str, ""),
+    # lawmode legal-risk review (spec 057). Jurisdictions a review reports
+    # against when the code names none; ported from lawmode's policy.yaml.
+    LAWMODE_JURISDICTIONS=(list, ["US", "EU", "UK"]),
+    # JSON object mapping a chain provider to a model id; empty = no override.
+    LAWMODE_MODELS=(str, ""),
 )
 
 env.read_env(str(BASE_DIR / ".env"), overwrite=False)
@@ -413,6 +418,19 @@ EMAIL_BACKEND: str = env("EMAIL_BACKEND")
 _repo_root_env: str = env("REPO_ROOT")
 REPO_ROOT: Path = Path(_repo_root_env) if _repo_root_env else BASE_DIR.parent
 
+# lawmode legal-risk review for code (spec 057, PRD §5.8). lawmode has no
+# provider client and no model default: its calls run on LLM_PROVIDER_CHAIN
+# with each tier's own model. LAWMODE_MODELS is the one optional knob — a JSON
+# object pinning a model per chain provider for lawmode calls only. Empty by
+# default. It stays a string here (like LSAT_FACTORY_CLAUDE_TIERS) so that
+# `law_ai.lawmode.policy` owns parsing and validation in one place, and
+# `law_ai.lawmode.apps.LawmodeConfig.ready()` runs it at startup: malformed
+# JSON, a key that is not a chain provider, or an Anthropic-tier id other than
+# claude-opus-5-5 / claude-sonnet-5-5 / claude-haiku-5-5 raises
+# ImproperlyConfigured (spec 057 AC-6).
+LAWMODE_MODELS: str = env("LAWMODE_MODELS")
+LAWMODE_JURISDICTIONS: list[str] = env.list("LAWMODE_JURISDICTIONS")
+
 # ---------------------------------------------------------------------------
 # Django configuration
 # ---------------------------------------------------------------------------
@@ -439,6 +457,7 @@ INSTALLED_APPS = [
     "law_ai.ingestionapp.apps.IngestionappConfig",
     "law_ai.agentsapi.apps.AgentsapiConfig",
     "law_ai.agents_runtime.apps.AgentsRuntimeConfig",
+    "law_ai.lawmode.apps.LawmodeConfig",
 ]
 
 MIDDLEWARE = [

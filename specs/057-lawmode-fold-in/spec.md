@@ -1,7 +1,7 @@
 # Spec: Fold lawmode into law-ai
 
 - **ID**: 057-lawmode-fold-in
-- **Status**: draft
+- **Status**: in-progress
 - **Owner**: @bamr87
 - **Created**: 2026-11-12
 - **Roadmap Epic**: [#226](https://github.com/bamr87/law-ai/issues/226) (decision relayed from Amr via Grok Bot, 2026-11-12: fold lawmode into law-ai; not revived standalone, not retired) · PRD [§5.8](../../docs/prd.md) · catalog `LAWAI-022`

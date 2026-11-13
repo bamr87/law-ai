@@ -211,7 +211,7 @@ Every user-facing capability has a stable id in the feature catalog [`features/f
 | [LAWAI-019](../features/features.yml) | LSAT performance by question type | planned | [`docs/lsat-static.md`](lsat-static.md) | §5.7.2 |
 | [LAWAI-020](../features/features.yml) | External citation verification | planned | [`docs/data-sources.md`](data-sources.md) | §5.7.3, §5.6.7, §5.6.8 |
 | [LAWAI-021](../features/features.yml) | GraphRAG retrieval benchmark | planned | [`docs/legalbench.md`](legalbench.md) | §5.7.4 |
-| [LAWAI-022](../features/features.yml) | lawmode legal-risk review for code (folded in) | planned | [`docs/lawmode-migration.md`](lawmode-migration.md) | §5.8 |
+| [LAWAI-022](../features/features.yml) | lawmode legal-risk review for code (folded in) | partial | [`backend/law_ai/lawmode`](../backend/law_ai/lawmode) · [`docs/lawmode-migration.md`](lawmode-migration.md) | §5.8 |
 
 **Requirement → feature trace**
 
