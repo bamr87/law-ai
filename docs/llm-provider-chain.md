@@ -131,6 +131,7 @@ Until `make xai-login` has been run, the tier reports itself unconfigured and th
 | `CLAUDE_CODE_REQUEST_TIMEOUT_S` | `60` | HTTP timeout. |
 | `CLAUDE_CODE_MAX_RETRIES` | `3` | Retries on transient `429/5xx/529`. |
 | `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | API base (override for proxies). |
+| `LAWMODE_MODELS` | _(unset)_ | Optional per-provider model pin for the folded lawmode review only ([spec 057](../specs/057-lawmode-fold-in/spec.md)): a JSON object keyed by chain provider. lawmode has no model default of its own, so unset means the tier's own model above. The two Anthropic tiers accept only `claude-opus-5-5`, `claude-sonnet-5-5` or `claude-haiku-5-5`; another Anthropic id, or a key that is not a chain provider, stops the process at startup (`law_ai.lawmode.policy`). |
 
 Every call is recorded through the audit layer (the `model` field shows e.g. `claude_code/claude-opus-5-5` or `anthropic_api/claude-opus-5-5`), so provenance is preserved regardless of which tier served the request.
 
