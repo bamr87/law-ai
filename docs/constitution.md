@@ -185,3 +185,12 @@ The rule above stands: amending this constitution needs an ADR in `docs/adr/` (w
 3. **Supersede**: a later record replaces an earlier one; ratified records are never edited, and numbers are never reused.
 
 The inline amendments already in this file (§1 "amended 2026-08-11, spec 034" and "amended 2026-09-04, ADR 0007") predate the log and stay where they are; [0001](amendments/0001-ratify-constitution.md) ratifies this document with them.
+
+## Merge authority and the review gate
+
+_(amendment `agent-merge-review-gate`, numbered at merge; conforms to hub constitution § 12, [bamr87/bamr87 amendment](https://github.com/bamr87/bamr87/pull/481). The hub's text governs.)_
+
+1. **Mergeable PR.** A PR is mergeable only when **all** of these are true, rechecked against live state just before the merge: (1) the required CI checks are green; (2) the required reviews are satisfied; (3) there are no merge conflicts; (4) the review gate has passed wherever human review is required.
+2. An AI agent may merge a PR only when it is mergeable; otherwise it waits. Merges use a merge commit, never squash or rebase, never `--admin`, and never a force-push.
+3. **Review gate.** The gated categories are those in hub § 12: amendments and this constitution; secrets, budgets and billing; settings, branch protection and permissions; security-sensitive changes; deploys and the maintainer's machines; non-trivial conflicts; destructive changes; and anything labelled `agent:hold`, `blocked` or `needs-amr`. A gated PR gets the `needs-amr` label and the Fleet status *Needs Amr*. An agent never merges it, and amendments are ratified only by the maintainer merging.
+   - **Repo gate:** invariant I1 stands. No workflow is granted merge permission, and every autonomy-loop draft PR and `PendingReview` row stays human-merged. Agent merge under this section covers only PRs that an agent opens interactively.
