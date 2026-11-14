@@ -72,6 +72,19 @@ const HIDE_AFTER_PX = 220
 /** Ignore scrolls smaller than this: momentum and rubber-banding both jitter. */
 const DIRECTION_DELTA_PX = 6
 
+/**
+ * The nav buttons' accessible name. WCAG 2.5.3 (Label in Name): a speech-input
+ * user says what they see, so the name has to contain, and should start with,
+ * the visible label. The bare `full` name failed it for LR, RC and LG ("click
+ * LR" matched nothing). "LR — Logical Reasoning" leads with the code on the
+ * pill and still spells the section out. Not "(LR)": label-in-name checkers
+ * (axe among them) discard parenthesised text before comparing. Labels the full
+ * name already contains ("Writing", "Library") keep the full name.
+ */
+function navAccessibleName(n: { label: string; full: string }): string {
+  return n.full.includes(n.label) ? n.full : `${n.label} — ${n.full}`
+}
+
 function indexOfView(view: View): number {
   const i = NAV.findIndex((n) => n.id === view)
   return i === -1 ? 0 : i
@@ -259,7 +272,7 @@ export default function Page() {
                 type="button"
                 className={'nav-link' + (view === n.id ? ' nav-link-active' : '')}
                 aria-current={view === n.id ? 'page' : undefined}
-                aria-label={n.full}
+                aria-label={navAccessibleName(n)}
                 title={n.full}
                 onClick={() => setView(n.id)}
               >
