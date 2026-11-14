@@ -167,7 +167,11 @@ export default function QuestionCard({
         {/* The question type is its archetype (spec 053 stamp). `type` is a
             legacy copy of `section` in the exported bank (law-ai#224), so it
             is not shown; no stamp means no pill. */}
-        {archetypeName && <span className="pill pill-muted">{archetypeName}</span>}
+        {archetypeName && (
+          <span className="pill pill-muted qcard-archetype" title={archetypeName}>
+            {archetypeName}
+          </span>
+        )}
         <span className="pill pill-muted">{question.difficulty}</span>
         <span className="qcard-count">
           {index + 1} / {total}

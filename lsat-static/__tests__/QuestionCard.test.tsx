@@ -219,6 +219,9 @@ describe('QuestionCard header pills', () => {
     const { container } = render(<QuestionCard question={q} index={0} total={1} />)
     expect(pills(container)).toEqual(['RC', 'Main Point', 'medium'])
     expect(pills(container).filter((p) => p === 'RC')).toHaveLength(1)
+    // A long name truncates on a phone, so the full one stays in its title.
+    const archetype = container.querySelector('.qcard-meta .qcard-archetype')
+    expect(archetype?.getAttribute('title')).toBe('Main Point')
   })
 
   it('renders only section and difficulty when no archetype is stamped', () => {
