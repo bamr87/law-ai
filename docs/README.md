@@ -24,6 +24,7 @@
 | [`docs/app-shell-architecture.md`](app-shell-architecture.md) | A generic Next.js design for an enterprise app shell over hierarchical, inheritable settings scopes — the essay spec 040 adapted, not a plan to implement as written. |
 | [`docs/architecture.md`](architecture.md) | The system diagram, component responsibilities, data flow, autonomy loop, scanned-page intake, LSAT delivery channel and the rationale behind each technology choice. |
 | [`docs/constitution.md`](constitution.md) | The rules every spec, plan and PR must satisfy to be valid — mission, locked stack, quality gates, provenance, HITL, testing, security, autonomy invariants and jurisprudential honesty. |
+| [`docs/core-schema.md`](core-schema.md) | The shared contract for Law AI's model of the legal system — jurisdictions, authorities, instruments, actions and governance links — and for the agent loop that ingests, structures and reviews them, with the specs that implement it. |
 | [`docs/data-model.md`](data-model.md) | The Neo4j knowledge-graph schema — nodes, relationships and mandatory provenance properties — and the Postgres quarantine that ingestion writes to. |
 | [`docs/data-sources.md`](data-sources.md) | The open legal corpora Law AI ingests — URL, license, auth, rate limit and status for each — with a sample command for every ingester. |
 | [`docs/django-conventions.md`](django-conventions.md) | How to work inside the `backend/law_ai/` Django package: the settings split, async ORM discipline, Channels routing, Celery naming, migration gotchas and strict typing. |
@@ -54,6 +55,7 @@
 | Document | What it covers |
 | --- | --- |
 | [`docs/history/2026-04-proposal.md`](history/2026-04-proposal.md) | The original April 2026 technical proposal, kept as a historical record — its architecture section is out of date, so read architecture.md for the current system. |
+| [`docs/history/2026-11-core-schema-draft.md`](history/2026-11-core-schema-draft.md) | The original November 2026 draft of the core schema spec, kept verbatim as a historical record — read core-schema.md for the reviewed, living version. |
 
 ### `docs/reference/`
 
