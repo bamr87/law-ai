@@ -126,6 +126,7 @@ The same commands are VS Code tasks in [.vscode/tasks.json](.vscode/tasks.json) 
 **Infrastructure**
 - Docker Compose (full local stack)
 - GitHub Actions for CI (lint, type-check, tests, LegalBench harness check); the fleet hub's reusable workflows for the spec gate
+- CodeQL code scanning ([.github/workflows/codeql.yml](.github/workflows/codeql.yml)) for `python` and `javascript-typescript` on push/PR to `main` and weekly; every workflow declares a top-level `permissions:` (least privilege, widened per job only where needed)
 
 ## Layout
 

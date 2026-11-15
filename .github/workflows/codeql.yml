@@ -1,0 +1,45 @@
+# Code scanning (law-ai#227). The repo is public, so CodeQL costs $0 in
+# Actions. Both languages are interpreted, so `build-mode: none` analyses the
+# source as checked out: no backend install, no `npm ci`.
+#   python                 backend/, scripts/, tests/
+#   javascript-typescript  frontend/ (Next.js + TS), lsat-static/
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, Tuesday 06:23 UTC: catches newly published queries against an
+    # unchanged tree. Never on the hour (fleet scheduling rule).
+    - cron: "23 6 * * 2"
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write  # upload the SARIF results to code scanning
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}

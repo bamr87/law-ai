@@ -770,3 +770,41 @@ def test_lint_scope_is_stated_where_someone_would_look(repo_root: Path) -> None:
     )
     agents = (repo_root / "AGENTS.md").read_text()
     assert "lint-root" in agents, "AGENTS.md does not state the lint scope"
+
+
+def test_every_workflow_declares_least_privilege_permissions(repo_root: Path) -> None:
+    """law-ai#227: token scope lives in the file, not in a repo setting.
+
+    `ci.yml` and `integration-tests.yml` used to declare no top-level
+    `permissions:` and were read-only only because the repo default is `read`.
+    Every workflow now states its own; a job that needs more grants it at job
+    level.
+    """
+    from tests.conftest import require_yaml
+
+    yaml = require_yaml()
+    missing = sorted(
+        p.name
+        for p in (repo_root / ".github" / "workflows").glob("*.yml")
+        if "permissions" not in (yaml.safe_load(p.read_text()) or {})
+    )
+    assert not missing, f"workflows without a top-level permissions: block: {missing}"
+    for name in ("ci.yml", "integration-tests.yml"):
+        data = yaml.safe_load((repo_root / ".github" / "workflows" / name).read_text())
+        assert data["permissions"] == {"contents": "read"}, f"{name}: {data['permissions']}"
+
+
+def test_codeql_scans_both_languages(repo_root: Path) -> None:
+    """law-ai#227: code scanning runs on push/PR to main and weekly."""
+    from tests.conftest import require_yaml
+
+    yaml = require_yaml()
+    path = repo_root / ".github" / "workflows" / "codeql.yml"
+    assert path.is_file(), "missing .github/workflows/codeql.yml"
+    data = yaml.safe_load(path.read_text())
+    triggers = data[True] if True in data else data["on"]  # PyYAML reads `on:` as True
+    assert set(triggers) >= {"push", "pull_request", "schedule"}
+    job = data["jobs"]["analyze"]
+    assert set(job["strategy"]["matrix"]["language"]) == {"python", "javascript-typescript"}
+    assert job["permissions"] == {"contents": "read", "security-events": "write"}
+    assert data["permissions"] == {"contents": "read"}
