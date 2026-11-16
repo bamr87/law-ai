@@ -25,7 +25,7 @@ Law AI's direction is to become the ultimate open home for all things legal — 
 
 These missions set the course; they do not claim the work is finished. They serve the PRD goals in §3 and the users in §4: open and auditable legal intelligence, a living citation graph, LSAT and legal study, and a local-only mode for confidentiality-bound work. The earlier one-line mission — privacy-aware, auditable, graph-native legal intelligence with HITL on high-stakes paths — is absorbed into these three. Every feature must trace to them.
 
-_Source: [prd.md](prd.md) §1.1._
+_Source: [prd.md](../prd.md) §1.1._
 
 ## Consequences
 
