@@ -101,5 +101,24 @@ def test_package_manifests_match_the_release() -> None:
     pyproject = tomllib.loads((_REPO_ROOT / "backend/pyproject.toml").read_text())
     package = json.loads((_REPO_ROOT / "frontend/package.json").read_text())
 
+    lock = json.loads((_REPO_ROOT / "frontend/package-lock.json").read_text())
+
     assert pyproject["project"]["version"] == release
     assert package["version"] == release
+    assert lock["version"] == release
+    assert lock["packages"][""]["version"] == release
+
+
+def test_release_please_bumps_every_versioned_manifest() -> None:
+    config = json.loads((_REPO_ROOT / "release-please-config.json").read_text())
+    extra = {
+        (entry["path"], entry["jsonpath"])
+        for entry in config["packages"]["."]["extra-files"]
+    }
+
+    assert extra == {
+        ("backend/pyproject.toml", "$.project.version"),
+        ("frontend/package.json", "$.version"),
+        ("frontend/package-lock.json", "$.version"),
+        ("frontend/package-lock.json", "$.packages[''].version"),
+    }
