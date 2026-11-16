@@ -110,6 +110,19 @@ class ChatProviderChain(BaseChatModel):
     agent: str | None = None
     """Caller name recorded on the ``llm_call`` provenance event."""
 
+    prompt_id: str | None = None
+    """The versioned prompt this model renders, e.g. ``"lawmode.privacy"``.
+
+    ``core.llm.agenerate`` has recorded a prompt id and version on every
+    ``llm_call`` event since BL-20260503-01, and the adapter dropped both, so a
+    LangGraph node's calls could not be traced to the prompt file that produced
+    them (spec 057 FR-4, AC-2). Passed through on all three paths, like
+    :attr:`response_schema`.
+    """
+
+    prompt_version: str | None = None
+    """That prompt's version string, e.g. ``"v1"``."""
+
     models: Mapping[str, str] | None = None
     """Per-provider model overrides, keyed by provider name."""
 
@@ -130,6 +143,8 @@ class ChatProviderChain(BaseChatModel):
             "json_mode": self.json_mode,
             "response_schema": self.response_schema,
             "agent": self.agent,
+            "prompt_id": self.prompt_id,
+            "prompt_version": self.prompt_version,
         }
 
     # ------------------------------------------------------------------
@@ -203,6 +218,8 @@ class ChatProviderChain(BaseChatModel):
             models=self.models,
             providers=self.providers,
             agent=self.agent,
+            prompt_id=self.prompt_id,
+            prompt_version=self.prompt_version,
         )
         return self._to_result(result)
 
@@ -237,6 +254,8 @@ class ChatProviderChain(BaseChatModel):
             models=self.models,
             providers=self.providers,
             agent=self.agent,
+            prompt_id=self.prompt_id,
+            prompt_version=self.prompt_version,
         ):
             if run_manager is not None:
                 await run_manager.on_llm_new_token(chunk.text)
@@ -271,6 +290,8 @@ class ChatProviderChain(BaseChatModel):
             models=self.models,
             providers=self.providers,
             agent=self.agent,
+            prompt_id=self.prompt_id,
+            prompt_version=self.prompt_version,
         )
         return self._to_result(result)
 

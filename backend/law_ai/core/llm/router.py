@@ -764,8 +764,14 @@ def generate(
     models: Mapping[str, str] | None = None,
     providers: Sequence[str] | None = None,
     agent: str | None = None,
+    prompt_id: str | None = None,
+    prompt_version: str | None = None,
 ) -> LLMResult:
     """Synchronous :func:`agenerate` for Celery tasks and management commands.
+
+    Takes the same ``prompt_id`` / ``prompt_version`` as the async entry
+    point, so a call made from a sync context names its versioned prompt on
+    the ``llm_call`` event too.
 
     Raises:
         RuntimeError: when called from inside a running event loop — async
@@ -790,6 +796,8 @@ def generate(
             models=models,
             providers=providers,
             agent=agent,
+            prompt_id=prompt_id,
+            prompt_version=prompt_version,
         )
     )
 
