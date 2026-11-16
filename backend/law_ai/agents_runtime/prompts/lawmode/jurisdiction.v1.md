@@ -17,7 +17,7 @@ Name a jurisdiction only when something in the code points to it:
 
 Do not guess from the programming language, the libraries used or the language of the comments. If nothing in the code points to a jurisdiction, return an empty list: the review then uses the default jurisdictions the user message gives.
 
-Use short codes: `EU`, `UK`, `US`, a US state as `US-CA`, any other country by its ISO 3166-1 alpha-2 code.
+Use short codes: `EU`, `UK`, `US`, a US state as `US-CA`, any other country by its ISO 3166-1 alpha-2 code. Every entry must be one of those codes: an answer with any other entry — a name, a sentence, a note — is discarded, and the review uses the default jurisdictions.
 
 ## Output
 

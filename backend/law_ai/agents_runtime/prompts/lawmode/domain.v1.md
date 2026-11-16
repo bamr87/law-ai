@@ -16,7 +16,7 @@ Name a domain only when the code shows it:
 - carts, orders, checkout, shipping → `retail`;
 - accounts or content aimed at children → `children`.
 
-Use another short lowercase name when the code clearly serves a sector these do not cover. If the code shows no industry — a utility library, a build script, generic infrastructure — return an empty string. If the user message declares a domain, report what the code itself shows anyway; the review decides which one to use.
+Use another short lowercase name — one word, or two joined by a hyphen such as `real-estate`, at most 24 characters — when the code clearly serves a sector these do not cover. If the code shows no industry — a utility library, a build script, generic infrastructure — return an empty string. If the user message declares a domain, report what the code itself shows anyway; the review decides which one to use. Any other kind of answer — a sentence, a list, a name in another form — is discarded, and the review goes on without a detected domain.
 
 ## Output
 
