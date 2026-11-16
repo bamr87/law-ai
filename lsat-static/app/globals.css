@@ -140,7 +140,11 @@ a {
   padding-top: 0.9rem;
   padding-bottom: 0.9rem;
 }
+/* The brand is the page's <h1> (#222). Size and weight below already override
+ * the heading's user-agent style; the margin is the one property they leave,
+ * and 0.67em of it would push the nav row down. */
 .brand {
+  margin: 0;
   font-weight: 700;
   font-size: 1.15rem;
 }
