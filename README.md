@@ -66,6 +66,8 @@ Development follows the **fleet's spec-driven loop** rather than a workflow of t
 
 All contributions, human or AI-generated, pass `make lint` + `make typecheck`, `make test` (backend coverage ≥75%), `make lint-specs`, the relevant LegalBench tasks (required on PRs labelled `reasoning-change`, weekly otherwise), screenshots for anything a user could see, and a review of the agent traces for auditability.
 
+Report a security vulnerability privately, never in a public issue: [SECURITY.md](SECURITY.md) says how, and what counts as one here.
+
 ## Project status
 
 Law AI is under active spec-driven development — there is no fixed roadmap snapshot here, because it drifts. For what is shipped, in flight, and planned:
