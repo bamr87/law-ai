@@ -1,5 +1,5 @@
 <!-- kit: governance v0.1.0 -->
-# 0002 — Missions
+# 0003 — Missions
 
 - **Status:** proposed
 - **Date:** 2026-11-16

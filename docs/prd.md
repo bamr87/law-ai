@@ -13,7 +13,7 @@
 | Version | Date | Notes |
 |---------|------|-------|
 | 1.0 | 2026-04-29 | Initial draft for review. |
-| 1.1 | 2026-11-16 | Three missions added as §1.1, aiming to be the ultimate open home for all things legal (constitution amendment 0002); the prior executive summary becomes §1.2. |
+| 1.1 | 2026-11-16 | Three missions added as §1.1, aiming to be the ultimate open home for all things legal (constitution amendment 0003); the prior executive summary becomes §1.2. |
 
 > This document states the product requirements; it holds no task list. What is shipped is the numbered spec packages under [specs/](../specs/), and what is next is the **backlog of record**, [BACKLOG.md](../BACKLOG.md) (`## Open`). Cross-repo initiatives live in the fleet hub's [`_data/roadmap.yml`](https://github.com/bamr87/bamr87/blob/main/_data/roadmap.yml).
 
