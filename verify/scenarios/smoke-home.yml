@@ -30,14 +30,18 @@
 # the runner executes the whole scenario once per viewport.
 # =============================================================================
 id: smoke-home
-feature: TODO-001
-title: "Home page renders and is usable"
-description: "The first thing any visitor does: land on the home page, see the main content, and find the navigation."
+feature: LAWAI-005
+title: "LSAT Learning Lab home renders and is usable"
+description: "The first thing a prospective law student does on the static LSAT edition: land on the Overview, see one card per LSAT section with its format and timing, and find the section navigation, at desktop and phone widths."
 viewports: [desktop, mobile]
 steps:
   - goto: /
   - expect: { status: 200 }
+  - expect: { title: "LSAT Practice" }
   - expect: { visible: "main, [role=main], #main-content" }
+  - expect: { visible: "nav[aria-label=Sections]" }
+  - expect: { text: "Logical Reasoning" }
+  - expect: { visible: "button:has-text('Start LR drill')" }
   - expect: { no_horizontal_scroll: true }
   - expect: { no_console_errors: true }
   - screenshot: home
