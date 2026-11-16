@@ -21,7 +21,7 @@ Every output names the authority it rests on, labels asymmetry rather than filte
 - **Frontend** — Next.js 16 App Router, TypeScript strict, Tailwind v4, Cytoscape.js. Two UI apps (`frontend/`, `lsat-static/`) on a first-party design system ([docs/ui-ux.md](docs/ui-ux.md)).
 - **Infra** — Docker Compose locally (Postgres, Neo4j, Redis, Ollama, Phoenix tracing), GitHub Actions in CI.
 
-Full architecture: [docs/architecture.md](docs/architecture.md) · agents: [docs/agent-roles.md](docs/agent-roles.md) · data model: [docs/data-model.md](docs/data-model.md) · product requirements: [docs/prd.md](docs/prd.md).
+Full architecture: [docs/architecture.md](docs/architecture.md) · agents: [docs/agent-roles.md](docs/agent-roles.md) · data model: [docs/data-model.md](docs/data-model.md) · product requirements: [docs/prd.md](docs/prd.md) · every document, one line each: [docs/README.md](docs/README.md).
 
 ## Quick start (5 minutes to running)
 
