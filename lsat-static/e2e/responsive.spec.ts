@@ -561,3 +561,79 @@ test.describe('1280x900 (desktop, entrance animation running)', () => {
     )
   })
 })
+
+// ---------------------------------------------------------------------------
+// The destination is in the URL (#223), at both widths
+// ---------------------------------------------------------------------------
+
+/** The nav item marked current. Its accessible name says which destination. */
+function currentDestination(page: Page) {
+  return page.locator('.site-header .nav [aria-current="page"]')
+}
+
+for (const [width, height, label] of [
+  [390, 844, 'phone'],
+  [1280, 900, 'desktop'],
+] as const) {
+  test.describe(`${width}x${height} (${label}, deep links)`, () => {
+    test.use({ viewport: { width, height } })
+
+    test('a cold #article- permalink opens the Library, with no hydration error', async ({
+      page,
+    }) => {
+      // The export is prerendered on Overview and switches in an effect, so a
+      // deep link must not make React's first client render disagree with the
+      // HTML. A mismatch surfaces as a console error or an uncaught one.
+      const errors: string[] = []
+      page.on('console', (m) => {
+        if (m.type() === 'error') errors.push(m.text())
+      })
+      page.on('pageerror', (e) => errors.push(e.message))
+
+      await page.goto('./#article-lsat-exam-architecture')
+      await expect(currentDestination(page)).toHaveAttribute('aria-label', /Library/)
+      // The Library keeps the permalink it was opened on.
+      await expect(page).toHaveURL(/#article-lsat-exam-architecture$/)
+      expect(
+        errors.filter((e) => /hydrat|react\.dev\/errors\/4(18|19|2[0-5])/i.test(e)),
+        'no hydration error',
+      ).toEqual([])
+    })
+
+    test('Back walks destinations: Overview, LR, Library, Back lands on LR', async ({
+      page,
+    }) => {
+      await page.goto('./')
+      const nav = page.locator('.site-header .nav')
+      await nav.getByRole('button', { name: 'Logical Reasoning' }).click()
+      await expect(currentDestination(page)).toHaveAttribute(
+        'aria-label',
+        /Logical Reasoning/,
+      )
+      await nav.getByRole('button', { name: 'Library' }).click()
+      await expect(currentDestination(page)).toHaveAttribute('aria-label', /Library/)
+
+      await page.goBack()
+      await expect(currentDestination(page)).toHaveAttribute(
+        'aria-label',
+        /Logical Reasoning/,
+      )
+      await expect(page).toHaveURL(/#lr$/)
+      // One more step back is the bare address, which is Overview, still
+      // inside the site rather than wherever the reader came from.
+      await page.goBack()
+      await expect(currentDestination(page)).toHaveAttribute('aria-label', 'Overview')
+    })
+
+    test('a reload keeps the destination', async ({ page }) => {
+      await page.goto('./')
+      await page
+        .locator('.site-header .nav')
+        .getByRole('button', { name: 'Stats' })
+        .click()
+      await expect(page).toHaveURL(/#stats$/)
+      await page.reload()
+      await expect(currentDestination(page)).toHaveAttribute('aria-label', 'Stats')
+    })
+  })
+}

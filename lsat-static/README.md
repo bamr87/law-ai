@@ -20,6 +20,22 @@ The platform's concept catalog (`frontend/components/LsatLibrary.tsx`) is a rail
 
 The one capability that did have to match is per-concept linking. Every card carries `id="catalog-<id>"` and a permalink beside its heading, and `Library.tsx` reads the URL fragment on mount and on `hashchange` — so `#catalog-<id>` opens the catalog on that concept and `#article-<id>` opens the reader on that article, the same fragments the platform's `hashTarget()` uses. If a rail-and-reader layout is ever actually wanted here, that is a new decision to make with users, not a defect to fix.
 
+## Addresses
+
+The destination is in the URL fragment, so a shared link opens where it was copied, a reload keeps your place, and Back walks the destinations you visited instead of leaving the site (#223). There is no client router and no server to route a path, so the fragment is the whole address:
+
+| Fragment | Opens |
+| --- | --- |
+| none, or `#overview` | Overview |
+| `#lr`, `#rc`, `#lg` | the Logical Reasoning, Reading Comprehension or Logic Games drill |
+| `#writing` | Argumentative Writing |
+| `#library` | the Library, on its first article |
+| `#article-<id>` | the Library, on that article |
+| `#catalog-<id>` | the Library's concept catalog, on that concept |
+| `#stats` | Stats |
+
+Matching ignores case. Picking a destination (a nav item, `[` / `]`, an Overview card) pushes a history entry. A move inside the Library (another article, scrolling the catalog) replaces the current entry instead, so the address you copy is what you are looking at, but Back does not step through every article you opened. A fragment that names no destination, such as the skip link's `#view` or an in-article `#concept-<id>`, changes nothing. The table lives in [`lib/destinations.ts`](lib/destinations.ts). `app/page.tsx` reads the fragment after mount, never during render, so the exported HTML is always Overview and hydration never disagrees with it. A deep link therefore shows Overview for one frame before it switches.
+
 ## Data source (single source of truth)
 
 `content.json` is the HITL-approved bank artifact produced by the backend exporter and refreshed with:
