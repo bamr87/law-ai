@@ -104,10 +104,25 @@ describe('concept cards', () => {
 describe('catalog filters', () => {
   it('narrows by section', () => {
     render(<Concepts />)
-    fireEvent.click(screen.getByRole('button', { name: 'Logic Games' }))
+    fireEvent.click(screen.getByRole('button', { name: 'LG — Logic Games' }))
     expect(screen.getByText('1 of 3 concepts')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Conditional chain' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Necessary assumption' })).toBeNull()
+  })
+
+  it('names each filter with the text on it (WCAG 2.5.3, #222)', () => {
+    // "click LR" from a speech-input user has to reach the LR pill; the
+    // bare "Logical Reasoning" name did not contain it.
+    render(<Concepts />)
+    const filters = within(screen.getByRole('group', { name: 'Filter by section' }))
+      .getAllByRole('button')
+    expect(filters).toHaveLength(4)
+    for (const f of filters) {
+      const visible = (f.textContent ?? '').trim().toLowerCase()
+      expect((f.getAttribute('aria-label') ?? '').toLowerCase()).toContain(visible)
+    }
+    expect(screen.getByRole('button', { name: 'LR — Logical Reasoning' }))
+      .toHaveAttribute('title', 'Logical Reasoning')
   })
 
   it('searches name, summary, detail and examples', () => {

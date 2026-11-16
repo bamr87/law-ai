@@ -741,6 +741,18 @@ main#view {
   flex-wrap: wrap;
   gap: 0.15rem 0.9rem;
 }
+/* WCAG 2.2 2.5.8 Target Size (Minimum), AA. These are rows of separate
+ * targets, not links inside a sentence (the inline exception does not apply),
+ * and at 0.85rem with 0.15rem between rows each one was about 21px tall and
+ * crowding the next: the axe sweep in e2e/a11y.spec.ts flagged them on the
+ * Concepts view at both widths (#222). A 24px box clears the floor. */
+.concept-teaches-list a,
+.concept-teaches-list .linklike {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  min-width: 24px;
+}
 .concept-teaches-none,
 .concept-drills {
   color: var(--text-muted);

@@ -229,6 +229,12 @@ test.describe('scroll regions at 1366x900 (desktop)', () => {
     const overflow = await passage.evaluate((el) => el.scrollHeight - el.clientHeight)
     expect(overflow, 'the passage column scrolls on its own').toBeGreaterThan(0)
 
+    // Current Chromium puts a scroller with nothing focusable inside into the
+    // Tab order by itself, so the Tab walk below passes here even without the
+    // fix (it did, run against the unfixed export). Not every browser does,
+    // and axe does not count it: the explicit tab stop is the contract.
+    await expect(passage).toHaveAttribute('tabindex', '0')
+
     expect(
       await tabUntil(page, 'main#view', '.drill-grid > .passage'),
       'Tab reaches the passage column',
