@@ -13,6 +13,10 @@ KIND_ORDINANCE = "ordinance"
 KIND_ORDINANCE_SECTION = "ordinance_section"
 KIND_REGULATION = "regulation"
 KIND_DERIVED = "derived"
+#: A critical, high or authority-less finding from the lawmode
+#: ``code_legal_review`` graph (spec 057 FR-5, AC-3). Not a document: nothing
+#: about it is written to the knowledge graph, so it is a decision-only kind.
+KIND_LAWMODE_FINDING = "lawmode_finding"
 
 KNOWN_KINDS = frozenset(
     {
@@ -23,5 +27,12 @@ KNOWN_KINDS = frozenset(
         KIND_ORDINANCE_SECTION,
         KIND_REGULATION,
         KIND_DERIVED,
+        KIND_LAWMODE_FINDING,
     }
 )
+
+#: Kinds whose human decision is the whole outcome. Approving one records the
+#: decision and stops there: there is no extractor to hand it to and nothing to
+#: commit, so the approval sweep never picks one up (it would fail on every
+#: tick and, at the head of the queue, crowd out the rows that can commit).
+DECISION_ONLY_KINDS = frozenset({KIND_LAWMODE_FINDING})

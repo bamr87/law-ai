@@ -215,8 +215,11 @@ Spec 029 (`029-close-ingestion-hitl-loop`) closed the approve → commit loop: b
 | `KIND_ORDINANCE_SECTION` | `ordinance_section`  | `OrdinanceScout` (`BL-20260509-05`) — shipped, [`ordinance_scout.py`](../backend/law_ai/ingestionapp/services/ordinance_scout.py). **Every** section arrives here: the Denver source requires human approval, so this is not the exception path but the only path |
 | `KIND_REGULATION`        | `regulation`         | Not yet produced — no regulation-ingestion spec exists today        |
 | `KIND_DERIVED`           | `derived`            | Not yet produced — no spec currently writes `DerivedDocument`       |
+| `KIND_LAWMODE_FINDING`   | `lawmode_finding`    | The lawmode `code_legal_review` graph's HITL node ([spec 057](../specs/057-lawmode-fold-in/spec.md) FR-5) — shipped, [`lawmode/services/hitl.py`](../backend/law_ai/lawmode/services/hitl.py). One row per critical, high or authority-less finding, id `lawmode:<review id>:<finding id>`, `source='lawmode'`, `confidence=0.0` (a finding has no extraction score). Not a document: decision-only |
 
 Adding a new kind is a code-only change (no migration) thanks to `CharField(max_length=32)`.
+
+`DECISION_ONLY_KINDS` (today just `lawmode_finding`) are kinds whose human decision is the whole outcome. Approving one records the decision and stops: `commit_approved_review` returns it as `skipped` with no `commit_error`, and the approval sweep leaves these rows out, so an approved finding is never retried as a failed graph write or allowed to crowd committable rows out of a sweep.
 
 ## LSAT proposal queue _(Postgres, BL-20260527-05)_
 

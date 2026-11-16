@@ -7,8 +7,10 @@ from django.db import connection
 
 from law_ai.ingestionapp.models import PendingReview
 from law_ai.ingestionapp.quarantine_kinds import (
+    DECISION_ONLY_KINDS,
     KIND_CASE,
     KIND_DERIVED,
+    KIND_LAWMODE_FINDING,
     KIND_STATUTE,
     KNOWN_KINDS,
 )
@@ -69,4 +71,13 @@ def test_known_kinds_are_disjoint_constants() -> None:
     assert KIND_CASE in KNOWN_KINDS
     assert KIND_STATUTE in KNOWN_KINDS
     assert KIND_DERIVED in KNOWN_KINDS
-    assert len(KNOWN_KINDS) == 7
+    assert len(KNOWN_KINDS) == 8
+
+
+def test_lawmode_findings_are_a_known_decision_only_kind() -> None:
+    """Spec 057 FR-5: the HITL kind exists, fits the column, and never commits."""
+    assert KIND_LAWMODE_FINDING == "lawmode_finding"
+    assert KIND_LAWMODE_FINDING in KNOWN_KINDS
+    assert len(KIND_LAWMODE_FINDING) <= 32  # CharField(max_length=32)
+    assert {KIND_LAWMODE_FINDING} == DECISION_ONLY_KINDS
+    assert DECISION_ONLY_KINDS <= KNOWN_KINDS
