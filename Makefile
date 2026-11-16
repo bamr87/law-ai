@@ -677,16 +677,23 @@ lsat-static-build:
 # header heights, 44px touch targets, overflow, sticky passage column. jsdom
 # cannot measure any of that, so this drives a real browser over `out/`.
 #
-# The image tag MUST match @playwright/test in lsat-static/package-lock.json —
-# tests/test_e2e_harness.py keeps that lock and the frontend's on one version.
+# The image tag MUST match @playwright/test in lsat-static/package-lock.json,
+# because the driver and its browsers ship together, so it is read from that
+# lockfile rather than written here: a hand-written tag fell two releases
+# behind the lock and nothing noticed (#225). tests/test_e2e_harness.py
+# dry-runs both static e2e targets to hold their image to the lock, and keeps
+# that lock and the frontend's on one version.
+#
 # node_modules lives on the same named volume `make test-lsat-static` uses, so
 # the Linux install never lands in the host checkout; the export is built in
 # the same container so `out/` is guaranteed to match the code under test.
+LSAT_STATIC_PLAYWRIGHT_VERSION = $(shell python3 -c 'import json; print(json.load(open("lsat-static/package-lock.json"))["packages"]["node_modules/@playwright/test"]["version"])')
+LSAT_STATIC_PLAYWRIGHT_IMAGE = mcr.microsoft.com/playwright:v$(or $(LSAT_STATIC_PLAYWRIGHT_VERSION),$(error cannot read the @playwright/test version from lsat-static/package-lock.json))-noble
 lsat-static-e2e:
 	docker run --rm --ipc=host -v "$(PWD)":/repo \
 		-v law_ai_lsat_static_node_modules:/repo/lsat-static/node_modules \
 		-w /repo/lsat-static -e PAGES_BASE_PATH=/law-ai -e CI=$(CI) \
-		mcr.microsoft.com/playwright:v1.63.0-noble \
+		$(LSAT_STATIC_PLAYWRIGHT_IMAGE) \
 		sh -c "npm ci --no-audit --no-fund && npm run build && npx playwright test"
 
 # Same suite, same image, without paying for `npm ci` and a full `next build`
@@ -700,7 +707,7 @@ lsat-static-e2e-cached:
 	docker run --rm --ipc=host -v "$(PWD)":/repo \
 		-v law_ai_lsat_static_node_modules:/repo/lsat-static/node_modules \
 		-w /repo/lsat-static -e PAGES_BASE_PATH=/law-ai -e CI=$(CI) \
-		mcr.microsoft.com/playwright:v1.63.0-noble \
+		$(LSAT_STATIC_PLAYWRIGHT_IMAGE) \
 		sh -c 'set -e; \
 		[ -x node_modules/.bin/next ] || npm ci --no-audit --no-fund; \
 		if [ -f out/index.html ] && [ -z "$$(find app components lib content.json package.json next.config.mjs -newer out/index.html 2>/dev/null | head -1)" ]; then \

@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -173,9 +175,12 @@ def test_the_static_viewport_suite_has_a_cached_variant(repo_root: Path) -> None
     assert "[ -x node_modules/.bin/next ] ||" in target, (
         "the install must be skipped only when the volume already has one"
     )
-    # Same browser image as the uncached target, so one pin serves both.
+    # Same browser image as the uncached target, so one pin serves both: the
+    # variable derived from the lockfile (#225), or a literal tag.
     full = makefile.split("\nlsat-static-e2e:", 1)[1].split("\n\n", 1)[0]
-    image = re.search(r"mcr\.microsoft\.com/playwright:\S+", full)
+    image = re.search(
+        r"\$\(LSAT_STATIC_PLAYWRIGHT_IMAGE\)|mcr\.microsoft\.com/playwright:\S+", full
+    )
     assert image and image.group(0) in target, (
         "both static e2e targets must use the same pinned Playwright image"
     )
@@ -194,6 +199,43 @@ def test_static_playwright_version_matches_the_frontend(repo_root: Path) -> None
     assert (
         static_lock["packages"]["node_modules/@playwright/test"]["version"]
         == frontend_lock["packages"]["node_modules/@playwright/test"]["version"]
+    )
+
+
+def test_the_static_e2e_image_matches_the_locked_driver(repo_root: Path) -> None:
+    """#225: the static targets run the image of the version lsat-static locks.
+
+    The image check at the top of this module reads only
+    ``frontend/Dockerfile.e2e``, so the Makefile's own tag stayed on v1.63.0
+    while ``lsat-static`` locked 1.64.1 and then 1.65.0, and nothing failed.
+    The Makefile now derives the tag from the lockfile. This test asks make
+    for the result instead of re-implementing the derivation: a dry run prints
+    each recipe with its variables expanded, which is the image a real run
+    pulls, whether the tag is derived or written out.
+    """
+    make = shutil.which("make")
+    if make is None:  # pragma: no cover - every supported host has make
+        pytest.skip("no make on PATH")
+    result = subprocess.run(
+        [make, "-n", "lsat-static-e2e", "lsat-static-e2e-cached"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    tags = re.findall(r"mcr\.microsoft\.com/playwright:v([0-9][0-9.]*)-", result.stdout)
+    assert len(tags) == 2, (
+        "expected one Playwright image in each static e2e recipe:\n" + result.stdout
+    )
+    lock = json.loads(
+        (repo_root / "lsat-static" / "package-lock.json").read_text(encoding="utf-8")
+    )
+    locked = lock["packages"]["node_modules/@playwright/test"]["version"]
+    assert tags == [locked, locked], (
+        f"make lsat-static-e2e and lsat-static-e2e-cached run playwright "
+        f"v{tags[0]} and v{tags[1]}, but lsat-static/package-lock.json has "
+        f"@playwright/test {locked}: the browsers and the driver ship together"
     )
 
 
