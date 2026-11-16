@@ -561,3 +561,61 @@ test.describe('1280x900 (desktop, entrance animation running)', () => {
     )
   })
 })
+
+// ---------------------------------------------------------------------------
+// The section-card grid (#123)
+// ---------------------------------------------------------------------------
+
+/**
+ * `.cards` used to floor each column at 260px, so the 960px-capped `.wrap`
+ * between 860px and 1439px fitted three columns and left Argumentative
+ * Writing alone on a second row. jsdom has no layout engine, so the row
+ * shape is measured here: cards per row, grouped by `getBoundingClientRect().top`.
+ */
+test.describe('the .cards grid has no orphan row (#123)', () => {
+  async function cardsPerRow(page: Page): Promise<number[]> {
+    return page.locator('.cards').first().evaluate((grid) => {
+      const rows = new Map<number, number>()
+      for (const c of Array.from(grid.children)) {
+        const top = Math.round(c.getBoundingClientRect().top)
+        rows.set(top, (rows.get(top) ?? 0) + 1)
+      }
+      return Array.from(rows.values())
+    })
+  }
+
+  const WIDTHS: Array<[number, number[]]> = [
+    [800, [2, 2]],
+    [860, [4]],
+    [1280, [4]],
+    [1439, [4]],
+    [1440, [4]],
+  ]
+
+  for (const [width, expected] of WIDTHS) {
+    test(`Overview at ${width}px: ${expected.join('+')}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 })
+      await page.goto('./')
+      await expect(page.locator('.cards > .card')).toHaveCount(4)
+      const rows = await cardsPerRow(page)
+      expect(rows, 'no row holds a single card').not.toContain(1)
+      expect(rows).toEqual(expected)
+      const overflow = await page.evaluate(() => {
+        const el = document.scrollingElement!
+        return el.scrollWidth - el.clientWidth
+      })
+      expect(overflow, 'no horizontal scroll').toBeLessThanOrEqual(1)
+    })
+
+    test(`Writing prompt list at ${width}px is no worse`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 })
+      await page.goto('./')
+      await page
+        .locator('.site-header .nav')
+        .getByRole('button', { name: 'Argumentative Writing' })
+        .click()
+      const rows = await cardsPerRow(page)
+      expect(rows, 'no row holds a single card').not.toContain(1)
+    })
+  }
+})

@@ -290,6 +290,18 @@ main#view {
   gap: 1rem;
   margin-top: 1.75rem;
 }
+/* #123: from 860px the .wrap content box is 820-920px (it only widens at
+   1440px), where a 260px floor fits three columns and strands the fourth
+   card. 180px fits four at the narrowest end (4 x 180 + 3 x 16 = 768), even
+   in the Writing prompt list, whose <ul> keeps the browser's 40px indent
+   (780px at 860px).
+   Below 860px the floor stays 260px, so 800px remains 2+2; at 1440px and up
+   auto-fit collapses the spare tracks and four cards still share one row. */
+@media (min-width: 860px) {
+  .cards {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
 .card {
   background: var(--bg-elev);
   border: 1px solid var(--border);

@@ -63,6 +63,23 @@ describe('concept cards', () => {
     expect(onOpenArticle).toHaveBeenCalledWith('lib-diagramming')
   })
 
+  it('renders no examples count for a concept without examples (#122)', () => {
+    render(<Concepts />)
+    // `examples` is absent here and `[]` in the shipped data; both mean none.
+    const bare = card('Red herring')
+    expect(bare).not.toHaveTextContent('0 examples')
+    expect(bare).not.toHaveTextContent(/schema example/)
+    expect(within(bare).queryByText(/Schema & examples/)).toBeNull()
+  })
+
+  it('counts schema examples, singular at exactly one', () => {
+    render(<Concepts />)
+    const withOne = card('Necessary assumption')
+    expect(withOne).toHaveTextContent('1 schema example')
+    expect(withOne).not.toHaveTextContent('1 schema examples')
+    expect(within(withOne).getByText(/Schema & examples/)).toBeInTheDocument()
+  })
+
   it('says so when no article covers a concept yet', () => {
     render(<Concepts />)
     const orphan = card('Red herring')
