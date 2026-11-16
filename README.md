@@ -66,7 +66,7 @@ Development follows the **fleet's spec-driven loop** rather than a workflow of t
 
 All contributions, human or AI-generated, pass `make lint` + `make typecheck`, `make test` (backend coverage ≥75%), `make lint-specs`, the relevant LegalBench tasks (required on PRs labelled `reasoning-change`, weekly otherwise), screenshots for anything a user could see, and a review of the agent traces for auditability.
 
-Report a security vulnerability privately, never in a public issue: [SECURITY.md](SECURITY.md) says how, and what counts as one here.
+Report a security vulnerability privately, never in a public issue: [SECURITY.md](SECURITY.md) says how, and what counts as one here. The fleet-wide [CONTRIBUTING.md](https://github.com/bamr87/.github/blob/main/CONTRIBUTING.md), which GitHub inherits from [bamr87/.github](https://github.com/bamr87/.github), applies too; where it and AGENTS.md differ, AGENTS.md wins.
 
 ## Project status
 
