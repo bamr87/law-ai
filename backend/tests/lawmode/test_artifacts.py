@@ -52,11 +52,14 @@ def _risk(**overrides: object) -> Risk:
     return Risk.model_validate(fields)
 
 
-def _review(*risks: Risk, unparsed_findings: int = 0) -> ReviewResult:
+def _review(
+    *risks: Risk, unparsed_findings: int = 0, chains_not_run: list[str] | None = None
+) -> ReviewResult:
     return ReviewResult(
         jurisdictions=["EU"],
         risks=list(risks),
         unparsed_findings=unparsed_findings,
+        chains_not_run=chains_not_run or [],
         metadata={"citations_verified": False},
     )
 
@@ -276,6 +279,35 @@ def test_an_incomplete_report_with_findings_still_says_so() -> None:
 
     assert "**This report is incomplete.** 1 finding(s)" in text
     assert "## R001:" in text
+
+
+def test_a_report_with_chains_that_did_not_run_says_it_is_incomplete() -> None:
+    """A check that never ran found nothing because it looked at nothing."""
+    text = render_mitigations_md(_review(chains_not_run=["licence", "security"]))
+
+    assert "**This report is incomplete.** These checks did not run" in text
+    assert "licence, security" in text
+    assert "No readable findings. This is not a clean result" in text
+    assert "No findings from these checks" not in text
+
+
+def test_risks_yaml_names_the_chains_that_did_not_run() -> None:
+    text = render_risks_yaml(_review(_risk(), chains_not_run=["licence"]))
+
+    assert 'chains_not_run: ["licence"]' in text.splitlines()
+    assert "human_approval_required: true" in text
+
+
+def test_risks_yaml_for_a_complete_review_has_no_chains_line() -> None:
+    assert "chains_not_run" not in render_risks_yaml(_review(_risk()))
+
+
+def test_the_chain_that_raised_a_finding_is_in_both_reports() -> None:
+    review = _review(_risk(chain="privacy"))
+
+    assert "**Check:** privacy" in render_mitigations_md(review)
+    assert '    chain: "privacy"' in render_risks_yaml(review).splitlines()
+    assert "**Check:**" not in render_mitigations_md(_review(_risk()))
 
 
 def test_a_finding_cannot_forge_a_line_of_the_report() -> None:

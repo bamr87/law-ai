@@ -28,7 +28,9 @@ and four things are different on purpose:
   switching the gates off must not clear a finding (spec 057 NFR-HITL-1).
 
 This is the single-call path of phase P1. The eight-chain ``code_legal_review``
-graph and the ``lawmode_finding`` review queue build on it in later phases.
+graph (``agents_runtime/graphs/code_legal_review.py``, phase P2) builds on its
+parsing and its policy step, and is the path that puts gated findings in the
+``lawmode_finding`` review queue.
 """
 
 from __future__ import annotations
@@ -105,40 +107,42 @@ _SEVERITY_BY_NAME = {severity.value.lower(): severity for severity in Severity}
 _URL = TypeAdapter(HttpUrl)
 _AUDIT_TEXT_CHARS = 200
 
+#: One finding as the model returns it. Shared with the ``code_legal_review``
+#: graph's review chains (spec 057 T-002), so every lawmode prompt asks for
+#: the same shape and :func:`parse_review_reply` reads all of them.
+FINDING_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "severity": {
+            "type": "string",
+            "enum": [severity.value for severity in Severity],
+        },
+        "title": {"type": "string"},
+        "law": {"type": "string"},
+        "jurisdiction": {"type": "string"},
+        "citation": {"type": "string"},
+        "description": {"type": "string"},
+        "mitigation": {"type": "string"},
+        "line_start": {"type": "integer"},
+        "line_end": {"type": "integer"},
+    },
+    "required": [
+        "severity",
+        "title",
+        "law",
+        "jurisdiction",
+        "description",
+        "mitigation",
+    ],
+    "additionalProperties": False,
+}
+
 _REVIEW_RESPONSE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "jurisdictions": {"type": "array", "items": {"type": "string"}},
         "domain": {"type": "string"},
-        "risks": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "severity": {
-                        "type": "string",
-                        "enum": [severity.value for severity in Severity],
-                    },
-                    "title": {"type": "string"},
-                    "law": {"type": "string"},
-                    "jurisdiction": {"type": "string"},
-                    "citation": {"type": "string"},
-                    "description": {"type": "string"},
-                    "mitigation": {"type": "string"},
-                    "line_start": {"type": "integer"},
-                    "line_end": {"type": "integer"},
-                },
-                "required": [
-                    "severity",
-                    "title",
-                    "law",
-                    "jurisdiction",
-                    "description",
-                    "mitigation",
-                ],
-                "additionalProperties": False,
-            },
-        },
+        "risks": {"type": "array", "items": FINDING_SCHEMA},
     },
     "required": ["jurisdictions", "risks"],
     "additionalProperties": False,
@@ -327,8 +331,10 @@ def apply_policy(
 
     A finding is gated when the policy gates its severity, or when it does not
     say whose law it is or where it applies (:func:`is_unattributed`). Gated
-    findings are ``unreviewed``: this phase has no review queue to put them
-    in, and a report must not claim one.
+    findings are ``unreviewed``: only the code that actually puts one in the
+    review queue (the ``code_legal_review`` graph's HITL node) may mark it
+    ``awaiting_review``, so a report never claims a queue item that does not
+    exist.
 
     >>> risk = Risk(severity=Severity.CRITICAL, title="t", law="GDPR Art. 32",
     ...             jurisdiction="EU", description="d", mitigation="m")
@@ -371,7 +377,7 @@ class LawmodeReviewer:
     ``human_approval_required`` declared because the critical and high
     findings are a human's to decide (spec 057 NFR-HITL-1). It is not
     registered with the agents runtime: the registered agent is the
-    ``code_legal_review`` graph of a later phase, which builds on this.
+    ``code_legal_review`` graph (``CodeLegalReview``), which builds on this.
 
     >>> LawmodeReviewer.human_approval_required
     True
