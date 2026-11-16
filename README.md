@@ -1,16 +1,19 @@
 # Law AI
 
-> An open legal-intelligence platform for prospective law students, current law students and practicing lawyers: LSAT preparation, guided legal study, and legal analysis grounded in a citation knowledge graph — with provenance on every answer and a human in the loop where it matters.
+> Law AI's direction is to become the ultimate open home for all things legal: data, tools, resources and transparency, with queryable and auditable case law and statutes, a citation knowledge graph, cited AI, LSAT and legal study, and API-first access for everyone ([constitution](docs/constitution.md) §1).
 
 [![CI](https://github.com/bamr87/law-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/bamr87/law-ai/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Live site](https://img.shields.io/badge/live-bamr87.github.io%2Flaw--ai-2ea44f)](https://bamr87.github.io/law-ai/)
 
 ## Who it is for
+
+Law AI aims to become the ultimate open home for all things legal — data, tools, resources and transparency for all stakeholders, legal professionals and the general public. The missions are in [constitution §1](docs/constitution.md#1-missions).
 
 | Audience | What Law AI gives them |
 |---|---|
 | **Prospective law students** | The LSAT lab: logical reasoning, reading comprehension, logic games and argumentative writing, with solving aids and playbooks, a continuous curriculum, question diagnosis and a knowledge library. Also published as a zero-server static site ([bamr87.github.io/law-ai](https://bamr87.github.io/law-ai/), built from `lsat-static/`). |
 | **Current law students** | The legal-journey platform: matters, scanned-page intake from a book (the [ocrmd](https://github.com/bamr87/ocrmd) plug-in), an analysis studio, and agent traces that show how an argument is built, step by step. |
 | **Practicing lawyers** | IRAC analysis grounded in retrieved authority, precedent hunting, a Neo4j citation knowledge graph (GraphRAG: lexical retrieval plus `CITES` traversal), an audit trail for every model call and retrieval, human-approval gates on ingestion and high-stakes analysis, and a fully local mode (`LLM_PROVIDER_CHAIN=ollama`) for privileged data. |
+| **General public** | The same public sources, tools and trail of evidence: look up the law, follow a case, study for the LSAT, or learn how a doctrine works, without a firm or law-school affiliation. |
 
 Every output names the authority it rests on, labels asymmetry rather than filtering by it, and refuses honestly when it cannot ground an answer ([docs/philosophy.md](docs/philosophy.md), [docs/constitution.md](docs/constitution.md) §13).
 

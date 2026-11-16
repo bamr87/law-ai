@@ -4,17 +4,34 @@
 
 ## Product Requirements Document (PRD)
 
-**Version:** 1.0  
-**Date:** April 29, 2026  
+**Version:** 1.1  
+**Date:** November 16, 2026  
 **Status:** Draft for Review  
 **Owner:** Product Team (AI Legal Systems Initiative)  
 **Related:** [Technical Proposal (2026-04, historical)](history/2026-04-proposal.md) | [Architecture](architecture.md) | [Constitution](constitution.md)
+
+| Version | Date | Notes |
+|---------|------|-------|
+| 1.0 | 2026-04-29 | Initial draft for review. |
+| 1.1 | 2026-11-16 | Three missions added as §1.1, aiming to be the ultimate open home for all things legal (constitution amendment 0002); the prior executive summary becomes §1.2. |
 
 > This document states the product requirements; it holds no task list. What is shipped is the numbered spec packages under [specs/](../specs/), and what is next is the **backlog of record**, [BACKLOG.md](../BACKLOG.md) (`## Open`). Cross-repo initiatives live in the fleet hub's [`_data/roadmap.yml`](https://github.com/bamr87/bamr87/blob/main/_data/roadmap.yml).
 
 ---
 
 ## 1. Executive Summary
+
+### 1.1 Missions
+
+Law AI's direction is to become the ultimate open home for all things legal — data, tools, resources and transparency, gathered in one place that anyone can inspect and reuse.
+
+1. **Provide data, tools, resources and transparency for all stakeholders, legal professionals and the general public.** Prospective and current law students, practicing lawyers, public defenders and legal-aid attorneys, professors and researchers, in-house counsel, builders, and the general public are first-class audiences. The aim is a shared, open commons: the same sources, the same tools, and the same trail of evidence for everyone.
+2. **Make every public legal fact queryable, reproducible and auditable, and let AI explain it only with citations.** The path starts with open case law, statutes and dockets (CourtListener, CAP, RECAP and other public corpora), a citation knowledge graph, and the LSAT learning lab, and widens from there. The graph and its provenance log are the system of record; every holding, citation and enrichment claim keeps a path to its evidence; authority is never treated as correctness; optional AI stays grounded in retrieved source text rather than replacing it. A fully local runtime remains reachable for privileged work.
+3. **Put that record in every learner's, builder's and practitioner's hands, and make legal analysis and legal-risk review effortless and auditable.** Serve it through the API, the interactive studio, the self-hosted stack and the public LSAT lab, so students can study against primary sources, lawyers can produce cited IRAC and precedent maps, and developers can review code for legal risk — an open toolkit for working with all things legal.
+
+These missions set the course; they do not claim the work is finished. They serve the goals in §3 and the users in §4. They are also [constitution](constitution.md) §1; changing them requires an amendment (constitution §14).
+
+### 1.2 Purpose
 
 **Law AI** is an open-source, AI-agent-orchestrated legal intelligence platform that empowers lawyers, law students, and legal researchers to understand, analyze, organize, and master complex legal content through intelligent multi-agent workflows, persistent knowledge graphs, and interactive visualizations.
 
@@ -79,6 +96,7 @@ Legal professionals and students face:
 | **Law Student / Future Lawyer** | 1L–3L preparing for classes, exams, moot court, or LSAT/Bar | Deep doctrinal understanding, efficient outlining, practice question explanations | Siloed study aids disconnected from primary sources; generic explanations |
 | **Law Professor / Researcher** | Teaching or empirical legal studies | Building course materials, analyzing citation networks, hypothesis testing on case outcomes | Manual data collection; lack of integrated analysis + visualization tools |
 | **In-House Counsel / Compliance** | Contract review, regulatory monitoring, risk assessment | Clause extraction, obligation tracking, jurisdiction-specific updates | Volume of contracts; keeping current with multi-jurisdictional changes |
+| **General public** | Anyone looking up the law, following a case, studying for the LSAT, or learning how a doctrine works, without a firm or law-school affiliation | The same public sources, tools and trail of evidence that professionals use | Paid research platforms; unexplained answers; tools aimed only at licensed practitioners |
 
 **Accessibility & Inclusion**: Free self-host option; low-resource mode (quantized models); keyboard-navigable graph UI; planned internationalization (Spanish, Mandarin legal corpora in later phases).
 
