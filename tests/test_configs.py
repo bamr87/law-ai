@@ -808,3 +808,20 @@ def test_codeql_scans_both_languages(repo_root: Path) -> None:
     assert set(job["strategy"]["matrix"]["language"]) == {"python", "javascript-typescript"}
     assert job["permissions"] == {"contents": "read", "security-events": "write"}
     assert data["permissions"] == {"contents": "read"}
+
+
+def test_claude_handler_is_a_pinned_kit_seed(repo_root: Path) -> None:
+    """law-ai#227: claude.yml is a re-seeded kit copy, never a hand edit.
+
+    The copy carries the hub kit's `# kit: agent-context vX.Y.Z` stamp and
+    runs the hub's claude-auth step at a version ref, never the mutable
+    `@main`. Byte-identity with the kit is checked by the hub's fan-out
+    (`tools/fanout.sh --upgrade`), not here.
+    """
+    import re
+
+    text = (repo_root / ".github" / "workflows" / "claude.yml").read_text()
+    assert re.search(r"^# kit: agent-context v\d+\.\d+\.\d+$", text, re.M), "no kit stamp"
+    refs = re.findall(r"bamr87/bamr87/\.github/actions/claude-auth@(\S+)", text)
+    assert refs, "claude.yml no longer uses the hub claude-auth step"
+    assert "main" not in refs, f"claude-auth pinned at a mutable ref: {refs}"
