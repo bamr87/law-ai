@@ -3,7 +3,7 @@
 
 > Every route the Django backend serves, grouped by mount, with the methods its view defines and the first line of the view's docstring — generated from the URLconf.
 
-92 HTTP routes across 12 mounts, read statically from `backend/law_ai/urls.py` and the modules it includes. Authentication and per-scope API keys are described in [api-examples.md](../api-examples.md), which carries the curl examples, and [security.md](../security.md). Change a route in its `urls.py`, then run `python3 scripts/gen_route_reference.py`.
+93 HTTP routes across 13 mounts, read statically from `backend/law_ai/urls.py` and the modules it includes. Authentication and per-scope API keys are described in [api-examples.md](../api-examples.md), which carries the curl examples, and [security.md](../security.md). Change a route in its `urls.py`, then run `python3 scripts/gen_route_reference.py`.
 
 ## `/`
 
@@ -19,6 +19,14 @@ Also mounted without the trailing slash (`/health`), so the bare prefix resolves
 | Route | Methods | View | Summary |
 | --- | --- | --- | --- |
 | `/health/` | GET | `HealthView` |  |
+
+## `/version/`
+
+Also mounted without the trailing slash (`/version`), so the bare prefix resolves too.
+
+| Route | Methods | View | Summary |
+| --- | --- | --- | --- |
+| `/version/` | GET | `VersionView` | Release version and build provenance of the running service. |
 
 ## `/api/auth/`
 

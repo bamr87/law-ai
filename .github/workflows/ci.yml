@@ -80,7 +80,7 @@ jobs:
     # every other job in this workflow transitively needs the gate — the
     # UPS-WORK-07 shape the hub's conformance checker measures.
     needs: changes
-    uses: bamr87/bamr87/.github/workflows/spec-gate.yml@47a46197fb96818b34058d77aecfc4b1996b2922  # hub main as of 2026-11-10; pinned until the hub v2 tag carries spec-gate.yml (law-ai#191, bamr87/bamr87#457)
+    uses: bamr87/bamr87/.github/workflows/spec-gate.yml@v2
     with:
       strict: true
 
@@ -261,7 +261,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: testpassword
         options: >-
-          --health-cmd pg_isready --health-interval 10s
+          --health-cmd "pg_isready -U postgres" --health-interval 10s
           --health-timeout 5s --health-retries 10
     defaults:
       run:
