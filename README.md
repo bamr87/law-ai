@@ -21,7 +21,7 @@ Every output names the authority it rests on, labels asymmetry rather than filte
 - **Frontend** — Next.js 16 App Router, TypeScript strict, Tailwind v4, Cytoscape.js. Two UI apps (`frontend/`, `lsat-static/`) on a first-party design system ([docs/ui-ux.md](docs/ui-ux.md)).
 - **Infra** — Docker Compose locally (Postgres, Neo4j, Redis, Ollama, Phoenix tracing), GitHub Actions in CI.
 
-Full architecture: [docs/architecture.md](docs/architecture.md) · agents: [docs/agent-roles.md](docs/agent-roles.md) · data model: [docs/data-model.md](docs/data-model.md) · product requirements: [docs/prd.md](docs/prd.md).
+Full architecture: [docs/architecture.md](docs/architecture.md) · agents: [docs/agent-roles.md](docs/agent-roles.md) · data model: [docs/data-model.md](docs/data-model.md) · product requirements: [docs/prd.md](docs/prd.md) · every document, one line each: [docs/README.md](docs/README.md).
 
 ## Quick start (5 minutes to running)
 
@@ -65,6 +65,8 @@ make test-legalbench
 Development follows the **fleet's spec-driven loop** rather than a workflow of this repo's own: a non-trivial change starts as a spec package under `specs/` (`/spec-driven:specify` → `:clarify` → `:plan` → `:tasks` → `:implement`, the `spec-driven` Claude Code plugin from the [bamr87 hub](https://github.com/bamr87/bamr87/tree/main/templates/spec-driven)), the spec and backlog gates run by reference in CI (`Spec Drift Gate`) and locally as `make lint-specs`, and every cycle mirrors the follow-ups it discovered into `BACKLOG.md`. [docs/spec-driven.md](docs/spec-driven.md) maps the loop onto this repo and lists which checks block a merge.
 
 All contributions, human or AI-generated, pass `make lint` + `make typecheck`, `make test` (backend coverage ≥75%), `make lint-specs`, the relevant LegalBench tasks (required on PRs labelled `reasoning-change`, weekly otherwise), screenshots for anything a user could see, and a review of the agent traces for auditability.
+
+Report a security vulnerability privately, never in a public issue: [SECURITY.md](SECURITY.md) says how, and what counts as one here. The fleet-wide [CONTRIBUTING.md](https://github.com/bamr87/.github/blob/main/CONTRIBUTING.md), which GitHub inherits from [bamr87/.github](https://github.com/bamr87/.github), applies too; where it and AGENTS.md differ, AGENTS.md wins.
 
 ## Project status
 
