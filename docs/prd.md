@@ -159,6 +159,23 @@ Every AI interpretation of a norm cites retrieved, existing authority, passes ci
 #### 5.6.8 Interpretation evaluation
 Regressions in legal interpretation are gated on LegalBench (and CaseHOLD where relevant) plus a hallucinated-citation rate metric.
 
+### Proposed – Practice fidelity and grounding (planned; deep dive 2026-11-12)
+
+#### 5.7 Practice fidelity and grounding
+Requirements proposed by the cycle 1 day 14 fleet deep dive. Each one is a feature request issue and a `planned` catalog entry; none is committed to a milestone until a spec claims it.
+
+#### 5.7.1 Section (exam) mode for timed practice
+A timed section gives no grading, explanation or hint until the section ends. The student can flag questions, jump between them through a question map, and change answers until submit. The end-of-section review shows score, time per question and flagged items first, and offers an untimed blind review before the keys are revealed. Static site first; original content only. ([#229](https://github.com/bamr87/law-ai/issues/229))
+
+#### 5.7.2 Performance by question type
+The practice dashboard reports attempts, accuracy and median time per stamped question archetype. It separates fast-wrong from slow-correct, links each type to its playbook, and starts a drill on the weakest type. Progress stays on the device. ([#230](https://github.com/bamr87/law-ai/issues/230))
+
+#### 5.7.3 External citation verification
+Citations the graph can't resolve are checked against Free Law Project's Citation Lookup API. Found citations are marked verified with their CourtListener cluster; not-found or ambiguous ones go to the HITL review queue and are never auto-labelled as hallucinations; unknown reporters are flagged. Every lookup is a provenance-logged tool call, and the rates feed the §5.6.8 hallucinated-citation metric. ([#231](https://github.com/bamr87/law-ai/issues/231))
+
+#### 5.7.4 Retrieval benchmark
+GraphRAG retrieval is measured on LegalBench-RAG (character-level precision and recall at k) with no LLM in the loop, run weekly beside LegalBench, with a recorded baseline that a retriever change must not regress. ([#232](https://github.com/bamr87/law-ai/issues/232))
+
 ### Developer legal-risk tooling
 
 #### 5.8 lawmode: legal-risk review for code, folded into law-ai
@@ -190,6 +207,10 @@ Every user-facing capability has a stable id in the feature catalog [`features/f
 | [LAWAI-015](../features/features.yml) | Bounded rules-as-code pilots | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.5, §5.6.8 |
 | [LAWAI-016](../features/features.yml) | Temporal validity and horizon scanning | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.5 |
 | [LAWAI-017](../features/features.yml) | Governance-as-code fleet worked example | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.6 |
+| [LAWAI-018](../features/features.yml) | LSAT Section (exam) mode | planned | [`docs/lsat-static.md`](lsat-static.md) | §5.7, §5.7.1 |
+| [LAWAI-019](../features/features.yml) | LSAT performance by question type | planned | [`docs/lsat-static.md`](lsat-static.md) | §5.7.2 |
+| [LAWAI-020](../features/features.yml) | External citation verification | planned | [`docs/data-sources.md`](data-sources.md) | §5.7.3, §5.6.7, §5.6.8 |
+| [LAWAI-021](../features/features.yml) | GraphRAG retrieval benchmark | planned | [`docs/legalbench.md`](legalbench.md) | §5.7.4 |
 | [LAWAI-022](../features/features.yml) | lawmode legal-risk review for code (folded in) | partial | [`backend/law_ai/lawmode`](../backend/law_ai/lawmode) · [`docs/lawmode-migration.md`](lawmode-migration.md) | §5.8 |
 
 **Requirement → feature trace**
@@ -205,11 +226,16 @@ Every user-facing capability has a stable id in the feature catalog [`features/f
 | §5.6.1 | LAWAI-011 |
 | §5.6.2 | LAWAI-012 |
 | §5.6.3 | LAWAI-013 |
-| §5.6.7 | LAWAI-013, LAWAI-014 |
+| §5.6.7 | LAWAI-013, LAWAI-014, LAWAI-020 |
 | §5.6.4 | LAWAI-014 |
 | §5.6.5 | LAWAI-015, LAWAI-016 |
-| §5.6.8 | LAWAI-015 |
+| §5.6.8 | LAWAI-015, LAWAI-020 |
 | §5.6.6 | LAWAI-017 |
+| §5.7 | LAWAI-018 |
+| §5.7.1 | LAWAI-018 |
+| §5.7.2 | LAWAI-019 |
+| §5.7.3 | LAWAI-020 |
+| §5.7.4 | LAWAI-021 |
 | §5.8 | LAWAI-022 |
 <!-- features:end -->
 
