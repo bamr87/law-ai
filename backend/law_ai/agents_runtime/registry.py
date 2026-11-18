@@ -19,6 +19,7 @@ from law_ai.agents_runtime.crews.lsat_solve_guide_author import LSATSolveGuideAu
 from law_ai.agents_runtime.crews.lsat_type_reviewer import LSATTypeReviewer
 from law_ai.agents_runtime.crews.lsat_writing_evaluator import LSATWritingEvaluator
 from law_ai.agents_runtime.crews.precedent_hunter import PrecedentHunter
+from law_ai.agents_runtime.graphs.code_legal_review import CodeLegalReview
 from law_ai.ingestionapp.services.scout import IngestionScout
 
 # ... import other agents
@@ -47,6 +48,7 @@ def register_all_agents() -> None:
     register_agent("LSATContrastAuthor", LSATContrastAuthor)
     register_agent("LSATTypeReviewer", LSATTypeReviewer)
     register_agent("LSATQuestionEditor", LSATQuestionEditor)
+    register_agent("CodeLegalReview", CodeLegalReview)
     # register_agent("LogicWeaver", LogicWeaver)
     # register_agent("Educator", Educator)
     # register_agent("Orchestrator", Orchestrator)

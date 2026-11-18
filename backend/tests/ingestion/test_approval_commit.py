@@ -195,6 +195,69 @@ class TestCommitApprovedReviews:
 
 
 @pytest.mark.django_db
+class TestDecisionOnlyKinds:
+    """Spec 057 FR-5: approving a lawmode finding records a decision, no more.
+
+    Nothing about a finding goes to the knowledge graph, so it must not show
+    up as a failed commit, and the sweep must never pick one up: retried on
+    every tick, a run of approved findings at the head of the queue would
+    crowd out the rows that can commit.
+    """
+
+    def _finding(self, pk: str = "lawmode:r1:R001") -> PendingReview:
+        review = _make_review(
+            id=pk,
+            source="lawmode",
+            kind="lawmode_finding",
+            confidence=0.0,
+            reason="lawmode Critical finding (privacy)",
+            payload={"id": pk, "finding": {"severity": "Critical"}},
+        )
+        with patch.object(approval_mod.provenance, "log_event", lambda *a: None):
+            record_decision(review, approved=True, reviewer="alice")
+        return review
+
+    def test_approving_one_is_skipped_not_failed(self) -> None:
+        from asgiref.sync import async_to_sync
+
+        review = self._finding()
+        fake_commit = AsyncMock(return_value={"committed": True, "edges": 1})
+        with patch(
+            "law_ai.ingestionapp.services.scout.IngestionScout.run_and_commit",
+            new=fake_commit,
+        ):
+            outcome = async_to_sync(approval_mod.commit_approved_review)(review)
+
+        assert outcome["committed"] is False
+        assert outcome["skipped"].startswith("decision-only")
+        assert "error" not in outcome
+        review.refresh_from_db()
+        assert review.commit_error == ""
+        assert review.committed_at is None
+        assert review.approved is True
+        assert fake_commit.await_count == 0
+
+    def test_the_sweep_leaves_them_out(self) -> None:
+        self._finding()
+        case = _make_review(id="case-after")
+        with patch.object(approval_mod.provenance, "log_event", lambda *a: None):
+            record_decision(case, approved=True, reviewer="alice")
+
+        fake_commit = AsyncMock(return_value={"committed": True, "edges": 0})
+        with (
+            patch(
+                "law_ai.ingestionapp.services.scout.IngestionScout.run_and_commit",
+                new=fake_commit,
+            ),
+            patch.object(approval_mod.provenance, "log_event", lambda *a: None),
+        ):
+            results = commit_approved_reviews(limit=1)
+
+        # The case row commits even though the finding was approved first.
+        assert [r["id"] for r in results] == ["case-after"]
+
+
+@pytest.mark.django_db
 def test_celery_task_reports_counts() -> None:
     from law_ai.ingestionapp.tasks import commit_approved_reviews_task
 

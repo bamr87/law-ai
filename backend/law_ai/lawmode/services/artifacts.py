@@ -23,7 +23,8 @@ Differences from the original, all deliberate:
   ``disclaimer.md``, so a stale copy never sits next to a new report.
 * A report with no findings says "no findings from these checks", and says
   that this is not compliance (spec 057 §2). A report with findings the model
-  returned but this code could not read says it is incomplete instead.
+  returned but this code could not read, or with review chains that did not
+  run, says it is incomplete instead.
 """
 
 from __future__ import annotations
@@ -89,6 +90,7 @@ def _risk_fields(risk: Risk) -> list[tuple[str, object]]:
         ("id", risk.id),
         ("severity", risk.severity.value),
         ("review_status", risk.review_status.value),
+        ("chain", risk.chain),
         ("title", risk.title),
         ("law", risk.law),
         ("jurisdiction", risk.jurisdiction),
@@ -112,6 +114,15 @@ def render_risks_yaml(review: ReviewResult) -> str:
         f"timestamp: {_yaml_scalar(review.timestamp.isoformat())}",
         f"human_approval_required: {_yaml_scalar(review.human_approval_required)}",
         f"unparsed_findings: {_yaml_scalar(review.unparsed_findings)}",
+        *(
+            [
+                "chains_not_run: ["
+                + ", ".join(map(_yaml_scalar, review.chains_not_run))
+                + "]"
+            ]
+            if review.chains_not_run
+            else []
+        ),
         "citations_verified: "
         + _yaml_scalar(bool(review.metadata.get("citations_verified", False))),
         f"disclaimer: {_yaml_scalar(review.disclaimer)}",
@@ -156,13 +167,22 @@ def render_mitigations_md(review: ReviewResult) -> str:
             "this code as not reviewed.",
             "",
         ]
+    if review.chains_not_run:
+        out += [
+            "> **This report is incomplete.** These checks did not run, so "
+            "they found nothing because they looked at nothing: "
+            f"{', '.join(_one_line(name) for name in review.chains_not_run)}. "
+            "A human needs to look: re-run the review, or treat this code as "
+            "not reviewed for those checks.",
+            "",
+        ]
 
     if not review.risks:
         out += [
             (
                 "No readable findings. This is not a clean result — see the "
                 "note above."
-                if review.unparsed_findings
+                if review.is_incomplete()
                 else "No findings from these checks. This is not a statement "
                 "that the code is compliant: it means this review raised "
                 "nothing in the code it was given."
@@ -186,6 +206,10 @@ def render_mitigations_md(review: ReviewResult) -> str:
             "",
             f"**Human review:** {_REVIEW_NOTES[risk.review_status]}",
             "",
+        ]
+        if risk.chain:
+            out += [f"**Check:** {_one_line(risk.chain)}", ""]
+        out += [
             f"**Law:** {_one_line(risk.law)}",
             "",
         ]

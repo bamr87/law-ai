@@ -107,6 +107,7 @@ def test_a_report_has_no_pass_or_fail() -> None:
         "signature",
         "metadata",
         "unparsed_findings",
+        "chains_not_run",
         "disclaimer",
         "human_approval_required",
     }
@@ -131,6 +132,29 @@ def test_the_outcome_is_serialised_with_the_report() -> None:
         ]
         is True
     )
+
+
+def test_a_review_chain_that_did_not_run_asks_for_a_human() -> None:
+    """Spec 057 Design for Failure: ``not_run`` is never "no findings"."""
+    review = ReviewResult(chains_not_run=["licence"])
+
+    assert review.risks == []
+    assert review.is_incomplete() is True
+    assert review.human_approval_required is True
+    assert review.model_dump(mode="json")["chains_not_run"] == ["licence"]
+
+
+def test_a_complete_report_is_not_incomplete() -> None:
+    assert ReviewResult().is_incomplete() is False
+    assert ReviewResult().chains_not_run == []
+
+
+def test_a_finding_can_name_the_chain_that_raised_it() -> None:
+    risk = _risk(Severity.LOW, chain="privacy")
+
+    assert risk.chain == "privacy"
+    assert Risk.model_validate(risk.model_dump(mode="json")).chain == "privacy"
+    assert _risk(Severity.LOW).chain is None
 
 
 def test_no_auto_fix_patch_is_carried() -> None:

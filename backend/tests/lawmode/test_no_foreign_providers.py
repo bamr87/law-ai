@@ -8,7 +8,9 @@ so this reads the source the way the issue's acceptance check greps it:
     git grep -n "openai\\|gpt-4o\\|requests" backend/law_ai/lawmode   # empty
 
 and adds the structural half: no ``llm`` package, no transport import, and no
-Anthropic model id in code beyond the three the spec allows.
+Anthropic model id in code beyond the three the spec allows. Phase P2 put the
+eight review chains in ``agents_runtime/graphs/code_legal_review.py``, outside
+the app, so the same tokens are checked there too (spec AC-2's grep names it).
 """
 
 from __future__ import annotations
@@ -29,6 +31,19 @@ pytestmark = pytest.mark.unit
 LAWMODE_DIR = Path(law_ai.lawmode.__file__).resolve().parent
 BACKEND_DIR = LAWMODE_DIR.parents[1]
 PROMPT_DIR = LAWMODE_DIR.parent / "agents_runtime" / "prompts" / "lawmode"
+GRAPH_FILE = LAWMODE_DIR.parent / "agents_runtime" / "graphs" / "code_legal_review.py"
+
+#: The eight chain prompts phase P2 added beside P1's ``review.v1.md``.
+CHAIN_PROMPTS = (
+    "jurisdiction",
+    "domain",
+    "privacy",
+    "licence",
+    "security",
+    "accessibility",
+    "copyright",
+    "regulatory",
+)
 
 #: Case-insensitive. The first three are the issue's acceptance criterion; the
 #: rest are the other pieces of lawmode's provider layer that were dropped.
@@ -69,9 +84,27 @@ ALLOWED_IMPORTS = frozenset(
         "law_ai.core.llm",
         "law_ai.core.provenance",
         "law_ai.core.settings_proxy",
+        # The review queue (spec 057 FR-5): the model and its kind constant.
+        "law_ai.ingestionapp.models",
+        "law_ai.ingestionapp.quarantine_kinds",
         "law_ai.lawmode",
         "law_ai.lawmode.policy",
         "law_ai.lawmode.schemas",
+    }
+)
+
+#: The graph module's allow-list: the app's, plus what a LangGraph node on the
+#: chain adapter needs. Still nothing beneath ``law_ai.core.llm``.
+GRAPH_ALLOWED_IMPORTS = ALLOWED_IMPORTS | frozenset(
+    {
+        "asgiref.sync",
+        "dataclasses",
+        "itertools",
+        "secrets",
+        "langchain_core.messages",
+        "langgraph.graph",
+        "law_ai.lawmode.services",
+        "law_ai.lawmode.services.review",
     }
 )
 
@@ -125,15 +158,19 @@ def test_the_guard_is_looking_at_real_files() -> None:
         "disclaimer.md",
         "services/review.py",
         "services/artifacts.py",
+        "services/hitl.py",
     } <= names
     assert (PROMPT_DIR / "review.v1.md").is_file()
+    for chain_name in CHAIN_PROMPTS:
+        assert (PROMPT_DIR / f"{chain_name}.v1.md").is_file(), chain_name
+    assert GRAPH_FILE.is_file()
 
 
 @pytest.mark.parametrize("token", FORBIDDEN)
 def test_the_token_appears_nowhere_in_the_app_or_its_prompts(token: str) -> None:
     offenders = [
         path.relative_to(BACKEND_DIR).as_posix()
-        for path in _text_files(LAWMODE_DIR) + _text_files(PROMPT_DIR)
+        for path in _text_files(LAWMODE_DIR) + _text_files(PROMPT_DIR) + [GRAPH_FILE]
         if token in path.read_text(encoding="utf-8").lower()
     ]
 
@@ -156,6 +193,14 @@ def test_no_module_reaches_a_model_except_through_the_chain() -> None:
     }
 
     assert offenders == {}
+
+
+def test_the_graph_reaches_a_model_only_through_the_chain_adapter() -> None:
+    """The eight chains call ``ChatProviderChain``; no transport, no vendor."""
+    assert sorted(_imports(GRAPH_FILE) - GRAPH_ALLOWED_IMPORTS) == []
+    source = GRAPH_FILE.read_text(encoding="utf-8")
+    assert "llm.ChatProviderChain(" in source
+    assert "bind_tools" not in source
 
 
 @pytest.mark.parametrize(
@@ -213,7 +258,7 @@ def test_the_review_calls_the_chains_entry_point() -> None:
 
 def test_the_only_anthropic_model_ids_in_code_are_the_allowed_three() -> None:
     named: set[str] = set()
-    for path in _text_files(LAWMODE_DIR) + _text_files(PROMPT_DIR):
+    for path in _text_files(LAWMODE_DIR) + _text_files(PROMPT_DIR) + [GRAPH_FILE]:
         named |= set(MODEL_ID.findall(path.read_text(encoding="utf-8")))
 
     assert named == set(ALLOWED_ANTHROPIC_MODELS)
@@ -228,6 +273,27 @@ def test_only_the_policy_names_a_model_at_all() -> None:
     }
 
     assert naming == {"policy.py"}
+    assert not MODEL_ID.search(GRAPH_FILE.read_text(encoding="utf-8"))
+
+
+def test_the_acceptance_grep_is_empty() -> None:
+    """Spec 057 AC-2, verbatim:
+
+        git grep -n "openai\\|gpt-4o\\|requests\\." \\
+            backend/law_ai/lawmode backend/law_ai/agents_runtime/graphs/code_legal_review.py
+    """
+    pattern = re.compile(r"openai|gpt-4o|requests\.")
+    hits = [
+        f"{path.relative_to(BACKEND_DIR).as_posix()}:{number}"
+        for path in [*LAWMODE_DIR.rglob("*"), GRAPH_FILE]
+        if path.is_file() and path.suffix != ".pyc"
+        for number, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1
+        )
+        if pattern.search(line)
+    ]
+
+    assert hits == []
 
 
 def test_the_backend_did_not_gain_lawmodes_dropped_dependencies() -> None:

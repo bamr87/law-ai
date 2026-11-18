@@ -177,6 +177,74 @@ class TestResponseSchema:
         assert model._identifying_params["response_schema"] == self.SCHEMA
 
 
+class TestPromptId:
+    """Spec 057 FR-4 / AC-2: a graph node's calls name their versioned prompt.
+
+    ``core.llm.agenerate`` records ``prompt_id``/``prompt_version`` on every
+    ``llm_call`` event, and the adapter used to drop both, so a LangGraph
+    node's calls could not be traced to the prompt file behind them.
+    """
+
+    async def test_ainvoke_passes_the_prompt_id_to_the_router(self) -> None:
+        model = ChatProviderChain(prompt_id="lawmode.privacy", prompt_version="v1")
+        with patch(
+            "law_ai.core.llm.router.agenerate",
+            new=AsyncMock(return_value=_result("{}")),
+        ) as agen:
+            await model.ainvoke("q")
+
+        assert agen.call_args.kwargs["prompt_id"] == "lawmode.privacy"
+        assert agen.call_args.kwargs["prompt_version"] == "v1"
+
+    async def test_no_prompt_id_is_the_default(self) -> None:
+        with patch(
+            "law_ai.core.llm.router.agenerate",
+            new=AsyncMock(return_value=_result("prose")),
+        ) as agen:
+            await ChatProviderChain().ainvoke("q")
+
+        assert agen.call_args.kwargs["prompt_id"] is None
+        assert agen.call_args.kwargs["prompt_version"] is None
+
+    async def test_the_streamed_path_carries_it_too(self) -> None:
+        model = ChatProviderChain(prompt_id="lawmode.licence", prompt_version="v1")
+        seen: dict[str, Any] = {}
+
+        def _astream(prompt: str, **kwargs: Any) -> Any:
+            seen.update(kwargs)
+
+            async def _gen() -> Any:
+                yield _chunk("x", first=True)
+
+            return _gen()
+
+        with patch("law_ai.core.llm.router.astream", new=_astream):
+            [chunk async for chunk in model.astream("q")]
+
+        assert (seen["prompt_id"], seen["prompt_version"]) == ("lawmode.licence", "v1")
+
+    def test_the_sync_path_reaches_the_llm_call_event(self) -> None:
+        """``invoke`` → ``router.generate`` → ``agenerate``: nothing drops it."""
+        model = ChatProviderChain(prompt_id="lawmode.security", prompt_version="v1")
+        with patch(
+            "law_ai.core.llm.router.agenerate",
+            new=AsyncMock(return_value=_result("{}")),
+        ) as agen:
+            model.invoke("q")
+
+        assert agen.call_args.kwargs["prompt_id"] == "lawmode.security"
+        assert agen.call_args.kwargs["prompt_version"] == "v1"
+
+    def test_it_is_part_of_the_identifying_params(self) -> None:
+        params = ChatProviderChain(
+            prompt_id="lawmode.domain", prompt_version="v1"
+        )._identifying_params
+        assert (params["prompt_id"], params["prompt_version"]) == (
+            "lawmode.domain",
+            "v1",
+        )
+
+
 class TestUsageMetadata:
     """Token counts must reach LangChain's own accounting surface."""
 
