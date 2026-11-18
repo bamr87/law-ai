@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.3](https://github.com/bamr87/law-ai/compare/v0.3.2...v0.3.3) (2026-11-18)
+
+
+### Fixed
+
+* **api:** report the release version everywhere and add GET /version (UPS-BE-11) ([984cad4](https://github.com/bamr87/law-ai/commit/984cad43af55244cd3e76cf8db6162e8c3abe107))
+* **ci:** call spec-gate.yml at [@v2](https://github.com/v2) again and probe Postgres as postgres ([5b2bad1](https://github.com/bamr87/law-ai/commit/5b2bad1de77c3d88364b0da13c73d15366bef4da))
+* **core:** refuse a weak SECRET_KEY or ALLOWED_HOSTS=* in production ([1953030](https://github.com/bamr87/law-ai/commit/1953030ae647eefb978acfbeaabc27b8866348b4))
+* **lsat-static:** hide empty example counts and balance the section card grid ([eb7c71d](https://github.com/bamr87/law-ai/commit/eb7c71d3e7f0f5be6d940002cf903679ea0c1d4f))
+* **lsat-static:** nav accessible names contain the visible label (WCAG 2.5.3) ([5349d14](https://github.com/bamr87/law-ai/commit/5349d14f0f67261a254cff9704c05ca32638a51b))
+* **lsat-static:** WCAG 2.2 AA fixes and an axe gate over every view ([f2b1166](https://github.com/bamr87/law-ai/commit/f2b11669346936f235071ea5239e2489e8d5671e))
+
+
+### Documentation
+
+* add SECURITY.md and link the docs index from README ([800bcaf](https://github.com/bamr87/law-ai/commit/800bcafe3deed98cbf351b6f44658b1142f3a162))
+* **backlog:** renumber new rows to unique BL-20261116 ids ([4ac3a73](https://github.com/bamr87/law-ai/commit/4ac3a73b1d2be161a175353d81564077d455ca40))
+* **constitution:** state the product missions in §1 (amendment 0003) ([0716f14](https://github.com/bamr87/law-ai/commit/0716f1486ef2544a9d02840865f1d21e79c852c8))
+* fix release and spec-gate drift; backlog the 2026-11-12 deep dive ([f1df298](https://github.com/bamr87/law-ai/commit/f1df2989082cd765ed39ab361519f35616a169c3))
+* **prd:** plan LAWAI-018..021 from the 2026-11-12 deep dive ([37eb8f2](https://github.com/bamr87/law-ai/commit/37eb8f29f61210b0354178eacc0318a15ad75123))
+
 ## [0.3.2](https://github.com/bamr87/law-ai/compare/v0.3.1...v0.3.2) (2026-11-17)
 
 
