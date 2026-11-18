@@ -9,7 +9,9 @@ VS Code extension expect. What changed is what the report is allowed to say:
   (constitution §5). Each finding carries a :class:`ReviewStatus` instead, and
   :attr:`ReviewResult.human_approval_required` says whether a person has to
   look. ``unparsed_findings`` counts what the model returned and this code
-  could not read, so an incomplete report cannot pass for a clean one.
+  could not read, and ``chains_not_run`` names the review chains of the
+  ``code_legal_review`` graph that failed, so an incomplete report cannot pass
+  for a clean one.
 * ``auto_fix_patch`` is gone: nothing ever wrote it, and a model-authored patch
   is exactly the unreviewed change the HITL gate exists to stop.
 * every report carries the not-legal-advice notice, and timestamps are
@@ -94,6 +96,10 @@ class Risk(BaseModel):
     line_end: int | None = None
     file_path: str | None = None
     code_snippet: str | None = None
+    #: The ``code_legal_review`` chain that raised the finding (``privacy``,
+    #: ``licence`` …), so a finding can be traced to the call and the prompt
+    #: that produced it (spec 057 FR-4). ``None`` from the single-call review.
+    chain: str | None = None
     #: Defaults to the cautious reading: a finding nobody has run through the
     #: policy is treated as needing a human, never as cleared.
     review_status: ReviewStatus = ReviewStatus.UNREVIEWED
@@ -120,7 +126,20 @@ class ReviewResult(BaseModel):
     #: :class:`Risk`. They are not in ``risks``, so a report that has any is
     #: incomplete: it asks for a human and never reads as "no findings".
     unparsed_findings: int = Field(default=0, ge=0)
+    #: Review chains that did not run (spec 057 plan, Design for Failure). A
+    #: chain that failed found nothing because it looked at nothing, so a
+    #: report that lists any is incomplete: it asks for a human and never
+    #: reads as "no findings" for the checks it skipped.
+    chains_not_run: list[str] = Field(default_factory=list)
     disclaimer: str = DISCLAIMER_NOTICE
+
+    def is_incomplete(self) -> bool:
+        """True when part of the review is missing from this report.
+
+        >>> ReviewResult(chains_not_run=["privacy"]).is_incomplete()
+        True
+        """
+        return self.unparsed_findings > 0 or bool(self.chains_not_run)
 
     def has_critical_risks(self) -> bool:
         """Check if review contains critical risks.
@@ -150,9 +169,10 @@ class ReviewResult(BaseModel):
         """True when a human has to look at this report.
 
         That is the case when any finding is waiting on a human, and when the
-        model returned findings that could not be read — a finding this code
-        failed to parse is not one it may wave through. Serialised with the
-        report, so every consumer sees it.
+        report is incomplete: the model returned findings that could not be
+        read, or a review chain did not run — a finding this code failed to
+        parse, or a check that never ran, is not one it may wave through.
+        Serialised with the report, so every consumer sees it.
 
         This is the only "outcome" a report has. It is deliberately not a
         pass/fail: ``False`` means no finding reached a gated severity, not
@@ -162,5 +182,7 @@ class ReviewResult(BaseModel):
         False
         >>> ReviewResult(unparsed_findings=1).human_approval_required
         True
+        >>> ReviewResult(chains_not_run=["licence"]).human_approval_required
+        True
         """
-        return bool(self.risks_requiring_review()) or self.unparsed_findings > 0
+        return bool(self.risks_requiring_review()) or self.is_incomplete()

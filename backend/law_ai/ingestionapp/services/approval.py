@@ -149,13 +149,27 @@ async def commit_approved_review(review: Any) -> dict[str, Any]:
     Returns a summary dict. Never raises for an ordinary graph failure —
     the error is recorded on the row and surfaced in the return value so a
     sweep can continue with the remaining rows.
+
+    A decision-only kind (a lawmode finding, spec 057 FR-5) has nothing to
+    commit: the recorded decision is the outcome. It comes back ``skipped``
+    with no ``commit_error``, so a reviewer's approval is never shown as a
+    failed graph write.
     """
     from asgiref.sync import sync_to_async
+
+    from law_ai.ingestionapp.quarantine_kinds import DECISION_ONLY_KINDS
 
     if review.approved is not True:
         raise ApprovalError(
             f"review {review.pk} is not approved (approved={review.approved!r})"
         )
+    if review.kind in DECISION_ONLY_KINDS:
+        return {
+            "id": review.pk,
+            "committed": False,
+            "skipped": "decision-only: nothing is written to the knowledge graph",
+            "edges": 0,
+        }
     if review.committed_at is not None:
         return {
             "id": review.pk,
@@ -205,13 +219,15 @@ def commit_approved_reviews(limit: int = DEFAULT_SWEEP_LIMIT) -> list[dict[str, 
     """Commit every approved-but-uncommitted row (sync entry point).
 
     Used by the Celery task, the management command, and the admin action.
+    Decision-only kinds are left out: there is nothing to commit for them.
     """
     from law_ai.ingestionapp.models import PendingReview
+    from law_ai.ingestionapp.quarantine_kinds import DECISION_ONLY_KINDS
 
     pending = list(
-        PendingReview.objects.filter(approved=True, committed_at__isnull=True).order_by(
-            "created_at"
-        )[:limit]
+        PendingReview.objects.filter(approved=True, committed_at__isnull=True)
+        .exclude(kind__in=DECISION_ONLY_KINDS)
+        .order_by("created_at")[:limit]
     )
     if not pending:
         return []
