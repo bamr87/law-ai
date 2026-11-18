@@ -63,6 +63,23 @@ describe('concept cards', () => {
     expect(onOpenArticle).toHaveBeenCalledWith('lib-diagramming')
   })
 
+  it('renders no examples count for a concept without examples (#122)', () => {
+    render(<Concepts />)
+    // `examples` is absent here and `[]` in the shipped data; both mean none.
+    const bare = card('Red herring')
+    expect(bare).not.toHaveTextContent('0 examples')
+    expect(bare).not.toHaveTextContent(/schema example/)
+    expect(within(bare).queryByText(/Schema & examples/)).toBeNull()
+  })
+
+  it('counts schema examples, singular at exactly one', () => {
+    render(<Concepts />)
+    const withOne = card('Necessary assumption')
+    expect(withOne).toHaveTextContent('1 schema example')
+    expect(withOne).not.toHaveTextContent('1 schema examples')
+    expect(within(withOne).getByText(/Schema & examples/)).toBeInTheDocument()
+  })
+
   it('says so when no article covers a concept yet', () => {
     render(<Concepts />)
     const orphan = card('Red herring')
@@ -104,10 +121,25 @@ describe('concept cards', () => {
 describe('catalog filters', () => {
   it('narrows by section', () => {
     render(<Concepts />)
-    fireEvent.click(screen.getByRole('button', { name: 'Logic Games' }))
+    fireEvent.click(screen.getByRole('button', { name: 'LG — Logic Games' }))
     expect(screen.getByText('1 of 3 concepts')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Conditional chain' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Necessary assumption' })).toBeNull()
+  })
+
+  it('names each filter with the text on it (WCAG 2.5.3, #222)', () => {
+    // "click LR" from a speech-input user has to reach the LR pill; the
+    // bare "Logical Reasoning" name did not contain it.
+    render(<Concepts />)
+    const filters = within(screen.getByRole('group', { name: 'Filter by section' }))
+      .getAllByRole('button')
+    expect(filters).toHaveLength(4)
+    for (const f of filters) {
+      const visible = (f.textContent ?? '').trim().toLowerCase()
+      expect((f.getAttribute('aria-label') ?? '').toLowerCase()).toContain(visible)
+    }
+    expect(screen.getByRole('button', { name: 'LR — Logical Reasoning' }))
+      .toHaveAttribute('title', 'Logical Reasoning')
   })
 
   it('searches name, summary, detail and examples', () => {

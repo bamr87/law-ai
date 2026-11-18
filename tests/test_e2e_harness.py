@@ -121,7 +121,7 @@ def test_the_static_site_has_its_own_harness(repo_root: Path) -> None:
     # so `import.meta` there is a runtime error rather than a lint nit.
     package = json.loads((static / "package.json").read_text(encoding="utf-8"))
     assert "type" not in package
-    for name in ("playwright.config.ts", "e2e/responsive.spec.ts"):
+    for name in ("playwright.config.ts", "e2e/responsive.spec.ts", "e2e/a11y.spec.ts"):
         code = [
             line
             for line in (static / name).read_text(encoding="utf-8").splitlines()
@@ -130,6 +130,32 @@ def test_the_static_site_has_its_own_harness(repo_root: Path) -> None:
             if not line.lstrip().startswith(("*", "//", "/*"))
         ]
         assert "import.meta" not in "\n".join(code), name
+
+
+def test_the_static_site_has_an_axe_gate(repo_root: Path) -> None:
+    """#222: the static site's axe sweep exists, and runs on what it claims.
+
+    A WCAG 2.2 AA scan by hand found four rules failing on the published site
+    and nothing that would have caught any of them. The sweep lives in the
+    static e2e suite, so every Pages deploy runs it; this keeps the spec, the
+    rules it gates and the dependency it injects from quietly going away.
+    """
+    static = repo_root / "lsat-static"
+    spec = (static / "e2e" / "a11y.spec.ts").read_text(encoding="utf-8")
+    for rule in (
+        "label-content-name-mismatch",
+        "scrollable-region-focusable",
+        "page-has-heading-one",
+        "region",
+    ):
+        assert f"'{rule}'" in spec, f"the static axe gate no longer names {rule}"
+    for viewport in ("width: 1366, height: 900", "width: 390, height: 844"):
+        assert viewport in spec, f"the static axe gate lost the {viewport} viewport"
+    # Injected from node_modules, so it must be a declared dependency rather
+    # than whatever eslint-plugin-jsx-a11y happens to pull in.
+    package = json.loads((static / "package.json").read_text(encoding="utf-8"))
+    assert "axe-core" in package["devDependencies"]
+    assert "node_modules', 'axe-core', 'axe.min.js'" in spec
 
 
 def test_the_static_viewport_suite_is_run_by_a_workflow(repo_root: Path) -> None:

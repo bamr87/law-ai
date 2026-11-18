@@ -91,6 +91,8 @@ make lsat-static-e2e          # from the repo root: build + Playwright, in the p
 make lsat-static-e2e-cached   # the same suite, reusing node_modules and out/ when they are current
 ```
 
+The same run includes [`e2e/a11y.spec.ts`](e2e/a11y.spec.ts), an axe-core sweep of every nav destination (and the Library's Concepts tab) at 1366×900 and 390×844 (#222). It fails on any WCAG 2.0/2.1/2.2 A or AA violation and on the two best-practice rules #222 found (`page-has-heading-one`, `region`); other best-practice findings are printed but do not fail, so an axe-core release cannot block a deploy on its own. It also checks that the page has one `<h1>` and one contentinfo, and that Tab reaches the RC passage column on a wide screen and a wide Library table on a phone, and the arrow keys then scroll them. axe-core (MPL-2.0) is a dev-only dependency injected from `node_modules`; it never reaches the export.
+
 That suite runs in [`deploy-lsat-pages.yml`](../.github/workflows/deploy-lsat-pages.yml) rather than on a pull request, which is a gap tracked as `BL-20260917-01` — run it locally when a change touches layout.
 
 ## Deployment
