@@ -32,4 +32,9 @@ afterEach(() => {
   } catch {
     /* storage unavailable in this environment */
   }
+  // Nor its address. The page reads its destination from the fragment and
+  // writes one on every switch (#223), so a test that ended on `#stats` would
+  // open the next test's page on Stats. replaceState fires no event, and
+  // cleanup() has already unmounted everything that listens.
+  window.history.replaceState(null, '', window.location.pathname + window.location.search)
 })

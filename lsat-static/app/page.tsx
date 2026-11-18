@@ -12,9 +12,8 @@ import ShortcutHelp from '@/components/ShortcutHelp'
 import { useShortcuts } from '@/lib/keyboard'
 import { useMeasuredCssVar } from '@/lib/useMeasuredCssVar'
 import { readHeaderPinned, writeHeaderPinned } from '@/lib/deviceState'
+import { hashForView, viewForHash, type View } from '@/lib/destinations'
 import { labelInName } from '@/lib/labelInName'
-
-type View = 'overview' | SectionCode | 'writing' | 'library' | 'stats'
 
 /**
  * Seven destinations at full length do not fit one row at ANY width: even at
@@ -116,6 +115,41 @@ export default function Page() {
     setPinned(readHeaderPinned())
   }, [])
 
+  // The destination lives in the URL fragment (#223; the scheme is in
+  // `lib/destinations.ts`), so a shared `#article-<id>` permalink opens the
+  // Library, a reload keeps the destination, and Back walks destinations
+  // instead of leaving the site. Read after mount and on `hashchange`, never
+  // during render, for the same reason as the pin above: the export
+  // prerenders Overview, and a first paint that followed the fragment would
+  // be a hydration mismatch. A deep link therefore shows Overview for a frame.
+  // A fragment that names no destination (the skip link's `#view`, an
+  // in-article anchor) leaves the view alone.
+  useEffect(() => {
+    const follow = () => {
+      const next = viewForHash(window.location.hash)
+      if (next) setView(next)
+    }
+    follow()
+    window.addEventListener('hashchange', follow)
+    return () => window.removeEventListener('hashchange', follow)
+  }, [])
+
+  // A destination the reader picks gets its own history entry, so Back
+  // returns to it. The push happens here, in the event handler, before the
+  // new view renders: the Library rewrites the current entry to
+  // `#article-<id>` with replaceState as it mounts, and a push made later,
+  // from an effect, would let it overwrite the previous destination's entry
+  // instead of its own. Nothing is pushed when the address already names the
+  // destination (picking the current one again, or the Library on one of its
+  // own permalinks), and a switch the URL drove goes through `follow`, which
+  // never pushes.
+  const go = useCallback((next: View) => {
+    setView(next)
+    if (viewForHash(window.location.hash) !== next) {
+      window.history.pushState(null, '', hashForView(next))
+    }
+  }, [])
+
   // The sticky stack hangs off `--site-header-h`. Measure it rather than
   // trusting the constant in globals.css, which had to be re-measured by hand
   // every time the header's content changed (BL-20260831-20). Wide viewports
@@ -143,8 +177,8 @@ export default function Page() {
   // Section movement is `[` / `]` rather than arrows, so the answer radiogroup
   // keeps the arrow keys for choosing between choices.
   useShortcuts({
-    '[': () => setView((v) => NAV[Math.max(0, indexOfView(v) - 1)].id),
-    ']': () => setView((v) => NAV[Math.min(NAV.length - 1, indexOfView(v) + 1)].id),
+    '[': () => go(NAV[Math.max(0, indexOfView(view) - 1)].id),
+    ']': () => go(NAV[Math.min(NAV.length - 1, indexOfView(view) + 1)].id),
   })
 
   const togglePinned = useCallback(() => {
@@ -278,7 +312,7 @@ export default function Page() {
                 aria-current={view === n.id ? 'page' : undefined}
                 aria-label={navAccessibleName(n)}
                 title={n.full}
-                onClick={() => setView(n.id)}
+                onClick={() => go(n.id)}
               >
                 {n.label}
               </button>
@@ -306,7 +340,7 @@ export default function Page() {
             wrapper, not <main> itself: remounting the landmark would move the
             skip-link target out from under a keyboard user mid-navigation. */}
         <div className="view-anim" key={view}>
-          {view === 'overview' && <Overview onStart={(s) => setView(s)} />}
+          {view === 'overview' && <Overview onStart={go} />}
           {SECTIONS.includes(view as SectionCode) && (
             <Drill section={view as SectionCode} onAnnounce={setAnnouncement} />
           )}

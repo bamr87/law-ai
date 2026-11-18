@@ -17,6 +17,12 @@ concurrency:
   group: integration-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege by default (law-ai#227). Every job here only reads the
+# repo; artifact uploads use the Actions runtime token, not GITHUB_TOKEN
+# scopes. A job that needs more declares it at job level.
+permissions:
+  contents: read
+
 jobs:
   integration:
     name: Docker-backed Integration Tests
