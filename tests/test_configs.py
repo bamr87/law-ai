@@ -469,9 +469,9 @@ def test_nightly_backlog_triage_is_the_fleet_gate(repo_root: Path) -> None:
 
     data = yaml.safe_load((repo_root / ".github" / "workflows" / "nightly-tests.yml").read_text())
     job = data["jobs"]["backlog-triage"]
-    # A major tag or a full commit SHA (UPS-WORK-10), never a branch: the call
-    # sits on the same pin as ci.yml until the hub's v2 tag carries
-    # spec-gate.yml (law-ai#192, bamr87/bamr87#457).
+    # A major tag or a full commit SHA (UPS-WORK-10), never a branch. The call
+    # rides the same ref as ci.yml: a hub SHA (#215) until the hub's v2 tag
+    # carried spec-gate.yml, @v2 again since #217.
     assert re.fullmatch(
         r"bamr87/bamr87/\.github/workflows/spec-gate\.yml@(v\d+|[0-9a-f]{40})", job["uses"]
     ), f"backlog-triage must pin spec-gate.yml to a major tag or a commit SHA, got {job['uses']}"
@@ -481,6 +481,44 @@ def test_nightly_backlog_triage_is_the_fleet_gate(repo_root: Path) -> None:
     assert "governance" not in (repo_root / "backend" / "law_ai" / "celery.py").read_text(), (
         "the governance-triage beat job was retired in favour of the fleet gate"
     )
+
+
+# ---------------------------------------------------------------------------
+# CI service health probes (law-ai#217). Docker runs a service's
+# `--health-cmd` as the image's default user, root for postgres, and
+# `pg_isready` without `-U` connects as that OS user, a role the image never
+# creates: every probe logged `FATAL: role "root" does not exist` (89 such
+# lines after the test summary of one failed backend run). The probe still
+# passed, because pg_isready only asks whether the server answers, so the
+# cost was noise in the log a red run is read from.
+# ---------------------------------------------------------------------------
+
+
+def test_postgres_service_health_probe_names_a_real_role(repo_root: Path) -> None:
+    from tests.conftest import require_yaml
+
+    yaml = require_yaml()
+    checked: list[str] = []
+    for path in sorted((repo_root / ".github" / "workflows").glob("*.yml")):
+        data = yaml.safe_load(path.read_text()) or {}
+        for job_id, job in (data.get("jobs") or {}).items():
+            for name, service in ((job or {}).get("services") or {}).items():
+                if not str((service or {}).get("image", "")).startswith("postgres"):
+                    continue
+                where = f"{path.name} jobs.{job_id}.services.{name}"
+                # The image's superuser is POSTGRES_USER, `postgres` when unset.
+                role = (service.get("env") or {}).get("POSTGRES_USER", "postgres")
+                options = str(service.get("options", ""))
+                probe = re.search(r"""--health-cmd\s+("[^"]*"|'[^']*'|\S+)""", options)
+                assert probe, f"{where}: no --health-cmd, so the job can start before Postgres answers"
+                command = probe.group(1).strip("\"'")
+                if "pg_isready" in command:
+                    assert re.search(rf"(?:-U\s*|--username[=\s]){re.escape(role)}\b", command), (
+                        f"{where}: `{command}` probes as the container's root user; "
+                        f'name the role: --health-cmd "pg_isready -U {role}"'
+                    )
+                checked.append(where)
+    assert checked, "no workflow runs a postgres service any more; retire this test"
 
 
 # ---------------------------------------------------------------------------

@@ -4,11 +4,19 @@
 
 > Org-wide, non-negotiable standards for every spec, plan, and implementation produced by humans or AI agents in this repo. This is the **first** document any agent reads when running `/spec-driven:specify`, `/spec-driven:plan`, or `/spec-driven:implement` (the fleet's spec-driven plugin; see [spec-driven.md](spec-driven.md)).
 >
-> Higher-level principles, mission, and tech-stack rationale live in [AGENTS.md](../AGENTS.md). This file encodes only the **rules a spec or PR must satisfy to be valid**.
+> The missions live in §1 of this file. Higher-level principles and tech-stack rationale live in [AGENTS.md](../AGENTS.md). This file encodes the **rules a spec or PR must satisfy to be valid**.
 
-## 1. Mission Alignment
+## 1. Missions
 
-Every feature must trace to the mission in [AGENTS.md](../AGENTS.md): privacy-aware, auditable, graph-native legal intelligence with HITL on high-stakes paths.
+Law AI's direction is to become the ultimate open home for all things legal — data, tools, resources and transparency, gathered in one place that anyone can inspect and reuse.
+
+1. **Provide data, tools, resources and transparency for all stakeholders, legal professionals and the general public.** Prospective and current law students, practicing lawyers, public defenders and legal-aid attorneys, professors and researchers, in-house counsel, builders, and the general public are first-class audiences. The aim is a shared, open commons: the same sources, the same tools, and the same trail of evidence for everyone.
+2. **Make every public legal fact queryable, reproducible and auditable, and let AI explain it only with citations.** The path starts with open case law, statutes and dockets (CourtListener, CAP, RECAP and other public corpora), a citation knowledge graph, and the LSAT learning lab, and widens from there. The graph and its provenance log are the system of record; every holding, citation and enrichment claim keeps a path to its evidence; authority is never treated as correctness; optional AI stays grounded in retrieved source text rather than replacing it. A fully local runtime remains reachable for privileged work.
+3. **Put that record in every learner's, builder's and practitioner's hands, and make legal analysis and legal-risk review effortless and auditable.** Serve it through the API, the interactive studio, the self-hosted stack and the public LSAT lab, so students can study against primary sources, lawyers can produce cited IRAC and precedent maps, and developers can review code for legal risk — an open toolkit for working with all things legal.
+
+These missions set the course; they do not claim the work is finished. They serve the PRD goals in §3 and the users in §4: open and auditable legal intelligence, a living citation graph, LSAT and legal study, and a local-only mode for confidentiality-bound work. The earlier one-line mission — privacy-aware, auditable, graph-native legal intelligence with HITL on high-stakes paths — is absorbed into these three. Every feature must trace to them.
+
+_Source: [prd.md](prd.md) §1.1._
 
 **Product-runtime LLM policy (amended 2026-08-11, spec 034; amended 2026-09-04, [ADR 0007](adr/0007-xai-runtime-provider.md)).** The runtime is a single **ordered provider chain**, configured in `LLM_PROVIDER_CHAIN` and implemented in `law_ai.core.llm`:
 
@@ -139,7 +147,7 @@ The repo must always grow forward. Every implementation cycle MUST end with expl
 - **Every follow-up** is mirrored into [BACKLOG.md](../BACKLOG.md) with a `BL-YYYYMMDD-NN` id. CI (the fleet spec gate's `backlog_lint.py`) enforces format and forbids deletion of historical entries (move to `## Done` instead).
 - **Every `/spec-driven:specify`** must first scan `BACKLOG.md` and reference any matching `BL-*` items in spec §2; matched items move from `## Open` to `## Claimed`.
 - **"No follow-ups"** is allowed only with an explicit justification line (`_none — justified: <reason>_`) preserved in the PR description.
-- **Mission drift guard.** Follow-ups MUST be consistent with §1 Mission Alignment, §2 Tech Stack, and §4 Provenance. Items proposing a third LLM vendor beyond Anthropic and Ollama (§1), frameworks not listed in §2, or removal of provenance must be rejected at triage.
+- **Mission drift guard.** Follow-ups MUST be consistent with §1 Missions, §2 Tech Stack, and §4 Provenance. Items proposing a third LLM vendor beyond Anthropic and Ollama (§1), frameworks not listed in §2, or removal of provenance must be rejected at triage.
 - **Refactor budget.** At least one `refactor` or `tech-debt` BACKLOG item should be promoted into `specs/` for every three feature specs shipped, to prevent rot.
 - **Tests stay aligned.** When a `BL-*` item is promoted into a spec, the new `tasks.md` must add or extend tests covering the BACKLOG'd concern — self-evolution never lowers coverage.
 
@@ -185,3 +193,12 @@ The rule above stands: amending this constitution needs an ADR in `docs/adr/` (w
 3. **Supersede**: a later record replaces an earlier one; ratified records are never edited, and numbers are never reused.
 
 The inline amendments already in this file (§1 "amended 2026-08-11, spec 034" and "amended 2026-09-04, ADR 0007") predate the log and stay where they are; [0001](amendments/0001-ratify-constitution.md) ratifies this document with them.
+
+## Merge authority and the review gate
+
+_(amendment `agent-merge-review-gate`, numbered at merge; conforms to hub constitution § 12, [bamr87/bamr87 amendment](https://github.com/bamr87/bamr87/pull/481). The hub's text governs.)_
+
+1. **Mergeable PR.** A PR is mergeable only when **all** of these are true, rechecked against live state just before the merge: (1) the required CI checks are green; (2) the required reviews are satisfied; (3) there are no merge conflicts; (4) the review gate has passed wherever human review is required.
+2. An AI agent may merge a PR only when it is mergeable; otherwise it waits. Merges use a merge commit, never squash or rebase, never `--admin`, and never a force-push.
+3. **Review gate.** The gated categories are those in hub § 12: amendments and this constitution; secrets, budgets and billing; settings, branch protection and permissions; security-sensitive changes; deploys and the maintainer's machines; non-trivial conflicts; destructive changes; and anything labelled `agent:hold`, `blocked` or `needs-amr`. A gated PR gets the `needs-amr` label and the Fleet status *Needs Amr*. An agent never merges it, and amendments are ratified only by the maintainer merging.
+   - **Repo gate:** invariant I1 stands. No workflow is granted merge permission, and every autonomy-loop draft PR and `PendingReview` row stays human-merged. Agent merge under this section covers only PRs that an agent opens interactively.
