@@ -575,6 +575,26 @@ main#view {
   color: var(--text-muted);
   font-size: 0.8rem;
 }
+/* The archetype name (law-ai#224) can be long ("Acceptability / Orientation").
+   On a phone it would otherwise wrap inside the pill and push the counter and
+   the per-question timer onto two lines; it truncates instead, with the full
+   name in its title, and the counter and timer never wrap. `contain:
+   inline-size` keeps the unwrapped name out of the row's min-content width, so
+   it cannot widen the card past a narrow viewport. */
+.qcard-meta {
+  contain: inline-size;
+}
+.qcard-archetype {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qcard-meta .qcard-count,
+.qcard-meta .qcard-elapsed {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .qcard-stem {
   white-space: pre-wrap;
   margin: 0 0 1.1rem;

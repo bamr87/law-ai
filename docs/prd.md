@@ -4,17 +4,34 @@
 
 ## Product Requirements Document (PRD)
 
-**Version:** 1.0  
-**Date:** April 29, 2026  
+**Version:** 1.1  
+**Date:** November 16, 2026  
 **Status:** Draft for Review  
 **Owner:** Product Team (AI Legal Systems Initiative)  
 **Related:** [Technical Proposal (2026-04, historical)](history/2026-04-proposal.md) | [Architecture](architecture.md) | [Constitution](constitution.md)
+
+| Version | Date | Notes |
+|---------|------|-------|
+| 1.0 | 2026-04-29 | Initial draft for review. |
+| 1.1 | 2026-11-16 | Three missions added as §1.1, aiming to be the ultimate open home for all things legal (constitution amendment 0003); the prior executive summary becomes §1.2. |
 
 > This document states the product requirements; it holds no task list. What is shipped is the numbered spec packages under [specs/](../specs/), and what is next is the **backlog of record**, [BACKLOG.md](../BACKLOG.md) (`## Open`). Cross-repo initiatives live in the fleet hub's [`_data/roadmap.yml`](https://github.com/bamr87/bamr87/blob/main/_data/roadmap.yml).
 
 ---
 
 ## 1. Executive Summary
+
+### 1.1 Missions
+
+Law AI's direction is to become the ultimate open home for all things legal — data, tools, resources and transparency, gathered in one place that anyone can inspect and reuse.
+
+1. **Provide data, tools, resources and transparency for all stakeholders, legal professionals and the general public.** Prospective and current law students, practicing lawyers, public defenders and legal-aid attorneys, professors and researchers, in-house counsel, builders, and the general public are first-class audiences. The aim is a shared, open commons: the same sources, the same tools, and the same trail of evidence for everyone.
+2. **Make every public legal fact queryable, reproducible and auditable, and let AI explain it only with citations.** The path starts with open case law, statutes and dockets (CourtListener, CAP, RECAP and other public corpora), a citation knowledge graph, and the LSAT learning lab, and widens from there. The graph and its provenance log are the system of record; every holding, citation and enrichment claim keeps a path to its evidence; authority is never treated as correctness; optional AI stays grounded in retrieved source text rather than replacing it. A fully local runtime remains reachable for privileged work.
+3. **Put that record in every learner's, builder's and practitioner's hands, and make legal analysis and legal-risk review effortless and auditable.** Serve it through the API, the interactive studio, the self-hosted stack and the public LSAT lab, so students can study against primary sources, lawyers can produce cited IRAC and precedent maps, and developers can review code for legal risk — an open toolkit for working with all things legal.
+
+These missions set the course; they do not claim the work is finished. They serve the goals in §3 and the users in §4. They are also [constitution](constitution.md) §1; changing them requires an amendment (constitution §14).
+
+### 1.2 Purpose
 
 **Law AI** is an open-source, AI-agent-orchestrated legal intelligence platform that empowers lawyers, law students, and legal researchers to understand, analyze, organize, and master complex legal content through intelligent multi-agent workflows, persistent knowledge graphs, and interactive visualizations.
 
@@ -79,6 +96,7 @@ Legal professionals and students face:
 | **Law Student / Future Lawyer** | 1L–3L preparing for classes, exams, moot court, or LSAT/Bar | Deep doctrinal understanding, efficient outlining, practice question explanations | Siloed study aids disconnected from primary sources; generic explanations |
 | **Law Professor / Researcher** | Teaching or empirical legal studies | Building course materials, analyzing citation networks, hypothesis testing on case outcomes | Manual data collection; lack of integrated analysis + visualization tools |
 | **In-House Counsel / Compliance** | Contract review, regulatory monitoring, risk assessment | Clause extraction, obligation tracking, jurisdiction-specific updates | Volume of contracts; keeping current with multi-jurisdictional changes |
+| **General public** | Anyone looking up the law, following a case, studying for the LSAT, or learning how a doctrine works, without a firm or law-school affiliation | The same public sources, tools and trail of evidence that professionals use | Paid research platforms; unexplained answers; tools aimed only at licensed practitioners |
 
 **Accessibility & Inclusion**: Free self-host option; low-resource mode (quantized models); keyboard-navigable graph UI; planned internationalization (Spanish, Mandarin legal corpora in later phases).
 
@@ -159,6 +177,23 @@ Every AI interpretation of a norm cites retrieved, existing authority, passes ci
 #### 5.6.8 Interpretation evaluation
 Regressions in legal interpretation are gated on LegalBench (and CaseHOLD where relevant) plus a hallucinated-citation rate metric.
 
+### Proposed – Practice fidelity and grounding (planned; deep dive 2026-11-12)
+
+#### 5.7 Practice fidelity and grounding
+Requirements proposed by the cycle 1 day 14 fleet deep dive. Each one is a feature request issue and a `planned` catalog entry; none is committed to a milestone until a spec claims it.
+
+#### 5.7.1 Section (exam) mode for timed practice
+A timed section gives no grading, explanation or hint until the section ends. The student can flag questions, jump between them through a question map, and change answers until submit. The end-of-section review shows score, time per question and flagged items first, and offers an untimed blind review before the keys are revealed. Static site first; original content only. ([#229](https://github.com/bamr87/law-ai/issues/229))
+
+#### 5.7.2 Performance by question type
+The practice dashboard reports attempts, accuracy and median time per stamped question archetype. It separates fast-wrong from slow-correct, links each type to its playbook, and starts a drill on the weakest type. Progress stays on the device. ([#230](https://github.com/bamr87/law-ai/issues/230))
+
+#### 5.7.3 External citation verification
+Citations the graph can't resolve are checked against Free Law Project's Citation Lookup API. Found citations are marked verified with their CourtListener cluster; not-found or ambiguous ones go to the HITL review queue and are never auto-labelled as hallucinations; unknown reporters are flagged. Every lookup is a provenance-logged tool call, and the rates feed the §5.6.8 hallucinated-citation metric. ([#231](https://github.com/bamr87/law-ai/issues/231))
+
+#### 5.7.4 Retrieval benchmark
+GraphRAG retrieval is measured on LegalBench-RAG (character-level precision and recall at k) with no LLM in the loop, run weekly beside LegalBench, with a recorded baseline that a retriever change must not regress. ([#232](https://github.com/bamr87/law-ai/issues/232))
+
 ### Developer legal-risk tooling
 
 #### 5.8 lawmode: legal-risk review for code, folded into law-ai
@@ -190,6 +225,10 @@ Every user-facing capability has a stable id in the feature catalog [`features/f
 | [LAWAI-015](../features/features.yml) | Bounded rules-as-code pilots | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.5, §5.6.8 |
 | [LAWAI-016](../features/features.yml) | Temporal validity and horizon scanning | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.5 |
 | [LAWAI-017](../features/features.yml) | Governance-as-code fleet worked example | planned | [`docs/legal-ai-governance-framework.md`](legal-ai-governance-framework.md) | §5.6.6 |
+| [LAWAI-018](../features/features.yml) | LSAT Section (exam) mode | planned | [`docs/lsat-static.md`](lsat-static.md) | §5.7, §5.7.1 |
+| [LAWAI-019](../features/features.yml) | LSAT performance by question type | planned | [`docs/lsat-static.md`](lsat-static.md) | §5.7.2 |
+| [LAWAI-020](../features/features.yml) | External citation verification | planned | [`docs/data-sources.md`](data-sources.md) | §5.7.3, §5.6.7, §5.6.8 |
+| [LAWAI-021](../features/features.yml) | GraphRAG retrieval benchmark | planned | [`docs/legalbench.md`](legalbench.md) | §5.7.4 |
 | [LAWAI-022](../features/features.yml) | lawmode legal-risk review for code (folded in) | partial | [`backend/law_ai/lawmode`](../backend/law_ai/lawmode) · [`docs/lawmode-migration.md`](lawmode-migration.md) | §5.8 |
 
 **Requirement → feature trace**
@@ -205,11 +244,16 @@ Every user-facing capability has a stable id in the feature catalog [`features/f
 | §5.6.1 | LAWAI-011 |
 | §5.6.2 | LAWAI-012 |
 | §5.6.3 | LAWAI-013 |
-| §5.6.7 | LAWAI-013, LAWAI-014 |
+| §5.6.7 | LAWAI-013, LAWAI-014, LAWAI-020 |
 | §5.6.4 | LAWAI-014 |
 | §5.6.5 | LAWAI-015, LAWAI-016 |
-| §5.6.8 | LAWAI-015 |
+| §5.6.8 | LAWAI-015, LAWAI-020 |
 | §5.6.6 | LAWAI-017 |
+| §5.7 | LAWAI-018 |
+| §5.7.1 | LAWAI-018 |
+| §5.7.2 | LAWAI-019 |
+| §5.7.3 | LAWAI-020 |
+| §5.7.4 | LAWAI-021 |
 | §5.8 | LAWAI-022 |
 <!-- features:end -->
 

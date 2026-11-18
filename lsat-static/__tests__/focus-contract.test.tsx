@@ -110,7 +110,7 @@ describe('answers survive paging back', () => {
 describe('the page announces where a move landed', () => {
   it('moves focus to the new question and reads the position into the live region', () => {
     render(<Page />)
-    fireEvent.click(screen.getByRole('button', { name: 'Logical Reasoning' }))
+    fireEvent.click(screen.getByRole('button', { name: 'LR — Logical Reasoning' }))
     expect(card()).toHaveAccessibleName('Question 1 of 3')
     // Entering a section must not steal focus out of the nav the reader is
     // still tabbing, so nothing is announced until they actually move.

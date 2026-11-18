@@ -3,7 +3,7 @@
 - **Status**: accepted
 - **Date**: 2026-08-11
 - **Spec**: [specs/034-claude-default-runtime](../../specs/034-claude-default-runtime/spec.md)
-- **Constitution clauses amended**: [§1 Mission Alignment — product-runtime LLM policy](../constitution.md#1-mission-alignment)
+- **Constitution clauses amended**: [§1 Missions — product-runtime LLM policy](../constitution.md#1-missions)
 
 ## Context
 

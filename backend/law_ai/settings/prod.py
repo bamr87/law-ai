@@ -1,6 +1,11 @@
 """Production settings (spec 011 NFR-SEC-1).
 
 ``manage.py check --deploy`` MUST pass with this module before promotion.
+
+``SECRET_KEY`` and ``ALLOWED_HOSTS`` come from the environment. The
+``settings/base.py`` defaults exist for development only, and production
+refuses to boot on them: ``law_ai.E002`` / ``law_ai.E003`` in
+``law_ai.core.apps`` (#221).
 """
 
 from __future__ import annotations
