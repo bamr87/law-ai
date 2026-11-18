@@ -11,8 +11,9 @@
 
 | Document | What it covers |
 | --- | --- |
-| [`AGENTS.md`](../AGENTS.md) | How to build Law AI — an open-source, agent-orchestrated legal-intelligence platform — with the exact commands, layout, rules and gates every agent and contributor follows. |
+| [`AGENTS.md`](../AGENTS.md) | Law AI's direction is to become the ultimate open home for all things legal: data, tools, resources and transparency, with queryable and auditable case law and statutes, a citation knowledge graph, cited AI, LSAT and legal study, and… |
 | [`CHANGELOG.md`](../CHANGELOG.md) | Release history: the notable changes in each version, newest first. |
+| [`SECURITY.md`](../SECURITY.md) | Supported versions and how to report a vulnerability privately. |
 | [`BACKLOG.md`](../BACKLOG.md) | Law AI's backlog of record: append-only `BL-YYYYMMDD-NN` follow-ups in Open, Claimed and Done, linted by `scripts/backlog_lint.py`. |
 
 ### `docs/`

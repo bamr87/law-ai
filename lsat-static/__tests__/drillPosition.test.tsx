@@ -98,7 +98,7 @@ describe('a drill position across a view change', () => {
     // The reported bug, end to end. Before the fix this came back as
     // "Question 1 of 3" with nothing checked and no Explanation region.
     render(<Page />)
-    go('Logical Reasoning')
+    go('LR — Logical Reasoning')
 
     answer('c') // grades question 1
     next()
@@ -108,7 +108,7 @@ describe('a drill position across a view change', () => {
 
     go('Stats')
     expect(screen.queryByRole('article')).toBeNull()
-    go('Logical Reasoning')
+    go('LR — Logical Reasoning')
 
     expect(card()).toHaveAccessibleName('Question 2 of 3')
     expect(checked()).toEqual(['A'])
@@ -121,7 +121,7 @@ describe('a drill position across a view change', () => {
     // The disagreement is the part a reader can actually see: two attempts on
     // the Stats table, and a drill insisting they had answered nothing.
     render(<Page />)
-    go('Logical Reasoning')
+    go('LR — Logical Reasoning')
     answer('c')
     next()
     answer('a')
@@ -132,7 +132,7 @@ describe('a drill position across a view change', () => {
     // correct / attempted / accuracy
     expect(cells[1]).toHaveTextContent('2')
 
-    go('Logical Reasoning')
+    go('LR — Logical Reasoning')
     // Two questions answered, and the drill knows about both of them: the one
     // it is showing, and the one it can page back to.
     expect(checked()).toEqual(['A'])
@@ -146,12 +146,12 @@ describe('a drill position across a view change', () => {
     // (timerStore.ts:1-24, BL-20260830-04) and the fix must not reach over and
     // couple the drill's restore to it.
     render(<Page />)
-    go('Logical Reasoning')
+    go('LR — Logical Reasoning')
     fireEvent.click(screen.getByRole('button', { name: 'Start' }))
     expect(getTimerSnapshot().running).toBe(true)
 
     go('Stats')
-    go('Logical Reasoning')
+    go('LR — Logical Reasoning')
     expect(getTimerSnapshot().running).toBe(true)
     expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument()
   })
@@ -162,12 +162,12 @@ describe('a drill position across a view change', () => {
     // while the reader was still on the nav button they just clicked — the
     // regression `Drill.test.tsx` pins for mounting.
     render(<Page />)
-    go('Logical Reasoning')
+    go('LR — Logical Reasoning')
     answer('c')
     next()
 
     go('Stats')
-    const navButton = screen.getByRole('button', { name: 'Logical Reasoning' })
+    const navButton = screen.getByRole('button', { name: 'LR — Logical Reasoning' })
     fireEvent.click(navButton)
     expect(card()).toHaveAccessibleName('Question 2 of 3')
     expect(document.activeElement).not.toBe(card())
@@ -177,18 +177,18 @@ describe('a drill position across a view change', () => {
     // The reset `Drill.tsx:55-62` intended, preserved: the record is keyed per
     // section, so RC reads RC's place — and a section never opened has none.
     render(<Page />)
-    go('Logical Reasoning')
+    go('LR — Logical Reasoning')
     answer('c')
     next()
     expect(card()).toHaveAccessibleName('Question 2 of 3')
 
-    go('Reading Comprehension')
+    go('RC — Reading Comprehension')
     expect(card()).toHaveAccessibleName('Question 1 of 3')
     expect(checked()).toEqual([])
     expect(screen.queryByRole('region', { name: 'Explanation' })).toBeNull()
 
     // ...and LR is still where it was left, which is the whole point.
-    go('Logical Reasoning')
+    go('LR — Logical Reasoning')
     expect(card()).toHaveAccessibleName('Question 2 of 3')
   })
 
@@ -204,12 +204,12 @@ describe('a drill position across a view change', () => {
     })
     try {
       render(<Page />)
-      go('Logical Reasoning')
+      go('LR — Logical Reasoning')
       answer('c')
       next()
       expect(card()).toHaveAccessibleName('Question 2 of 3')
       go('Stats')
-      go('Logical Reasoning')
+      go('LR — Logical Reasoning')
       // No saved position to read, so the drill starts over — but it renders.
       expect(card()).toHaveAccessibleName('Question 1 of 3')
     } finally {

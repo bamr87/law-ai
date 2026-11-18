@@ -16,7 +16,7 @@
  *     wants it — the writing editor uses Escape to leave the text field — so
  *     the last case asserts the key is left alone while the sheet is closed.
  */
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import Page from '@/app/page'
@@ -43,12 +43,12 @@ describe('section movement with [ and ]', () => {
     expect(currentSection()).toBe('Overview')
 
     press(']')
-    expect(currentSection()).toBe('Logical Reasoning')
+    expect(currentSection()).toBe('LR — Logical Reasoning')
     press(']')
-    expect(currentSection()).toBe('Reading Comprehension')
+    expect(currentSection()).toBe('RC — Reading Comprehension')
 
     press('[')
-    expect(currentSection()).toBe('Logical Reasoning')
+    expect(currentSection()).toBe('LR — Logical Reasoning')
     press('[')
     expect(currentSection()).toBe('Overview')
   })
@@ -124,5 +124,23 @@ describe('the shortcut sheet', () => {
     // Escape binding that was not conditional on the sheet being open would
     // show up here — and would take the key away from the writing editor.
     expect(escape.defaultPrevented).toBe(false)
+  })
+})
+
+describe('nav names contain the visible label (WCAG 2.5.3)', () => {
+  it('names every destination with the text on its pill', () => {
+    // A speech-input user says what they see: "click LR" must hit the LR pill.
+    render(<Page />)
+    const nav = screen.getByRole('navigation', { name: 'Sections' })
+    const buttons = within(nav).getAllByRole('button')
+    expect(buttons.length).toBeGreaterThan(0)
+    for (const b of buttons) {
+      const label = (b.textContent ?? '').trim()
+      expect(b.getAttribute('aria-label') ?? '').toContain(label)
+    }
+    expect(within(nav).getByRole('button', { name: 'LR — Logical Reasoning' })).toHaveAttribute(
+      'title',
+      'Logical Reasoning',
+    )
   })
 })
