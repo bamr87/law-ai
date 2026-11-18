@@ -28,6 +28,7 @@ from __future__ import annotations
 import logging
 
 from law_ai.core.settings_proxy import settings_proxy as settings
+from law_ai.core.version import get_version
 
 logger = logging.getLogger("law_ai.telemetry")
 
@@ -144,7 +145,7 @@ def init_tracing() -> bool:
     resource = Resource.create(
         {
             "service.name": settings.PHOENIX_PROJECT_NAME,
-            "service.version": "0.1.0",
+            "service.version": get_version(),
             "deployment.environment": settings.ENVIRONMENT,
         }
     )

@@ -69,8 +69,9 @@ test.describe('390x844 (phone)', () => {
   }) => {
     await page.goto('./')
     // The overview alone may not be tall enough to reach the hide threshold;
-    // a reading-comprehension drill is. Nav buttons carry the full section
-    // name as their aria-label (app/page.tsx `NAV`).
+    // a reading-comprehension drill is. Nav buttons' accessible names contain
+    // the full section name ("RC — Reading Comprehension", app/page.tsx
+    // `navAccessibleName`), and getByRole's string name matches a substring.
     await page.getByRole('button', { name: 'Reading Comprehension' }).click()
     // Changing view moves focus, which scrolls; let that settle and start the
     // measurement from a known position, or the direction handler's

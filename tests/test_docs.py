@@ -145,8 +145,8 @@ def test_spec_driven_loop_is_consumed_by_reference(repo_root: Path) -> None:
     )
     ci = (repo_root / ".github" / "workflows" / "ci.yml").read_text()
     # A full commit SHA counts beside the major tag: the hub's pin policy
-    # (UPS-WORK-10) takes either, and ci.yml is on a SHA until the hub's v2 tag
-    # carries spec-gate.yml (law-ai#191, bamr87/bamr87#457).
+    # (UPS-WORK-10) takes either. ci.yml sat on a SHA (#215) until the hub's v2
+    # tag carried spec-gate.yml, and is back on @v2 (#217).
     assert re.search(
         r"uses: bamr87/bamr87/\.github/workflows/spec-gate\.yml@(v\d|[0-9a-f]{40}\b)", ci
     ), (

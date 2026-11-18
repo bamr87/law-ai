@@ -42,6 +42,15 @@ RUN --mount=type=cache,target=/root/.cache/pip if [ "$INSTALL_OCRMD" = "1" ]; th
 # Copy the rest of the application code (tests, scripts, etc.)
 COPY . .
 
+# UPS-BE-11: build provenance for GET /version. Pass them at build time
+# (`--build-arg GIT_SHA=$(git rev-parse HEAD) --build-arg BUILT_AT=$(date -u +%FT%TZ)`);
+# left empty, /version reports `commit` and `built_at` as null. Declared after
+# the dependency layers so a new sha never invalidates the pip cache.
+ARG GIT_SHA=""
+ARG BUILT_AT=""
+ENV GIT_SHA=${GIT_SHA} \
+    BUILT_AT=${BUILT_AT}
+
 # Expose port
 EXPOSE 8000
 
