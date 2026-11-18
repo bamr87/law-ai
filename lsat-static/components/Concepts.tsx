@@ -8,6 +8,7 @@ import {
   questionsForConcept,
   tracks,
 } from '@/lib/data'
+import { labelInName } from '@/lib/labelInName'
 import type { SectionCode } from '@/lib/types'
 
 /**
@@ -23,7 +24,8 @@ import type { SectionCode } from '@/lib/types'
  * Parity with the platform's merged library.
  */
 
-const SECTION_FILTERS: { id: 'all' | SectionCode; label: string; full: string }[] = [
+/** Named by `labelInName()`, `LR — Logical Reasoning` (#222, WCAG 2.5.3). */
+const SECTION_FILTERS:{ id: 'all' | SectionCode; label: string; full: string }[] = [
   { id: 'all', label: 'All', full: 'All sections' },
   { id: 'LR', label: 'LR', full: 'Logical Reasoning' },
   { id: 'RC', label: 'RC', full: 'Reading Comprehension' },
@@ -131,7 +133,7 @@ export default function Concepts({
             type="button"
             className={'pill' + (section === f.id ? ' pill-active' : ' pill-muted')}
             aria-pressed={section === f.id}
-            aria-label={f.full}
+            aria-label={labelInName(f)}
             title={f.full}
             onClick={() => setSection(f.id)}
           >
@@ -175,10 +177,21 @@ export default function Concepts({
                 {/* header: the same facts an article's header carries */}
                 <div className="lib-meta">
                   <span className="pill pill-muted">Concept</span>
-                  <span>
-                    {examples.length === 1 ? '1 example' : `${examples.length} examples`}
-                  </span>
-                  <span aria-hidden="true">·</span>
+                  {/* Only when there is something below to count: the body
+                      block is guarded the same way, so header and body agree
+                      (#122). "Schema examples" are illustrations of the
+                      concept, not the bank questions counted under the
+                      summary. */}
+                  {examples.length > 0 && (
+                    <>
+                      <span>
+                        {examples.length === 1
+                          ? '1 schema example'
+                          : `${examples.length} schema examples`}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                    </>
+                  )}
                   <span>
                     {taughtIn.length === 1
                       ? 'taught in 1 article'

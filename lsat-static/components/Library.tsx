@@ -37,6 +37,7 @@ import {
 // can enumerate them (BL-20260702-10).
 import { readLibraryRead, writeLibraryRead } from '@/lib/deviceState'
 import { useShortcuts } from '@/lib/keyboard'
+import { labelInName } from '@/lib/labelInName'
 import { searchLibrary, type SearchHit } from '@/lib/search'
 import type { Article, ArticleKind, SectionCode } from '@/lib/types'
 
@@ -67,7 +68,13 @@ const KIND_ORDER: ArticleKind[] = [
   'review-method',
 ]
 
-const SECTION_FILTERS: { id: 'all' | SectionCode; label: string; full: string }[] = [
+/**
+ * `label` is what the pill shows, `full` its tooltip. The accessible name is
+ * `labelInName()` of the pair (#222, WCAG 2.5.3): `LR — Logical Reasoning`,
+ * because a speech-input user says the `LR` they see. The same rule names
+ * `VIEWS` below and the site nav.
+ */
+const SECTION_FILTERS:{ id: 'all' | SectionCode; label: string; full: string }[] = [
   { id: 'all', label: 'All', full: 'All sections' },
   { id: 'LR', label: 'LR', full: 'Logical Reasoning' },
   { id: 'RC', label: 'RC', full: 'Reading Comprehension' },
@@ -341,7 +348,7 @@ export default function Library({
             id={`lib-view-${v.id}`}
             aria-selected={view === v.id}
             aria-controls={`lib-panel-${v.id}`}
-            aria-label={v.full}
+            aria-label={labelInName(v)}
             title={v.full}
             className={'lib-view' + (view === v.id ? ' lib-view-active' : '')}
             onClick={() => {
@@ -424,7 +431,7 @@ export default function Library({
                     'pill' + (sectionFilter === f.id ? ' pill-active' : ' pill-muted')
                   }
                   aria-pressed={sectionFilter === f.id}
-                  aria-label={f.full}
+                  aria-label={labelInName(f)}
                   title={f.full}
                   onClick={() => setSectionFilter(f.id)}
                 >
