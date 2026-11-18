@@ -1,0 +1,32 @@
+# =============================================================================
+# verify/scenarios/lsat-drill.yml — a USER SCENARIO (scenario/v1)
+# =============================================================================
+# The step vocabulary is documented in verify/scenarios/smoke-home.yml.
+#
+# One Logical Reasoning question answered end to end on the static LSAT edition:
+# start the drill from the Overview, pick a choice, check it, read the
+# explanation. Which choice is right does not matter here: the first choice is
+# picked and the verdict ("Correct" or "Incorrect — the answer is X") only has
+# to be shown with its explanation. Each viewport runs in a fresh browser
+# context, so no progress saved in localStorage carries over between runs.
+# =============================================================================
+id: lsat-drill
+feature: LAWAI-005
+title: "Answer one Logical Reasoning question and read its explanation"
+description: "A prospective law student starts the Logical Reasoning drill from the Overview, chooses an answer, checks it, and sees the verdict and the full explanation, at desktop and phone widths."
+viewports: [desktop, mobile]
+steps:
+  - goto: /
+  - expect: { status: 200 }
+  - click: "button:has-text('Start LR drill')"
+  - expect: { visible: "section[aria-label='Logical Reasoning drill']" }
+  - expect: { visible: "[role=radiogroup][aria-label='Answer choices'] [role=radio]" }
+  - screenshot: question
+  - click: "[role=radiogroup][aria-label='Answer choices'] [role=radio]"
+  - expect: { visible: "[role=radiogroup][aria-label='Answer choices'] [role=radio][aria-checked=true]" }
+  - click: "button:has-text('Check answer')"
+  - expect: { visible: "[role=region][aria-label='Explanation'] .verdict" }
+  - expect: { visible: "[role=region][aria-label='Explanation'] .explain-body" }
+  - expect: { no_horizontal_scroll: true }
+  - expect: { no_console_errors: true }
+  - screenshot: explanation

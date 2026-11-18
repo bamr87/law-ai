@@ -11,33 +11,38 @@
 #                                     app to a Claude Code pass via the Playwright MCP
 #   3. .claude/skills/verify-feature — the agent skill that drives it locally
 #
-# Fill in `app:` for your stack. Examples:
-#   React/Vite   start: "npm run dev -- --host 127.0.0.1 --port 5000"  url: http://127.0.0.1:5000
-#   Next.js      start: "npm run dev"                                  url: http://127.0.0.1:3000
-#   Jekyll       start: "bundle exec jekyll serve --host 127.0.0.1"    url: http://127.0.0.1:4000
-#   Django       start: "python manage.py runserver 127.0.0.1:8000"    url: http://127.0.0.1:8000
-#   Static build build: "npm run build"  static_dir: dist              (served by python http.server)
+# WHAT RUNS HERE: the static LSAT edition (lsat-static/, LAWAI-005), the same
+# Next.js export deploy-lsat-pages.yml publishes to GitHub Pages. The platform
+# (`make dev`: Django + Channels + Celery, Next.js, Postgres, Neo4j, Redis,
+# Ollama) is multi-GB of images and minutes of start-up, too heavy for a PR job,
+# so the scenarios run against the one surface CI can build and serve on its own.
+#
+# The build sets PAGES_BASE_PATH empty so the export is served at the root of
+# app.url; Pages serves it under /law-ai/ instead (next.config.mjs).
+#
+# Locally (Docker-first, AGENTS.md), build the same export with
+#   docker run --rm -v "$PWD":/repo -w /repo/lsat-static -e PAGES_BASE_PATH= \
+#     node:20-alpine sh -c "npm install --no-audit --no-fund && npm run build"
+# then serve lsat-static/out on :4000 and run `node verify/runner.mjs` against it.
 # =============================================================================
 schema: verify/v1
 
 app:
   # Command that serves the app (run from the repo root, in the background).
-  # Leave empty and set `static_dir` to serve a built directory instead.
+  # Empty: `static_dir` is served by python http.server on app.url's port.
   start: ""
-  # Optional one-shot build before `start` / before serving `static_dir`.
-  build: ""
-  # Directory to serve statically when `start` is empty (e.g. _site, dist, build).
-  static_dir: ""
+  # One-shot build before serving `static_dir`: the static export, at the root.
+  build: "cd lsat-static && PAGES_BASE_PATH= npm run build"
+  # The export `next build` writes (output: 'export').
+  static_dir: lsat-static/out
   # Base URL the scenarios navigate against.
   url: http://127.0.0.1:4000
   # Path polled until it answers 200 before any scenario runs.
   ready: /
   # Seconds to wait for `ready`.
   timeout_s: 180
-  # Optional install step (CI runs `npm install` / `bundle install` /
-  # `pip install -r requirements.txt` automatically when the manifest exists;
-  # set this to override).
-  install: ""
+  # The repo root has no package.json; the app's manifest is lsat-static's.
+  install: "cd lsat-static && npm install --no-audit --no-fund"
 
 # Named viewports scenarios can reference by name.
 viewports:
@@ -53,6 +58,8 @@ evidence_dir: test/evidence
 # The agent pass (fleet-verify.yml with `agent: true`, or the verify-feature skill).
 agent:
   # Routes the agent should start from when exploring beyond the scenarios.
+  # The static edition is one page; its views (Overview, LR, RC, LG, Writing,
+  # Library, Stats) are switched from the header nav.
   entry_routes: ["/"]
   # Things the agent must never do against this app (it reads this list).
   never:
