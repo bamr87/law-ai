@@ -12,6 +12,7 @@ import ShortcutHelp from '@/components/ShortcutHelp'
 import { useShortcuts } from '@/lib/keyboard'
 import { useMeasuredCssVar } from '@/lib/useMeasuredCssVar'
 import { readHeaderPinned, writeHeaderPinned } from '@/lib/deviceState'
+import { labelInName } from '@/lib/labelInName'
 
 type View = 'overview' | SectionCode | 'writing' | 'library' | 'stats'
 
@@ -77,12 +78,12 @@ const DIRECTION_DELTA_PX = 6
  * user says what they see, so the name has to contain, and should start with,
  * the visible label. The bare `full` name failed it for LR, RC and LG ("click
  * LR" matched nothing). "LR — Logical Reasoning" leads with the code on the
- * pill and still spells the section out. Not "(LR)": label-in-name checkers
- * (axe among them) discard parenthesised text before comparing. Labels the full
- * name already contains ("Writing", "Library") keep the full name.
+ * pill and still spells the section out. Labels the full name already contains
+ * ("Writing", "Library") keep the full name. The rule lives in
+ * `lib/labelInName.ts` because the Library's tabs and filters follow it too.
  */
 function navAccessibleName(n: { label: string; full: string }): string {
-  return n.full.includes(n.label) ? n.full : `${n.label} — ${n.full}`
+  return labelInName(n)
 }
 
 function indexOfView(view: View): number {
@@ -257,10 +258,13 @@ export default function Page() {
         onFocus={() => setHeaderState((s) => (s === 'hidden' ? 'condensed' : s))}
       >
         <div className="wrap">
-          <div className="brand">
+          {/* The page's one <h1> (#222): every view starts at <h2>, so without
+              this a screen reader's heading list had no top. `.brand` resets
+              the heading's margin and size, so nothing moves on screen. */}
+          <h1 className="brand">
             <span aria-hidden="true">⚖️</span> LSAT Practice
             <span className="brand-sub">Law AI · static edition</span>
-          </div>
+          </h1>
           <nav
             aria-label="Sections"
             className={'nav' + (navScrollable ? ' nav-scrollable' : '')}
@@ -321,8 +325,11 @@ export default function Page() {
       {/* Deliberately NOT a <footer>: the root layout renders the UPL
           disclaimer as this page's one contentinfo landmark, and a bare
           <footer> here would make a second. Same defect the platform homepage
-          had (BL-20260830-06). */}
-      <div className="site-footer">
+          had (BL-20260830-06). But a plain <div> left the item count, the
+          shortcuts button and the source link outside every landmark, where
+          a screen reader's landmark list never reaches them (#222). A named
+          <section> is a `region` landmark of its own, and not a contentinfo. */}
+      <section className="site-footer" aria-label="About this site">
         <div className="wrap">
           <span>
             {content.counts.total} items · updated{' '}
@@ -342,7 +349,7 @@ export default function Page() {
             </a>
           </span>
         </div>
-      </div>
+      </section>
     </>
   )
 }

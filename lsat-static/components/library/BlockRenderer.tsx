@@ -142,9 +142,25 @@ function Notation({ block }: { block: NotationBlock }) {
   )
 }
 
+/** A cell's text with its markup dropped: what a screen reader would read. */
+function cellText(cell: Cell): string {
+  return cell
+    .map((span) => span.text)
+    .join('')
+    .trim()
+}
+
 function Table({ block, handlers }: { block: TableBlock; handlers?: CrossRefHandlers }) {
+  // On a phone a wide table scrolls sideways inside this wrapper
+  // (`.lib-table-wrap { overflow-x: auto }`), and most tables hold no link or
+  // button, so a keyboard user could not reach the columns off to the right
+  // (#222, WCAG 2.1.1). A tab stop fixes that: focused, the arrow keys scroll
+  // it. A focusable region needs a name; tables carry no caption in the
+  // article dialect, so the column headers name it.
+  const columns = block.headers.map(cellText).filter(Boolean).join(', ')
+  const name = columns ? `Table: ${columns}` : 'Table'
   return (
-    <div className="lib-table-wrap">
+    <div className="lib-table-wrap" role="region" aria-label={name} tabIndex={0}>
       <table className="lib-table">
         <thead>
           <tr>
