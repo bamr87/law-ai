@@ -3,7 +3,7 @@
 - **Status**: accepted
 - **Date**: 2026-08-03
 - **Spec**: _none — documentation/philosophy amendment, no code surface_
-- **Constitution clauses amended**: new [§13 Jurisprudential Honesty](../constitution.md#13-jurisprudential-honesty-power-aware-outputs); reinforces [§1 Mission Alignment](../constitution.md#1-mission-alignment), [§4 Provenance & Audit](../constitution.md#4-provenance--audit-non-negotiable), [§5 HITL](../constitution.md#5-human-in-the-loop-hitl-requirements)
+- **Constitution clauses amended**: new [§13 Jurisprudential Honesty](../constitution.md#13-jurisprudential-honesty-power-aware-outputs); reinforces [§1 Missions](../constitution.md#1-missions), [§4 Provenance & Audit](../constitution.md#4-provenance--audit-non-negotiable), [§5 HITL](../constitution.md#5-human-in-the-loop-hitl-requirements)
 
 ## Context
 
