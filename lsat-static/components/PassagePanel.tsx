@@ -11,7 +11,13 @@ export default function PassagePanel({ passage }: { passage: Passage }) {
   const comparative = Boolean(passage.passage_b)
   const label = comparative ? 'Comparative passages' : `${passage.section} context`
   return (
-    <aside className="passage" aria-label={label}>
+    // A tab stop (#222, WCAG 2.1.1): beside the questions on a wide screen
+    // this column is its own scroll region (`.drill-grid > .passage` in
+    // globals.css), and it holds nothing focusable, so a keyboard user had no
+    // way to reach the rest of a long passage. Focused, the arrow keys and
+    // Page Down scroll it; the global `:focus-visible` ring shows where focus
+    // is. The aside already carries its name.
+    <aside className="passage" aria-label={label} tabIndex={0}>
       <h3 className="passage-title">{passage.title}</h3>
       {passage.summary && <p className="passage-summary">{passage.summary}</p>}
       {passage.passage && comparative && (

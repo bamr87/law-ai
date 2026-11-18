@@ -80,7 +80,7 @@ describe('the contents rail', () => {
 
   it('narrows to one section, and to one reading track', () => {
     render(<Library />)
-    fireEvent.click(within(rail()).getByRole('button', { name: 'Logic Games' }))
+    fireEvent.click(within(rail()).getByRole('button', { name: 'LG — Logic Games' }))
     expect(railTitles().join(' ')).toContain('Conditional diagramming')
     expect(railTitles().join(' ')).not.toContain('The assumption family')
 
@@ -173,7 +173,7 @@ describe('library search', () => {
     fireEvent.change(searchBox(), { target: { value: 'summary' } })
     expect(screen.getByText('3 results')).toBeInTheDocument()
 
-    fireEvent.click(within(rail()).getByRole('button', { name: 'Logic Games' }))
+    fireEvent.click(within(rail()).getByRole('button', { name: 'LG — Logic Games' }))
     // The count is the filtered count, not the corpus-wide one.
     expect(screen.getByText('1 result')).toBeInTheDocument()
     const hits = railTitles().join(' ')
@@ -187,7 +187,7 @@ describe('library search', () => {
 
     // …and clearing the query with a chip still selected falls back to the
     // filtered rail, which already worked and must not regress.
-    fireEvent.click(within(rail()).getByRole('button', { name: 'Logic Games' }))
+    fireEvent.click(within(rail()).getByRole('button', { name: 'LG — Logic Games' }))
     fireEvent.change(searchBox(), { target: { value: '' } })
     expect(screen.queryByText(/results?$/)).toBeNull()
     expect(railTitles().join(' ')).toContain('Conditional diagramming')
@@ -201,7 +201,7 @@ describe('library search', () => {
     fireEvent.click(within(rail()).getByText('The assumption family'))
     expect(reader()).toHaveAccessibleName('The assumption family')
 
-    fireEvent.click(within(rail()).getByRole('button', { name: 'Logic Games' }))
+    fireEvent.click(within(rail()).getByRole('button', { name: 'LG — Logic Games' }))
     expect(reader()).toHaveAccessibleName('The assumption family')
   })
 
@@ -241,7 +241,9 @@ describe('the Articles / Concepts switcher', () => {
     render(<Library onAnnounce={onAnnounce} />)
     const tabs = screen.getByRole('tablist', { name: 'Library views' })
     const articlesTab = within(tabs).getByRole('tab', { name: 'Long-form articles' })
-    const conceptsTab = within(tabs).getByRole('tab', { name: 'Concept catalog' })
+    const conceptsTab = within(tabs).getByRole('tab', {
+      name: 'Concepts — Concept catalog',
+    })
     expect(articlesTab).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'lib-panel-articles')
 
@@ -265,7 +267,7 @@ describe('the Articles / Concepts switcher', () => {
     // mounted in the catalog; leaving them bound would also swallow the keys
     // from everything else on the page.
     render(<Library />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Concept catalog' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Concepts — Concept catalog' }))
     const conceptSearch = screen.getByRole('searchbox')
 
     expect(fireEvent.keyDown(window, { key: '/' })).toBe(true)
@@ -282,7 +284,7 @@ describe('the Articles / Concepts switcher', () => {
 
   it('hands the reader back to Articles when a concept names one', () => {
     render(<Library />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Concept catalog' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Concepts — Concept catalog' }))
     const card = screen.getByRole('heading', { name: 'Conditional chain' })
       .closest('li') as HTMLElement
     fireEvent.click(
@@ -290,6 +292,42 @@ describe('the Articles / Concepts switcher', () => {
     )
     expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'lib-panel-articles')
     expect(reader()).toHaveAccessibleName('Conditional diagramming')
+  })
+})
+
+describe('names contain the visible label (WCAG 2.5.3, #222)', () => {
+  /** Every control whose name must hold the text drawn on it. */
+  function labelledControls(): HTMLElement[] {
+    const tabs = within(screen.getByRole('tablist', { name: 'Library views' }))
+      .getAllByRole('tab')
+    const filters = within(screen.getByRole('group', { name: 'Filter by section' }))
+      .getAllByRole('button')
+    return [...tabs, ...filters]
+  }
+
+  it('names every view tab and section filter with the text on it', () => {
+    // A speech-input user says what they see: "click Concepts" has to reach
+    // the Concepts tab, whose name was "Concept catalog".
+    render(<Library />)
+    const controls = labelledControls()
+    expect(controls).toHaveLength(7)
+    for (const control of controls) {
+      const visible = (control.textContent ?? '').trim().toLowerCase()
+      expect(visible, 'every control shows a label').not.toBe('')
+      expect((control.getAttribute('aria-label') ?? '').toLowerCase()).toContain(visible)
+    }
+  })
+
+  it('leads with the code and keeps the long name as the tooltip', () => {
+    render(<Library />)
+    expect(screen.getByRole('tab', { name: 'Concepts — Concept catalog' }))
+      .toHaveAttribute('title', 'Concept catalog')
+    // Already containing its label, the Articles tab keeps its name.
+    expect(screen.getByRole('tab', { name: 'Long-form articles' })).toBeInTheDocument()
+    expect(within(rail()).getByRole('button', { name: 'LR — Logical Reasoning' }))
+      .toHaveAttribute('title', 'Logical Reasoning')
+    expect(within(rail()).getByRole('button', { name: 'All sections' }))
+      .toHaveTextContent('All')
   })
 })
 
@@ -327,7 +365,7 @@ describe('deep links', () => {
 
   it('follows a concept permalink', () => {
     render(<Library />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Concept catalog' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Concepts — Concept catalog' }))
     // The permalink is a plain anchor, so the browser — not this component —
     // sets the fragment. jsdom does not navigate on click, so the effect of
     // the click is what gets simulated: a new fragment, then `hashchange`,
@@ -346,7 +384,7 @@ describe('deep links', () => {
 
   it('switches back to the reader when the fragment changes to an article', () => {
     render(<Library />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Concept catalog' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Concepts — Concept catalog' }))
     expect(screen.queryByRole('article')).toBeNull()
 
     window.history.replaceState(null, '', '#article-lib-assumptions')

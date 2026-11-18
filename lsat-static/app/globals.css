@@ -140,7 +140,11 @@ a {
   padding-top: 0.9rem;
   padding-bottom: 0.9rem;
 }
+/* The brand is the page's <h1> (#222). Size and weight below already override
+ * the heading's user-agent style; the margin is the one property they leave,
+ * and 0.67em of it would push the nav row down. */
 .brand {
+  margin: 0;
   font-weight: 700;
   font-size: 1.15rem;
 }
@@ -768,6 +772,18 @@ main#view {
   display: flex;
   flex-wrap: wrap;
   gap: 0.15rem 0.9rem;
+}
+/* WCAG 2.2 2.5.8 Target Size (Minimum), AA. These are rows of separate
+ * targets, not links inside a sentence (the inline exception does not apply),
+ * and at 0.85rem with 0.15rem between rows each one was about 21px tall and
+ * crowding the next: the axe sweep in e2e/a11y.spec.ts flagged them on the
+ * Concepts view at both widths (#222). A 24px box clears the floor. */
+.concept-teaches-list a,
+.concept-teaches-list .linklike {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  min-width: 24px;
 }
 .concept-teaches-none,
 .concept-drills {
