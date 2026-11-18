@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.2](https://github.com/bamr87/law-ai/compare/v0.3.1...v0.3.2) (2026-11-17)
+
+
+### Fixed
+
+* **lsat-static:** show the question's archetype in the card header, not the section twice ([23cf192](https://github.com/bamr87/law-ai/commit/23cf192a1b4a53b22836bb5da9efb67983ba7bc5))
+* **lsat-static:** truncate a long archetype pill on narrow cards and attach visual evidence ([19b0d25](https://github.com/bamr87/law-ai/commit/19b0d2532559a0758fccffdcfb9396b94c655692)), closes [#224](https://github.com/bamr87/law-ai/issues/224)
+
 ## [0.3.1](https://github.com/bamr87/law-ai/compare/v0.3.0...v0.3.1) (2026-11-14)
 
 
