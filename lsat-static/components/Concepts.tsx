@@ -175,10 +175,21 @@ export default function Concepts({
                 {/* header: the same facts an article's header carries */}
                 <div className="lib-meta">
                   <span className="pill pill-muted">Concept</span>
-                  <span>
-                    {examples.length === 1 ? '1 example' : `${examples.length} examples`}
-                  </span>
-                  <span aria-hidden="true">·</span>
+                  {/* Only when there is something below to count: the body
+                      block is guarded the same way, so header and body agree
+                      (#122). "Schema examples" are illustrations of the
+                      concept, not the bank questions counted under the
+                      summary. */}
+                  {examples.length > 0 && (
+                    <>
+                      <span>
+                        {examples.length === 1
+                          ? '1 schema example'
+                          : `${examples.length} schema examples`}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                    </>
+                  )}
                   <span>
                     {taughtIn.length === 1
                       ? 'taught in 1 article'
