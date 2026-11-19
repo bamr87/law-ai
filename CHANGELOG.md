@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/bamr87/law-ai/compare/v0.3.3...v0.4.0) (2026-11-18)
+
+
+### Added
+
+* **lawmode:** code_legal_review graph, prompts, provenance, HITL (P2) ([525521c](https://github.com/bamr87/law-ai/commit/525521c2b834f5100a168e1fda94bc65d34e8a10))
+
+
+### Fixed
+
+* **lsat-static:** put the destination in the URL fragment ([99d6c6f](https://github.com/bamr87/law-ai/commit/99d6c6fb2e25ec4d95dc396d14daa76705ad930d))
+
 ## [0.3.3](https://github.com/bamr87/law-ai/compare/v0.3.2...v0.3.3) (2026-11-18)
 
 
