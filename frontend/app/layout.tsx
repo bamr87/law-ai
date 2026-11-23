@@ -1,3 +1,4 @@
+import AssistBridgeNext from '@/components/shell/AssistBridgeNext'
 import FeedbackButton from '@/components/shell/FeedbackButton'
 import FeedbackCapture from '@/components/shell/FeedbackCapture'
 import type { Metadata } from 'next'
@@ -43,6 +44,17 @@ export default function RootLayout({
          * the error boundary render outside the shell, and those are the two
          * screens a user most wants to report from. */}
         <FeedbackButton />
+        {/* A tool for whoever runs the app, not for its visitors: the fleet's
+         * page bridge (`public/fleet-assist.js`, vendored from the hub's
+         * assistant kit) lets a Claude Code session paired through the Harness
+         * Console on this machine see the page that is open. A production
+         * build passes `false`, which renders no tag and loads no script. No
+         * `base`: this app sets no `basePath` and serves `public/` at the
+         * root (the `/law-ai` prefix belongs to `lsat-static/`). */}
+        <AssistBridgeNext
+          enabled={process.env.NODE_ENV !== 'production'}
+          repo="bamr87/law-ai"
+        />
       </body>
     </html>
   )
