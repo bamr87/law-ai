@@ -315,8 +315,13 @@ main#view {
   flex-direction: column;
   gap: 0.75rem;
 }
+/* #270: at the 180px card floor (#123) a two-word title and its pill do not
+   fit on one row; without wrap the flex row overflowed the card and the
+   page scrolled sideways at 860px. The pill drops under the title instead,
+   and a single word wider than the card breaks rather than overflowing. */
 .card-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
@@ -324,6 +329,8 @@ main#view {
 .card-head h3 {
   margin: 0;
   font-size: 1.1rem;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 .card-desc {
   color: var(--text-muted);
